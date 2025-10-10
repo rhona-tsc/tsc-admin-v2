@@ -1,0 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*{
+    font-family: Outfit;
+}
+
+select,input,textarea{
+    border: 1px solid #c2c2c2;
+    outline-color: #C586A5;
+    border-radius: 4px;
+}
+
+.active{
+    background-color: #ff6667;
+    border-color: #C586A5;
+}
+
+/* Add this to your global CSS */
+.Toastify__toast {
+    border-radius: 8px;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    padding: 0.5rem;
+  }
+  
+  .Toastify__toast--success {
+    background-color: black;
+    color: #ff6667;
+  }
+  
+  .Toastify__toast--error {
+    background-color: black;
+    color: #991b1b;
+  }
+  
+  .Toastify__close-button {
+    display: none
+  }
+
+  .signature-canvas {
+    border: 1px solid #ccc;
+  }
+  
+  .contract-text {
+    position: relative;
+    z-index: 1;
+  }
+  
+  .contract-checkbox {
+    position: relative;
+    z-index: 2; /* this will ensure your checkbox is clickable above the contract */
+  }
