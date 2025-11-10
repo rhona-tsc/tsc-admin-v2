@@ -1037,6 +1037,12 @@ useEffect(() => {
 
       // Now this will work safely:
       if (response?.data?.success) {
+        const savedMusician = response.data.musician;
+if (savedMusician?._id) {
+  localStorage.setItem("musicianId", savedMusician._id);
+  console.log("✅ Saved musicianId:", savedMusician._id);
+}
+
         formData.deletedImages = [];
 
         // Show a different toast depending on whether updating or creating
