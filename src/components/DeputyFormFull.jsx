@@ -11,7 +11,7 @@ import axios from "axios";
 import { backendUrl } from "../App";
 import SignaturePad from "react-signature-pad-wrapper";
 
-const DeputyForm = ({ token, userRole, firstName, lastName, email, phone }) => {  const sigCanvas = useRef({});
+const DeputyForm = ({ token, userRole, firstName, lastName, email, phone }) => {  const sigRef = useRef({});
   const [step, setStep] = useState(1);
   const totalSteps = 6;
 
@@ -437,13 +437,13 @@ await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/musician/register-depu
   };
 
   const clearSignature = () => {
-    sigCanvas.current.clear();
+    sigRef.current.clear();
     setFormData({ deputy_contract_signed: "" });
   };
 
   const handleEnd = () => {
-    if (!sigCanvas.current.isEmpty()) {
-      const signatureData = sigCanvas.current
+    if (!sigRef.current.isEmpty()) {
+      const signatureData = sigRef.current
         .getTrimmedCanvas()
         .toDataURL("image/png");
       setFormData((prev) => ({
@@ -452,6 +452,8 @@ await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/musician/register-depu
       }));
     }
   };
+
+
 
   return (
     <div className="bg-white shadow p-6 rounded w-full max-w-4xl mx-auto">
@@ -494,13 +496,13 @@ await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/musician/register-depu
               <div className="mb-4 flex items-center gap-4">
                 <div className="border rounded w-96 h-40">
                   <SignaturePad
-                    ref={sigCanvas}
-                    penColor="black"
-                    canvasProps={{
-                      width: 384,
-                      height: 160,
-                      className: "signature-canvas",
-                    }}
+                     ref={sigRef}
+  options={{
+    minWidth: 1,
+    maxWidth: 3,
+    penColor: "black",
+    backgroundColor: "#fff",
+  }}
                     onEnd={handleEnd}
                   />
                 </div>

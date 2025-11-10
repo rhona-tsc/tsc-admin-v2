@@ -1,9 +1,8 @@
 import React, { useRef, useState, useEffect, useMemo } from "react";
-import ReactSignatureCanvas from "react-signature-canvas";
+import SignaturePad from "react-signature-pad-wrapper";
 import DepFiveAgreementCheckboxes from "./DepFiveAgreementCheckboxes";
 
 const DeputyStepSix = ({ formData, setFormData, userRole, stepProps, setHasDrawnSignature }) => {  
-    const sigCanvas = useRef(null);
   
 const firstName = formData.firstName || localStorage.getItem("userFirstName") || "";
 const lastName = formData.lastName || localStorage.getItem("userLastName") || "";
@@ -24,8 +23,8 @@ const email = formData.email || localStorage.getItem("userEmail") || "";
   };
 
   const handleEnd = () => {
-    if (sigCanvas.current) {
-      const dataURL = sigCanvas.current.getTrimmedCanvas().toDataURL("image/png");
+    if (sigRef.current) {
+      const dataURL = sigRef.current.getTrimmedCanvas().toDataURL("image/png");
       setFormData((prev) => ({
         ...prev,
         deputy_contract_signed: dataURL,
@@ -35,7 +34,7 @@ const email = formData.email || localStorage.getItem("userEmail") || "";
   };
   
   const clearSignature = () => {
-    sigCanvas.current.clear();
+    sigRef.current.clear();
     setFormData((prev) => ({
       ...prev,
       deputy_contract_signed: "",
@@ -47,14 +46,14 @@ const email = formData.email || localStorage.getItem("userEmail") || "";
 
   useEffect(() => {
     if (
-      sigCanvas.current &&
-      typeof sigCanvas.current.clear === "function" &&
-      typeof sigCanvas.current.fromDataURL === "function" &&
+      sigRef.current &&
+      typeof sigRef.current.clear === "function" &&
+      typeof sigRef.current.fromDataURL === "function" &&
       formData.deputy_contract_signed?.startsWith("data:image")
     ) {
       try {
-        sigCanvas.current.clear(); // Clear first
-        sigCanvas.current.fromDataURL(formData.deputy_contract_signed);
+        sigRef.current.clear(); // Clear first
+        sigRef.current.fromDataURL(formData.deputy_contract_signed);
         console.log("✅ Loaded saved signature into SignatureCanvas");
       } catch (err) {
         console.error("❌ Failed to load saved signature:", err);
@@ -84,6 +83,9 @@ const email = formData.email || localStorage.getItem("userEmail") || "";
   }, [computedReference, formData.reference, setFormData]);
 
   const contractReference = formData.reference || computedReference;
+
+  const sigRef = useRef();
+
 
   
   return (
@@ -763,14 +765,15 @@ Contact Email: hello@thesupremecollective.co.uk</p>
                 <label className="block mb-2 font-semibold">Signature</label>
                 <div className="mb-4 flex items-center gap-4">
                   <div className="border rounded w-96 h-40">
-                    <ReactSignatureCanvas
-                      ref={sigCanvas}
+                    <SignaturePad
+                      ref={sigRef}
                       penColor="black"
-                      canvasProps={{
-                        width: 384,
-                        height: 160,
-                        className: "signature-canvas",
-                      }}
+                      options={{
+                        minWidth: 1,
+    maxWidth: 3,
+    penColor: "black",
+    backgroundColor: "#fff",
+  }}
                       onEnd={handleEnd}
                     />
                   </div>
