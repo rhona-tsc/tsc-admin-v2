@@ -48,7 +48,7 @@ function resizeCanvas() {
   //signaturePad.clear();
 
   // If you want to keep the drawing on resize instead of clearing it you can reset the data.
-  signaturePad.fromData(signaturePad.toData());
+  signaturePad.redraw();
 }
 
 // On mobile devices it might make more sense to listen to orientation change,
@@ -115,7 +115,7 @@ undoButton.addEventListener("click", () => {
     // remove the last dot or line
     const removed = data.pop();
     undoData.push(removed);
-    signaturePad.fromData(data);
+    signaturePad.redraw();
   }
 });
 
@@ -123,15 +123,13 @@ redoButton.addEventListener("click", () => {
   if (undoData.length > 0) {
     const data = signaturePad.toData();
     data.push(undoData.pop());
-    signaturePad.fromData(data);
+    signaturePad.redraw();
   }
 });
 
 changeBackgroundColorButton.addEventListener("click", () => {
   signaturePad.backgroundColor = randomColor();
-  const data = signaturePad.toData();
-  signaturePad.clear();
-  signaturePad.fromData(data);
+  signaturePad.redraw();
 });
 
 changeColorButton.addEventListener("click", () => {
@@ -177,7 +175,7 @@ saveSVGWithBackgroundButton.addEventListener("click", () => {
   if (signaturePad.isEmpty()) {
     alert("Please provide a signature first.");
   } else {
-    const dataURL = signaturePad.toDataURL('image/svg+xml', { includeBackgroundColor: true });
+    const dataURL = signaturePad.toDataURL('image/svg+xml', { includeBackgroundColor: true, includeDataUrl: true });
     download(dataURL, "signature.svg");
   }
 });

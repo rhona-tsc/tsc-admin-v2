@@ -1,4 +1,4 @@
-import { BasicPoint, Point } from './point';
+import { BasicPoint, Point } from './point.js';
 export declare class Bezier {
     startPoint: Point;
     control2: BasicPoint;

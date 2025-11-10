@@ -9,7 +9,7 @@ import { toast } from "react-toastify";
 import CustomToast from "./CustomToast";
 import axios from "axios";
 import { backendUrl } from "../App";
-import SignatureCanvas from "react-signature-canvas";
+import SignaturePad from "react-signature-pad-wrapper";
 
 const DeputyForm = ({ token, userRole, firstName, lastName, email, phone }) => {  const sigCanvas = useRef({});
   const [step, setStep] = useState(1);
@@ -493,7 +493,7 @@ await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/musician/register-depu
               <label className="block mb-2 font-semibold">Signature</label>
               <div className="mb-4 flex items-center gap-4">
                 <div className="border rounded w-96 h-40">
-                  <SignatureCanvas
+                  <SignaturePad
                     ref={sigCanvas}
                     penColor="black"
                     canvasProps={{
