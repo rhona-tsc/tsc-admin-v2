@@ -140,7 +140,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
           state={{ userRole }}
         >
           <img className="w-5 h-5" src={assets.add_icon} alt="" />
-          <p className="hidden md:block">Add Act</p>
+          <p className="hidden md:block text-white">Add Act</p>
         </NavLink>
 
         <NavLink
@@ -149,7 +149,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
           state={{ userRole }}
         >
           <img className="w-5 h-5" src={assets.your_acts_icon} alt="" />
-          <p className="hidden md:block">Your Acts</p>
+          <p className="hidden md:block  text-white">Your Acts</p>
         </NavLink>
 
         <NavLink
@@ -158,7 +158,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
           state={{ userRole }}
         >
           <img className="w-5 h-5" src={assets.order_icon} alt="" />
-          <p className="hidden md:block">Bookings</p>
+          <p className="hidden md:block  text-white">Bookings</p>
         </NavLink>
 
         <NavLink
@@ -167,7 +167,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
           state={{ userRole }}
         >
           <img className="w-5 h-5" src={assets.enquiry_board_icon} alt="Enquiry Board" />
-          <p className="hidden md:block">Enquiry Board</p>
+          <p className="hidden md:block text-white">Enquiry Board</p>
         </NavLink>
 
                 <NavLink
@@ -176,7 +176,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
           state={{ userRole }}
         >
           <img className="w-5 h-5" src={assets.booking_board} alt="Booking Board" />
-          <p className="hidden md:block">Booking Board</p>
+          <p className="hidden md:block text-white">Booking Board</p>
         </NavLink>
 
         <NavLink
@@ -185,7 +185,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
           state={{ userRole }}
         >
           <img className="w-5 h-5" src={assets.security_icon} alt="" />
-          <p className="hidden md:block">Security</p>
+          <p className="hidden md:block text-white">Security</p>
         </NavLink>
 
         {normalize(userRole) === "agent" && (
@@ -197,10 +197,10 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
             >
               <div className="flex items-center gap-3">
                 <img className="w-5 h-5" src={assets.agent_icon} alt="" />
-                <p className="hidden md:block">Moderate Acts</p>
+                <p className="hidden md:block text-white">Moderate Acts</p>
               </div>
               {pendingActCount > 0 && (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff6667] text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff6667] text-white text-xs font-semibold px-2 py-0.5 rounded-full border border-white">
                   {pendingActCount}
                 </span>
               )}
@@ -213,10 +213,10 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
             >
               <div className="flex items-center gap-3">
                 <img className="w-5 h-5" src={assets.deputy_icon} alt="" />
-                <p className="hidden md:block">Moderate Deputies</p>
+                <p className="hidden md:block text-white">Moderate Deputies</p>
               </div>
               {pendingDeputyCount > 0 && (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff6667] text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff6667] text-white text-xs font-semibold px-2 py-0.5 rounded-full border border-white">
                   {pendingDeputyCount}
                 </span>
               )}
@@ -229,10 +229,10 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
             >
               <div className="flex items-center gap-3">
                 <img className="w-5 h-5" src={assets.your_acts_icon} alt="" />
-                <p className="hidden md:block">Moderate Songs</p>
+                <p className="hidden md:block text-white">Moderate Songs</p>
               </div>
               {pendingSongCount > 0 && (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff6667] text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff6667] text-white text-xs font-semibold px-2 py-0.5 rounded-full border border-white">
                   {pendingSongCount}
                 </span>
               )}
@@ -244,7 +244,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
               state={{ userRole }}
             >
               <img className="w-5 h-5" src={assets.payment_icon} alt="" />
-              <p className="hidden md:block">Payment Tracker</p>
+              <p className="hidden md:block text-white">Payment Tracker</p>
             </NavLink>
 
             <NavLink
@@ -253,7 +253,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
               state={{ userRole }}
             >
               <img className="w-5 h-5" src={assets.bin_icon} alt="" />
-              <p className="hidden md:block">Trash</p>
+              <p className="hidden md:block text-white">Trash</p>
             </NavLink>
           </>
         )}
