@@ -82,17 +82,20 @@ const StepSeven = ({
                     setReviews(updated);
                   }}
                 />
-                <input
-                  type="date"
-                  placeholder="Event Date"
-                  className="w-1/2 border px-3 py-2 text-sm"
-                  value={review.eventDate || ""}
-                  onChange={(e) => {
-                    const updated = [...reviews];
-                    updated[index].eventDate = e.target.value;
-                    setReviews(updated);
-                  }}
-                />
+               <input
+  type="date"
+  className="w-1/2 border px-3 py-2 text-sm"
+  value={
+    review.eventDate
+      ? new Date(review.eventDate).toISOString().split("T")[0] 
+      : ""
+  }
+  onChange={(e) => {
+    const updated = [...reviews];
+    updated[index].eventDate = e.target.value; // stores correctly as YYYY-MM-DD
+    setReviews(updated);
+  }}
+/>
               </div>
               <div className="flex gap-2">
               <div className="w-1/2">

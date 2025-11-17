@@ -126,7 +126,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
 
         {/* Deputy CTA */}
         <NavLink
-          className="flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+          className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
           to={deputyCtaPath}
           state={{ userRole, userFirstName }}
         >
@@ -135,7 +135,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
         </NavLink>
 
         <NavLink
-          className="flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+          className="flex items-center gap-3  bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
           to="/add-act-2"
           state={{ userRole }}
         >
@@ -144,7 +144,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
         </NavLink>
 
         <NavLink
-          className="flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+          className="flex items-center gap-3  bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
           to="/list"
           state={{ userRole }}
         >
@@ -153,7 +153,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
         </NavLink>
 
         <NavLink
-          className="flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+          className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
           to="/bookings"
           state={{ userRole }}
         >
@@ -162,16 +162,16 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
         </NavLink>
 
         <NavLink
-          className="flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+          className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
           to="/enquiry-board"
           state={{ userRole }}
         >
-          <img className="w-5 h-5" src={assets.enquiry_board} alt="Enquiry Board" />
+          <img className="w-5 h-5" src={assets.enquiry_board_icon} alt="Enquiry Board" />
           <p className="hidden md:block">Enquiry Board</p>
         </NavLink>
 
                 <NavLink
-          className="flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+          className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
           to="/booking-board"
           state={{ userRole }}
         >
@@ -180,7 +180,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
         </NavLink>
 
         <NavLink
-          className="flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+          className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
           to="/security"
           state={{ userRole }}
         >
@@ -191,7 +191,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
         {normalize(userRole) === "agent" && (
           <>
             <NavLink
-              className="flex items-center justify-between border border-gray-300 border-r-0 px-3 py-2 rounded-l relative"
+              className="flex items-center justify-between bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l relative"
               to="/moderate"
               state={{ userRole }}
             >
@@ -207,7 +207,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
             </NavLink>
 
             <NavLink
-              className="flex items-center justify-between border border-gray-300 border-r-0 px-3 py-2 rounded-l relative"
+              className="flex items-center justify-between bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l relative"
               to="/moderate-deputies"
               state={{ userRole }}
             >
@@ -223,7 +223,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
             </NavLink>
 
             <NavLink
-              className="flex items-center justify-between border border-gray-300 border-r-0 px-3 py-2 rounded-l relative"
+              className="flex items-center justify-between bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l relative"
               to="/moderate-songs"
               state={{ userRole }}
             >
@@ -239,7 +239,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
             </NavLink>
 
             <NavLink
-              className="flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+              className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
               to="/payment-tracker"
               state={{ userRole }}
             >
@@ -248,7 +248,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
             </NavLink>
 
             <NavLink
-              className="flex items-center gap-3 border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+              className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
               to="/trash"
               state={{ userRole }}
             >
