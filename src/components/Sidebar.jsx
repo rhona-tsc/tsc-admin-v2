@@ -196,7 +196,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
               state={{ userRole }}
             >
               <div className="flex items-center gap-3">
-                <img className="w-5 h-5" src={assets.agent_icon} alt="" />
+                <img className="w-5 h-5" src={assets.moderate_icon} alt="" />
                 <p className="hidden md:block text-white">Moderate Acts</p>
               </div>
               {pendingActCount > 0 && (
@@ -228,7 +228,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
               state={{ userRole }}
             >
               <div className="flex items-center gap-3">
-                <img className="w-5 h-5" src={assets.your_acts_icon} alt="" />
+                <img className="w-5 h-5" src={assets.moderate_icon} alt="" />
                 <p className="hidden md:block text-white">Moderate Songs</p>
               </div>
               {pendingSongCount > 0 && (

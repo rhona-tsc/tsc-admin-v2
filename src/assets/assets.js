@@ -60,6 +60,7 @@ import security_icon from "./security_icon.png";
 import booking_board from "./booking_board.png";
 import enquiry_board_icon from "./enquiry_board_icon.png";  
 import cover_placeholder from "./cover_placeholder.png";
+import moderate_icon from "./moderate_icon.png";
 
 export const assets = {
   logo,
@@ -123,7 +124,8 @@ enquiry_board_icon,
   Deputy_Vocalist_Available,
   security_icon,
   booking_board,
-  cover_placeholder
+  cover_placeholder,
+  moderate_icon
 };
 
 
