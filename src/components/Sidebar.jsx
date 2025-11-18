@@ -131,7 +131,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
           state={{ userRole, userFirstName }}
         >
           <img className="w-5 h-5" src={assets.deputy_icon} alt="" />
-          <p className="hidden md:block">{deputyCtaLabel}</p>
+          <p className="hidden md:block text-white">{deputyCtaLabel}</p>
         </NavLink>
 
         <NavLink
