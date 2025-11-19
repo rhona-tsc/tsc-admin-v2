@@ -67,7 +67,7 @@ const onSubmitHandler = async (event) => {
 
     // lift + persist …
     // (unchanged)
-navigate("/musician-dashboard");
+navigate("/musicians-dashboard");
   } catch (err) {
     // Prefer backend message if present
     const status = err?.response?.status;
