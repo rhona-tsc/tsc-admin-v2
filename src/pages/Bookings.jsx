@@ -18,7 +18,7 @@ const BookingList = ({ token }) => {
         toast(<CustomToast type="error" message={res.data.message} />);
       }
     } catch (error) {
-      toast(<CustomToast type="error" message="Failed to load bookings" />);
+      toast(<CustomToast type="error" message="No bookings to load yet" />);
       console.error(error);
     }
   };

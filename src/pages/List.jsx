@@ -50,7 +50,7 @@ const fetchList = async () => {
     setLoading(true);
 
     const baseParams = {
-      status: "approved,pending,draft,Approved, changes pending",
+status: "approved,pending,draft,approved_changes_pending",
       // API-allowed projection
       fields: "_id,name,tscName,images,coverImage,createdAt,updatedAt,status,amendment",
       sort: "-createdAt",
@@ -103,7 +103,7 @@ const fetchList = async () => {
     }
   } catch (error) {
     console.error("❌ Failed to fetch act list:", error);
-    toast(<CustomToast type="error" message="Error loading acts. Please try again." />);
+    toast(<CustomToast type="error" message="No acts to load" />);
   } finally {
     setLoading(false);
   }

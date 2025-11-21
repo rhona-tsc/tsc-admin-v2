@@ -140,7 +140,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
           state={{ userRole }}
         >
           <img className="w-5 h-5" src={assets.add_icon} alt="" />
-          <p className="hidden md:block text-white">Add Act</p>
+          <p className="hidden md:block text-white">Submit Act</p>
         </NavLink>
 
         <NavLink
@@ -170,14 +170,7 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
           <p className="hidden md:block text-white">Enquiry Board</p>
         </NavLink>
 
-                <NavLink
-          className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
-          to="/booking-board"
-          state={{ userRole }}
-        >
-          <img className="w-5 h-5" src={assets.booking_board} alt="Booking Board" />
-          <p className="hidden md:block text-white">Booking Board</p>
-        </NavLink>
+              
 
         <NavLink
           className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
@@ -190,6 +183,16 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
 
         {normalize(userRole) === "agent" && (
           <>
+
+            <NavLink
+          className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+          to="/booking-board"
+          state={{ userRole }}
+        >
+          <img className="w-5 h-5" src={assets.booking_board} alt="Booking Board" />
+          <p className="hidden md:block text-white">Booking Board</p>
+        </NavLink>
+
             <NavLink
               className="flex items-center justify-between bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l relative"
               to="/moderate"

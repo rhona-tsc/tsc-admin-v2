@@ -65,6 +65,11 @@ const onSubmitHandler = async (event) => {
       userId,
     } = response.data;
 
+    // 🔥 ADD THESE TWO LINES RIGHT HERE:
+localStorage.removeItem("myDeputyStatus");
+localStorage.removeItem("deputyStatus");
+
+
     // Persist token
 localStorage.setItem("token", token);
 setToken(token);
