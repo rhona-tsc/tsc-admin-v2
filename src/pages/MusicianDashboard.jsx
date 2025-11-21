@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import BookingsChart from "../components/BookingsChart";
+import RevenueChart from "../components/RevenueChart";
+import EnquiryVsBookingChart from "../components/EnquiriesVsBookingsChart";
 
 const backendUrl =  import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
 
