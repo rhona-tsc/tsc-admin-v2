@@ -65,6 +65,10 @@ const onSubmitHandler = async (event) => {
       userId,
     } = response.data;
 
+    // Persist token
+localStorage.setItem("token", token);
+setToken(token);
+
     // lift + persist …
     // (unchanged)
 navigate("/musicians-dashboard");
