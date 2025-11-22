@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import BookingsChart from "../components/BookingsChart";
 import RevenueChart from "../components/RevenueChart";
 import EnquiryVsBookingChart from "../components/EnquiriesVsBookingsChart";
+import EnquiriesVsBookingsChart from "../components/EnquiriesVsBookingsChart";
 
 const backendUrl =  import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
 
@@ -18,6 +19,29 @@ const MusicianDashboard = ({ token, userId }) => {
     bookings: [],
     cash: [],
   });
+const storedUserId =
+  sessionStorage.getItem("userId") || localStorage.getItem("userId");
+
+// ----------------- FIX 1: Abort if no userId -----------------
+if (!storedUserId) {
+  console.error("❌ No stored userId!");
+}
+
+// ----------------- FIX 2: Helper headers -----------------
+const authHeaders = { headers: { token } };
+
+// ----------------- Fetch stats -----------------
+const fetchStats = async () => {
+  try {
+    const res = await axios.get(
+      `${backendUrl}/api/musician/stats/${storedUserId}`,
+      authHeaders
+    );
+    setStats(res.data || {});
+  } catch (err) {
+    console.error("Error fetching stats", err);
+  }
+};
 
   // Fetch user’s acts (created by them)
   const fetchMyActs = async () => {
@@ -45,18 +69,7 @@ const MusicianDashboard = ({ token, userId }) => {
     }
   };
 
-  // Fetch statistics
-  const fetchStats = async () => {
-    try {
-      const res = await axios.get(
-        `${backendUrl}/api/musician/stats/${userId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setStats(res.data || {});
-    } catch (err) {
-      console.error("Error fetching stats", err);
-    }
-  };
+
 
   useEffect(() => {
     fetchMyActs();
@@ -74,6 +87,13 @@ const MusicianDashboard = ({ token, userId }) => {
 
   return (
     <div className="p-6 space-y-8">
+
+          {/* 🚧 UNDER CONSTRUCTION BANNER */}
+    <div className="w-full p-6 bg-yellow-100 border-l-4 border-yellow-500 rounded text-yellow-800 mb-6">
+      <h2 className="text-xl font-semibold">🚧 Dashboard Under Construction</h2>
+      <p className="mt-1">We're still building this dashboard — some features may not be fully functional yet.</p>
+    </div>
+
 
       {/* ------- Welcome Section ------- */}
       <h2 className="text-2xl font-semibold text-gray-700">
@@ -144,9 +164,9 @@ const MusicianDashboard = ({ token, userId }) => {
 
         <div className="h-64 flex items-center justify-center text-gray-400">
   <>
-      <BookingsChart data={stats.bookingsByMonth} />
-      <RevenueChart data={stats.bookingsByMonth} />
-      <EnquiryVsBookingChart data={stats.bookingsByMonth} />
+     <BookingsChart data={stats?.bookingsByMonth || {}} />
+<RevenueChart data={stats?.revenueByMonth || {}} />
+<EnquiriesVsBookingsChart data={stats?.enquiriesByMonth || {}} />
        </>
               </div>
       </div>

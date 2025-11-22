@@ -1,11 +1,13 @@
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer
-} from "recharts";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
 
 const BookingsChart = ({ data }) => {
-  const formatted = Object.keys(data).map(key => ({
-    month: key,
-    bookings: data[key].bookings
+  if (!data || typeof data !== "object") {
+    return <div className="text-gray-500 text-sm">No booking data available</div>;
+  }
+
+  const formatted = Object.keys(data).map(month => ({
+    month,
+    bookings: data[month] || 0,
   }));
 
   return (
@@ -14,6 +16,7 @@ const BookingsChart = ({ data }) => {
         <XAxis dataKey="month" />
         <YAxis />
         <Tooltip />
+        <Legend />
         <Bar dataKey="bookings" fill="#ff6667" />
       </BarChart>
     </ResponsiveContainer>

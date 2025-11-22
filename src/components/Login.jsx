@@ -69,6 +69,9 @@ const onSubmitHandler = async (event) => {
 localStorage.removeItem("myDeputyStatus");
 localStorage.removeItem("deputyStatus");
 
+// 🔥 Store userId (THIS IS THE FIX)
+localStorage.setItem("userId", userId);
+sessionStorage.setItem("userId", userId);
 
     // Persist token
 localStorage.setItem("token", token);

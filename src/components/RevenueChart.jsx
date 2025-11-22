@@ -1,19 +1,24 @@
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
 
 const RevenueChart = ({ data }) => {
-  const formatted = Object.keys(data).map(key => ({
-    month: key,
-    revenue: data[key].revenue
+  if (!data || typeof data !== "object") {
+    return <div className="text-gray-500 text-sm">No revenue data available</div>;
+  }
+
+  const formatted = Object.keys(data).map(month => ({
+    month,
+    revenue: data[month] || 0,
   }));
 
   return (
-    <ResponsiveContainer width="100%" height={280}>
-      <AreaChart data={formatted}>
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart data={formatted}>
         <XAxis dataKey="month" />
         <YAxis />
         <Tooltip />
-        <Area type="monotone" dataKey="revenue" stroke="#000" fill="#ff6667" />
-      </AreaChart>
+        <Legend />
+        <Bar dataKey="revenue" fill="#8884d8" />
+      </BarChart>
     </ResponsiveContainer>
   );
 };

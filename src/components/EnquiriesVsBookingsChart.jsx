@@ -1,10 +1,14 @@
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts";
 
-const EnquiryVsBookingChart = ({ data }) => {
-  const formatted = Object.keys(data).map(key => ({
-    month: key,
-    enquiries: data[key].enquiries,
-    bookings: data[key].bookings
+const EnquiriesVsBookingsChart = ({ data }) => {
+  if (!data || typeof data !== "object") {
+    return <div className="text-gray-500 text-sm">No enquiry data available</div>;
+  }
+
+  const formatted = Object.keys(data).map(month => ({
+    month,
+    enquiries: data[month]?.enquiries || 0,
+    bookings:   data[month]?.bookings  || 0,
   }));
 
   return (
@@ -21,4 +25,4 @@ const EnquiryVsBookingChart = ({ data }) => {
   );
 };
 
-export default EnquiryVsBookingChart;
+export default EnquiriesVsBookingsChart;
