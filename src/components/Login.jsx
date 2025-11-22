@@ -33,10 +33,10 @@ const onSubmitHandler = async (event) => {
   }
 
   try {
-    const endpoint =
-      currentState === "Sign Up"
-        ? `${backendUrl}/api/musician-login/register`
-        : `${backendUrl}/api/musician-login/login`;
+const endpoint =
+  currentState === "Sign Up"
+    ? `${backendUrl}/api/musician/auth/register`
+    : `${backendUrl}/api/musician/auth/login`;
 
     console.log("🔄 Submitting login/register form");
     console.log("➡️ Endpoint:", endpoint);

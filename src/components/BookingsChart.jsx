@@ -4,11 +4,13 @@ const BookingsChart = ({ data }) => {
   if (!data || typeof data !== "object") {
     return <div className="text-gray-500 text-sm">No booking data available</div>;
   }
+  const cleaned = stats?.bookings || {};
 
-  const formatted = Object.keys(data).map(month => ({
+  const formatted = Object.keys(cleaned).map(month => ({
     month,
     bookings: data[month] || 0,
   }));
+
 
   return (
     <ResponsiveContainer width="100%" height={300}>
