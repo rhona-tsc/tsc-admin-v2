@@ -53,3 +53,22 @@ select,input,textarea{
     position: relative;
     z-index: 2; /* this will ensure your checkbox is clickable above the contract */
   }
+
+.eq-bar {
+  width: 6px;
+  background: #ff6667;
+  border-radius: 4px;
+  animation: equalize 1.2s infinite ease-in-out;
+}
+
+.bar1 { height: 10px; animation-delay: 0s; }
+.bar2 { height: 20px; animation-delay: 0.1s; }
+.bar3 { height: 14px; animation-delay: 0.2s; }
+.bar4 { height: 26px; animation-delay: 0.3s; }
+.bar5 { height: 18px; animation-delay: 0.4s; }
+
+@keyframes equalize {
+  0% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+  100% { transform: scaleY(0.4); }
+}

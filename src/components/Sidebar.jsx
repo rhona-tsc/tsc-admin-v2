@@ -3,10 +3,14 @@ import { NavLink, useLocation } from "react-router-dom";
 import axios from "axios";
 import { assets } from "../assets/assets";
 import { backendUrl } from "../App";
+import GatekeeperModal from "./GatekeeperModal";
+import { useNavigate } from "react-router-dom";
 
 const normalize = (s) => (s || "").toLowerCase().trim();
 
 const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
+  const navigate = useNavigate();
+const [showGatekeeper, setShowGatekeeper] = useState(false);
   console.log("Sidebar received userRole:", userRole);
   console.log("🧩 Sidebar props:", { userId, userRole });
 
@@ -20,29 +24,47 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
     () => (localStorage.getItem("myDeputyStatus") || localStorage.getItem("deputyStatus") || null),
     []
   );
-
+const [feedbackCount, setFeedbackCount] = useState(0);
+const [noticeCount, setNoticeCount] = useState(0);
   const [myDeputyStatus, setMyDeputyStatus] = useState(seedStatus);
   const [pendingDeputyCount, setPendingDeputyCount] = useState(0);
   const [pendingSongCount, setPendingSongCount] = useState(0);
   const [pendingActCount, setPendingActCount] = useState(0);
+const [actPreSubmissions, setActPreSubmissions] = useState(0);
+
+
+useEffect(() => {
+  if (normalize(userRole) !== "agent") return;
+  
+  const fetchActPreSubmissions = async () => {
+    try {
+      const res = await axios.get(`${backendUrl}/api/act-pre-submissions/count`);
+      setActPreSubmissions(res.data.count || 0);
+    } catch (err) {
+      console.error("Failed to fetch count:", err);
+    }
+  };
+
+  fetchActPreSubmissions();
+}, [userRole]);
 
   // helper to compute CTA label + target path
   const getDeputyCTA = (status) => {
     const st = normalize(status);
     if (st === "approved") {
       return {
-        label: "Update My Deputy Profile",
+        label: "Update My Profile",
         path: `/edit-deputy/${userId}`,
       };
     }
     if (st === "pending" || st === "approved, changes pending") {
       return {
-        label: "Update My Deputy Profile Submission",
-        path: "/register-as-deputy",
+        label: "Update My Profile Submission",
+  path: `/edit-deputy/${userId}`,
       };
     }
     return {
-      label: "Become a Deputy",
+      label: "Join The Books",
       path: "/register-as-deputy",
     };
   };
@@ -118,11 +140,38 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
     if (normalize(userRole) === "agent") fetchPendingSongs();
   }, [userRole]);
 
+  useEffect(() => {
+  const fetchCounts = async () => {
+    try {
+      const fb = await axios.get(`${backendUrl}/api/feedback/unread-count`);
+      const nb = await axios.get(`${backendUrl}/api/noticeboard/new-count`);
+
+      setFeedbackCount(fb.data.count || 0);
+      setNoticeCount(nb.data.count || 0);
+    } catch (err) {
+      console.error("Failed to fetch badge counts:", err);
+    }
+  };
+
+  if (normalize(userRole) === "agent") fetchCounts();
+}, [userRole]);
+
+const handleSubmitActClick = (e) => {
+  e.preventDefault();
+
+  if (normalize(userRole) === "agent") {
+    navigate("/add-act-2", { state: { userRole } });
+    return;
+  }
+
+  setShowGatekeeper(true);
+};
+
   const { label: deputyCtaLabel, path: deputyCtaPath } = getDeputyCTA(myDeputyStatus);
 
   return (
     <div className="w-[18%] min-h-screen border-r-2">
-      <div className="flex flex-col gap-4 pt-6 pl-[20%] text-[15px]">
+      <div className="flex flex-col gap-4 pt-6 pl-[20%] text-[15px] rounded-md">
 
         {/* Deputy CTA */}
         <NavLink
@@ -133,15 +182,13 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
           <img className="w-5 h-5" src={assets.deputy_icon} alt="" />
           <p className="hidden md:block text-white">{deputyCtaLabel}</p>
         </NavLink>
-
-        <NavLink
-          className="flex items-center gap-3  bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
-          to="/add-act-2"
-          state={{ userRole }}
-        >
-          <img className="w-5 h-5" src={assets.add_icon} alt="" />
-          <p className="hidden md:block text-white">Submit Act</p>
-        </NavLink>
+<button
+  onClick={handleSubmitActClick}
+  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l text-left"
+>
+  <img className="w-5 h-5" src={assets.add_icon} alt="" />
+  <p className="hidden md:block text-white">Submit Act</p>
+</button>
 
         <NavLink
           className="flex items-center gap-3  bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
@@ -180,6 +227,15 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
           <img className="w-5 h-5" src={assets.security_icon} alt="" />
           <p className="hidden md:block text-white">Security</p>
         </NavLink>
+
+         <NavLink
+              className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+              to="/payment-tracker"
+              state={{ userRole }}
+            >
+              <img className="w-5 h-5" src={assets.payment_icon} alt="" />
+              <p className="hidden md:block text-white">Payment Tracker</p>
+            </NavLink>
 
         {normalize(userRole) === "agent" && (
           <>
@@ -243,12 +299,56 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
 
             <NavLink
               className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
-              to="/payment-tracker"
+              to="/noticeboard"
               state={{ userRole }}
             >
-              <img className="w-5 h-5" src={assets.payment_icon} alt="" />
-              <p className="hidden md:block text-white">Payment Tracker</p>
+                            <div className="flex items-center gap-3">
+
+              <img className="w-5 h-5" src={assets.noticeboard_icon} alt="Noticeboard" />
+              <p className="hidden md:block text-white">Noticeboard</p>
+                </div>
+                  {pendingSongCount > 0 && (
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff6667] text-white text-xs font-semibold px-2 py-0.5 rounded-full border border-white">
+                 {noticeCount > 0 && <span className="badge">{noticeCount}</span>}  ``
+                </span>
+              )}
             </NavLink>
+
+            <NavLink
+              className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+              to="/feedback"
+              state={{ userRole }}
+            >
+              <div>
+              <img className="w-5 h-5" src={assets.feedback_icon} alt="Feedback" />
+              <p className="hidden md:block text-white">Feedback</p>
+              </div>
+               {pendingSongCount > 0 && (
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff6667] text-white text-xs font-semibold px-2 py-0.5 rounded-full border border-white">
+                 {feedbackCount > 0 && <span className="badge">{feedbackCount}</span>}
+                </span>
+               )}
+            </NavLink>
+
+          
+     
+
+            <NavLink
+  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+  to="/act-pre-submissions"
+  state={{ userRole }}
+>
+  <div className="flex items-center gap-3">
+    <img className="w-5 h-5" src={assets.actPreSubmissions_icon} alt="Act Pre-Submissions" />
+    <p className="hidden md:block text-white">Act Pre-Submissions</p>
+  </div>
+
+  {actPreSubmissions > 0 && (
+    <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff6667] text-white text-xs font-semibold px-2 py-0.5 rounded-full border border-white">
+      {actPreSubmissions}
+    </span>
+  )}
+</NavLink>
 
             <NavLink
               className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
@@ -261,6 +361,13 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
           </>
         )}
       </div>
+      <GatekeeperModal
+  isOpen={showGatekeeper}
+  onClose={() => setShowGatekeeper(false)}
+  userFirstName={userFirstName}
+  userEmail={userEmail}
+  userId={userId}
+/>
     </div>
   );
 };

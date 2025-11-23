@@ -25,6 +25,7 @@ import TrashedActs from "./components/TrashedActs";
 import Security from "./pages/Security";
 import BookingBoard from "./pages/BookingBoard";
 import EnquiryBoard from "./pages/EnquiryBoard";
+import ActPreSubmissionsPage from "./pages/ActPreSubmissionsPage";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -76,7 +77,6 @@ const App = () => {
   const [password, setPassword] = useState(initialUser.password || "");
   const [hydrated, setHydrated] = useState(true); // true because we already set from token synchronously
 
-  
   const handleLogout = () => {
     setToken("");
     localStorage.clear();
@@ -148,7 +148,8 @@ const App = () => {
                     element={
                       <Navigate
                         to={
-                          (userRole === "agent" || email === "hello@thesupremecollective.co.uk")
+                          userRole === "agent" ||
+                          email === "hello@thesupremecollective.co.uk"
                             ? "/moderate"
                             : "/musicians-dashboard"
                         }
@@ -170,6 +171,10 @@ const App = () => {
                     }
                   />
                   <Route
+                    path="/act-pre-submissions"
+                    element={<ActPreSubmissionsPage userRole={userRole} />}
+                  />
+                  <Route
                     path="/add-act-2"
                     element={
                       <AddAct2
@@ -183,17 +188,17 @@ const App = () => {
                       />
                     }
                   />
-                 <Route
-  path="/edit-act-2/:id"
-  element={
-    <EditAct2StepperForm
-      token={token}
-      userRole={userRole}
-      isModeration={true}
-    />
-  }
-/>
-                    
+                  <Route
+                    path="/edit-act-2/:id"
+                    element={
+                      <EditAct2StepperForm
+                        token={token}
+                        userRole={userRole}
+                        isModeration={true}
+                      />
+                    }
+                  />
+
                   <Route
                     path="/security"
                     element={
@@ -251,7 +256,10 @@ const App = () => {
 
                   {(userRole === "agent" ||
                     email === "hello@thesupremecollective.co.uk") && (
-                    <Route path="/moderate" element={<Moderate token={token} />} />
+                    <Route
+                      path="/moderate"
+                      element={<Moderate token={token} />}
+                    />
                   )}
                   {(userRole === "agent" ||
                     email === "hello@thesupremecollective.co.uk") && (
@@ -269,15 +277,15 @@ const App = () => {
                   )}
 
                   <Route
-  path="/moderate/edit/:id"
-  element={
-    <EditAct2StepperForm
-      token={token}
-      userRole={userRole}
-      isModeration={true}
-    />
-  }
-/>
+                    path="/moderate/edit/:id"
+                    element={
+                      <EditAct2StepperForm
+                        token={token}
+                        userRole={userRole}
+                        isModeration={true}
+                      />
+                    }
+                  />
 
                   {(userRole === "agent" ||
                     email === "hello@thesupremecollective.co.uk") && (
@@ -286,14 +294,14 @@ const App = () => {
                       element={<PendingSongsModeration token={token} />}
                     />
                   )}
-                   {(userRole === "agent" ||
+                  {(userRole === "agent" ||
                     email === "hello@thesupremecollective.co.uk") && (
                     <Route
                       path="/enquiry-board"
                       element={<EnquiryBoard token={token} />}
                     />
                   )}
-                   {(userRole === "agent" ||
+                  {(userRole === "agent" ||
                     email === "hello@thesupremecollective.co.uk") && (
                     <Route
                       path="/booking-board"
@@ -301,7 +309,10 @@ const App = () => {
                     />
                   )}
 
-                  <Route path="/trash" element={<TrashedActs token={token} />} />
+                  <Route
+                    path="/trash"
+                    element={<TrashedActs token={token} />}
+                  />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </div>

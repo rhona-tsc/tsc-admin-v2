@@ -5,6 +5,7 @@ import BookingsChart from "../components/BookingsChart";
 import RevenueChart from "../components/RevenueChart";
 import EnquiryVsBookingChart from "../components/EnquiriesVsBookingsChart";
 import EnquiriesVsBookingsChart from "../components/EnquiriesVsBookingsChart";
+import DashboardUnderConstruction from "../components/DashboardUnderConstruction";
 
 const backendUrl =  import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
 
@@ -89,10 +90,9 @@ const fetchStats = async () => {
     <div className="p-6 space-y-8">
 
           {/* 🚧 UNDER CONSTRUCTION BANNER */}
-    <div className="w-full p-6 bg-yellow-100 border-l-4 border-yellow-500 rounded text-yellow-800 mb-6">
-      <h2 className="text-xl font-semibold">🚧 Dashboard Under Construction</h2>
-      <p className="mt-1">We're still building this dashboard — some features may not be fully functional yet.</p>
-    </div>
+   <>
+   <DashboardUnderConstruction />
+   </>
 
 
       {/* ------- Welcome Section ------- */}
@@ -169,6 +169,31 @@ const fetchStats = async () => {
 <EnquiriesVsBookingsChart data={stats?.enquiriesByMonth || {}} />
        </>
               </div>
+      </div>
+
+      {/* ------- Noticeboard ------- */}
+      <div className="bg-white shadow rounded p-4">
+        <h3 className="text-lg font-semibold mb-4">Noticeboard</h3>
+        <p className="text-gray-600">
+          Important updates, opportunities, and announcements will appear here.
+        </p>
+      </div>
+
+      {/* ------- Feedback Section ------- */}
+      <div className="bg-white shadow rounded p-4">
+        <h3 className="text-lg font-semibold mb-3">Feedback</h3>
+        <p className="text-gray-600 mb-3">
+          Help us improve your dashboard and musician tools.
+        </p>
+        <textarea
+          className="w-full border rounded p-2 h-28"
+          placeholder="Share your feedback..."
+        ></textarea>
+        <button
+          className="mt-3 px-4 py-2 bg-black hover:bg-[#ff6667] text-white rounded"
+        >
+          Submit Feedback
+        </button>
       </div>
 
       {/* ------- Peer Review Section ------- */}

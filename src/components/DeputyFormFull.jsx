@@ -11,7 +11,17 @@ import axios from "axios";
 import { backendUrl } from "../App";
 import SignaturePad from "react-signature-pad-wrapper";
 
-const DeputyForm = ({ token, userRole, firstName, lastName, email, phone }) => {  const sigRef = useRef({});
+const DeputyForm = ({ token, userRole, firstName, lastName, email, phone }) => {  
+
+    console.log(
+    "🎸 LIVE DeputyForm Loaded — VERSION: DeputyFormFull", 
+    "2025-11-22 17:45",
+    "— location:", 
+    import.meta.url
+  );
+
+
+  const sigRef = useRef(null);
   const [step, setStep] = useState(1);
   const totalSteps = 6;
 
@@ -160,7 +170,7 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone }) => {
           wattage: 0,
         },
       ],
-    
+    }, 
 
     bank_account: {
       sort_code: "",
@@ -438,8 +448,10 @@ await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/musician/register-depu
 
   const clearSignature = () => {
     sigRef.current.clear();
-    setFormData({ deputy_contract_signed: "" });
-  };
+setFormData(prev => ({
+  ...prev,
+  deputy_contract_signed: ""
+}));  };
 
   const handleEnd = () => {
     if (!sigRef.current.isEmpty()) {

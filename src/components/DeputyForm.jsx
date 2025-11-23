@@ -16,6 +16,14 @@ import imageCompression from "browser-image-compression";
 import renameAndCompressImage from "../pages/utils/renameAndCompressDeputyImage";
 
 const DeputyForm = ({ token, userRole, firstName, lastName, email, phone }) => {
+
+      console.log(
+    "🎸 LIVE DeputyForm Loaded — VERSION: DeputyForm", 
+    "2025-11-22 17:45",
+    "— location:", 
+    import.meta.url
+  );
+
   const [step, setStep] = useState(1);
     const { id: routeId } = useParams(); // /edit-deputy/:id
   const deputyId =
