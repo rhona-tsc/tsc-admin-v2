@@ -51,7 +51,15 @@ const fetchStats = async () => {
         `${backendUrl}/api/musician/act-v2/list?mine=true`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setMyActs(res.data.acts || []);
+      const acts = Array.isArray(res.data.acts) ? res.data.acts : [];
+
+      // Filter acts where createdBy matches storedUserId
+      const filteredActs = acts.filter(
+        (act) =>
+          act?.createdBy?.toString?.() === storedUserId?.toString?.()
+      );
+
+      setMyActs(filteredActs);
     } catch (err) {
       console.error("Error fetching my acts", err);
     }
