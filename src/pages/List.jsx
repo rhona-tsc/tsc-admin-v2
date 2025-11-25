@@ -74,13 +74,20 @@ status: "approved,pending,draft,approved_changes_pending",
     const scopedRows = scopedOK && Array.isArray(scopedResp?.data?.acts) ? scopedResp.data.acts : [];
     const scopedVisible = scopedRows.filter(a => a?.status !== "trashed");
 
-    if (scopedOK && scopedVisible.length > 0) {
-      setList(scopedVisible);
-      if (!currentUserId) {
-        console.warn("⚠️ No currentUserId resolved; relying on server req.user for scoping.");
-      }
-      return;
-    }
+if (scopedOK) {
+  const filteredScoped = scopedVisible.filter(
+    (a) => a?.createdBy?.toString?.() === currentUserId?.toString?.()
+  );
+
+  // Only return acts if they actually belong to this user
+  if (filteredScoped.length > 0) {
+    setList(filteredScoped);
+    return;
+  }
+
+  // If none match, force empty list and continue to fallback
+  setList([]);
+}
 
     console.warn("ℹ️ Scoped query returned 0. Falling back to unscoped for visibility during backfill…");
 
@@ -94,8 +101,12 @@ status: "approved,pending,draft,approved_changes_pending",
     const rows = unscopedOK && Array.isArray(unscopedResp?.data?.acts) ? unscopedResp.data.acts : [];
     const notTrashed = rows.filter(a => a?.status !== "trashed");
 
-    setList(notTrashed);
+const filteredFallback = notTrashed.filter(
+  (a) => a?.createdBy?.toString?.() === currentUserId?.toString?.()
+);
 
+// Only show acts the user owns
+setList(filteredFallback);
     if (!notTrashed.length) {
       console.warn("❔ Unscoped fallback also returned 0. Check API auth + ownership backfill.");
     } else {
