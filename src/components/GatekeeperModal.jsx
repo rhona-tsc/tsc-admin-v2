@@ -76,7 +76,7 @@ const GatekeeperModal = ({
       // ✅ If they have a code, verify and route them to Add Act
       if (form.hasCode && form.inviteCode.trim()) {
         const verifyRes = await axios.post(
-          `${backendUrl}/api/act-invites/verify`,
+          `${backendUrl}/api/act-invites/validate-code`,
           {
             code: form.inviteCode.trim().toUpperCase(),
             userId,
@@ -133,7 +133,7 @@ const GatekeeperModal = ({
       };
 
       const res = await axios.post(
-        `${backendUrl}/api/act-pre-submissions`,
+        `${backendUrl}/api/act-pre-submissions/submit`,
         payload
       );
 
@@ -168,8 +168,7 @@ const GatekeeperModal = ({
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 px-4">
-      <div className="w-full max-w-2xl rounded-lg bg-white shadow-xl">
-        {/* header */}
+<div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-white shadow-xl">        {/* header */}
         <div className="flex items-center justify-between border-b px-6 py-4">
           <h3 className="text-lg font-semibold">Submit Your Act</h3>
           <button
@@ -183,7 +182,7 @@ const GatekeeperModal = ({
         {/* body */}
         <div className="px-6 py-5 space-y-4">
           <p className="text-sm text-gray-700">
-            Submit your act’s video links and we’ll be in touch if we feel you’re a good fit for TSC.
+            Submit your act’s video links and we’ll be in touch if we feel it's a good fit for TSC.
           </p>
 
           {/* Act name */}
