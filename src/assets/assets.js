@@ -61,6 +61,8 @@ import booking_board from "./booking_board.png";
 import enquiry_board_icon from "./enquiry_board_icon.png";  
 import cover_placeholder from "./cover_placeholder.png";
 import moderate_icon from "./moderate_icon.png";
+import hero_w_TSC_logo from "./hero_w_TSC_logo.png";
+import black_bin_icon from "./black_bin_icon.png";
 
 export const assets = {
   logo,
@@ -125,7 +127,9 @@ enquiry_board_icon,
   security_icon,
   booking_board,
   cover_placeholder,
-  moderate_icon
+  moderate_icon,
+  hero_w_TSC_logo,
+  black_bin_icon
 };
 
 

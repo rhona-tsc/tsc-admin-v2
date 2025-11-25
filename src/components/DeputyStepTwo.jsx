@@ -2,6 +2,7 @@ import React from "react";
 import TscApprovedBio from "./TscApprovedBio";
 
 const DeputyStepTwo = ({ formData = {}, setFormData = () => {}, userRole, tscApprovedBio, setTscApprovedBio }) => {  
+  console.log("🟦 DeputyStepTwo RENDER", { formData, tscApprovedBio });
   
   const {
     bio = "",
@@ -12,21 +13,25 @@ const DeputyStepTwo = ({ formData = {}, setFormData = () => {}, userRole, tscApp
   } = formData;
 
   const updateField = (field, value) => {
+    console.log("🟨 updateField", { field, value });
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const updateArrayItem = (arrayName, index, field, value) => {
+    console.log("🟩 updateArrayItem", { arrayName, index, field, value });
     const updatedArray = [...(formData[arrayName] || [])];
     updatedArray[index] = { ...updatedArray[index], [field]: value };
     setFormData((prev) => ({ ...prev, [arrayName]: updatedArray }));
   };
 
   const addItem = (arrayName, itemTemplate) => {
+    console.log("🟧 addItem", { arrayName, itemTemplate });
     const updatedArray = [...(formData[arrayName] || []), itemTemplate];
     setFormData((prev) => ({ ...prev, [arrayName]: updatedArray }));
   };
 
   const removeItem = (arrayName, index) => {
+    console.log("🟥 removeItem", { arrayName, index });
     const updatedArray = [...(formData[arrayName] || [])];
     updatedArray.splice(index, 1);
     setFormData((prev) => ({ ...prev, [arrayName]: updatedArray }));
@@ -39,10 +44,12 @@ const DeputyStepTwo = ({ formData = {}, setFormData = () => {}, userRole, tscApp
         <p>A short and snappy decription of you and your performance style</p>
         <textarea
           className="w-full p-2 border rounded"
-
           maxLength={160}
           value={tagLine}
-          onChange={(e) => updateField("tagLine", e.target.value)}
+          onChange={(e) => {
+            console.log("✏️ tagLine changed", e.target.value);
+            updateField("tagLine", e.target.value ?? "");
+          }}
         ></textarea>
       </div>
       <div>
@@ -51,7 +58,10 @@ const DeputyStepTwo = ({ formData = {}, setFormData = () => {}, userRole, tscApp
           className="w-full p-2 border rounded"
           rows={4}
           value={bio}
-          onChange={(e) => updateField("bio", e.target.value)}
+          onChange={(e) => {
+            console.log("✏️ bio changed", e.target.value);
+            updateField("bio", e.target.value ?? "");
+          }}
         ></textarea>
       </div>
       
@@ -74,7 +84,15 @@ const DeputyStepTwo = ({ formData = {}, setFormData = () => {}, userRole, tscApp
       <input
         type="text"
         value={cred.course || ""}
-        onChange={(e) => updateArrayItem("academic_credentials", index, "course", e.target.value)}
+        onChange={(e) => {
+          console.log("✏️ academic/award changed", {
+            arrayName: "academic_credentials",
+            index,
+            field: "course",
+            value: e.target.value
+          });
+          updateArrayItem("academic_credentials", index, "course", e.target.value);
+        }}
         className="p-2 border rounded w-full"
       />
     </div>
@@ -83,7 +101,15 @@ const DeputyStepTwo = ({ formData = {}, setFormData = () => {}, userRole, tscApp
       <input
         type="text"
         value={cred.institution || ""}
-        onChange={(e) => updateArrayItem("academic_credentials", index, "institution", e.target.value)}
+        onChange={(e) => {
+          console.log("✏️ academic/award changed", {
+            arrayName: "academic_credentials",
+            index,
+            field: "institution",
+            value: e.target.value
+          });
+          updateArrayItem("academic_credentials", index, "institution", e.target.value);
+        }}
         className="p-2 border rounded w-full"
       />
     </div>
@@ -92,7 +118,15 @@ const DeputyStepTwo = ({ formData = {}, setFormData = () => {}, userRole, tscApp
       <input
         type="text"
         value={cred.years || ""}
-        onChange={(e) => updateArrayItem("academic_credentials", index, "years", e.target.value)}
+        onChange={(e) => {
+          console.log("✏️ academic/award changed", {
+            arrayName: "academic_credentials",
+            index,
+            field: "years",
+            value: e.target.value
+          });
+          updateArrayItem("academic_credentials", index, "years", e.target.value);
+        }}
         className="p-2 border rounded w-full"
       />
     </div>
@@ -101,7 +135,15 @@ const DeputyStepTwo = ({ formData = {}, setFormData = () => {}, userRole, tscApp
       <input
         type="text"
         value={cred.education_level || ""}
-        onChange={(e) => updateArrayItem("academic_credentials", index, "education_level", e.target.value)}
+        onChange={(e) => {
+          console.log("✏️ academic/award changed", {
+            arrayName: "academic_credentials",
+            index,
+            field: "education_level",
+            value: e.target.value
+          });
+          updateArrayItem("academic_credentials", index, "education_level", e.target.value);
+        }}
         className="p-2 border rounded w-full"
       />
     </div>
@@ -137,7 +179,15 @@ const DeputyStepTwo = ({ formData = {}, setFormData = () => {}, userRole, tscApp
       <input
         type="text"
         value={award.description || ""}
-        onChange={(e) => updateArrayItem("awards", index, "description", e.target.value)}
+        onChange={(e) => {
+          console.log("✏️ academic/award changed", {
+            arrayName: "awards",
+            index,
+            field: "description",
+            value: e.target.value
+          });
+          updateArrayItem("awards", index, "description", e.target.value);
+        }}
         className="p-2 border rounded w-full"
       />
     </div>
@@ -146,7 +196,15 @@ const DeputyStepTwo = ({ formData = {}, setFormData = () => {}, userRole, tscApp
       <input
         type="text"
         value={award.years || ""}
-        onChange={(e) => updateArrayItem("awards", index, "years", e.target.value)}
+        onChange={(e) => {
+          console.log("✏️ academic/award changed", {
+            arrayName: "awards",
+            index,
+            field: "years",
+            value: e.target.value
+          });
+          updateArrayItem("awards", index, "years", e.target.value);
+        }}
         className="p-2 border rounded w-full"
       />
     </div>

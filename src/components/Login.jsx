@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 import { backendUrl } from '../App'; // ✅ Make sure this path is correct
 import CustomToast from "../components/CustomToast";
-
+import { assets } from "../assets/assets";
 
 const Login = ({ setToken, setUserEmail, setUserRole, setUserFirstName, setUserLastName, setUserPhone }) => {  const navigate = useNavigate();
 
@@ -106,9 +106,18 @@ navigate("/musicians-dashboard");
 };
 
   return (
+    <>
+    <div className="flex flex-col items-center mb-4">
+<img
+    className="w-full"
+    src={assets.hero_w_TSC_logo}
+    alt="The Supreme Collective Logo"
+  />
+</div>
+
     <form
       onSubmit={onSubmitHandler}
-      className="flex flex-col items-center w-[90%] sm:max-w-96 m-auto mt-14 gap-4 text-gray-800"
+      className="flex flex-col items-center w-[90%] sm:max-w-96 m-auto gap-3 text-gray-800"
     >
       <div className="inline-flex items-center gap-2 mb-2 mt-10">
         <p className="prata-regular text-3xl">{currentState}</p>
@@ -138,6 +147,7 @@ navigate("/musicians-dashboard");
         {currentState === "Login" ? "Sign In" : "Sign Up"}
       </button>
     </form>
+    </>
   );
 };
 

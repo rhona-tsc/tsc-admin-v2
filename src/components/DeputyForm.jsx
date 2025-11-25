@@ -349,285 +349,25 @@ useEffect(() => {
     setFormData((prev) => ({ ...prev, tscApprovedBio }));
   }, [tscApprovedBio]);
 
-  useEffect(() => {
-    const fetchDeputy = async () => {
-      try {
-        const res = await axios.get(
-          `${backendUrl}/api/moderation/deputy/${id}`
-        );
-        if (res.data.success) {
-          const deputy = res.data.deputy;
-
-          // Ensure nested fields are at least empty objects
-          setFormData((prev) => ({
-            ...prev,
-            ...deputy,
-            basicInfo: {
-              firstName: deputy.firstName || "",
-              lastName: deputy.lastName || "",
-              email: deputy.email || "",
-              phone: deputy.phone || "",
-              ...deputy.basicInfo,
-            },
-            address: {
-              ...prev.address,
-              ...(deputy.address || {}),
-            },
-            coverMp3s: (deputy.coverMp3s || []).map((mp3) => ({
-              ...mp3,
-              file: null,
-              id: mp3.id || mp3.url || uuidv4(),
-            })),
-            originalMp3s: (deputy.originalMp3s || []).map((mp3) => ({
-              ...mp3,
-              file: null,
-              id: mp3.id || mp3.url || uuidv4(),
-            })),
-            functionBandVideoLinks: deputy.functionBandVideoLinks || [],
-            tscApprovedFunctionBandVideoLinks:
-              deputy.tscApprovedFunctionBandVideoLinks || [],
-            originalBandVideoLinks: deputy.originalBandVideoLinks || [],
-            tscApprovedOriginalBandVideoLinks:
-              deputy.tscApprovedOriginalBandVideoLinks || [],
-            digitalWardrobeBlackTie: deputy.digitalWardrobeBlackTie || [],
-            digitalWardrobeFormal: deputy.digitalWardrobeFormal || [],
-            digitalWardrobeSmartCasual: deputy.digitalWardrobeSmartCasual || [],
-            digitalWardrobeSessionAllBlack:
-              deputy.digitalWardrobeSessionAllBlack || [],
-            additionalImages: deputy.additionalImages || [],
-            
-            status: deputy.status || "pending",
-            academic_credentials: deputy.academic_credentials || [
-              {
-                course: "",
-                institution: "",
-                years: "",
-                education_level: "",
-              },
-            ],
-            cableLogistics: deputy.cableLogistics || [
-              {
-                length: "",
-                quantity: "",
-              },
-            ],
-            extensionCableLogistics: deputy.extensionCableLogistics || [
-              {
-                length: "",
-                quantity: "",
-              },
-            ],
-            uplights: deputy.uplights || [
-              {
-                quantity: "",
-                wattage: "",
-              },
-            ],
-            tbars: deputy.tbars || [
-              {
-                quantity: "",
-                wattage: "",
-              },
-            ],
-            lightBars: deputy.lightBars || [
-              {
-                quantity: "",
-                wattage: "",
-              },
-            ],
-            discoBall: deputy.discoBall || [
-              {
-                quantity: "",
-                wattage: "",
-              },
-            ],
-            otherLighting: deputy.otherLighting || [
-              {
-                name: "",
-                quantity: "",
-                wattage: "",
-              },
-            ],
-            paSpeakerSpecs: deputy.paSpeakerSpecs || [
-              {
-                name: "",
-                quantity: "",
-                wattage: "",
-              },
-            ],
-            mixingDesk: deputy.mixingDesk || [
-              {
-                name: "",
-                quantity: "",
-                wattage: "",
-              },
-            ],
-            floorMonitorSpecs: deputy.floorMonitorSpecs || [
-              {
-                name: "",
-                quantity: "",
-                wattage: "",
-              },
-            ],
-            backline: deputy.backline || [
-              {
-                name: "",
-                quantity: "",
-                wattage: "",
-              },
-            ],
-            djEquipment: deputy.djEquipment || [
-              {
-                name: "",
-                quantity: "",
-                wattage: "",
-              },
-            ],
-            djGearRequired: deputy.djGearRequired || [
-              {
-                name: "",
-                quantity: "",
-                wattage: "",
-              },
-            ],
-            djEquipmentCategories: deputy.djEquipmentCategories || [
-              {
-                hasDjTable: false,
-                hasDjBooth: false,
-                hasMixingConsole: false,
-                hasCdjs: false,
-                hasVinylDecks: false,
-              },
-            ],
-            agreementCheckboxes: deputy.agreementCheckboxes || [
-              {
-                termsAndConditions: false,
-                privacyPolicy: false,
-              },
-            ],
-            paAndBackline: deputy.paAndBackline || [
-              {
-                name: "",
-                quantity: 0,
-                wattage: 0,
-              },
-            ],
-            awards: deputy.awards || [
-              {
-                description: "",
-                years: "",
-              },
-            ],
-            function_bands_performed_with:
-              deputy.function_bands_performed_with || [
-                {
-                  function_band_name: "",
-                  function_band_leader_email: "",
-                },
-              ],
-            original_bands_performed_with:
-              deputy.original_bands_performed_with || [
-                {
-                  original_band_name: "",
-                  original_band_leader_email: "",
-                },
-              ],
-            sessions: deputy.sessions || [
-              {
-                artist: "",
-                session_type: "",
-              },
-            ],
-            social_media_links: deputy.social_media_links || [
-              {
-                platform: "",
-                url: "",
-              },
-            ],
-            instrumentation: deputy.instrumentation || [
-              {
-                instrument: "",
-                skill_level: "",
-              },
-            ],
-            vocals: deputy.vocals || {
-              type: "",
-              gender: "",
-              range: "",
-              rap: "",
-              genres: [],
-            },
-            repertoire: deputy.repertoire || [],
-            selectedSongs: deputy.selectedSongs || [
-              {
-                title: "",
-                artist: "",
-                genre: "",
-                year: "",
-              },
-            ],
-            other_skills: deputy.other_skills || [],
-            logistics: deputy.logistics || [],
-            vocalMics: deputy.vocalMics || {
-              wireless_vocal_mics: "",
-              wired_vocal_mics: "",
-              wireless_vocal_adapters: "",
-            },
-            inEarMonitoring: deputy.inEarMonitoring || {
-              wired_in_ear_packs: "",
-              wireless_in_ear_packs: "",
-              in_ear_monitors: "",
-            },
-            additionalEquipment: deputy.additionalEquipment || {
-              mic_stands: "",
-              di_boxes: "",
-              wireless_guitar_jacks: "",
-            },
-            instrumentMics: deputy.instrumentMics || {
-              extra_wired_instrument_mics: "",
-              wireless_horn_mics: "",
-              drum_mic_kit: "",
-            },
-            speechMics: deputy.speechMics || {
-              wireless_speech_mic: "",
-              wired_speech_mic: "",
-            },
-            instrumentSpecs: deputy.instrumentSpecs || {
-              name: "",
-              wattage: "",
-            },
-            djing: deputy.djing || {
-              has_mixing_console: false,
-              has_dj_table: false,
-              has_dj_booth: false,
-              has_mixing_decks: false,
-            },
-            bank_account: deputy.bank_account || {
-              sort_code: "",
-              account_number: "",
-              account_name: "",
-              account_type: "",
-            },
-            deputy_contract_agreed: deputy.deputy_contract_agreed || false,
-            deputy_contract_signed:
-              typeof deputy.deputy_contract_signed === "string"
-                ? deputy.deputy_contract_signed
-                : "",
-            dateRegistered: new Date(deputy.dateRegistered) || new Date(),
-          }));
-
-          setTscApprovedBio(deputy.tscApprovedBio || "")
-
-          console.log("✅ Fetched deputy populated into formData:", deputy);
+useEffect(() => {
+  const fetchDeputy = async () => {
+    try {
+      const res = await axios.get(
+        `${backendUrl}/api/musician/moderation/deputy/${id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true
         }
-      } catch (error) {
-        console.error("❌ Failed to fetch deputy:", error);
-      }
-    };
+      );
 
-    if (id) fetchDeputy();
-  }, [id, backendUrl]);
+      console.log("Deputy fetched:", res.data);
+    } catch (err) {
+      console.error("❌ Failed to fetch deputy:", err);
+    }
+  };
 
+  if (id) fetchDeputy();
+}, [id, backendUrl, token]);
 
 
 
@@ -1095,29 +835,28 @@ if (savedMusician?._id) {
   };
 
   const renderStep = () => {
-    const stepProps = { formData, setFormData: handleChange };
+const stepProps = { formData }
     switch (step) {
       case 1:
         return (
           <DeputyStepOne
-            formData={formData}
-            setFormData={setFormData}
-            userRole={userRole}
-            isUploadingImages={isUploadingImages}
-            isUploadingMp3s={isUploadingMp3s}
-            setIsUploadingMp3s={setIsUploadingMp3s}
-          />
+  formData={formData}
+  setFormData={setFormData}     // REAL setter
+  userRole={userRole}
+  isUploadingImages={isUploadingImages}
+  isUploadingMp3s={isUploadingMp3s}
+  setIsUploadingMp3s={setIsUploadingMp3s}
+/>
         );
       case 2:
         return (
-          <DeputyStepTwo
-  formData={formData}
-  setFormData={setFormData}
-  userRole={userRole}
-  tscApprovedBio={tscApprovedBio}
-  setTscApprovedBio={setTscApprovedBio}
-  {...stepProps}
-/>
+        <DeputyStepTwo
+      formData={formData}
+      setFormData={setFormData}    // <-- the REAL setter
+      userRole={userRole}
+      tscApprovedBio={tscApprovedBio}
+      setTscApprovedBio={setTscApprovedBio}
+    />
         );
       case 3:
         return (
@@ -1200,6 +939,11 @@ if (savedMusician?._id) {
   console.log("🎼 SUBMITTING MP3S:");
   console.log("🎧 coverMp3s:", formData.coverMp3s);
   console.log("🎧 originalMp3s:", formData.originalMp3s);
+
+  // 🔍 DEBUG: Track ALL formData changes live
+  useEffect(() => {
+    console.log("🟦 DeputyForm — formData changed:", structuredClone(formData));
+  }, [formData]);
 
   return (
     <>

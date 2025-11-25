@@ -64,7 +64,7 @@ const DragAndDropImageUploader = ({ label, files, setFiles }) => {
                   className="absolute top-1 right-1 p-1 rounded-full bg-white bg-opacity-75 hover:bg-opacity-100 shadow"
                   title="Remove image"
                 >
-                  <img src={assets.bin_icon} alt="Delete" className="w-4 h-4" />
+                  <img src={assets.black_bin_icon} alt="Delete" className="w-4 h-4" />
                 </button>
               </div>
             );

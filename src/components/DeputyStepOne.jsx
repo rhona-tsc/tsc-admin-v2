@@ -2,10 +2,7 @@ import React, { useState, useEffect } from "react";
 import DragAndDropImageUploader from "./DragAndDropImageUploader";
 import ImageCropModal from "./ImageCropModal";
 import assets from "../assets/assets";
-import DeputyCoverMp3s from "./DeputyCoverMp3s";
-import DeputyOriginalMp3s from "./DeputyOriginalMp3s";
 import Mp3Uploader from "./Mp3Uploader";
-
 
 const DeputyStepOne = ({
   formData = {},
@@ -13,31 +10,54 @@ const DeputyStepOne = ({
   userRole,
   isUploadingImages = false,
   isUploadingMp3s = false,
-  setIsUploadingMp3s = () => {}
+  setIsUploadingMp3s = () => {},
 }) => {
-    const { address = {} } = formData;
-  const { basicInfo = {} } = formData;
-  const { email = "" } = formData;
+  // ----------------------------
+  // 🔵 RENDER LOG
+  // ----------------------------
+  console.log("🟦 DeputyStepOne RENDER", {
+    formData,
+  });
 
-    const [modalOpen, setModalOpen] = useState(false);
+  const { address = {} } = formData;
+
+  // -------------------------------------
+  // LOCAL STATE
+  // -------------------------------------
+  const [modalOpen, setModalOpen] = useState(false);
   const [tempImage, setTempImage] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
-  const [userFirstName] = useState(localStorage.getItem("userFirstName") || "");
+
+  const [coverModalOpen, setCoverModalOpen] = useState(false);
+  const [tempCoverImage, setTempCoverImage] = useState("");
+  const [coverHeroPreviewUrl, setCoverHeroPreviewUrl] = useState("");
+
+  const [userFirstName] = useState(
+    localStorage.getItem("userFirstName") || ""
+  );
+
+  // MP3 local state
   const [originalMp3s, setOriginalMp3s] = useState([]);
   const [coverMp3s, setCoverMp3s] = useState([]);
-  const [coverHeroPreviewUrl, setCoverHeroPreviewUrl] = useState("");
-const [coverModalOpen, setCoverModalOpen] = useState(false);
-const [tempCoverImage, setTempCoverImage] = useState("");
 
-  // Use formData to prefill MP3s when editing
-  const existingData = formData;
+  // -------------------------------------
+  // PREFILL MP3s WHEN EDITING
+  // -------------------------------------
   useEffect(() => {
+    console.log("🎵 PREFILL MP3s FROM formData:", {
+      original: formData.originalMp3s,
+      cover: formData.coverMp3s,
+    });
+
     setOriginalMp3s(formData.originalMp3s || []);
     setCoverMp3s(formData.coverMp3s || []);
   }, [formData.originalMp3s, formData.coverMp3s]);
 
+  // -------------------------------------
+  // ADDRESS UPDATE
+  // -------------------------------------
   const updateAddress = (field, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       address: {
         ...prev.address,
@@ -46,52 +66,19 @@ const [tempCoverImage, setTempCoverImage] = useState("");
     }));
   };
 
-  const updateBasicInfo = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      basicInfo: {
-        ...prev.basicInfo,
-        [field]: value,
-      },
-    }));
-  };
-
-  const updateEmail = (value) => {
-    setFormData(prev => ({
-      ...prev,
-      email: value,
-    }));
-  };
-
-const handleCoverHeroChange = (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-
-  console.log('🖼️ [CoverHero] onChange file picked:', {
-    name: file.name,
-    type: file.type,
-    sizeKB: Math.round(file.size / 1024),
-  });
-
-  const reader = new FileReader();
-  reader.onload = () => {
-    setTempCoverImage(reader.result);   // pass DataURL into the cropper
-    setCoverModalOpen(true);            // open cropper
-  };
-  reader.readAsDataURL(file);
-};
-
-const handleSaveCoverCroppedImage = (blob) => {
-  // make a preview URL and store the blob in formData (so multer receives a file)
-  const url = URL.createObjectURL(blob);
-  setCoverHeroPreviewUrl(url);
-  setFormData(prev => ({ ...prev, coverHeroImage: blob }));
-  setCoverModalOpen(false);
-};
-
+  // -------------------------------------
+  // PROFILE IMAGE
+  // -------------------------------------
   const handleImageChange = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
+
+    console.log("🟨 PROFILE PIC selected:", {
+      name: file.name,
+      type: file.type,
+      sizeKB: Math.round(file.size / 1024),
+    });
+
     const reader = new FileReader();
     reader.onload = () => {
       setTempImage(reader.result);
@@ -99,97 +86,144 @@ const handleSaveCoverCroppedImage = (blob) => {
     };
     reader.readAsDataURL(file);
   };
-  
 
   const handleSaveCroppedImage = (blob) => {
+    console.log("🟨 PROFILE PIC cropped:", blob);
+
     const url = URL.createObjectURL(blob);
     setPreviewUrl(url);
-    setFormData(prev => ({ ...prev, profilePicture: blob }));
-  };  
 
-  const handleSetOriginalMp3s = (updated) => {
-    setOriginalMp3s(updated);
-    setFormData(prev => ({ ...prev, originalMp3s: updated }));
-  };
-  
-  const handleSetCoverMp3s = (updated) => {
-    setCoverMp3s(updated);
-    setFormData(prev => ({ ...prev, coverMp3s: updated }));
+    setFormData((prev) => ({
+      ...prev,
+      profilePicture: blob,
+    }));
   };
 
+  // -------------------------------------
+  // COVER HERO IMAGE
+  // -------------------------------------
+  const handleCoverHeroChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    console.log("🟧 COVER HERO selected:", {
+      name: file.name,
+      type: file.type,
+      sizeKB: Math.round(file.size / 1024),
+    });
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setTempCoverImage(reader.result);
+      setCoverModalOpen(true);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveCoverCroppedImage = (blob) => {
+    console.log("🟧 COVER HERO cropped:", blob);
+
+    const url = URL.createObjectURL(blob);
+    setCoverHeroPreviewUrl(url);
+
+    setFormData((prev) => ({
+      ...prev,
+      coverHeroImage: blob,
+    }));
+  };
+
+  // -------------------------------------
+  // PREFILL PREVIEW FOR EDITING
+  // -------------------------------------
   useEffect(() => {
-    // Clean up the object URL to avoid memory leaks
+    console.log("🟧 Running PREVIEW PREFILL effect");
+
+    // Profile pic preview
+    if (!previewUrl && formData.profilePicture) {
+      if (formData.profilePicture instanceof Blob) {
+        const url = URL.createObjectURL(formData.profilePicture);
+        setPreviewUrl(url);
+      } else if (typeof formData.profilePicture === "string") {
+        setPreviewUrl(formData.profilePicture);
+      }
+    }
+
+    // Cover hero preview
+    if (!coverHeroPreviewUrl && formData.coverHeroImage) {
+      if (formData.coverHeroImage instanceof Blob) {
+        const url = URL.createObjectURL(formData.coverHeroImage);
+        setCoverHeroPreviewUrl(url);
+      } else if (typeof formData.coverHeroImage === "string") {
+        setCoverHeroPreviewUrl(formData.coverHeroImage);
+      }
+    }
+  }, [formData]);
+
+  // -------------------------------------
+  // CLEANUP URLs
+  // -------------------------------------
+  useEffect(() => {
     return () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
+      if (coverHeroPreviewUrl) URL.revokeObjectURL(coverHeroPreviewUrl);
     };
-  }, [previewUrl]);
+  }, [previewUrl, coverHeroPreviewUrl]);
 
-  // Drag-and-drop MP3 uploader component
-  const DragAndDropMp3Uploader = ({ label, files, setFiles }) => {
-    const inputRef = React.useRef();
+  // -------------------------------------
+  // MP3 SETTERS WITH LOGS
+  // -------------------------------------
+  const handleSetOriginalMp3s = (updated) => {
+    console.log("🎧 Updated original MP3s:", updated);
+    setOriginalMp3s(updated);
 
-    const handleFiles = (newFiles) => {
-      const formatted = Array.from(newFiles || []).map(file => ({ file, title: file.name.replace(".mp3", "") }));
-    
-      setFiles(prev => {
-        const all = [...prev, ...formatted];
-        const unique = Array.from(new Map(all.map(mp3 => [mp3.file.name, mp3])).values());
-        return unique;
-      });
-    };
-
-    console.log("🪄 Rendering Mp3Uploader with:", {
-      originalMp3s,
-      coverMp3s
-    });
-   
-
-    return (
-      <div
-        onDrop={(e) => {
-          e.preventDefault();
-          handleFiles(e.dataTransfer.files);
-        }}
-        onDragOver={(e) => e.preventDefault()}
-        className="border-2 border-dashed border-gray-400 p-4 rounded text-center cursor-pointer"
-        onClick={() => inputRef.current.click()}
-      >
-        <p className={`text-sm ${isUploadingMp3s ? "text-gray-500 animate-pulse" : "text-gray-500"}`}>
-          {isUploadingMp3s ? "Uploading your music..." : "Drag & drop your cover MP3s here, or click to browse"}
-        </p>
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".mp3"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            handleFiles(e.target.files);
-            e.target.value = "";
-          }}
-        />
-        
-      </div>
-      
-    );
-    
+    setFormData((prev) => ({
+      ...prev,
+      originalMp3s: updated,
+    }));
   };
 
+  const handleSetCoverMp3s = (updated) => {
+    console.log("🎤 Updated cover MP3s:", updated);
+    setCoverMp3s(updated);
+
+    setFormData((prev) => ({
+      ...prev,
+      coverMp3s: updated,
+    }));
+  };
+
+  // ===================================================================
+  // UI
+  // ===================================================================
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="font-semibold text-xl">Welcome {userFirstName}! </h2>
-      <p>Let's gather all the information we need to get you matched with the best gigs for you!</p>
+      <h2 className="font-semibold text-xl">
+        Welcome {userFirstName}!
+      </h2>
 
-
+      <p>
+        Let's gather all the information needed to get you matched
+        with the best gigs!
+      </p>
 
       <div className="flex gap-8 mt-4">
-        {/* Profile Picture Section */}
-  
+        {/* -------------------------------------------------------
+            PROFILE PICTURE
+        -------------------------------------------------------- */}
         <div className="flex flex-col gap-2 w-1/3">
-          <label className="block font-semibold mb-1">Profile Picture</label>
-          <label htmlFor="profilePictureUpload" className="bg-black text-white px-3 py-2 rounded cursor-pointer w-full text-center hover:bg-[#ff6667] ">
-            {formData.profilePicture ? "Change Profile Picture" : "Choose Profile Picture"}
+          <label className="block font-semibold mb-1">
+            Profile Picture
           </label>
+
+          <label
+            htmlFor="profilePictureUpload"
+            className="bg-black text-white px-3 py-2 rounded cursor-pointer w-full text-center hover:bg-[#ff6667]"
+          >
+            {formData.profilePicture
+              ? "Change Profile Picture"
+              : "Choose Profile Picture"}
+          </label>
+
           <input
             id="profilePictureUpload"
             type="file"
@@ -197,7 +231,10 @@ const handleSaveCoverCroppedImage = (blob) => {
             onChange={handleImageChange}
             className="hidden"
           />
-          {previewUrl || (typeof formData.profilePicture === "string" && formData.profilePicture) ? (
+
+          {previewUrl ||
+          (typeof formData.profilePicture === "string" &&
+            formData.profilePicture) ? (
             <img
               src={previewUrl || formData.profilePicture}
               alt="Profile"
@@ -205,59 +242,66 @@ const handleSaveCoverCroppedImage = (blob) => {
             />
           ) : (
             <img
-              src={assets.profile_placeholder} 
+              src={assets.profile_placeholder}
               alt="Placeholder"
               className="mt-2 w-32 h-32 object-cover rounded-full mx-auto"
             />
           )}
-
         </div>
 
-        {/* Cover Hero Image Section */}
-<div className="flex flex-col gap-2 w-1/3">
-  <label className="block font-semibold mb-1">Cover Hero Image</label>
-  <label
-    htmlFor="coverHeroUpload"
-    className="bg-black text-white px-3 py-2 rounded cursor-pointer w-full text-center hover:bg-[#ff6667]"
-  >
-    {formData.coverHeroImage ? "Change Cover Image" : "Choose Cover Image"}
-  </label>
-  <input
-  id="coverHeroUpload"
-  name="coverHeroImage"        // ✅ must match Multer whitelist
-  type="file"
-  accept="image/*"
-  onChange={handleCoverHeroChange}
-  className="hidden"
-/>
+        {/* -------------------------------------------------------
+            COVER HERO IMAGE
+        -------------------------------------------------------- */}
+        <div className="flex flex-col gap-2 w-1/3">
+          <label className="block font-semibold mb-1">
+            Cover Hero Image
+          </label>
 
-{/* 16:9 preview */}
-{(() => {
-  const hasFileOrUrl =
-    !!coverHeroPreviewUrl ||
-    (typeof formData.coverHeroImage === "string" && !!formData.coverHeroImage);
+          <label
+            htmlFor="coverHeroUpload"
+            className="bg-black text-white px-3 py-2 rounded cursor-pointer w-full text-center hover:bg-[#ff6667]"
+          >
+            {formData.coverHeroImage
+              ? "Change Cover Image"
+              : "Choose Cover Image"}
+          </label>
 
-  console.log("🖼️ [CoverHero] Rendering preview", {
-    hasFileOrUrl,
-    usingPreviewUrl: !!coverHeroPreviewUrl,
-    usingStringUrl: typeof formData.coverHeroImage === "string" && !!formData.coverHeroImage,
-  });
+          <input
+            id="coverHeroUpload"
+            name="coverHeroImage"
+            type="file"
+            accept="image/*"
+            onChange={handleCoverHeroChange}
+            className="hidden"
+          />
 
-  return hasFileOrUrl ? (
-    <img
-      src={coverHeroPreviewUrl || formData.coverHeroImage}
-      alt="Cover hero"
-      className="mt-2 w-full aspect-video object-cover rounded-md border"
-    />
-  ) : (
-    <img
-      src={assets.cover_placeholder}
-      alt="Cover Hero Placeholder"
-      className="mt-2 w-full aspect-video object-cover rounded-md border"
-    />
-  );
-})()}
-</div>
+          {(() => {
+            const hasFile =
+              !!coverHeroPreviewUrl ||
+              (typeof formData.coverHeroImage === "string" &&
+                !!formData.coverHeroImage);
+
+            console.log("🖼️ Cover Hero preview render:", {
+              hasFile,
+              coverHeroPreviewUrl,
+              formDataCoverHero: formData.coverHeroImage,
+            });
+
+            return hasFile ? (
+              <img
+                src={coverHeroPreviewUrl || formData.coverHeroImage}
+                alt="Cover Hero"
+                className="mt-2 w-full aspect-video object-cover rounded-md border"
+              />
+            ) : (
+              <img
+                src={assets.cover_placeholder}
+                alt="Cover Placeholder"
+                className="mt-2 w-full aspect-video object-cover rounded-md border"
+              />
+            );
+          })()}
+        </div>
 
         {/* Address Section */}
         <div className="flex flex-col gap-3 w-2/3">
@@ -512,81 +556,142 @@ const handleSaveCoverCroppedImage = (blob) => {
 
 
 
-      {/* Digital Wardrobe Section */}
-      <div className="mt-4 space-y-2">
-        <label className="block font-semibold mb-1">Digital Wardrobe</label>
-        <p>Kindly add photos that showcase you in the following standard gig attire, i.e. Black Tie, Formal, Smart-Casual, and Session Black</p>
-        {/* Black Tie Section */}
-        <div>
-          <label className="block font-semibold mb-1">Black Tie Attire (i.e. elegant long dresses, tuxedos with bow tie, etc.)</label>
-          <p className={`text-sm ${isUploadingImages ? "text-gray-500 animate-pulse" : "text-gray-500"}`}>
-            {isUploadingImages ? "Uploading your images..." : ""}
-          </p>
-          <DragAndDropImageUploader
-            label="Black Tie Attire (i.e. elegant long dresses, tuxedos with bow tie, etc.)"
-            files={formData.digitalWardrobeBlackTie}
-            setFiles={(updatedFn) => {
-              setFormData(prev => {
-                const previous = prev.digitalWardrobeBlackTie || [];
-                const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
-                const deleted = previous.filter(f => !updated.includes(f) && typeof f === "string");
-                return {
-                  ...prev,
-                  digitalWardrobeBlackTie: updated,
-                  deletedImages: [...(prev.deletedImages || []), ...deleted]
-                };
-              });
-            }}
-          />
-        </div>
+   {/* Digital Wardrobe Section */}
+<div className="mt-4 space-y-2">
+  <label className="block font-semibold mb-1">Digital Wardrobe</label>
+  <p>
+    Kindly add photos that showcase you in the following standard gig attire,
+    i.e. Black Tie, Formal, Smart-Casual, and Session Black
+  </p>
 
-        {/* Formal Attire Section */}
-        <div>
-          <label className="block font-semibold mb-1">Formal Attire</label>
-          <p className={`text-sm ${isUploadingImages ? "text-gray-500 animate-pulse" : "text-gray-500"}`}>
-            {isUploadingImages ? "Uploading your images..." : ""}
-          </p>
-          <DragAndDropImageUploader
-            label="Formal Attire"
-            files={formData.digitalWardrobeFormal}
-            setFiles={(updatedFn) => {
-              setFormData(prev => {
-                const previous = prev.digitalWardrobeFormal || [];
-                const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
-                const deleted = previous.filter(f => !updated.includes(f) && typeof f === "string");
-                return {
-                  ...prev,
-                  digitalWardrobeFormal: updated,
-                  deletedImages: [...(prev.deletedImages || []), ...deleted]
-                };
-              });
-            }}
-          />
-        </div>
+  {/* --------------------------------------- */}
+  {/* BLACK TIE */}
+  {/* --------------------------------------- */}
+  <div>
+    <label className="block font-semibold mb-1">
+      Black Tie Attire (i.e. elegant long dresses, tuxedos with bow tie, etc.)
+    </label>
+    <p
+      className={`text-sm ${
+        isUploadingImages ? "text-gray-500 animate-pulse" : "text-gray-500"
+      }`}
+    >
+      {isUploadingImages ? "Uploading your images..." : ""}
+    </p>
 
-        {/* Smart Casual Attire Section */}
-        <div>
-          <label className="block font-semibold mb-1">Smart Casual Attire</label>
-          <p className={`text-sm ${isUploadingImages ? "text-gray-500 animate-pulse" : "text-gray-500"}`}>
-            {isUploadingImages ? "Uploading your images..." : ""}
-          </p>
-          <DragAndDropImageUploader
-            label="Smart Casual Attire"
-            files={formData.digitalWardrobeSmartCasual}
-            setFiles={(updatedFn) => {
-              setFormData(prev => {
-                const previous = prev.digitalWardrobeSmartCasual || [];
-                const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
-                const deleted = previous.filter(f => !updated.includes(f) && typeof f === "string");
-                return {
-                  ...prev,
-                  digitalWardrobeSmartCasual: updated,
-                  deletedImages: [...(prev.deletedImages || []), ...deleted]
-                };
-              });
-            }}
-          />
-        </div>
+    <DragAndDropImageUploader
+      label="Black Tie Attire"
+      files={formData.digitalWardrobeBlackTie}
+      setFiles={(updatedFn) => {
+        setFormData((prev) => {
+          const previous = prev.digitalWardrobeBlackTie || [];
+          const updated =
+            typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
+
+          const deleted = previous.filter(
+            (f) => !updated.includes(f) && typeof f === "string"
+          );
+
+          console.log("🖼️ [DW4-BLACKTIE] UPDATE", {
+            previous,
+            updated,
+            deleted,
+          });
+
+          return {
+            ...prev,
+            digitalWardrobeBlackTie: updated,
+            deletedImages: [...(prev.deletedImages || []), ...deleted],
+          };
+        });
+      }}
+    />
+  </div>
+
+  {/* --------------------------------------- */}
+  {/* FORMAL */}
+  {/* --------------------------------------- */}
+  <div>
+    <label className="block font-semibold mb-1">Formal Attire</label>
+    <p
+      className={`text-sm ${
+        isUploadingImages ? "text-gray-500 animate-pulse" : "text-gray-500"
+      }`}
+    >
+      {isUploadingImages ? "Uploading your images..." : ""}
+    </p>
+
+    <DragAndDropImageUploader
+      label="Formal Attire"
+      files={formData.digitalWardrobeFormal}
+      setFiles={(updatedFn) => {
+        setFormData((prev) => {
+          const previous = prev.digitalWardrobeFormal || [];
+          const updated =
+            typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
+
+          const deleted = previous.filter(
+            (f) => !updated.includes(f) && typeof f === "string"
+          );
+
+          console.log("🖼️ [DW4-FORMAL] UPDATE", {
+            previous,
+            updated,
+            deleted,
+          });
+
+          return {
+            ...prev,
+            digitalWardrobeFormal: updated,
+            deletedImages: [...(prev.deletedImages || []), ...deleted],
+          };
+        });
+      }}
+    />
+  </div>
+
+  {/* --------------------------------------- */}
+  {/* SMART CASUAL */}
+  {/* --------------------------------------- */}
+  <div>
+    <label className="block font-semibold mb-1">Smart Casual Attire</label>
+    <p
+      className={`text-sm ${
+        isUploadingImages ? "text-gray-500 animate-pulse" : "text-gray-500"
+      }`}
+    >
+      {isUploadingImages ? "Uploading your images..." : ""}
+    </p>
+
+    <DragAndDropImageUploader
+      label="Smart Casual Attire"
+      files={formData.digitalWardrobeSmartCasual}
+      setFiles={(updatedFn) => {
+        setFormData((prev) => {
+          const previous = prev.digitalWardrobeSmartCasual || [];
+          const updated =
+            typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
+
+          const deleted = previous.filter(
+            (f) => !updated.includes(f) && typeof f === "string"
+          );
+
+          console.log("🖼️ [DW4-SMARTCASUAL] UPDATE", {
+            previous,
+            updated,
+            deleted,
+          });
+
+          return {
+            ...prev,
+            digitalWardrobeSmartCasual: updated,
+            deletedImages: [...(prev.deletedImages || []), ...deleted],
+          };
+        });
+      }}
+    />
+  </div>
+
 
         {/* Session All Black Section */}
         <div>
@@ -617,101 +722,195 @@ const handleSaveCoverCroppedImage = (blob) => {
         </div>
       </div>
       {/* Additional Images Section */}
-      <div>
-        <label className="block font-semibold">Additonal Images</label>
-        <p className="text-sm text-gray-500">Please include any action shots or professional studio shots of you</p>
-        <p className={`text-sm ${isUploadingImages ? "text-gray-500 animate-pulse" : "text-gray-500"}`}>
-          {isUploadingImages ? "Uploading your images..." : ""}
-        </p>
-        <DragAndDropImageUploader
-          label="Additional Images"
-          files={formData.additionalImages}
-          setFiles={(updatedFn) => {
-            setFormData(prev => {
-              const previous = prev.additionalImages || [];
-              const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
-              const deleted = previous.filter(f => !updated.includes(f) && typeof f === "string");
-              return {
-                ...prev,
-                additionalImages: updated,
-                deletedImages: [...(prev.deletedImages || []), ...deleted]
-              };
-            });
-          }}
-        />
-      </div>
+<div>
+  <label className="block font-semibold">Additional Images</label>
+  <p className="text-sm text-gray-500">
+    Please include any action shots or professional studio shots of you
+  </p>
+  <p
+    className={`text-sm ${
+      isUploadingImages ? "text-gray-500 animate-pulse" : "text-gray-500"
+    }`}
+  >
+    {isUploadingImages ? "Uploading your images..." : ""}
+  </p>
 
-      {/* Function Band Video Links */}
-      <div className="mt-4">
-        <label className="block font-semibold mb-1">Function Band Video Links</label>
-        <p className="text-sm text-gray-500">Add links to your cover band videos here. Please note unbranded footage is preferred. If branded footage is supplied we may not include this in your profile, or we may edit the video to remove branding.</p>
-        <SortableVideoLinkList
-          links={formData.functionBandVideoLinks || []}
-          setLinks={(updated) => setFormData(prev => ({ ...prev, functionBandVideoLinks: updated }))}
-          placeholderPrefix="Function"
-        />
-      
-      {userRole?.includes("agent") && (
-          <SortableVideoLinkList
-          links={formData.tscApprovedFunctionBandVideoLinks || []}
-          setLinks={(updated) => setFormData(prev => ({ ...prev, tscApprovedFunctionBandVideoLinks: updated }))}
-          placeholderPrefix="tscApprovedFunction"
-        />
-        )}
-        </div>
+  <DragAndDropImageUploader
+    label="Additional Images"
+    files={formData.additionalImages}
+    setFiles={(updatedFn) => {
+      setFormData((prev) => {
+        const previous = prev.additionalImages || [];
+        const updated =
+          typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
 
-      {/* Original Band Video Links */}
-      <div className="mt-4">
-        <label className="block font-semibold mb-1">Original Band Video Links</label>
-        <p className="text-sm text-gray-500">Add links to your original band videos here.</p>
+        const deleted = previous.filter(
+          (f) => !updated.includes(f) && typeof f === "string"
+        );
 
-        <SortableVideoLinkList
-          links={formData.originalBandVideoLinks || []}
-          setLinks={(updated) => setFormData(prev => ({ ...prev, originalBandVideoLinks: updated }))}
-          placeholderPrefix="Original"
-        />
-         {userRole?.includes("agent") && (
-          <SortableVideoLinkList
-          links={formData.tscApprovedOriginalBandVideoLinks || []}
-          setLinks={(updated) => setFormData(prev => ({ ...prev, tscApprovedOriginalBandVideoLinks: updated }))}
-          placeholderPrefix="tscApprovedOriginal" />
-        )}
-      </div>
+        console.log("🖼️ [DW4-ADDITIONAL] UPDATE", {
+          previous,
+          updated,
+          deleted,
+        });
 
-      {/* Cover MP3s */}
-      <div className="mt-4">
-        <label className="block font-semibold mb-1">Cover MP3s</label>
-        <p className="text-sm text-gray-500">Add your cover recordings here.</p>
+        return {
+          ...prev,
+          additionalImages: updated,
+          deletedImages: [...(prev.deletedImages || []), ...deleted],
+        };
+      });
+    }}
+  />
+</div>
 
-        {isUploadingMp3s && (
-          <p className="text-xs text-gray-500 italic">Uploading MP3s...</p>
-        )}
-        <Mp3Uploader label="Cover MP3s" mp3s={coverMp3s} setMp3s={handleSetCoverMp3s} />
+{/* Function Band Video Links */}
+<div className="mt-4">
+  <label className="block font-semibold mb-1">Function Band Video Links</label>
+  <p className="text-sm text-gray-500">
+    Add links to your cover band videos here. Please note unbranded footage is
+    preferred. If branded footage is supplied we may not include this in your
+    profile, or we may edit the video to remove branding.
+  </p>
 
-        
-      </div>
+  <SortableVideoLinkList
+    links={formData.functionBandVideoLinks || []}
+    setLinks={(updated) => {
+      console.log("🎥 [VID-FUNCTION] UPDATE", {
+        previous: formData.functionBandVideoLinks,
+        updated,
+      });
 
-      <div className="mt-4">
-        <label className="block font-semibold mb-1">Original MP3s</label>
-        <p className="text-sm text-gray-500">Add your original recordings here.</p>
+      setFormData((prev) => ({
+        ...prev,
+        functionBandVideoLinks: updated,
+      }));
+    }}
+    placeholderPrefix="Function"
+  />
 
-        {isUploadingMp3s && (
-          <p className="text-xs text-gray-500 italic">Uploading MP3s...</p>
-        )}
+  {userRole?.includes("agent") && (
+    <SortableVideoLinkList
+      links={formData.tscApprovedFunctionBandVideoLinks || []}
+      setLinks={(updated) => {
+        console.log("🎥 [VID-FUNCTION-TSC] UPDATE", {
+          previous: formData.tscApprovedFunctionBandVideoLinks,
+          updated,
+        });
 
-        
-        <Mp3Uploader label="Original MP3s" mp3s={originalMp3s} setMp3s={handleSetOriginalMp3s} />
-        
-      </div>
+        setFormData((prev) => ({
+          ...prev,
+          tscApprovedFunctionBandVideoLinks: updated,
+        }));
+      }}
+      placeholderPrefix="tscApprovedFunction"
+    />
+  )}
+</div>
 
+{/* Original Band Video Links */}
+<div className="mt-4">
+  <label className="block font-semibold mb-1">Original Band Video Links</label>
+  <p className="text-sm text-gray-500">
+    Add links to your original band videos here.
+  </p>
 
-      <ImageCropModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSave={handleSaveCroppedImage}
-        imageSrc={tempImage}
-      />
-      <ImageCropModal
+  <SortableVideoLinkList
+    links={formData.originalBandVideoLinks || []}
+    setLinks={(updated) => {
+      console.log("🎥 [VID-ORIGINAL] UPDATE", {
+        previous: formData.originalBandVideoLinks,
+        updated,
+      });
+
+      setFormData((prev) => ({
+        ...prev,
+        originalBandVideoLinks: updated,
+      }));
+    }}
+    placeholderPrefix="Original"
+  />
+
+  {userRole?.includes("agent") && (
+    <SortableVideoLinkList
+      links={formData.tscApprovedOriginalBandVideoLinks || []}
+      setLinks={(updated) => {
+        console.log("🎥 [VID-ORIGINAL-TSC] UPDATE", {
+          previous: formData.tscApprovedOriginalBandVideoLinks,
+          updated,
+        });
+
+        setFormData((prev) => ({
+          ...prev,
+          tscApprovedOriginalBandVideoLinks: updated,
+        }));
+      }}
+      placeholderPrefix="tscApprovedOriginal"
+    />
+  )}
+</div>
+
+    {/* ------------------------------------------------------- */}
+{/* COVER MP3s */}
+{/* ------------------------------------------------------- */}
+<div className="mt-4">
+  <label className="block font-semibold mb-1">Cover MP3s</label>
+  <p className="text-sm text-gray-500">Add your cover recordings here.</p>
+
+  {isUploadingMp3s && (
+    <p className="text-xs text-gray-500 italic">Uploading MP3s...</p>
+  )}
+
+  <Mp3Uploader
+    label="Cover MP3s"
+    mp3s={coverMp3s}
+    setMp3s={(updated) => {
+      console.log("🎧 [DW4-MP3-COVER] UPDATE", {
+        previous: coverMp3s,
+        updated,
+      });
+
+      handleSetCoverMp3s(updated);
+    }}
+  />
+</div>
+
+{/* ------------------------------------------------------- */}
+{/* ORIGINAL MP3s */}
+{/* ------------------------------------------------------- */}
+<div className="mt-4">
+  <label className="block font-semibold mb-1">Original MP3s</label>
+  <p className="text-sm text-gray-500">Add your original recordings here.</p>
+
+  {isUploadingMp3s && (
+    <p className="text-xs text-gray-500 italic">Uploading MP3s...</p>
+  )}
+
+  <Mp3Uploader
+    label="Original MP3s"
+    mp3s={originalMp3s}
+    setMp3s={(updated) => {
+      console.log("🎤 [DW4-MP3-ORIGINAL] UPDATE", {
+        previous: originalMp3s,
+        updated,
+      });
+
+      handleSetOriginalMp3s(updated);
+    }}
+  />
+</div>
+
+{/* ------------------------------------------------------- */}
+{/* IMAGE CROPPER MODALS */}
+{/* ------------------------------------------------------- */}
+<ImageCropModal
+  isOpen={modalOpen}
+  onClose={() => setModalOpen(false)}
+  onSave={handleSaveCroppedImage}
+  imageSrc={tempImage}
+/>
+
+<ImageCropModal
   isOpen={coverModalOpen}
   onClose={() => setCoverModalOpen(false)}
   onSave={handleSaveCoverCroppedImage}

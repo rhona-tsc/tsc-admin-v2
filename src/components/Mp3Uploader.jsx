@@ -1,8 +1,9 @@
-import React, { useRef, useRef as useRefAlias } from "react";
+import React, { useRef, useState } from "react";
 
 const Mp3Uploader = ({ label, mp3s, setMp3s }) => {
   const inputRef = useRef();
-  const uploadingSetRef = useRefAlias(new Set()); // tracks `${name}-${size}` currently uploading
+  const uploadingSetRef = useRef(new Set()); // tracks `${name}-${size}`
+  const [isUploading, setIsUploading] = useState(false);
 
   const log = (...args) => console.log(`🎧 [Mp3Uploader:${label}]`, ...args);
 
@@ -19,16 +20,21 @@ const Mp3Uploader = ({ label, mp3s, setMp3s }) => {
 
   const handleDrop = async (e) => {
     e.preventDefault();
+    if (isUploading) return; // prevent overlap
+
     const files = [...e.dataTransfer.files].filter((f) => f.type === "audio/mpeg");
     log("Dropped files:", files.map((f) => f.name));
-    await handleUpload(files);
+    handleUpload(files);
   };
 
   const handleUpload = async (files) => {
+    if (!files.length) return;
+
+    setIsUploading(true);
+
     for (const file of files) {
       const fileKey = makeFileKey(file);
 
-      // prevent duplicate concurrent uploads of the same file
       if (uploadingSetRef.current.has(fileKey)) {
         log("⛔️ Skipping (already uploading):", fileKey);
         continue;
@@ -36,23 +42,18 @@ const Mp3Uploader = ({ label, mp3s, setMp3s }) => {
       uploadingSetRef.current.add(fileKey);
 
       try {
-        // If it’s already in state, skip before uploading (cheap check)
         let shouldSkip = false;
         setMp3s((prev) => {
           const skip = alreadyInList(prev, { file });
           if (skip) shouldSkip = true;
           return prev;
         });
-        if (shouldSkip) {
-          log("⛔️ Skipping (already in list):", fileKey);
-          continue;
-        }
+        if (shouldSkip) continue;
 
         const formData = new FormData();
         formData.append("file", file);
         formData.append("upload_preset", "musicians");
 
-        // You can keep /video/upload for mp3s; Cloudinary treats audio under video resource type.
         const res = await fetch(
           "https://api.cloudinary.com/v1_1/dvcgr3fyd/video/upload",
           { method: "POST", body: formData }
@@ -60,28 +61,23 @@ const Mp3Uploader = ({ label, mp3s, setMp3s }) => {
         const data = await res.json();
 
         if (!res.ok || !data.secure_url) {
-          log("❌ Upload failed response:", data);
+          log("❌ Upload failed:", data);
           continue;
         }
 
-        log(`✅ Uploaded ${file.name} →`, data.secure_url);
+        log(`✅ Uploaded ${file.name}`);
 
-        // Functional update with de-dupe guard
         setMp3s((prev) => {
-          if (alreadyInList(prev, { url: data.secure_url, file })) {
-            log("⛔️ Not adding (duplicate after upload):", fileKey);
-            return prev;
-          }
-          const next = [
+          if (alreadyInList(prev, { url: data.secure_url, file })) return prev;
+
+          return [
             ...prev,
             {
               title: file.name.replace(/\.mp3$/i, ""),
               url: data.secure_url,
-              __fileKey: fileKey, // hidden key to aid future de-duping
+              __fileKey: fileKey,
             },
           ];
-          log("🎶 Updated mp3s state:", next);
-          return next;
         });
       } catch (err) {
         log("❌ Upload error:", err);
@@ -89,12 +85,13 @@ const Mp3Uploader = ({ label, mp3s, setMp3s }) => {
         uploadingSetRef.current.delete(fileKey);
       }
     }
+
+    setIsUploading(false);
   };
 
   const handleFileChange = (e) => {
     const files = [...(e.target.files || [])];
     handleUpload(files);
-    // allow re-selecting the same file later
     e.target.value = "";
   };
 
@@ -112,9 +109,12 @@ const Mp3Uploader = ({ label, mp3s, setMp3s }) => {
     <div
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
-      className="border-dashed border-2 p-4 rounded-lg text-center cursor-pointer"
-      onClick={() => inputRef.current?.click()}
+      className={`border-dashed border-2 p-4 rounded-lg text-center cursor-pointer relative ${
+        isUploading ? "opacity-60 pointer-events-none" : ""
+      }`}
+      onClick={() => !isUploading && inputRef.current?.click()}
     >
+      {/* Hidden File Input */}
       <input
         type="file"
         accept="audio/mpeg"
@@ -123,11 +123,26 @@ const Mp3Uploader = ({ label, mp3s, setMp3s }) => {
         className="hidden"
         onChange={handleFileChange}
       />
-      <p>Drag & drop your MP3s here or click to upload</p>
 
+      {/* Upload Area Text */}
+      <p className="text-gray-600">
+        {isUploading ? "Uploading your MP3s..." : "Drag & drop your MP3s here or click to upload"}
+      </p>
+
+      {/* 🔄 Global Spinner */}
+      {isUploading && (
+        <div className="flex justify-center mt-3">
+          <div className="h-6 w-6 border-4 border-gray-300 border-t-black rounded-full animate-spin"></div>
+        </div>
+      )}
+
+      {/* List of Uploaded MP3s */}
       <ul className="mt-4">
         {mp3s.map((mp3, index) => (
-          <li key={mp3.__fileKey || `${mp3.url}-${index}`} className="flex items-center gap-2 mb-2">
+          <li
+            key={mp3.__fileKey || `${mp3.url}-${index}`}
+            className="flex items-center gap-2 mb-2"
+          >
             <input
               type="text"
               value={mp3.title}

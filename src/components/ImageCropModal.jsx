@@ -2,21 +2,32 @@
 import React, { useState, useCallback } from "react";
 import Cropper from "react-easy-crop";
 
+/**
+ * Converts cropped section to a Blob
+ */
 function getCroppedBlob(imageSrc, cropPixels, mime = "image/jpeg", quality = 0.92) {
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
     const image = new Image();
     image.crossOrigin = "anonymous";
     image.src = imageSrc;
+
     image.onload = () => {
       const canvas = document.createElement("canvas");
       canvas.width = cropPixels.width;
       canvas.height = cropPixels.height;
+
       const ctx = canvas.getContext("2d");
 
       ctx.drawImage(
         image,
-        cropPixels.x, cropPixels.y, cropPixels.width, cropPixels.height,
-        0, 0, cropPixels.width, cropPixels.height
+        cropPixels.x,
+        cropPixels.y,
+        cropPixels.width,
+        cropPixels.height,
+        0,
+        0,
+        cropPixels.width,
+        cropPixels.height
       );
 
       canvas.toBlob(
@@ -28,6 +39,7 @@ function getCroppedBlob(imageSrc, cropPixels, mime = "image/jpeg", quality = 0.9
         quality
       );
     };
+
     image.onerror = reject;
   });
 }
@@ -37,8 +49,8 @@ const ImageCropModal = ({
   onClose,
   onSave,
   imageSrc,
-  aspect = 1,       // 👈 default square; pass 16/9 to get widescreen
-  title = "Crop Image"
+  aspect = 1, // default square
+  title = "Crop Image",
 }) => {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -48,76 +60,98 @@ const ImageCropModal = ({
     setCroppedAreaPixels(areaPixels);
   }, []);
 
-  const handleSave = async () => {
-    if (!imageSrc || !croppedAreaPixels) return;
-    const blob = await getCroppedBlob(imageSrc, croppedAreaPixels, "image/jpeg");
-    onSave?.(blob);
-  };
+const handleSave = async () => {
+  if (!imageSrc || !croppedAreaPixels) return;
+  
+  const blob = await getCroppedBlob(imageSrc, croppedAreaPixels);
+  
+  onSave?.(blob);   // send cropped file back
+  onClose?.();      // 👈 CLOSE MODAL AFTER SAVE
+};
 
   if (!isOpen) return null;
 
-  // Make the viewport itself 16:9 (or whatever aspect you pass) so it doesn't look square
-  const viewportStyle = {
-    aspectRatio: aspect,          // modern browsers; keeps the box ratio
-    width: "100%",
-    maxWidth: "900px",
-    background: "#111",
-    position: "relative",
-    borderRadius: "0.5rem",
-    overflow: "hidden",
-  };
-
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="
+        fixed inset-0 bg-black/60 z-[9999]
+        flex items-center justify-center
+        p-4
+      "
       role="dialog"
       aria-modal="true"
     >
-      <div className="w-full max-w-5xl">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-white text-lg font-semibold">{title}</h3>
+      {/* Modal container */}
+      <div
+        className="
+          bg-white rounded-lg shadow-xl w-full 
+          max-w-3xl max-h-[90vh] 
+          overflow-hidden flex flex-col
+        "
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <h2 className="text-lg font-semibold">{title}</h2>
           <button
-            type="button"
-            className="px-3 py-1 rounded bg-white/10 text-white hover:bg-white/20"
             onClick={onClose}
+            className="text-gray-600 hover:text-black text-xl leading-none"
           >
-            Close
+            ×
           </button>
         </div>
 
-        <div style={viewportStyle} className="mx-auto">
-          <Cropper
-            image={imageSrc}
-            crop={crop}
-            zoom={zoom}
-            onCropChange={setCrop}
-            onZoomChange={setZoom}
-            onCropComplete={onCropComplete}
-            aspect={aspect}             // 👈 enforce 16:9 (or whatever)
-            cropShape="rect"
-            showGrid={false}
-            objectFit="contain"
-            restrictPosition={true}
-          />
+        {/* Body */}
+        <div className="flex-1 overflow-auto p-4">
+          <div
+            className="
+              relative w-full 
+              h-[50vh] sm:h-[60vh] 
+              max-h-[60vh] bg-black rounded-md overflow-hidden
+            "
+          >
+            <Cropper
+              image={imageSrc}
+              crop={crop}
+              zoom={zoom}
+              aspect={aspect}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={onCropComplete}
+              cropShape="rect"
+              showGrid={false}
+              objectFit="contain"
+              restrictPosition={true}
+            />
+          </div>
+
+          {/* Zoom slider */}
+          <div className="mt-4 flex items-center gap-4">
+            <label className="text-gray-700 text-sm">Zoom</label>
+            <input
+              type="range"
+              min={1}
+              max={3}
+              step={0.01}
+              value={zoom}
+              onChange={(e) => setZoom(Number(e.target.value))}
+              className="flex-1"
+            />
+          </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-4">
-          <label className="text-white text-sm">Zoom</label>
-          <input
-            className="flex-1"
-            type="range"
-            min={1}
-            max={3}
-            step={0.01}
-            value={zoom}
-            onChange={(e) => setZoom(Number(e.target.value))}
-          />
+        {/* Footer */}
+        <div className="flex justify-end gap-2 px-4 py-3 border-t bg-white">
           <button
-            type="button"
-            className="ml-auto px-4 py-2 rounded bg-black text-white hover:bg-[#ff6667]"
-            onClick={handleSave}
+            onClick={onClose}
+            className="px-4 py-2 rounded border hover:bg-gray-100"
           >
-            Save Crop
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="px-4 py-2 rounded bg-black text-white hover:bg-[#ff6667]"
+          >
+            Save
           </button>
         </div>
       </div>

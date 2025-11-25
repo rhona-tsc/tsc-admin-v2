@@ -95,10 +95,6 @@ const fetchStats = async () => {
    </>
 
 
-      {/* ------- Welcome Section ------- */}
-      <h2 className="text-2xl font-semibold text-gray-700">
-        Welcome back 👋
-      </h2>
 
       {/* ------- Quick Stats ------- */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

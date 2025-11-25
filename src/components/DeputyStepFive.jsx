@@ -40,6 +40,18 @@ const DeputyStepFive = ({ formData, setFormData, userRole, stepProps }) => {
   const hasDJDecks = selectedOtherSkills.includes("DJ with Decks");
   const hasDJMixingConsole = selectedOtherSkills.includes("DJ with Mixing Console");
 
+  console.log("🟪 [StepFive Flags]", {
+    selectedInstruments,
+    hasInstruments,
+    selectedVocalTypes,
+    isVocalist,
+    isNonSinger,
+    selectedOtherSkills,
+    hasSoundEngineering,
+    hasDJDecks,
+    hasDJMixingConsole
+  });
+
   // === Computed flags ===
   const showInstrumentSpecs = hasInstruments;
   const showPASections = hasSoundEngineering;
@@ -57,6 +69,20 @@ const DeputyStepFive = ({ formData, setFormData, userRole, stepProps }) => {
   const showExtensionCableLogistics = hasSoundEngineering;
   const showLighting = hasSoundEngineering;
   const showDJSections = hasDJDecks || hasDJMixingConsole;
+
+  console.log("🟧 [StepFive Visibility]", {
+    showInstrumentSpecs,
+    showPASections,
+    showInEarMonitoring,
+    showVocalMics,
+    showInstrumentMics,
+    showSpeechMics,
+    showAdditionalEquipment,
+    showCableLogistics,
+    showExtensionCableLogistics,
+    showLighting,
+    showDJSections
+  });
 
   return (
     <div>

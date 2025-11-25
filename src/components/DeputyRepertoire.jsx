@@ -146,7 +146,7 @@ const DeputyRepertoire = ({ customRepertoire, setCustomRepertoire, selectedSongs
       <div className="w-1/2 pr-4">
         <textarea
           className="w-full p-3 border rounded h-80 resize-y text-sm"
-          placeholder="Paste your repertoire here"
+          placeholder="Paste your repertoire here or select songs from the list on the right."
           value={customRepertoire}
           onChange={(e) => setCustomRepertoire(e.target.value)}
         />

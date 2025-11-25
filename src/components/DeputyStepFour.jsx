@@ -8,6 +8,13 @@ import DeputySongModeration from "./DeputySongModeration";
 const DeputyStepFour = ({ formData = {}, setFormData = () => {}, userRole, deputyId }) => {
 
 console.log("[DeputyStepFour] deputyId prop:", deputyId);
+console.log("[DeputyStepFour] initial formData snapshot:", {
+  instrumentation: formData.instrumentation,
+  other_skills: formData.other_skills,
+  logistics: formData.logistics,
+  vocals: formData.vocals,
+  selectedSongs: formData.selectedSongs,
+});
   const {
     instrumentation = [],
     other_skills = [],
@@ -15,26 +22,38 @@ console.log("[DeputyStepFour] deputyId prop:", deputyId);
   } = formData;
 
   const updateArrayField = (field, value, index) => {
+    console.log("[DeputyStepFour] updateArrayField:", { field, value, index });
     const updated = [...(formData[field] || [])];
     updated[index] = value;
-    setFormData({ [field]: updated });
-  };
+setFormData(prev => ({
+  ...prev,
+  [field]: updated
+}));  };
 
   const addField = (field, value = "") => {
-    setFormData({ [field]: [...(formData[field] || []), value] });
-  };
+    console.log("[DeputyStepFour] addField:", { field, value });
+setFormData(prev => ({
+  ...prev,
+  [field]: [...(prev[field] || []), value]
+}));  };
 
   const removeField = (field, index) => {
+    console.log("[DeputyStepFour] removeField:", { field, index });
     const updated = [...(formData[field] || [])];
     updated.splice(index, 1);
-    setFormData({ [field]: updated });
-  };
+setFormData(prev => ({
+  ...prev,
+  [field]: updated
+}));  };
 
   const toggleCheckboxValue = (field, value) => {
+    console.log("[DeputyStepFour] toggleCheckboxValue:", { field, value });
     const current = new Set(formData[field] || []);
     current.has(value) ? current.delete(value) : current.add(value);
-    setFormData({ [field]: Array.from(current) });
-  };
+setFormData(prev => ({
+  ...prev,
+  [field]: Array.from(current)
+}));  };
 
   return (
     <div className="flex flex-col gap-6">

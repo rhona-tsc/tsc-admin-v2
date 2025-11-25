@@ -3,6 +3,7 @@ import ReactSignatureCanvas from "react-signature-canvas";
 import DepFiveAgreementCheckboxes from "./DepFiveAgreementCheckboxes";
 
 const DeputyStepSix = ({ formData, setFormData, userRole, stepProps, setHasDrawnSignature }) => {  
+  console.log("🟣 [DeputyStepSix] RENDER — formData:", formData);
     const sigCanvas = useRef(null);
   
 const firstName = formData.firstName || localStorage.getItem("userFirstName") || "";
@@ -24,6 +25,7 @@ const email = formData.email || localStorage.getItem("userEmail") || "";
   };
 
   const handleEnd = () => {
+    console.log("🟣 [DeputyStepSix] Signature END — saving signature");
     if (sigCanvas.current) {
       const dataURL = sigCanvas.current.getTrimmedCanvas().toDataURL("image/png");
       setFormData((prev) => ({
@@ -35,6 +37,7 @@ const email = formData.email || localStorage.getItem("userEmail") || "";
   };
   
   const clearSignature = () => {
+    console.log("🟣 [DeputyStepSix] Signature CLEAR");
     sigCanvas.current.clear();
     setFormData((prev) => ({
       ...prev,
@@ -56,6 +59,7 @@ const email = formData.email || localStorage.getItem("userEmail") || "";
         sigCanvas.current.clear(); // Clear first
         sigCanvas.current.fromDataURL(formData.deputy_contract_signed);
         console.log("✅ Loaded saved signature into SignatureCanvas");
+        console.log("🟣 [DeputyStepSix] Loaded signature from formData");
       } catch (err) {
         console.error("❌ Failed to load saved signature:", err);
       }
@@ -79,6 +83,7 @@ const email = formData.email || localStorage.getItem("userEmail") || "";
   // On first render (or when deputyId arrives), set formData.reference if empty
   useEffect(() => {
     if (!formData.reference && computedReference) {
+      console.log("🟣 [DeputyStepSix] Setting initial contract reference:", computedReference);
       setFormData((prev) => ({ ...prev, reference: computedReference }));
     }
   }, [computedReference, formData.reference, setFormData]);
@@ -99,6 +104,7 @@ const email = formData.email || localStorage.getItem("userEmail") || "";
             value={formData.bank_account?.sort_code || ""}
             onChange={(e) => {
               const value = e.target.value;
+              console.log("🟣 [DeputyStepSix] sort_code changed:", value);
               validateBankDetails("sortCode", value);
               setFormData({ bank_account: { ...(formData.bank_account || {}), sort_code: value } });
             }}
@@ -114,6 +120,7 @@ const email = formData.email || localStorage.getItem("userEmail") || "";
             value={formData.bank_account?.account_number || ""}
             onChange={(e) => {
               const value = e.target.value;
+              console.log("🟣 [DeputyStepSix] account_number changed:", value);
               validateBankDetails("accountNumber", value);
               setFormData({ bank_account: { ...(formData.bank_account || {}), account_number: value } });
             }}
@@ -130,7 +137,10 @@ const email = formData.email || localStorage.getItem("userEmail") || "";
             id="accountName"
             type="text"
             value={formData.bank_account?.account_name || ""}
-            onChange={(e) => setFormData({ bank_account: { ...(formData.bank_account || {}), account_name: e.target.value } })}
+            onChange={(e) => {
+            console.log("🟣 [DeputyStepSix] account_name changed:", e.target.value);
+            setFormData({ bank_account: { ...(formData.bank_account || {}), account_name: e.target.value } });
+            }}
             className="border rounded px-3 py-1.5 w-full"
           />
         </div>
@@ -139,7 +149,10 @@ const email = formData.email || localStorage.getItem("userEmail") || "";
           <select
             id="accountType"
             value={formData.bank_account?.account_type || ""}
-            onChange={(e) => setFormData({ bank_account: { ...(formData.bank_account || {}), account_type: e.target.value } })}
+            onChange={(e) => {
+            console.log("🟣 [DeputyStepSix] account_type changed:", e.target.value);
+            setFormData({ bank_account: { ...(formData.bank_account || {}), account_type: e.target.value } });
+            }}
             className="border rounded px-3 py-1.5 w-full"
           >
             <option value="">Select</option>
