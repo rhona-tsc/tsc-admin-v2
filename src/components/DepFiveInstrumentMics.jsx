@@ -13,9 +13,10 @@ const DepFiveInstrumentMics = ({ formData, setFormData }) => {
 
     console.log("✅ New instrumentMics object:", updatedInstrumentMics);
 
-    setFormData({
+    setFormData(prev => ({
+      ...prev,
       instrumentMics: updatedInstrumentMics,
-    });
+    }));
   };
 
   console.log("🧾 Current instrumentMics from formData:", formData.instrumentMics);

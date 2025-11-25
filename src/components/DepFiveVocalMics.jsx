@@ -13,9 +13,10 @@ const DepStepFiveVocalMics = ({ formData, setFormData }) => {
 
     console.log("✅ New vocalMics object:", updatedVocalMics);
 
-    setFormData({
+    setFormData(prev => ({
+      ...prev,
       vocalMics: updatedVocalMics,
-    });
+    }));
   };
 
   console.log("🧾 Current vocalMics from formData:", formData.vocalMics);

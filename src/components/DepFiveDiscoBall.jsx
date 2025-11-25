@@ -11,18 +11,18 @@ const DepFiveDiscoBall = ({ formData = {}, setFormData = () => {} }) => {
   const updateArrayItem = (arrayName, index, field, value) => {
     const updatedArray = [...(formData[arrayName] || [])];
     updatedArray[index] = { ...updatedArray[index], [field]: value };
-    setFormData({ ...formData, [arrayName]: updatedArray });
+    setFormData(prev => ({ ...prev, [arrayName]: updatedArray }));
   };
 
   const addItem = (arrayName, itemTemplate) => {
     const updatedArray = [...(formData[arrayName] || []), itemTemplate];
-    setFormData({ ...formData, [arrayName]: updatedArray });
+    setFormData(prev => ({ ...prev, [arrayName]: updatedArray }));
   };
 
   const removeItem = (arrayName, index) => {
     const updatedArray = [...(formData[arrayName] || [])];
     updatedArray.splice(index, 1);
-    setFormData({ ...formData, [arrayName]: updatedArray });
+    setFormData(prev => ({ ...prev, [arrayName]: updatedArray }));
   };
 
   return (

@@ -13,9 +13,10 @@ const DepFiveInEarMonitoring = ({ formData, setFormData }) => {
 
     console.log("✅ New inEarMonitoring object:", updatedInEarMonitoring);
 
-    setFormData({
+    setFormData(prev => ({
+      ...prev,
       inEarMonitoring: updatedInEarMonitoring,
-    });
+    }));
   };
 
   console.log("🧾 Current inEarMonitoring from formData:", formData.inEarMonitoring);

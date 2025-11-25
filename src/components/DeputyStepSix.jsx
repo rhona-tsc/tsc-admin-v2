@@ -5,11 +5,36 @@ import DepFiveAgreementCheckboxes from "./DepFiveAgreementCheckboxes";
 const DeputyStepSix = ({ formData, setFormData, userRole, stepProps, setHasDrawnSignature }) => {  
   console.log("🟣 [DeputyStepSix] RENDER — formData:", formData);
     const sigCanvas = useRef(null);
+
+    useEffect(() => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}, []);
+
   
-const firstName = formData.firstName || localStorage.getItem("userFirstName") || "";
-const lastName = formData.lastName || localStorage.getItem("userLastName") || "";
-const phone = formData.phone || localStorage.getItem("userPhone") || "";
-const email = formData.email || localStorage.getItem("userEmail") || "";
+const firstName =
+  formData.basicInfo?.firstName ||
+  formData.firstName ||               // fallback
+  localStorage.getItem("userFirstName") ||
+  "";
+
+const lastName =
+  formData.basicInfo?.lastName ||
+  formData.last_name ||
+  localStorage.getItem("userLastName") ||
+  "";
+
+const phone =
+  formData.basicInfo?.phone ||
+  formData.phone_number ||
+  localStorage.getItem("userPhone") ||
+  "";
+
+const email =
+  formData.basicInfo?.email ||
+  formData.email_address ||
+  localStorage.getItem("userEmail") ||
+  "";
+  
   const [errors, setErrors] = useState({ sortCode: "", accountNumber: "" });
   const [isSignaturePresent, setIsSignaturePresent] = useState(false);
 
@@ -24,17 +49,25 @@ const email = formData.email || localStorage.getItem("userEmail") || "";
     setErrors((prev) => ({ ...prev, [field]: error }));
   };
 
-  const handleEnd = () => {
-    console.log("🟣 [DeputyStepSix] Signature END — saving signature");
-    if (sigCanvas.current) {
-      const dataURL = sigCanvas.current.getTrimmedCanvas().toDataURL("image/png");
-      setFormData((prev) => ({
-        ...prev,
-        deputy_contract_signed: dataURL,
-      }));
-      setHasDrawnSignature(true); // ✅ use the prop here
-    }
-  };
+const handleEnd = () => {
+  console.log("🟣 [DeputyStepSix] Signature END — saving signature");
+
+  if (!sigCanvas.current) return;
+
+  try {
+    const canvas = sigCanvas.current.getCanvas();
+    const dataURL = canvas.toDataURL("image/png");
+
+    setFormData(prev => ({
+      ...prev,
+      deputy_contract_signed: dataURL
+    }));
+
+    setHasDrawnSignature(true);
+  } catch (err) {
+    console.error("❌ Failed to capture signature:", err);
+  }
+};
   
   const clearSignature = () => {
     console.log("🟣 [DeputyStepSix] Signature CLEAR");
@@ -68,6 +101,13 @@ const email = formData.email || localStorage.getItem("userEmail") || "";
 
   // ---- Contract Reference Builder ----
   // Use deputy doc id if present, else the logged-in user id.
+
+  const safeLastName =
+  formData.basicInfo?.lastName ||
+  formData.last_name ||
+  localStorage.getItem("userLastName") ||
+  "";
+
   const deputyId =
     (formData && (formData._id || formData.id)) ||
     localStorage.getItem("userId") ||
@@ -76,19 +116,40 @@ const email = formData.email || localStorage.getItem("userEmail") || "";
   const computedReference = useMemo(() => {
     const yy = new Date().getFullYear().toString().slice(-2);
     const tail = deputyId ? deputyId.toString().slice(-6).toUpperCase() : "NOID";
-    const lname = (lastName || "UNKNOWN").toUpperCase().replace(/\s+/g, "");
+      const lname = safeLastName.toUpperCase().replace(/\s+/g, "");
+
+      
+
     return `TSC${yy}-${tail}-${lname}`;
-  }, [deputyId, lastName]);
+  }, [deputyId, safeLastName]);
+
+      useEffect(() => {
+  if (safeLastName) {
+    setFormData(prev => ({
+      ...prev,
+      reference: computedReference
+    }));
+  }
+}, [computedReference, safeLastName]);
 
   // On first render (or when deputyId arrives), set formData.reference if empty
   useEffect(() => {
-    if (!formData.reference && computedReference) {
+if (!formData.reference && safeLastName) {
       console.log("🟣 [DeputyStepSix] Setting initial contract reference:", computedReference);
       setFormData((prev) => ({ ...prev, reference: computedReference }));
     }
   }, [computedReference, formData.reference, setFormData]);
 
   const contractReference = formData.reference || computedReference;
+  console.log("🟣 [DeputyStepSix] contractReference:", contractReference, {
+    safeLastName,
+    deputyId,
+    computedReference,
+    formDataLastName: formData.lastName,
+    formData_last_name: formData.last_name,
+    basicInfoLastName: formData.basicInfo?.lastName,
+    localStorageLastName: localStorage.getItem("userLastName")
+  });
 
   
   return (
@@ -169,7 +230,8 @@ const email = formData.email || localStorage.getItem("userEmail") || "";
   dangerouslySetInnerHTML={{
     __html: formData.deputy_contract_text ||
             `<h2>Bamboo Music Management Booking Contract</h2>
-<p>Issued by the ‘Agent’ (Bamboo Music Management, trading name The Supreme Collective) on behalf of the 'Artistic Supplier' ${formData.firstName || ''} ${formData.lastName || ''}.</p>
+<p>Issued by the ‘Agent’ (Bamboo Music Management, trading name The Supreme Collective) on behalf of the 'Artistic Supplier'${formData.firstName || formData.first_name || ''} 
+${formData.lastName || formData.last_name || ''}.</p>
 <p><strong>Contract Ref:</strong> ${contractReference}</p>
 <p><strong>Date of Issue:</strong> ${new Date().toLocaleDateString()}</p>
 <p><strong>Artistic Supplier Contact Details</strong><br/>
@@ -186,11 +248,22 @@ Contact Email: hello@thesupremecollective.co.uk</p>
 <p>
   Role(s): ${
     [
-      (formData.instrumentation || []).map(i => i.instrument).join(", "),
-      formData.vocals?.type || ""
+      // Instruments (cleaned + joined)
+      ...((formData.instrumentation || [])
+        .map(i => i.instrument?.trim())
+        .filter(Boolean)),
+
+      // Vocal types — always treat as array
+      ...(
+        Array.isArray(formData.vocals?.type)
+          ? formData.vocals.type
+          : [formData.vocals?.type]
+      )
+        .map(v => v?.trim())
+        .filter(Boolean)
     ]
-    .filter(Boolean) // Remove empty strings
-    .join(", ") // Only joins if both are non-empty
+    .filter(Boolean)
+    .join(", ")
   }
 </p><p>Additional Skills: ${formData.other_skills?.join(", ")}</p>
 <p>Able to Perform at: Weddings, Corporate Events, Private Parties, Festivals, Birthday Parties, Bar & Bat Mitzvahs, HM Forces Events, NYE Parties, Charity Events, Product Launches, Residencies, Award Ceremonies, and International Events. Note this list is not exhaustive but representative of the types of events expected to be covered.</p>
@@ -204,7 +277,7 @@ Contact Email: hello@thesupremecollective.co.uk</p>
 <p>Standard Finish Time: midnight</p>
 <p>Standard Change Time: 15 minutes</p>
 <p>Minimum Personal Performance Area Required: 1x1m for instruments with the exception of drums and DJs which require 2x2m.</p>
-<h2>Able to Perform in the Following Lineups:</h2>
+<h2>If your role appears in the below lineups you are able to perform in those lineups:</h2>
 <ul style="list-style-type: disc; margin-left: 1.5rem;">
   <li>lead vocal &amp; guitar or keyboard</li>
   <li>lead vocal, guitar or keyboard, and bass</li>

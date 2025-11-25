@@ -13,9 +13,10 @@ const DepFiveAdditionalEquipment = ({ formData, setFormData }) => {
 
     console.log("✅ New additionalEquipment object:", updatedAdditionalEquipment);
 
-    setFormData({
+    setFormData(prev => ({
+      ...prev,
       additionalEquipment: updatedAdditionalEquipment,
-    });
+    }));
   };
 
   console.log("🧾 Current additionalEquipment from formData:", formData.additionalEquipment);

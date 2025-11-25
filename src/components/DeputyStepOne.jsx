@@ -864,14 +864,17 @@ const DeputyStepOne = ({
   <Mp3Uploader
     label="Cover MP3s"
     mp3s={coverMp3s}
-    setMp3s={(updated) => {
-      console.log("🎧 [DW4-MP3-COVER] UPDATE", {
-        previous: coverMp3s,
-        updated,
-      });
-
-      handleSetCoverMp3s(updated);
-    }}
+   setMp3s={(updated) => {
+  if (typeof updated === "function") {
+    setCoverMp3s(prev => {
+      const result = updated(prev)
+      handleSetCoverMp3s(result)
+      return result
+    })
+  } else {
+    handleSetCoverMp3s(updated)
+  }
+}}
   />
 </div>
 
@@ -889,14 +892,17 @@ const DeputyStepOne = ({
   <Mp3Uploader
     label="Original MP3s"
     mp3s={originalMp3s}
-    setMp3s={(updated) => {
-      console.log("🎤 [DW4-MP3-ORIGINAL] UPDATE", {
-        previous: originalMp3s,
-        updated,
-      });
-
-      handleSetOriginalMp3s(updated);
-    }}
+   setMp3s={(updated) => {
+  if (typeof updated === "function") {
+    setOriginalMp3s(prev => {
+      const result = updated(prev)
+      handleSetOriginalMp3s(result)
+      return result
+    })
+  } else {
+    handleSetOriginalMp3s(updated)
+  }
+}}
   />
 </div>
 

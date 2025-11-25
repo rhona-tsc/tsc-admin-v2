@@ -45,6 +45,7 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone }) => {
   const [submissionInProgress, setSubmissionInProgress] = useState(false);
   const [showSubmittingPopup, setShowSubmittingPopup] = useState(false);
   const [hasDrawnSignature, setHasDrawnSignature] = useState(false);
+  const [autosaveStatus, setAutosaveStatus] = useState("");
 
 
   const [formData, setFormData] = useState({
@@ -315,7 +316,6 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone }) => {
     //       wireless_in_ear: false,
     //     },
     //   ],
-    digitalWardrobeSessionBlack: [],
 
     digitalWardrobeBlackTie: [],
     digitalWardrobeFormal: [],
@@ -334,6 +334,20 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone }) => {
   });
 
   const [tscApprovedBio, setTscApprovedBio] = useState(formData?.tscApprovedBio || "");
+
+  // 🧷 AUTOSAVE — hydrate saved form on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("deputyAutosave");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setFormData(prev => ({ ...prev, ...parsed }));
+        console.log("🔄 Restored autosaved data");
+      }
+    } catch (e) {
+      console.error("❌ Failed to restore autosave:", e);
+    }
+  }, []);
 
 useEffect(() => {
   setFormData((prev) => ({
@@ -384,7 +398,10 @@ useEffect(() => {
   }, [firstName, lastName, phone]);
 
   const handleNext = () => {
-    if (step < totalSteps) setStep(step + 1);
+    if (step < totalSteps) {
+      setStep(prev => prev + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   const handleBack = () => {
@@ -561,10 +578,6 @@ useEffect(() => {
       allAdditional.forEach((url) => form.append("additionalImages", url));
       setIsUploadingImages(false);
 
-      form.append(
-        "status",
-        typeof formData.status === "string" ? formData.status : "pending"
-      );
 
       form.append(
         "function_bands_performed_with",
@@ -636,11 +649,11 @@ useEffect(() => {
         JSON.stringify(formData.agreementCheckboxes)
       );
       form.append("djGearRequired", JSON.stringify(formData.djGearRequired));
-      form.append("paAndBackline", JSON.stringify(formData.paAndBackline));
+      form.append("paAndBackline", JSON.stringify(formData.paAndBackline || []));
       form.append("backline", JSON.stringify(formData.backline));
 
       form.append("awards", JSON.stringify(formData.awards));
-      form.append("vocals", JSON.stringify(formData.vocals));
+      form.append("vocals", JSON.stringify(formData.vocals || {}));
       form.append("repertoire", JSON.stringify(formData.repertoire));
       form.append("selectedSongs", JSON.stringify(formData.selectedSongs));
       form.append("other_skills", JSON.stringify(formData.other_skills));
@@ -663,8 +676,10 @@ useEffect(() => {
         "deputy_contract_agreed",
         JSON.stringify(formData.deputy_contract_agreed)
       ); // ✅ stringified
-      form.append("dateRegistered", formData.dateRegistered.toISOString());
-      for (const key in formData) {
+form.append(
+  "dateRegistered",
+  new Date(formData.dateRegistered).toISOString()
+);      for (const key in formData) {
         if (
           [
             "profilePicture",
@@ -675,7 +690,7 @@ useEffect(() => {
             "digitalWardrobeBlackTie",
             "digitalWardrobeFormal",
             "digitalWardrobeSmartCasual",
-            "digitalWardrobeSessionBlack",
+            "digitalWardrobeSessionAllBlack",
             "additionalImages",
             "functionBandVideoLinks",
             "tscApprovedFunctionBandVideoLinks",
@@ -751,7 +766,7 @@ useEffect(() => {
       );
 
       // after you've appended everything to `form`
-      console.group("📤 FormData -> /api/musician/register-deputy");
+      console.group("📤 FormData -> /api/musician/moderation/register-deputy");
       for (const [k, v] of form.entries()) {
         if (v instanceof File || v instanceof Blob) {
           console.log(
@@ -767,7 +782,7 @@ useEffect(() => {
       console.groupEnd();
 
       const axiosResponsePromise = axios.post(
-        `${backendUrl}/api/musician/register-deputy`,
+        `${backendUrl}/api/musician/moderation/register-deputy`,
         form,
         {
           headers: {
@@ -940,10 +955,53 @@ const stepProps = { formData }
   console.log("🎧 coverMp3s:", formData.coverMp3s);
   console.log("🎧 originalMp3s:", formData.originalMp3s);
 
-  // 🔍 DEBUG: Track ALL formData changes live
+  // 🧷 AUTOSAVE — save to localStorage every time formData changes (debounced)
   useEffect(() => {
-    console.log("🟦 DeputyForm — formData changed:", structuredClone(formData));
+    const handler = setTimeout(() => {
+      try {
+        // Safe deep clone (ignores Blobs, Files, Window, Functions, Cyclic refs)
+        const safe = JSON.parse(
+          JSON.stringify(formData, (key, value) => {
+            if (value instanceof File) return undefined;
+            if (value instanceof Blob) return undefined;
+            if (typeof value === "function") return undefined;
+            if (value === window) return undefined;
+            return value;
+          })
+        );
+        // remove Blobs from digital wardrobe / additionalImages
+        safe.digitalWardrobeBlackTie = safe.digitalWardrobeBlackTie?.filter(x => typeof x === "string") || [];
+        safe.digitalWardrobeFormal = safe.digitalWardrobeFormal?.filter(x => typeof x === "string") || [];
+        safe.digitalWardrobeSmartCasual = safe.digitalWardrobeSmartCasual?.filter(x => typeof x === "string") || [];
+        safe.digitalWardrobeSessionAllBlack = safe.digitalWardrobeSessionAllBlack?.filter(x => typeof x === "string") || [];
+        safe.additionalImages = safe.additionalImages?.filter(x => typeof x === "string") || [];
+
+        localStorage.setItem("deputyAutosave", JSON.stringify(safe));
+        const ts = new Date().toLocaleTimeString();
+        setAutosaveStatus(`Autosaved at ${ts}`);
+        console.log("💾 Autosaved deputy form:", safe);
+      } catch (err) {
+        console.error("❌ Autosave failed:", err);
+      }
+    }, 800); // debounce 0.8s
+
+    return () => clearTimeout(handler);
   }, [formData]);
+
+  // 🔍 DEBUG: Track ALL formData changes live
+useEffect(() => {
+  const safe = JSON.parse(
+    JSON.stringify(formData, (key, value) => {
+      if (value instanceof File) return `[File:${value.name}]`;
+      if (value instanceof Blob) return `[Blob]`;
+      return value;
+    })
+  );
+
+  console.log("🟦 DeputyForm — formData changed (safe):", safe);
+}, [formData]);
+
+  
 
   return (
     <>
@@ -973,6 +1031,11 @@ const stepProps = { formData }
             style={{ width: `${(step / totalSteps) * 100}%` }}
           />
         </div>
+        {autosaveStatus && (
+          <div className="text-xs text-gray-500 text-right mb-2 italic">
+            {autosaveStatus}
+          </div>
+        )}
 
         {renderStep()}
 

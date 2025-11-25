@@ -18,7 +18,10 @@ const DepFiveDjEquipmentCategories = ({
         ];
 
     updatedArray[0][field] = value;
-    setFormData({ ...formData, djEquipmentCategories: updatedArray });
+    setFormData((prev) => ({
+      ...prev,
+      djEquipmentCategories: updatedArray,
+    }));
   };
 
   const djEquipment = formData.djEquipmentCategories?.[0] || {

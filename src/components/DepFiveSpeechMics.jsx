@@ -13,9 +13,10 @@ const DepStepFiveSpeechMics = ({ formData, setFormData }) => {
 
     console.log("✅ New speechMics object:", updatedSpeechMics);
 
-    setFormData({
+    setFormData(prev => ({
+      ...prev,
       speechMics: updatedSpeechMics,
-    });
+    }));
   };
 
   console.log("🧾 Current speechMics from formData:", formData.speechMics);
@@ -29,8 +30,8 @@ const DepStepFiveSpeechMics = ({ formData, setFormData }) => {
         </p>
         <div className="flex gap-6 w-full">
           {[
-            { field: "wireless_speech_mics", label: "Wired Speech Mics" },
-            { field: "wired_speech_mics", label: "Wireless Speech Mics" },
+            { field: "wired_speech_mics", label: "Wired Speech Mics" },
+            { field: "wireless_speech_mics", label: "Wireless Speech Mics" },
           ].map(({ field, label }) => (
             <div key={field} className="flex flex-col w-1/3">
               <label htmlFor={field} className="text-sm font-medium mb-1">
