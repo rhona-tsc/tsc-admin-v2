@@ -352,13 +352,13 @@ useEffect(() => {
 useEffect(() => {
   const fetchDeputy = async () => {
     try {
-      const res = await axios.get(
-        `${backendUrl}/api/musician/moderation/deputy/${id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true
-        }
-      );
+      const url = `${backendUrl}/api/moderation/deputy/${id}`;
+      console.log("🔎 Fetching deputy via:", url);
+
+      const res = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true
+      });
 
       console.log("Deputy fetched:", res.data);
     } catch (err) {

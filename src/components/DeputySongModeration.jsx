@@ -212,8 +212,7 @@ const DeputySongModeration = ({
 
       // 4) append to deputy repertoire as OBJECTS (server de-dupes by title|artist|year)
       // 🔧 FIXED PATH: goes through /api/musician/...
-      const repUrl = `${backendUrl}/api/musician/moderation/deputy/${deputyId}/repertoire/append`;
-      log("POST repertoire append (objects):", repUrl, "count:", parsed.length);
+const repUrl = `${backendUrl}/api/moderation/deputy/${deputyId}/repertoire/append`;      log("POST repertoire append (objects):", repUrl, "count:", parsed.length);
       await axios.post(repUrl, {
         songs: parsed.map((s) => ({
           title: s.title,
