@@ -317,6 +317,9 @@ signature: [],
     deputy_contract_signed: "",
     dateRegistered: new Date(),
   });
+  useEffect(() => {
+  console.log("📡 DeputyForm state sent to child step components:", formData);
+}, [formData]);
 
   const [tscApprovedBio, setTscApprovedBio] = useState(formData?.tscApprovedBio || "");
 
@@ -359,7 +362,13 @@ useEffect(() => {
         withCredentials: true,
       });
 
-      console.log("Deputy fetched:", res.data);
+console.group("🎸 DEPUTY HYDRATION DEBUG");
+console.log("Raw API response:", res.data);
+console.log("Response keys:", Object.keys(res.data || {}));
+console.log("Deputy nested object exists?", !!(res.data?.deputy || res.data?.musician));
+console.log("Deputy source:", res.data?.deputy ? "deputy" : res.data?.musician ? "musician" : "none ❌");
+console.log("Deputy object:", res.data?.deputy || res.data?.musician || null);
+console.groupEnd();
 
       const deputy = res.data?.deputy || res.data?.musician || null;
       if (!deputy) {
@@ -377,7 +386,15 @@ useEffect(() => {
 
       const addressFromDb = deputy.address || {};
       const bankFromDb = deputy.bank_account || {};
-
+console.group("🎼 NORMALIZED DEPUTY DATA");
+const dep = res.data?.deputy || res.data?.musician;
+console.log("Basic Info:", dep?.basicInfo);
+console.log("Address:", dep?.address);
+console.log("Bank:", dep?.bank_account);
+console.log("Academic credentials array:", dep?.academic_credentials);
+console.log("Instrumentation:", dep?.instrumentation);
+console.log("selectedSongs:", dep?.selectedSongs);
+console.groupEnd();
       setFormData((prev) => ({
         ...prev,
         // top-level primitive/array fields from DB win
@@ -430,7 +447,18 @@ useEffect(() => {
           deputy.deputy_contract_signed || prev.deputy_contract_signed || "",
         deputy_contract_agreed:
           deputy.deputy_contract_agreed ?? prev.deputy_contract_agreed,
-      }));
+  }));
+        
+
+// ✅ ADD IT RIGHT AFTER SETTING STATE, HERE 👇
+setTimeout(() => {
+  console.group("✅ STATE AFTER HYDRATION");
+  console.log("formData now:", formData);
+  console.log("Is basicInfo hydrated?", JSON.stringify(formData.basicInfo, null, 2));
+  console.log("Is address hydrated?", JSON.stringify(formData.address, null, 2));
+  console.log("Is bank hydrated?", JSON.stringify(formData.bank_account, null, 2));
+  console.groupEnd();
+}, 0);
 
       // Hydrate TSC-approved bio editor
       setTscApprovedBio(
@@ -451,8 +479,13 @@ useEffect(() => {
     }
   };
 
-  if (id) fetchDeputy();
-}, [id, token]);
+if (id) {
+  console.log("🎤 DeputyForm EDIT MODE DETECTED");
+  console.log("🎤 Deputy ID param:", id);
+  fetchDeputy();
+} else {
+  console.warn("⚠️ DeputyForm is NOT in edit mode, skipping hydration");
+}}, [id, token]);
 
 
 
