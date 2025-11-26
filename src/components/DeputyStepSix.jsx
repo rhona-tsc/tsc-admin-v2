@@ -6,8 +6,8 @@ const DeputyStepSix = ({ formData, setFormData, userRole, stepProps, setHasDrawn
   console.log("🟣 [DeputyStepSix] RENDER — formData:", formData);
     const sigCanvas = useRef(null);
 
-    useEffect(() => {
-  window.scrollTo({ top: 0, behavior: "smooth" });
+useEffect(() => {
+  window.scrollTo(0, 0);
 }, []);
 
   
@@ -849,17 +849,18 @@ Contact Email: hello@thesupremecollective.co.uk</p>
                 <label className="block mb-2 font-semibold">Signature</label>
                 <div className="mb-4 flex items-center gap-4">
                   <div className="border rounded w-96 h-40">
-                    <ReactSignatureCanvas
-                      ref={sigCanvas}
-                      penColor="black"
-                      canvasProps={{
-                        width: 384,
-                        height: 160,
-                        className: "signature-canvas",
-                      }}
-                      onEnd={handleEnd}
-                    />
-                  </div>
+  <ReactSignatureCanvas
+    ref={sigCanvas}
+    penColor="black"
+    canvasProps={{
+      width: 384,
+      height: 160,
+      className: "signature-canvas border rounded",
+    }}
+    onEnd={handleEnd}
+  />
+</div>
+                
                   <button
                     type="button"
                     onClick={clearSignature}
