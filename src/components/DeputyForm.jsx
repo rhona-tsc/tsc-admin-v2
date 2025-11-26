@@ -15,8 +15,7 @@ import { backendUrl } from "../App";
 import imageCompression from "browser-image-compression";
 import renameAndCompressImage from "../pages/utils/renameAndCompressDeputyImage";
 
-const DeputyForm = ({ token, userRole, firstName, lastName, email, phone }) => {
-
+const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId }) => {
       console.log(
     "🎸 LIVE DeputyForm Loaded — VERSION: DeputyForm", 
     "2025-11-22 17:45",
@@ -25,18 +24,10 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone }) => {
   );
 
   const [step, setStep] = useState(1);
-    const { id: routeId } = useParams(); // /edit-deputy/:id
-  const deputyId =
-    routeId ??
-    localStorage.getItem("userId") ??
-    null;
+  const { id } = useParams(); // /edit-deputy/:id
 
-    useEffect(() => {
-    // if we have a route id, fetch that profile
-    if (routeId) {
-      // fetch and setMusician(...)
-    }
-  }, [routeId]);
+  // this is the id we’ll use when we need it in children (e.g. Step 4)
+  const deputyId = id || userId || localStorage.getItem("musicianId") || null;
 
   const totalSteps = 6;
   // Uploading state indicators
@@ -365,17 +356,103 @@ useEffect(() => {
 
       const res = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` },
-        withCredentials: true
+        withCredentials: true,
       });
 
       console.log("Deputy fetched:", res.data);
+
+      const deputy = res.data?.deputy || res.data?.musician || null;
+      if (!deputy) {
+        console.warn("⚠️ No deputy object on response");
+        return;
+      }
+
+      // Normalise some common nested bits
+      const basicInfoFromDb = deputy.basicInfo || {
+        firstName: deputy.firstName,
+        lastName: deputy.lastName,
+        phone: deputy.phone,
+        email: deputy.email,
+      };
+
+      const addressFromDb = deputy.address || {};
+      const bankFromDb = deputy.bank_account || {};
+
+      setFormData((prev) => ({
+        ...prev,
+        // top-level primitive/array fields from DB win
+        ...deputy,
+
+        // but make sure nested structures exist
+        basicInfo: {
+          ...prev.basicInfo,
+          ...basicInfoFromDb,
+        },
+        address: {
+          ...prev.address,
+          ...addressFromDb,
+        },
+        bank_account: {
+          ...prev.bank_account,
+          ...bankFromDb,
+        },
+
+        // keep existing dateRegistered if present, otherwise DB’s, otherwise now
+        dateRegistered:
+          deputy.dateRegistered || prev.dateRegistered || new Date(),
+
+        // ensure these are arrays so your steps don't blow up
+        academic_credentials: deputy.academic_credentials || prev.academic_credentials,
+        function_bands_performed_with:
+          deputy.function_bands_performed_with || prev.function_bands_performed_with,
+        original_bands_performed_with:
+          deputy.original_bands_performed_with || prev.original_bands_performed_with,
+        sessions: deputy.sessions || prev.sessions,
+        social_media_links: deputy.social_media_links || prev.social_media_links,
+        instrumentation: deputy.instrumentation || prev.instrumentation,
+        repertoire: deputy.repertoire || prev.repertoire,
+        selectedSongs: deputy.selectedSongs || prev.selectedSongs,
+        other_skills: deputy.other_skills || prev.other_skills,
+        logistics: deputy.logistics || prev.logistics,
+        digitalWardrobeBlackTie:
+          deputy.digitalWardrobeBlackTie || prev.digitalWardrobeBlackTie,
+        digitalWardrobeFormal:
+          deputy.digitalWardrobeFormal || prev.digitalWardrobeFormal,
+        digitalWardrobeSmartCasual:
+          deputy.digitalWardrobeSmartCasual || prev.digitalWardrobeSmartCasual,
+        digitalWardrobeSessionAllBlack:
+          deputy.digitalWardrobeSessionAllBlack ||
+          prev.digitalWardrobeSessionAllBlack,
+        additionalImages: deputy.additionalImages || prev.additionalImages,
+
+        // contract bits
+        deputy_contract_signed:
+          deputy.deputy_contract_signed || prev.deputy_contract_signed || "",
+        deputy_contract_agreed:
+          deputy.deputy_contract_agreed ?? prev.deputy_contract_agreed,
+      }));
+
+      // Hydrate TSC-approved bio editor
+      setTscApprovedBio(
+        deputy.tscApprovedBio || deputy.bio || ""
+      );
+
+      // If there's already a signature, treat it as drawn
+      if (deputy.deputy_contract_signed) {
+        setHasDrawnSignature(true);
+      }
+
+      // Cache the musician id locally so Sidebar can reuse it if needed
+      if (deputy._id) {
+        localStorage.setItem("musicianId", deputy._id);
+      }
     } catch (err) {
       console.error("❌ Failed to fetch deputy:", err);
     }
   };
 
   if (id) fetchDeputy();
-}, [id, backendUrl, token]);
+}, [id, token]);
 
 
 
@@ -832,7 +909,7 @@ if (savedMusician?._id) {
        // Decide redirect by environment
 const redirectTo =
   import.meta.env.MODE === "production"
-    ? `${import.meta.env.FRONTEND_URL}/musician-dashboard`  // ✅ joins string safely
+    ? `${import.meta.env.FRONTEND_URL}/musicians-dashboard`  // ✅ joins string safely
     : "http://localhost:5173";             // for local testing only
 
 // Wait before redirecting to allow toast to appear
