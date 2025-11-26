@@ -11,32 +11,27 @@ useEffect(() => {
 }, []);
 
   
-const firstName =
-  formData.basicInfo?.firstName ||
-  formData.firstName ||               // fallback
-  localStorage.getItem("userFirstName") ||
-  "";
+// --- Extract fields from basicInfo ---
+  const basicInfo = useMemo(() => {
+    try {
+      return typeof formData.basicInfo === "string" ? JSON.parse(formData.basicInfo) : (formData.basicInfo || {});
+    } catch {
+      return {};
+    }
+  }, [formData.basicInfo]);
 
-const lastName =
-  formData.basicInfo?.lastName ||
-  formData.last_name ||
-  localStorage.getItem("userLastName") ||
-  "";
+  const firstName = basicInfo.firstName || formData.firstName || localStorage.getItem("userFirstName") || "";
+  const lastName = basicInfo.lastName || formData.last_name || localStorage.getItem("userLastName") || "";
+  const phone = basicInfo.phone || formData.phone_number || localStorage.getItem("userPhone") || "";
+  const email = basicInfo.email || formData.email_address || localStorage.getItem("userEmail") || "";
 
-const phone =
-  formData.basicInfo?.phone ||
-  formData.phone_number ||
-  localStorage.getItem("userPhone") ||
-  "";
+  console.log("🟣 Basic bank source:", { firstName, lastName, phone, email });
 
-const email =
-  formData.basicInfo?.email ||
-  formData.email_address ||
-  localStorage.getItem("userEmail") ||
-  "";
   
   const [errors, setErrors] = useState({ sortCode: "", accountNumber: "" });
   const [isSignaturePresent, setIsSignaturePresent] = useState(false);
+
+
 
   const validateBankDetails = (field, value) => {
     let error = "";

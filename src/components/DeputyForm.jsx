@@ -817,12 +817,12 @@ if (savedMusician?._id) {
           toast(
             <CustomToast
               type="success"
-              message="Deputy submission updated successfully!"
+              message="Profile submission updated successfully!"
             />
           );
         } else {
           toast(
-            <CustomToast type="success" message="Submitted for approval!" />
+            <CustomToast type="success" message="Profile submitted for approval!" />
           );
         }
 
