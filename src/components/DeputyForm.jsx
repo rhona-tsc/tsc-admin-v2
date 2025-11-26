@@ -178,13 +178,11 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone }) => {
         wattage: "",
       },
     ],
-    paAndBackline: [
-      {
-        name: "",
-        quantity: 0,
-        wattage: 0,
-      },
-    ],
+    paAndBackline: [{
+      name: "",
+      quantity: 0,
+      wattage: 0,
+    }],
     awards: [
       {
         description: "",
@@ -296,7 +294,7 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone }) => {
         wattage: "",
       },
     ],
-
+signature: [],
     djing: {
       has_mixing_console: false,
       has_dj_table: false,
@@ -649,11 +647,22 @@ useEffect(() => {
         JSON.stringify(formData.agreementCheckboxes)
       );
       form.append("djGearRequired", JSON.stringify(formData.djGearRequired));
-      form.append("paAndBackline", JSON.stringify(formData.paAndBackline || []));
+   // ✅ FIX paAndBackline — send it directly, do NOT stringify
+form.append("paAndBackline", formData.paAndBackline);
+
+// ✅ FIX vocals — ensure it's a valid JSON object, NOT stringified
+const vocalsPayload = {
+  type: formData.vocals?.type || [],
+  gender: formData.vocals?.gender || "",
+  range: formData.vocals?.range || "",
+  rap: formData.vocals?.rap === true || formData.vocals?.rap === "true",
+  genres: Array.isArray(formData.vocals?.genres) ? formData.vocals.genres : []
+};
+
+form.append("vocals", JSON.stringify(vocalsPayload));
       form.append("backline", JSON.stringify(formData.backline));
 
       form.append("awards", JSON.stringify(formData.awards));
-      form.append("vocals", JSON.stringify(formData.vocals || {}));
       form.append("repertoire", JSON.stringify(formData.repertoire));
       form.append("selectedSongs", JSON.stringify(formData.selectedSongs));
       form.append("other_skills", JSON.stringify(formData.other_skills));

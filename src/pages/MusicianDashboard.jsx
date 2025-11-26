@@ -20,6 +20,11 @@ const MusicianDashboard = ({ token, userId }) => {
     bookings: [],
     cash: [],
   });
+
+  useEffect(() => {
+  window.scrollTo(0, 0);
+}, []);
+
 const storedUserId =
   sessionStorage.getItem("userId") || localStorage.getItem("userId");
 
