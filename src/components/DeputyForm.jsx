@@ -829,10 +829,17 @@ if (savedMusician?._id) {
         // Save deputy status in localStorage and redirect to homepage
         localStorage.setItem("deputyStatus", formData.status || "pending");
 
-        // Wait 1 second before redirecting to allow toast to show
-        setTimeout(() => {
-          window.location.href = "http://localhost:5173/";
-        }, 2500);
+       // Decide redirect by environment
+const redirectTo =
+  import.meta.env.MODE === "production"
+    ? `${import.meta.env.FRONTEND_URL}/musician-dashboard`  // ✅ joins string safely
+    : "http://localhost:5173";             // for local testing only
+
+// Wait before redirecting to allow toast to appear
+setTimeout(() => {
+  window.location.href = redirectTo;
+}, 2500);
+
       } else {
         toast(
           <CustomToast
