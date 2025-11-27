@@ -101,7 +101,7 @@ const fetchStats = async () => {
 
   return (
     <div className="p-6 space-y-8">
-<p className="text-xl text-gray-700 text-semibold">Hi {basicInfo.firstName}!</p>
+<p className="text-xl text-gray-700 text-semibold">Hi {firstName}!</p>
           {/* 🚧 UNDER CONSTRUCTION BANNER */}
    <>
    <DashboardUnderConstruction />
