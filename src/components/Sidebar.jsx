@@ -82,7 +82,7 @@ useEffect(() => {
   
   const fetchActPreSubmissions = async () => {
     try {
-      const res = await axios.get(`${backendUrl}/api/act-pre-submissions/count`);
+      const res = await axios.get(`${backendUrl}/api/act-pre-submissions/pending-count`);
       setActPreSubmissions(res.data.count || 0);
     } catch (err) {
       console.error("Failed to fetch count:", err);
