@@ -167,6 +167,7 @@ const App = () => {
                         lastName={lastName}
                         phone={phone}
                         password={password}
+                        basicInfo={{ firstName }}
                       />
                     }
                   />
