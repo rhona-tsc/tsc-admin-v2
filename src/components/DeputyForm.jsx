@@ -911,52 +911,40 @@ form.append(
         popupMinTime,
       ]);
 
-      // Now this will work safely:
-      if (response?.data?.success) {
-        const savedMusician = response.data.musician;
-if (savedMusician?._id) {
-  localStorage.setItem("musicianId", savedMusician._id);
-  console.log("✅ Saved musicianId:", savedMusician._id);
+     // Now this will work safely:
+if (response?.data?.success) {
+  const savedMusician = response.data.musician;
+  if (savedMusician?._id) {
+    localStorage.setItem("musicianId", savedMusician._id);
+    console.log("✅ Saved musicianId:", savedMusician._id);
+  }
+
+  formData.deletedImages = [];
+
+  // Show a different toast depending on whether updating or creating
+  if (id) {
+    toast(<CustomToast type="success" message="Profile submission updated successfully!" />);
+  } else {
+    toast(<CustomToast type="success" message="Profile submitted for approval!" />);
+  }
+
+  // Save deputy status
+  localStorage.setItem("deputyStatus", formData.status || "pending");
+
+  // ✅ Redirect (replace any old redirect code with this)
+  const redirectTo =
+    import.meta.env.MODE === "production"
+      ? `${import.meta.env.VITE_FRONTEND_URL}/musicians-dashboard`
+      : "http://localhost:5173/musicians-dashboard";
+
+  setTimeout(() => {
+    window.location.href = redirectTo;         // or: window.location.assign(redirectTo)
+    // If this route is in the same SPA, you can instead do:
+    // navigate("/musicians-dashboard", { replace: true });
+  }, 2500);
+} else {
+  toast(<CustomToast type="error" message={response?.data?.message || "Unknown error"} />);
 }
-
-        formData.deletedImages = [];
-
-        // Show a different toast depending on whether updating or creating
-        if (id) {
-          toast(
-            <CustomToast
-              type="success"
-              message="Profile submission updated successfully!"
-            />
-          );
-        } else {
-          toast(
-            <CustomToast type="success" message="Profile submitted for approval!" />
-          );
-        }
-
-        // Save deputy status in localStorage and redirect to homepage
-        localStorage.setItem("deputyStatus", formData.status || "pending");
-
-       // Decide redirect by environment
-const redirectTo =
-  import.meta.env.MODE === "production"
-    ? `${import.meta.env.FRONTEND_URL}/musicians-dashboard`  // ✅ joins string safely
-    : "http://localhost:5173";             // for local testing only
-
-// Wait before redirecting to allow toast to appear
-setTimeout(() => {
-  window.location.href = redirectTo;
-}, 2500);
-
-      } else {
-        toast(
-          <CustomToast
-            type="error"
-            message={response?.data?.message || "Unknown error"}
-          />
-        );
-      }
     } catch (err) {
       toast(<CustomToast type="error" message="Registration failed." />);
       console.error(err);
