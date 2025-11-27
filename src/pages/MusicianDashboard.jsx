@@ -10,7 +10,7 @@ import DashboardUnderConstruction from "../components/DashboardUnderConstruction
 const backendUrl =  import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
 
 
-const MusicianDashboard = ({ token, userId }) => {
+const MusicianDashboard = ({ token, userId, firstName }) => {
   const navigate = useNavigate();
 
   const [myActs, setMyActs] = useState([]);
@@ -101,7 +101,7 @@ const fetchStats = async () => {
 
   return (
     <div className="p-6 space-y-8">
-
+<p className="text-m text-gray-500">Hi ${firstName}!</p>
           {/* 🚧 UNDER CONSTRUCTION BANNER */}
    <>
    <DashboardUnderConstruction />
