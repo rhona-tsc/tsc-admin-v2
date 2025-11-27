@@ -11,7 +11,6 @@ import { toast } from "react-toastify";
 import CustomToast from "./CustomToast";
 import axios from "axios";
 import { backendUrl } from "../App";
-import { useParams } from "react-router-dom";
 import imageCompression from "browser-image-compression";
 import renameAndCompressImage from "../pages/utils/renameAndCompressDeputyImage";
 
@@ -52,6 +51,8 @@ useEffect(() => {
   const [step, setStep] = useState(1);
 
 
+
+const isEdit = Boolean(routeId);
   const totalSteps = 6;
   // Uploading state indicators
   const [isUploadingImages, setIsUploadingImages] = useState(false);
@@ -341,14 +342,7 @@ signature: [],
     dateRegistered: new Date(),
   });
 
-  const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
 
-const { id: routeId } = useParams();
-const deputyId = useMemo(() => {
-  if (isObjectId(routeId)) return routeId;
-  const fromLS = localStorage.getItem("musicianId") || localStorage.getItem("userId");
-  return isObjectId(fromLS) ? fromLS : null;
-}, [routeId]);
 
   useEffect(() => {
   console.log("📡 DeputyForm state sent to child step components:", formData);
@@ -443,141 +437,7 @@ useEffect(() => {
     setFormData((prev) => ({ ...prev, tscApprovedBio }));
   }, [tscApprovedBio]);
 
-useEffect(() => {
-  const fetchDeputy = async () => {
-    try {
-      const url = `${backendUrl}/api/moderation/deputy/${id}`;
-      console.log("🔎 Fetching deputy via:", url);
 
-      const res = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` },
-        withCredentials: true,
-      });
-
-console.group("🎸 DEPUTY HYDRATION DEBUG");
-console.log("Raw API response:", res.data);
-console.log("Response keys:", Object.keys(res.data || {}));
-console.log("Deputy nested object exists?", !!(res.data?.deputy || res.data?.musician));
-console.log("Deputy source:", res.data?.deputy ? "deputy" : res.data?.musician ? "musician" : "none ❌");
-console.log("Deputy object:", res.data?.deputy || res.data?.musician || null);
-console.groupEnd();
-
-      const deputy = res.data?.deputy || res.data?.musician || null;
-      if (!deputy) {
-        console.warn("⚠️ No deputy object on response");
-        return;
-      }
-
-      // Normalise some common nested bits
-      const basicInfoFromDb = deputy.basicInfo || {
-        firstName: deputy.firstName,
-        lastName: deputy.lastName,
-        phone: deputy.phone,
-        email: deputy.email,
-      };
-
-      const addressFromDb = deputy.address || {};
-      const bankFromDb = deputy.bank_account || {};
-console.group("🎼 NORMALIZED DEPUTY DATA");
-const dep = res.data?.deputy || res.data?.musician;
-console.log("Basic Info:", dep?.basicInfo);
-console.log("Address:", dep?.address);
-console.log("Bank:", dep?.bank_account);
-console.log("Academic credentials array:", dep?.academic_credentials);
-console.log("Instrumentation:", dep?.instrumentation);
-console.log("selectedSongs:", dep?.selectedSongs);
-console.groupEnd();
-      setFormData((prev) => ({
-        ...prev,
-        // top-level primitive/array fields from DB win
-        ...deputy,
-
-        // but make sure nested structures exist
-        basicInfo: {
-          ...prev.basicInfo,
-          ...basicInfoFromDb,
-        },
-        address: {
-          ...prev.address,
-          ...addressFromDb,
-        },
-        bank_account: {
-          ...prev.bank_account,
-          ...bankFromDb,
-        },
-
-        // keep existing dateRegistered if present, otherwise DB’s, otherwise now
-        dateRegistered:
-          deputy.dateRegistered || prev.dateRegistered || new Date(),
-
-        // ensure these are arrays so your steps don't blow up
-        academic_credentials: deputy.academic_credentials || prev.academic_credentials,
-        function_bands_performed_with:
-          deputy.function_bands_performed_with || prev.function_bands_performed_with,
-        original_bands_performed_with:
-          deputy.original_bands_performed_with || prev.original_bands_performed_with,
-        sessions: deputy.sessions || prev.sessions,
-        social_media_links: deputy.social_media_links || prev.social_media_links,
-        instrumentation: deputy.instrumentation || prev.instrumentation,
-        repertoire: deputy.repertoire || prev.repertoire,
-        selectedSongs: deputy.selectedSongs || prev.selectedSongs,
-        other_skills: deputy.other_skills || prev.other_skills,
-        logistics: deputy.logistics || prev.logistics,
-        digitalWardrobeBlackTie:
-          deputy.digitalWardrobeBlackTie || prev.digitalWardrobeBlackTie,
-        digitalWardrobeFormal:
-          deputy.digitalWardrobeFormal || prev.digitalWardrobeFormal,
-        digitalWardrobeSmartCasual:
-          deputy.digitalWardrobeSmartCasual || prev.digitalWardrobeSmartCasual,
-        digitalWardrobeSessionAllBlack:
-          deputy.digitalWardrobeSessionAllBlack ||
-          prev.digitalWardrobeSessionAllBlack,
-        additionalImages: deputy.additionalImages || prev.additionalImages,
-
-        // contract bits
-        deputy_contract_signed:
-          deputy.deputy_contract_signed || prev.deputy_contract_signed || "",
-        deputy_contract_agreed:
-          deputy.deputy_contract_agreed ?? prev.deputy_contract_agreed,
-  }));
-        
-
-// ✅ ADD IT RIGHT AFTER SETTING STATE, HERE 👇
-setTimeout(() => {
-  console.group("✅ STATE AFTER HYDRATION");
-  console.log("formData now:", formData);
-  console.log("Is basicInfo hydrated?", JSON.stringify(formData.basicInfo, null, 2));
-  console.log("Is address hydrated?", JSON.stringify(formData.address, null, 2));
-  console.log("Is bank hydrated?", JSON.stringify(formData.bank_account, null, 2));
-  console.groupEnd();
-}, 0);
-
-      // Hydrate TSC-approved bio editor
-      setTscApprovedBio(
-        deputy.tscApprovedBio || deputy.bio || ""
-      );
-
-      // If there's already a signature, treat it as drawn
-      if (deputy.deputy_contract_signed) {
-        setHasDrawnSignature(true);
-      }
-
-      // Cache the musician id locally so Sidebar can reuse it if needed
-      if (deputy._id) {
-        localStorage.setItem("musicianId", deputy._id);
-      }
-    } catch (err) {
-      console.error("❌ Failed to fetch deputy:", err);
-    }
-  };
-
-if (id) {
-  console.log("🎤 DeputyForm EDIT MODE DETECTED");
-  console.log("🎤 Deputy ID param:", id);
-  fetchDeputy();
-} else {
-  console.warn("⚠️ DeputyForm is NOT in edit mode, skipping hydration");
-}}, [id, token]);
 
 
 
@@ -1009,13 +869,11 @@ if (response?.data?.success) {
   const savedMusician = response.data.musician;
   if (savedMusician?._id) {
     localStorage.setItem("musicianId", savedMusician._id);
-    console.log("✅ Saved musicianId:", savedMusician._id);
   }
 
   formData.deletedImages = [];
 
-  // Show a different toast depending on whether updating or creating
-  if (id) {
+  if (isEdit) {
     toast(<CustomToast type="success" message="Profile submission updated successfully!" />);
   } else {
     toast(<CustomToast type="success" message="Profile submitted for approval!" />);

@@ -58,9 +58,13 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
 useEffect(() => {
   if (!musicianId || normalize(userRole) === "agent") return;
   (async () => {
-    try {
-      const res = await axios.get(`${backendUrl}/api/moderation/deputy/${musicianId}`);
-      if (res.data?.success && res.data.deputy) {
+try {
+  const token = localStorage.getItem("token");
+  const res = await axios.get(`${backendUrl}/api/moderation/deputy/${musicianId}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    withCredentials: true,
+  });
+  if (res.data?.success && res.data.deputy) {
         const status = (res.data.deputy.status || "").trim();
         setMyDeputyStatus(status);
         localStorage.setItem("myDeputyStatus", status);
@@ -91,34 +95,6 @@ useEffect(() => {
   const { label: deputyCtaLabel, path: deputyCtaPath } =
     getDeputyCTA(myDeputyStatus, musicianId);
 
-  useEffect(() => {
-    if (!userId) return;
-
-    const fetchDeputy = async () => {
-      try {
-        console.log("📡 Fetching deputy from backend...");
-        const res = await axios.get(`${backendUrl}/api/moderation/deputy/${userId}`);
-        console.log("📥 Response from backend:", res);
-
-        if (res.data?.success && res.data.deputy) {
-          const deputy = res.data.deputy;
-          console.log("✅ Deputy fetched:", deputy);
-
-          const status = (deputy.status || "").trim();
-          console.log("🔄 Setting myDeputyStatus to:", status);
-
-          setMyDeputyStatus(status);
-          // keep both keys for backward compatibility with any other code paths
-          localStorage.setItem("myDeputyStatus", status);
-          localStorage.setItem("deputyStatus", status);
-        }
-      } catch (error) {
-        console.error("❌ Failed to fetch deputy:", error);
-      }
-    };
-
-    fetchDeputy();
-  }, [userId]);
 
   useEffect(() => {
     const fetchPendingActs = async () => {
@@ -189,7 +165,6 @@ const handleSubmitActClick = (e) => {
   setShowGatekeeper(true);
 };
 
-  const { label: deputyCtaLabel, path: deputyCtaPath } = getDeputyCTA(myDeputyStatus);
 
   return (
     <div className="w-[18%] min-h-screen border-r-2">
