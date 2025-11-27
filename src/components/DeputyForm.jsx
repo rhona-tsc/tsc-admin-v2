@@ -344,7 +344,6 @@ useEffect(() => {
   }));
 }, [tscApprovedBio, setFormData]);
 
-  const { id } = useParams();
 
   // keep formData in sync with the editor
   useEffect(() => {
