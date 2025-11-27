@@ -98,7 +98,7 @@ const fetchStats = async () => {
   }, []);
 
   if (!stats) return <p>Loading...</p>;
-
+console.log( "firstName:", {firstName});
   return (
     <div className="p-6 space-y-8">
 <p className="text-xl text-gray-700 text-semibold">Hi {firstName}!</p>
