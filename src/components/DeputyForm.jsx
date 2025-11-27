@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { v4 as uuidv4 } from "uuid";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import DeputyStepOne from "./DeputyStepOne";
 import DeputyStepTwo from "./DeputyStepTwo";
 import DeputyStepThree from "./DeputyStepThree";
@@ -11,11 +11,37 @@ import { toast } from "react-toastify";
 import CustomToast from "./CustomToast";
 import axios from "axios";
 import { backendUrl } from "../App";
-
+import { useParams } from "react-router-dom";
 import imageCompression from "browser-image-compression";
 import renameAndCompressImage from "../pages/utils/renameAndCompressDeputyImage";
 
 const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId }) => {
+
+  // at top
+const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
+
+// derive a safe id to load
+const { id: routeId } = useParams();
+const deputyId = useMemo(() => {
+  if (isObjectId(routeId)) return routeId;
+  const fromLS = localStorage.getItem("musicianId") || localStorage.getItem("userId");
+  return isObjectId(fromLS) ? fromLS : null;
+}, [routeId]);
+
+useEffect(() => {
+  if (!deputyId) return; // nothing valid to load
+  (async () => {
+    try {
+      const url = `${backendUrl}/api/moderation/deputy/${deputyId}`;
+      const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` }, withCredentials: true });
+      // TODO: hydrate formData from res.data.deputy here
+      console.log("Deputy fetched:", res.data);
+    } catch (err) {
+      console.error("❌ Failed to fetch deputy:", err);
+    }
+  })();
+}, [deputyId, token]);
+
       console.log(
     "🎸 LIVE DeputyForm Loaded — VERSION: DeputyForm", 
     "2025-11-22 17:45",
@@ -24,10 +50,7 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
   );
 
   const [step, setStep] = useState(1);
-  const { id } = useParams(); // /edit-deputy/:id
 
-  // this is the id we’ll use when we need it in children (e.g. Step 4)
-  const deputyId = id || userId || localStorage.getItem("musicianId") || null;
 
   const totalSteps = 6;
   // Uploading state indicators
@@ -317,11 +340,81 @@ signature: [],
     deputy_contract_signed: "",
     dateRegistered: new Date(),
   });
+
+  const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
+
+const { id: routeId } = useParams();
+const deputyId = useMemo(() => {
+  if (isObjectId(routeId)) return routeId;
+  const fromLS = localStorage.getItem("musicianId") || localStorage.getItem("userId");
+  return isObjectId(fromLS) ? fromLS : null;
+}, [routeId]);
+
   useEffect(() => {
   console.log("📡 DeputyForm state sent to child step components:", formData);
 }, [formData]);
 
   const [tscApprovedBio, setTscApprovedBio] = useState(formData?.tscApprovedBio || "");
+
+  useEffect(() => {
+  if (!deputyId) {
+    console.warn("⚠️ No valid deputyId; skipping hydration");
+    return;
+  }
+  (async () => {
+    try {
+      const url = `${backendUrl}/api/moderation/deputy/${deputyId}`;
+      const res = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true,
+      });
+
+      const deputy = res.data?.deputy || res.data?.musician || null;
+      if (!deputy) return;
+
+      const basicInfoFromDb = deputy.basicInfo || {
+        firstName: deputy.firstName,
+        lastName: deputy.lastName,
+        phone: deputy.phone,
+        email: deputy.email,
+      };
+      const addressFromDb = deputy.address || {};
+      const bankFromDb = deputy.bank_account || {};
+
+      setFormData((prev) => ({
+        ...prev,
+        ...deputy,
+        basicInfo: { ...prev.basicInfo, ...basicInfoFromDb },
+        address: { ...prev.address, ...addressFromDb },
+        bank_account: { ...prev.bank_account, ...bankFromDb },
+        dateRegistered: deputy.dateRegistered || prev.dateRegistered || new Date(),
+        academic_credentials: deputy.academic_credentials || prev.academic_credentials,
+        function_bands_performed_with: deputy.function_bands_performed_with || prev.function_bands_performed_with,
+        original_bands_performed_with: deputy.original_bands_performed_with || prev.original_bands_performed_with,
+        sessions: deputy.sessions || prev.sessions,
+        social_media_links: deputy.social_media_links || prev.social_media_links,
+        instrumentation: deputy.instrumentation || prev.instrumentation,
+        repertoire: deputy.repertoire || prev.repertoire,
+        selectedSongs: deputy.selectedSongs || prev.selectedSongs,
+        other_skills: deputy.other_skills || prev.other_skills,
+        logistics: deputy.logistics || prev.logistics,
+        digitalWardrobeBlackTie: deputy.digitalWardrobeBlackTie || prev.digitalWardrobeBlackTie,
+        digitalWardrobeFormal: deputy.digitalWardrobeFormal || prev.digitalWardrobeFormal,
+        digitalWardrobeSmartCasual: deputy.digitalWardrobeSmartCasual || prev.digitalWardrobeSmartCasual,
+        digitalWardrobeSessionAllBlack: deputy.digitalWardrobeSessionAllBlack || prev.digitalWardrobeSessionAllBlack,
+        additionalImages: deputy.additionalImages || prev.additionalImages,
+        deputy_contract_signed: deputy.deputy_contract_signed || prev.deputy_contract_signed || "",
+        deputy_contract_agreed: deputy.deputy_contract_agreed ?? prev.deputy_contract_agreed,
+      }));
+
+      setTscApprovedBio(deputy.tscApprovedBio || deputy.bio || "");
+      if (deputy.deputy_contract_signed) setHasDrawnSignature(true);
+      if (deputy._id) localStorage.setItem("musicianId", deputy._id);
+    } catch (err) {
+      console.error("❌ Failed to fetch deputy:", err);
+    }
+  })();
+}, [deputyId, token]);
 
   // 🧷 AUTOSAVE — hydrate saved form on mount
   useEffect(() => {

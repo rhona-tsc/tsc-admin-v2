@@ -37,20 +37,25 @@ if (!import.meta.env.VITE_BACKEND_URL) {
 export const currency = "£";
 
 // 👇 helper to decode token once
+// replace your parseToken with this safer version
 function parseToken(t) {
   if (!t) return {};
   try {
     const d = jwtDecode(t);
+    const rawId = d?.userId || d?.id || "";
+    const isOid = /^[0-9a-fA-F]{24}$/.test(rawId);
+
     const user = {
       firstName: d?.firstName || "",
       lastName: d?.lastName || "",
       email: d?.email || "",
       phone: d?.phone || "",
-      userId: d?.userId || d?.id || "",
+      userId: isOid ? rawId : "",   // ✅ only keep if it looks like an ObjectId
       userRole: d?.role || "",
       password: d?.password || "",
     };
-    // hardcoded override
+
+    // your existing override is fine
     if (d?.id === "68123dcda79759339808b578") {
       user.userRole = "agent";
     }

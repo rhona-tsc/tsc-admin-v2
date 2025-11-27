@@ -1,36 +1,76 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { assets } from "../assets/assets";
 import { backendUrl } from "../App";
 import GatekeeperModal from "./GatekeeperModal";
-import { useNavigate } from "react-router-dom";
 
 const normalize = (s) => (s || "").toLowerCase().trim();
+const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
 
 const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
   const navigate = useNavigate();
-const [showGatekeeper, setShowGatekeeper] = useState(false);
-  console.log("Sidebar received userRole:", userRole);
-  console.log("🧩 Sidebar props:", { userId, userRole });
-
   const location = useLocation();
+
+  const [showGatekeeper, setShowGatekeeper] = useState(false);
+  const [feedbackCount, setFeedbackCount] = useState(0);
+  const [noticeCount, setNoticeCount] = useState(0);
+  const [myDeputyStatus, setMyDeputyStatus] = useState(
+    localStorage.getItem("myDeputyStatus") ||
+    localStorage.getItem("deputyStatus") ||
+    null
+  );
+  const [pendingDeputyCount, setPendingDeputyCount] = useState(0);
+  const [pendingSongCount, setPendingSongCount] = useState(0);
+  const [pendingActCount, setPendingActCount] = useState(0);
+  const [actPreSubmissions, setActPreSubmissions] = useState(0);
+
   const isAddOrEdit =
     location.pathname.startsWith("/add") ||
     location.pathname.startsWith("/edit");
 
-  // seed from localStorage first for instant correct label
-  const seedStatus = useMemo(
-    () => (localStorage.getItem("myDeputyStatus") || localStorage.getItem("deputyStatus") || null),
-    []
-  );
-const [feedbackCount, setFeedbackCount] = useState(0);
-const [noticeCount, setNoticeCount] = useState(0);
-  const [myDeputyStatus, setMyDeputyStatus] = useState(seedStatus);
-  const [pendingDeputyCount, setPendingDeputyCount] = useState(0);
-  const [pendingSongCount, setPendingSongCount] = useState(0);
-  const [pendingActCount, setPendingActCount] = useState(0);
-const [actPreSubmissions, setActPreSubmissions] = useState(0);
+  // ✅ derive a safe ObjectId once
+  const musicianId = useMemo(() => {
+    const fromProps = userId;
+    const fromLS =
+      localStorage.getItem("musicianId") || localStorage.getItem("userId");
+    if (isObjectId(fromProps)) return fromProps;
+    if (isObjectId(fromLS)) return fromLS;
+    return null;
+  }, [userId]);
+
+  // ✅ single CTA helper (accepts id)
+  const getDeputyCTA = (status, id) => {
+    const st = normalize(status);
+    if (st === "approved" || st === "pending" || st === "approved, changes pending") {
+      return id
+        ? {
+            label: st === "approved" ? "Update My Profile" : "Update My Profile Submission",
+            path: `/edit-deputy/${id}`,
+          }
+        : { label: "Join The Books", path: "/register-as-deputy" };
+    }
+    return { label: "Join The Books", path: "/register-as-deputy" };
+  };
+
+
+// only fetch deputy if we actually have a valid id AND the user isn’t an agent
+useEffect(() => {
+  if (!musicianId || normalize(userRole) === "agent") return;
+  (async () => {
+    try {
+      const res = await axios.get(`${backendUrl}/api/moderation/deputy/${musicianId}`);
+      if (res.data?.success && res.data.deputy) {
+        const status = (res.data.deputy.status || "").trim();
+        setMyDeputyStatus(status);
+        localStorage.setItem("myDeputyStatus", status);
+        localStorage.setItem("deputyStatus", status);
+      }
+    } catch (error) {
+      console.error("❌ Failed to fetch deputy:", error);
+    }
+  })();
+}, [musicianId, userRole]);
 
 
 useEffect(() => {
@@ -48,26 +88,8 @@ useEffect(() => {
   fetchActPreSubmissions();
 }, [userRole]);
 
-  // helper to compute CTA label + target path
-  const getDeputyCTA = (status) => {
-    const st = normalize(status);
-    if (st === "approved") {
-      return {
-        label: "Update My Profile",
-        path: `/edit-deputy/${userId}`,
-      };
-    }
-    if (st === "pending" || st === "approved, changes pending") {
-      return {
-        label: "Update My Profile Submission",
-  path: `/edit-deputy/${userId}`,
-      };
-    }
-    return {
-      label: "Join The Books",
-      path: "/register-as-deputy",
-    };
-  };
+  const { label: deputyCtaLabel, path: deputyCtaPath } =
+    getDeputyCTA(myDeputyStatus, musicianId);
 
   useEffect(() => {
     if (!userId) return;
@@ -307,11 +329,11 @@ const handleSubmitActClick = (e) => {
               <img className="w-5 h-5" src={assets.noticeboard_icon} alt="Noticeboard" />
               <p className="hidden md:block text-white">Noticeboard</p>
                 </div>
-                  {pendingSongCount > 0 && (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff6667] text-white text-xs font-semibold px-2 py-0.5 rounded-full border border-white">
-                 {noticeCount > 0 && <span className="badge">{noticeCount}</span>}  ``
-                </span>
-              )}
+                  {noticeCount > 0 && (
+  <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff6667] text-white text-xs font-semibold px-2 py-0.5 rounded-full border border-white">
+    {noticeCount}
+  </span>
+)}
             </NavLink>
 
             <NavLink
@@ -323,11 +345,11 @@ const handleSubmitActClick = (e) => {
               <img className="w-5 h-5" src={assets.feedback_icon} alt="Feedback" />
               <p className="hidden md:block text-white">Feedback</p>
               </div>
-               {pendingSongCount > 0 && (
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff6667] text-white text-xs font-semibold px-2 py-0.5 rounded-full border border-white">
-                 {feedbackCount > 0 && <span className="badge">{feedbackCount}</span>}
-                </span>
-               )}
+              {feedbackCount > 0 && (
+  <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff6667] text-white text-xs font-semibold px-2 py-0.5 rounded-full border border-white">
+    {feedbackCount}
+  </span>
+)}
             </NavLink>
 
           
