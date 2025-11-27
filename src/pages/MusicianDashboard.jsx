@@ -98,10 +98,10 @@ const fetchStats = async () => {
   }, []);
 
   if (!stats) return <p>Loading...</p>;
-console.log( "firstName:", {firstName});
+
   return (
     <div className="p-6 space-y-8">
-<p className="text-xl text-gray-700 text-semibold">Hi {firstName}!</p>
+<p className="text-3xl font-bold">Hi {firstName}!</p>
           {/* 🚧 UNDER CONSTRUCTION BANNER */}
    <>
    <DashboardUnderConstruction />
