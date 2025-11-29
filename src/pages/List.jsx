@@ -6,6 +6,9 @@ import { toast } from "react-toastify";
 import { assets } from "../assets/assets";
 import CustomToast from "../components/CustomToast";
 
+
+const isObjectId = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || ""));
+
 // --- helpers to resolve current user id ---
 const getStoredUserId = () =>
   sessionStorage.getItem("userId") || localStorage.getItem("userId") || null;
@@ -14,10 +17,12 @@ const decodeUserIdFromToken = (tok) => {
   try {
     if (!tok || !tok.includes(".")) return null;
     const payloadPart = tok.split(".")[1];
-    const json = JSON.parse(
-      atob(payloadPart.replace(/-/g, "+").replace(/_/g, "/"))
-    );
-    return json?.id || json?._id || json?.userId || json?.musicianId || json?.sub || null;
+    const json = JSON.parse(atob(payloadPart.replace(/-/g, "+").replace(/_/g, "/")));
+
+    // Prefer real ids; ignore non-OID values like "agent"
+    const candidates = [json?.id, json?._id, json?.userId, json?.musicianId, json?.sub];
+    const found = candidates.find((v) => isObjectId(v));
+    return found || null;
   } catch {
     return null;
   }
@@ -33,6 +38,10 @@ const List = ({ token }) => {
     () => getStoredUserId() || decodeUserIdFromToken(token),
     [token]
   );
+
+    useEffect(() => {
+    console.log("👤 resolved currentUserId:", currentUserId);
+  }, [currentUserId]);
 
     const buildHeaders = () => ({
     headers: {
@@ -58,11 +67,11 @@ status: "approved,pending,draft,approved_changes_pending",
       legacy: "include", // show legacy (unowned) during transition
     };
 
-    // --- 1) Try server-scoped first
+     // --- 1) Try server-scoped first
     const scopedParams = {
       ...baseParams,
       mine: true,
-      ...(currentUserId ? { authorId: currentUserId } : {}),
+      ...(isObjectId(currentUserId) ? { authorId: currentUserId } : {}),
     };
 
     const scopedResp = await axios.get(
@@ -101,19 +110,28 @@ if (scopedOK) {
     const rows = unscopedOK && Array.isArray(unscopedResp?.data?.acts) ? unscopedResp.data.acts : [];
     const notTrashed = rows.filter(a => a?.status !== "trashed");
 
-const filteredFallback = notTrashed.filter(
-  (a) => a?.createdBy?.toString?.() === currentUserId?.toString?.()
-);
+    let filteredFallback = notTrashed;
+    if (isObjectId(currentUserId)) {
+      filteredFallback = notTrashed.filter((a) => {
+        const createdById = a?.createdBy?._id || a?.createdBy;
+        return createdById && String(createdById) === String(currentUserId);
+      });
+    }
 
-// Only show acts the user owns
-setList(filteredFallback);
+    // Only show acts the user owns when we can identify the user; otherwise show visible rows
+    setList(filteredFallback);
+
     if (!notTrashed.length) {
       console.warn("❔ Unscoped fallback also returned 0. Check API auth + ownership backfill.");
     } else {
       console.info(`✅ Showing ${notTrashed.length} acts via unscoped fallback.`);
     }
-  } catch (error) {
-    console.error("❌ Failed to fetch act list:", error);
+   } catch (error) {
+    console.error("❌ Failed to fetch act list:", {
+      message: error?.message,
+      status: error?.response?.status,
+      data: error?.response?.data,
+    });
     toast(<CustomToast type="error" message="No acts to load" />);
   } finally {
     setLoading(false);
