@@ -29,6 +29,7 @@ const AddAct2StepperForm = ({
   userRole,
   isModeration = false,
 }) => {
+  const hs = null;
   console.log("🔍 AddAct2StepperForm userEmail:", userEmail);
   console.log("🔍 AddAct2StepperForm userRole:", userRole);
   console.log("🔒 AddAct2StepperForm isModeration:", isModeration);
@@ -40,10 +41,6 @@ const actInviteCode = codeFromState || codeFromStorage || "";
 // naive validation (backend validation comes later)
 const hasValidCode = Boolean(actInviteCode);
 
-// Only gate new submissions, NOT edit mode
-if (modeToUse === "add" && !hasValidCode) {
-  return <NotAuthorizedToSubmitAct />;
-}
   const [step, setStep] = useState(0);
   const totalSteps = steps.length;
   const { id } = useParams();
