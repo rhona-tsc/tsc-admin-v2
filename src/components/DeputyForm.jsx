@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useParams, useLocation, useNavigate} from "react-router-dom";
 import { v4 as uuidv4 } from "uuid";
 import React, { useState, useEffect, useMemo } from "react";
 import DeputyStepOne from "./DeputyStepOne";
@@ -18,6 +18,11 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
 
   // at top
 const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
+const location = useLocation();
+const navigate = useNavigate();
+const isModerationMode =
+  location.pathname.includes("moderate-deputy") ||
+  (userRole || "").toLowerCase() === "agent";
 
 // derive a safe id to load
 const { id: routeId } = useParams();
@@ -978,37 +983,33 @@ const stepProps = { formData }
 
   const [canSubmit, setCanSubmit] = useState(false);
 
-  useEffect(() => {
-    // Normalize agreement checkboxes and support legacy typo `provacyPolicy`
-    const rawAgreement =
-      (Array.isArray(formData.agreementCheckboxes) &&
-        formData.agreementCheckboxes[0]) ||
-      {};
-    const agreement = {
-      termsAndConditions: Boolean(rawAgreement.termsAndConditions),
-      privacyPolicy:
-        typeof rawAgreement.privacyPolicy === "boolean"
-          ? rawAgreement.privacyPolicy
-          : Boolean(rawAgreement.provacyPolicy),
-    };
+useEffect(() => {
+  if (isModerationMode) {
+    setCanSubmit(true);
+    return;
+  }
 
-    const isSignaturePresent = hasDrawnSignature === true;
+  const rawAgreement =
+    (Array.isArray(formData.agreementCheckboxes) &&
+      formData.agreementCheckboxes[0]) ||
+    {};
+  const agreement = {
+    termsAndConditions: Boolean(rawAgreement.termsAndConditions),
+    privacyPolicy:
+      typeof rawAgreement.privacyPolicy === "boolean"
+        ? rawAgreement.privacyPolicy
+        : Boolean(rawAgreement.provacyPolicy),
+  };
 
-    const canSubmitNow =
-      step === totalSteps &&
-      isSignaturePresent &&
-      agreement.termsAndConditions &&
-      agreement.privacyPolicy;
+  const isSignaturePresent = hasDrawnSignature === true;
+  const canSubmitNow =
+    step === totalSteps &&
+    isSignaturePresent &&
+    agreement.termsAndConditions &&
+    agreement.privacyPolicy;
 
-    console.log("🔍 Recomputing canSubmit...");
-    console.log("🔍 step:", step);
-    console.log("🔍 hasDrawnSignature (state):", hasDrawnSignature);
-    console.log("🔍 termsAndConditions:", agreement.termsAndConditions);
-    console.log("🔍 privacyPolicy:", agreement.privacyPolicy);
-    console.log("✅ canSubmit:", canSubmitNow);
-
-    setCanSubmit(canSubmitNow);
-  }, [step, hasDrawnSignature, formData.agreementCheckboxes]);
+  setCanSubmit(canSubmitNow);
+}, [step, hasDrawnSignature, formData.agreementCheckboxes, isModerationMode]);
 
   console.log("🎼 SUBMITTING MP3S:");
   console.log("🎧 coverMp3s:", formData.coverMp3s);
@@ -1060,7 +1061,59 @@ useEffect(() => {
   console.log("🟦 DeputyForm — formData changed (safe):", safe);
 }, [formData]);
 
-  
+  const handleSaveAndExitModeration = async () => {
+  try {
+    if (!deputyId) {
+      toast(<CustomToast type="error" message="Missing deputy id" />);
+      return;
+    }
+
+    // safe clone without Files/Blobs
+    const safe = JSON.parse(
+      JSON.stringify(formData, (k, v) => {
+        if (v instanceof File || v instanceof Blob) return undefined;
+        if (typeof v === "function") return undefined;
+        return v;
+      })
+    );
+
+    const res = await axios.patch(
+      `${backendUrl}/api/musician/moderation/deputy/${deputyId}/save`,
+      safe,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+
+    if (res.data?.success) {
+      toast(<CustomToast type="success" message="Changes saved" />);
+      navigate("/moderate-deputies");
+    } else {
+      toast(<CustomToast type="error" message={res.data?.message || "Failed to save"} />);
+    }
+  } catch (err) {
+    console.error(err);
+    toast(<CustomToast type="error" message="Failed to save" />);
+  }
+};
+
+const handleApproveDeputy = async () => {
+  try {
+    if (!deputyId) return;
+    const res = await axios.post(
+      `${backendUrl}/api/approve-deputy`,
+      { id: deputyId },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (res.data?.success) {
+      toast(<CustomToast type="success" message={res.data.message || "Deputy approved"} />);
+      navigate("/moderate-deputies");
+    } else {
+      toast(<CustomToast type="error" message={res.data?.message || "Failed to approve"} />);
+    }
+  } catch (err) {
+    console.error(err);
+    toast(<CustomToast type="error" message="Failed to approve" />);
+  }
+};
 
   return (
     <>
@@ -1099,48 +1152,63 @@ useEffect(() => {
         {renderStep()}
 
         <div className="flex flex-col min-h-[300px] justify-between mt-6">
-          {step < totalSteps ? (
-            <div className="flex justify-between">
-              {step > 1 ? (
-                <button
-                  className="px-4 py-2 bg-black hover:bg-[#ff6667] text-white max-h-10 "
-                  onClick={handleBack}
-                >
-                  Back
-                </button>
-              ) : (
-                <div></div>
-              )}
-              <button
-                className="px-4 py-2 bg-black hover:bg-[#ff6667] text-white max-h-10"
-                onClick={handleNext}
-              >
-                Next
-              </button>
-            </div>
-          ) : (
-            <>
-              <div className="flex justify-between mt-6">
-                <button
-                  className="px-4 py-2 bg-black hover:bg-[#ff6667] text-white max-h-10 "
-                  onClick={handleBack}
-                >
-                  Back
-                </button>
-                <button
-                  className={`px-4 py-2 text-white max-h-10 ${
-                    canSubmit
-                      ? "bg-black hover:bg-[#ff6667]"
-                      : "bg-gray-400 cursor-not-allowed"
-                  }`}
-                  onClick={handleSubmit}
-                  disabled={!canSubmit}
-                >
-                  Submit
-                </button>
-              </div>
-            </>
-          )}
+         {step === totalSteps ? (
+  isModerationMode ? (
+    <div className="flex justify-between mt-6">
+      <button
+        className="px-4 py-2 bg-black hover:bg-[#ff6667] text-white max-h-10"
+        onClick={handleBack}
+      >
+        Back
+      </button>
+
+      <div className="flex gap-2">
+        <button
+          className="px-4 py-2 border border-gray-400 rounded max-h-10"
+          onClick={handleSaveAndExitModeration}
+        >
+          Save &amp; Exit
+        </button>
+        <button
+          className="px-4 py-2 bg-green-600 text-white rounded max-h-10"
+          onClick={handleApproveDeputy}
+        >
+          Approve
+        </button>
+      </div>
+    </div>
+  ) : (
+    <div className="flex justify-between mt-6">
+      <button
+        className="px-4 py-2 bg-black hover:bg-[#ff6667] text-white max-h-10"
+        onClick={handleBack}
+      >
+        Back
+      </button>
+      <button
+        className={`px-4 py-2 text-white max-h-10 ${
+          canSubmit ? "bg-black hover:bg-[#ff6667]" : "bg-gray-400 cursor-not-allowed"
+        }`}
+        onClick={handleSubmit}
+        disabled={!canSubmit}
+      >
+        Submit
+      </button>
+    </div>
+  )
+) : (
+  /* your existing Next/Back for earlier steps */
+  <div className="flex justify-between">
+    {step > 1 ? (
+      <button className="px-4 py-2 bg-black hover:bg-[#ff6667] text-white max-h-10" onClick={handleBack}>
+        Back
+      </button>
+    ) : <div/>}
+    <button className="px-4 py-2 bg.black hover:bg-[#ff6667] text-white max-h-10" onClick={handleNext}>
+      Next
+    </button>
+  </div>
+)}
         </div>
         {showSubmittingPopup && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

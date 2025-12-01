@@ -5,6 +5,8 @@ import AddAct2StepperForm from "./AddAct2StepperForm";
 import { backendUrl } from "../App";
 import { toast } from "react-toastify";
 
+const changedFields = {};
+
 const EditAct2StepperForm = ({ token, userRole, isModeration = false }) => {
   const { id } = useParams();
   const navigate = useNavigate();
