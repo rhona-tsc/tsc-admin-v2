@@ -998,7 +998,7 @@ useEffect(() => {
     privacyPolicy:
       typeof rawAgreement.privacyPolicy === "boolean"
         ? rawAgreement.privacyPolicy
-        : Boolean(rawAgreement.provacyPolicy),
+        : Boolean(rawAgreement.privacyPolicy),
   };
 
   const isSignaturePresent = hasDrawnSignature === true;
@@ -1152,63 +1152,73 @@ const handleApproveDeputy = async () => {
         {renderStep()}
 
         <div className="flex flex-col min-h-[300px] justify-between mt-6">
-         {step === totalSteps ? (
-  isModerationMode ? (
-    <div className="flex justify-between mt-6">
-      <button
-        className="px-4 py-2 bg-black hover:bg-[#ff6667] text-white max-h-10"
-        onClick={handleBack}
-      >
-        Back
-      </button>
+          {step < totalSteps ? (
+            // Steps 1–5: show Back/Next
+            <div className="flex justify-between mt-6">
+              {step > 1 ? (
+                <button
+                  className="px-4 py-2 bg-black hover:bg-[#ff6667] text-white max-h-10"
+                  onClick={handleBack}
+                >
+                  Back
+                </button>
+              ) : (
+                <div />
+              )}
 
-      <div className="flex gap-2">
-        <button
-          className="px-4 py-2 border border-gray-400 rounded max-h-10"
-          onClick={handleSaveAndExitModeration}
-        >
-          Save &amp; Exit
-        </button>
-        <button
-          className="px-4 py-2 bg-green-600 text-white rounded max-h-10"
-          onClick={handleApproveDeputy}
-        >
-          Approve
-        </button>
-      </div>
-    </div>
-  ) : (
-    <div className="flex justify-between mt-6">
-      <button
-        className="px-4 py-2 bg-black hover:bg-[#ff6667] text-white max-h-10"
-        onClick={handleBack}
-      >
-        Back
-      </button>
-      <button
-        className={`px-4 py-2 text-white max-h-10 ${
-          canSubmit ? "bg-black hover:bg-[#ff6667]" : "bg-gray-400 cursor-not-allowed"
-        }`}
-        onClick={handleSubmit}
-        disabled={!canSubmit}
-      >
-        Submit
-      </button>
-    </div>
-  )
-) : (
-  /* your existing Next/Back for earlier steps */
-  <div className="flex justify-between">
-    {step > 1 ? (
-      <button className="px-4 py-2 bg-black hover:bg-[#ff6667] text-white max-h-10" onClick={handleBack}>
-        Back
-      </button>
-    ) : <div/>}
-    <button className="px-4 py-2 bg.black hover:bg-[#ff6667] text-white max-h-10" onClick={handleNext}>
-      Next
-    </button>
-  </div>
-)}
+              <button
+                className="px-4 py-2 bg-black hover:bg-[#ff6667] text-white max-h-10"
+                onClick={handleNext}
+              >
+                Next
+              </button>
+            </div>
+          ) : (
+            // Step 6 (final): show Submit or Moderation actions
+            isModerationMode ? (
+              <div className="flex justify-between mt-6">
+                <button
+                  className="px-4 py-2 bg-black hover:bg-[#ff6667] text-white max-h-10"
+                  onClick={handleBack}
+                >
+                  Back
+                </button>
+
+                <div className="flex gap-2">
+                  <button
+                    className="px-4 py-2 border border-gray-400 rounded max-h-10"
+                    onClick={handleSaveAndExitModeration}
+                  >
+                    Save &amp; Exit
+                  </button>
+                  <button
+                    className="px-4 py-2 bg-green-600 text-white rounded max-h-10"
+                    onClick={handleApproveDeputy}
+                  >
+                    Approve
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex justify-between mt-6">
+                <button
+                  className="px-4 py-2 bg-black hover:bg-[#ff6667] text-white max-h-10"
+                  onClick={handleBack}
+                >
+                  Back
+                </button>
+                <button
+                  className={`px-4 py-2 text-white max-h-10 ${
+                    canSubmit ? "bg-black hover:bg-[#ff6667]" : "bg-gray-400 cursor-not-allowed"
+                  }`}
+                  onClick={handleSubmit}
+                  disabled={!canSubmit}
+                >
+                  Submit
+                </button>
+              </div>
+            )
+          )}
         </div>
         {showSubmittingPopup && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
