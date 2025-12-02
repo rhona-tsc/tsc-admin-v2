@@ -224,8 +224,8 @@ if (!formData.reference && safeLastName) {
   className="contract-text w-full border rounded px-3 py-2 bg-gray-100 text-s overflow-y-auto max-h-60 text-sm"
   dangerouslySetInnerHTML={{
     __html: formData.deputy_contract_text ||
-            `<h2>Bamboo Music Management Booking Contract</h2>
-<p>Issued by the ‘Agent’ (Bamboo Music Management, trading name The Supreme Collective) on behalf of the 'Artistic Supplier'${formData.firstName || formData.first_name || ''} 
+            `<h2>The Supreme Collective Booking Contract</h2>
+<p>Issued by the ‘Agent’ (The Supreme Collective, trading name The Supreme Collective) on behalf of the 'Artistic Supplier'${formData.firstName || formData.first_name || ''} 
 ${formData.lastName || formData.last_name || ''}.</p>
 <p><strong>Contract Ref:</strong> ${contractReference}</p>
 <p><strong>Date of Issue:</strong> ${new Date().toLocaleDateString()}</p>
@@ -235,7 +235,7 @@ Telephone: ${phone}<br/>
 Address: ${formData.address?.line1 || ""}, ${formData.address?.town || ""}, ${formData.address?.county || ""}, ${formData.address?.postcode || ""}<br/>
 Email: ${email}</p>
 <p><strong>Agent Contact Details</strong><br/>
-Company Name: Bamboo Music Management Ltd (trading as The Supreme Collective)<br/>
+Company Name: The Supreme Collective Ltd<br/>
 Contact Telephone: +44 07594 223200<br/>
 Contact Address: Cramond, Reeves Lane, Roydon, CM19 5LE<br/>
 Contact Email: hello@thesupremecollective.co.uk</p>
@@ -313,7 +313,7 @@ Contact Email: hello@thesupremecollective.co.uk</p>
 
 <h2>Key Points</h2>
 <ul>
-  <li>This Contract is subject to <strong>Bamboo Music Management's Terms and Conditions</strong>.</li>
+  <li>This Contract is subject to <strong>The Supreme Collective's Terms and Conditions</strong>.</li>
   <li>
     The Agent must supply the Artistic Supplier with an Event Sheet that the Artistic Supplier has access to at least
     four weeks prior to the event, or as soon as possible after booking is taken if the event is due to take place
@@ -343,15 +343,15 @@ Contact Email: hello@thesupremecollective.co.uk</p>
     formData.reference ||
     `20${200 + Number(formData._id?.slice(-3) || 0)} ${(lastName).toUpperCase()}`
   }</strong> (<strong>${firstName} ${lastName}</strong>, <strong>${new Date().toLocaleDateString()}</strong>) and agree
-  to be bound by Bamboo Music Management’s Terms and Conditions of booking.
+  to be bound by The Supreme Collective’s Terms and Conditions of booking.
 </p>
 <p>
   Below we explain the contract between you, the ‘Artistic Supplier’, and your booker, the ‘Client’.
 </p>
 
 <p>
-  If you do not understand any part of these Terms and Conditions, please check with Bamboo Music Management Ltd
-  (trading as The Supreme Collective) or seek legal advice before agreeing to them.
+  If you do not understand any part of these Terms and Conditions, please check with The Supreme Collective Ltd
+   or seek legal advice before agreeing to them.
 </p>
 
 <h2>Definition</h2>
@@ -359,7 +359,7 @@ Contact Email: hello@thesupremecollective.co.uk</p>
   The following definitions refer to the 'Contract' with attached Terms and Conditions, to be taken as a whole.
 </p>
 <p>
-  <strong>Bamboo Music Management</strong>, Company No. 09318270, is the <strong>'Agent’, 'We', 'Us'</strong>.
+  <strong>The Supreme Collective</strong>, Company No. 16883956, is the <strong>'Agent’, 'We', 'Us'</strong>.
 </p>
 
 <p>
