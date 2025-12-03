@@ -20,8 +20,6 @@ const PILL = ({ status }) => {
 const ModerateDeputies = ({ token }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [debugOpen, setDebugOpen] = useState(true);
-  const [debugPayload, setDebugPayload] = useState(null);
   const navigate = useNavigate();
 
   const fetchQueue = async () => {
@@ -31,14 +29,14 @@ const ModerateDeputies = ({ token }) => {
       const statuses = encodeURIComponent("pending,Approved, changes pending");
       const url = `${backendUrl}/api/moderation/deputies/review-queue?statuses=${statuses}`;
       const res = await axios.get(url, { headers: { token } });
-      setDebugPayload(res.data);
+    
       setRows(res.data?.deputies || []);
     } catch (err) {
       // fallback to only "pending"
       console.warn("⚠️ COMBINED queue failed, falling back to /pending only:", err);
       try {
         const res = await axios.get(`${backendUrl}/api/moderation/deputies/pending`, { headers: { token } });
-        setDebugPayload(res.data);
+      
         setRows(res.data?.deputies || []);
       } catch (err2) {
         toast(<CustomToast type="error" message="Failed to load deputies" />);
@@ -74,30 +72,8 @@ const ModerateDeputies = ({ token }) => {
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-xl font-bold">Moderate Deputies</h1>
-        <button
-          className="text-sm px-3 py-1 border rounded"
-          onClick={() => setDebugOpen((v) => !v)}
-        >
-          {debugOpen ? "Hide Debug" : "Show Debug"}
-        </button>
+       
       </div>
-
-      {debugOpen && (
-        <pre className="bg-gray-50 p-4 border rounded text-xs overflow-auto mb-4">
-{JSON.stringify(
-  {
-    total: debugPayload?.total ?? sorted.length,
-    statusCounts: debugPayload?.statusCounts ?? sorted.reduce((acc, d) => {
-      acc[d.status] = (acc[d.status] || 0) + 1;
-      return acc;
-    }, {}),
-    sample: sorted.slice(0, 10).map((d) => ({ id: d._id, name: d.name, status: d.status })),
-  },
-  null,
-  2
-)}
-        </pre>
-      )}
 
       {loading ? (
         <p>Loading...</p>

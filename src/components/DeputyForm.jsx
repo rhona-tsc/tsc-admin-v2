@@ -321,6 +321,70 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
     dateRegistered: new Date(),
   });
 
+  /* ------------------------------ Debug helpers ----------------------------- */
+
+const makeRequestId = () =>
+  (typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `req_${Date.now()}_${Math.random().toString(16).slice(2)}`);
+
+const tryParseJSON = (s) => {
+  if (typeof s !== "string") return s;
+  try {
+    return JSON.parse(s);
+  } catch {
+    return s;
+  }
+};
+
+// Summarise FormData (parse JSON strings, replace files with meta)
+const summarizeFormData = (fd) => {
+  const out = {};
+  for (const [k, v] of fd.entries()) {
+    if (v instanceof File || v instanceof Blob) {
+      out[k] = { _type: "file", name: v.name || "(blob)", type: v.type, sizeKB: Math.round((v.size || 0) / 1024) };
+    } else {
+      out[k] = tryParseJSON(v);
+    }
+  }
+  return out;
+};
+
+// Minify big arrays/objects for logging
+const preview = (obj, limits = {}) => {
+  const {
+    maxArray = 5,
+    maxString = 400,
+    elideKeys = [], // keys to skip entirely
+  } = limits;
+
+  const seen = new WeakSet();
+  const shrink = (val) => {
+    if (val && typeof val === "object") {
+      if (seen.has(val)) return "[Circular]";
+      seen.add(val);
+    }
+    if (Array.isArray(val)) {
+      const head = val.slice(0, maxArray).map(shrink);
+      const extra = val.length - head.length;
+      return extra > 0 ? [...head, `…(+${extra})`] : head;
+    }
+    if (val && typeof val === "object") {
+      const out = {};
+      Object.keys(val).forEach((k) => {
+        if (elideKeys.includes(k)) return;
+        out[k] = shrink(val[k]);
+      });
+      return out;
+    }
+    if (typeof val === "string" && val.length > maxString) {
+      return val.slice(0, maxString) + "…";
+    }
+    return val;
+  };
+  return shrink(obj);
+};
+
   /* ------------------------- lift state changes to children ------------------ */
   useEffect(() => {
     console.log("📡 DeputyForm state sent to child step components:", formData);
@@ -329,66 +393,83 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
   const [tscApprovedBio, setTscApprovedBio] = useState(formData?.tscApprovedBio || "");
 
   /* --------------------------- hydrate from server --------------------------- */
-  useEffect(() => {
-    if (!deputyId) {
-      console.warn("⚠️ No valid deputyId; skipping hydration");
-      return;
-    }
+ useEffect(() => {
+  if (!deputyId) {
+    console.warn("⚠️ No valid deputyId; skipping hydration");
+    return;
+  }
 
-    (async () => {
-      try {
-        const url = `${backendUrl}/api/moderation/deputy/${deputyId}`;
-        const res = await axios.get(url, {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true,
+  (async () => {
+    try {
+      const url = `${backendUrl}/api/moderation/deputy/${deputyId}`;
+      const res = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        withCredentials: true,
+      });
+
+      const deputy = res.data?.deputy || res.data?.musician || null;
+
+      console.groupCollapsed("🔎 Hydration fetch — deputy", { deputyId, url });
+      if (deputy) {
+        const summary = preview(deputy, {
+          maxArray: 3,
+          maxString: 600,
+          elideKeys: ["__v", "password", "salt"],
         });
-
-        const deputy = res.data?.deputy || res.data?.musician || null;
-        if (!deputy) return;
-
-        const basicInfoFromDb = deputy.basicInfo || {
-          firstName: deputy.firstName,
-          lastName: deputy.lastName,
-          phone: deputy.phone,
-          email: deputy.email,
-        };
-        const addressFromDb = deputy.address || {};
-        const bankFromDb = deputy.bank_account || {};
-
-        setFormData((prev) => ({
-          ...prev,
-          ...deputy,
-          basicInfo: { ...prev.basicInfo, ...basicInfoFromDb },
-          address: { ...prev.address, ...addressFromDb },
-          bank_account: { ...prev.bank_account, ...bankFromDb },
-          dateRegistered: deputy.dateRegistered || prev.dateRegistered || new Date(),
-          academic_credentials: deputy.academic_credentials || prev.academic_credentials,
-          function_bands_performed_with: deputy.function_bands_performed_with || prev.function_bands_performed_with,
-          original_bands_performed_with: deputy.original_bands_performed_with || prev.original_bands_performed_with,
-          sessions: deputy.sessions || prev.sessions,
-          social_media_links: deputy.social_media_links || prev.social_media_links,
-          instrumentation: deputy.instrumentation || prev.instrumentation,
-          repertoire: deputy.repertoire || prev.repertoire,
-          selectedSongs: deputy.selectedSongs || prev.selectedSongs,
-          other_skills: deputy.other_skills || prev.other_skills,
-          logistics: deputy.logistics || prev.logistics,
-          digitalWardrobeBlackTie: deputy.digitalWardrobeBlackTie || prev.digitalWardrobeBlackTie,
-          digitalWardrobeFormal: deputy.digitalWardrobeFormal || prev.digitalWardrobeFormal,
-          digitalWardrobeSmartCasual: deputy.digitalWardrobeSmartCasual || prev.digitalWardrobeSmartCasual,
-          digitalWardrobeSessionAllBlack: deputy.digitalWardrobeSessionAllBlack || prev.digitalWardrobeSessionAllBlack,
-          additionalImages: deputy.additionalImages || prev.additionalImages,
-          deputy_contract_signed: deputy.deputy_contract_signed || prev.deputy_contract_signed || "",
-          deputy_contract_agreed: deputy.deputy_contract_agreed ?? prev.deputy_contract_agreed,
-        }));
-
-        setTscApprovedBio(deputy.tscApprovedBio || deputy.bio || "");
-        if (deputy.deputy_contract_signed) setHasDrawnSignature(true);
-        if (deputy._id) localStorage.setItem("musicianId", deputy._id);
-      } catch (err) {
-        console.error("❌ Failed to fetch deputy:", err);
+        console.log("Fetched deputy summary:", summary);
+        console.log("Raw keys:", Object.keys(deputy));
+        // keep a handle in window for quick inspection:
+        window.__lastDeputyFetched = deputy;
+      } else {
+        console.log("No deputy found in response.");
       }
-    })();
-  }, [deputyId, token]);
+      console.groupEnd();
+
+      if (!deputy) return;
+
+      const basicInfoFromDb = deputy.basicInfo || {
+        firstName: deputy.firstName,
+        lastName: deputy.lastName,
+        phone: deputy.phone,
+        email: deputy.email,
+      };
+      const addressFromDb = deputy.address || {};
+      const bankFromDb = deputy.bank_account || {};
+
+      setFormData((prev) => ({
+        ...prev,
+        ...deputy,
+        basicInfo: { ...prev.basicInfo, ...basicInfoFromDb },
+        address: { ...prev.address, ...addressFromDb },
+        bank_account: { ...prev.bank_account, ...bankFromDb },
+        dateRegistered: deputy.dateRegistered || prev.dateRegistered || new Date(),
+        academic_credentials: deputy.academic_credentials || prev.academic_credentials,
+        function_bands_performed_with: deputy.function_bands_performed_with || prev.function_bands_performed_with,
+        original_bands_performed_with: deputy.original_bands_performed_with || prev.original_bands_performed_with,
+        sessions: deputy.sessions || prev.sessions,
+        social_media_links: deputy.social_media_links || prev.social_media_links,
+        instrumentation: deputy.instrumentation || prev.instrumentation,
+        repertoire: deputy.repertoire || prev.repertoire,
+        selectedSongs: deputy.selectedSongs || prev.selectedSongs,
+        other_skills: deputy.other_skills || prev.other_skills,
+        logistics: deputy.logistics || prev.logistics,
+        digitalWardrobeBlackTie: deputy.digitalWardrobeBlackTie || prev.digitalWardrobeBlackTie,
+        digitalWardrobeFormal: deputy.digitalWardrobeFormal || prev.digitalWardrobeFormal,
+        digitalWardrobeSmartCasual: deputy.digitalWardrobeSmartCasual || prev.digitalWardrobeSmartCasual,
+        digitalWardrobeSessionAllBlack: deputy.digitalWardrobeSessionAllBlack || prev.digitalWardrobeSessionAllBlack,
+        additionalImages: deputy.additionalImages || prev.additionalImages,
+        deputy_contract_signed: deputy.deputy_contract_signed || prev.deputy_contract_signed || "",
+        deputy_contract_agreed: deputy.deputy_contract_agreed ?? prev.deputy_contract_agreed,
+      }));
+
+      setTscApprovedBio(deputy.tscApprovedBio || deputy.bio || "");
+      if (deputy.deputy_contract_signed) setHasDrawnSignature(true);
+      if (deputy._id) localStorage.setItem("musicianId", deputy._id);
+    } catch (err) {
+      console.error("❌ Failed to fetch deputy:", err);
+    }
+  })();
+}, [deputyId, token]);
 
   /* ----------------------------- hydrate autosave ---------------------------- */
   useEffect(() => {
@@ -445,6 +526,11 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
     setShowSubmittingPopup(true);
     const popupMinTime = new Promise((resolve) => setTimeout(resolve, 3000));
 
+
+      // Create correlation id
+  const requestId = makeRequestId();
+  const sentAt = new Date().toISOString();
+
     const { deletedImages = [] } = formData;
     for (const url of deletedImages) {
       try {
@@ -456,6 +542,11 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
 
     try {
       const form = new FormData();
+
+      form.append("_requestId", requestId);
+    form.append("_sentAt", sentAt);
+    form.append("_clientRoute", window.location.pathname);
+
 
       // basics
       form.append("basicInfo", JSON.stringify(formData.basicInfo));
@@ -738,12 +829,23 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
         }
       }
 
+
+
       console.log("🎵 Parsed originalMp3s:", formData.originalMp3s);
 
       form.append(
         "deputy_contract_signed",
         typeof formData.deputy_contract_signed === "string" ? formData.deputy_contract_signed : ""
       );
+
+      const outgoingSummary = summarizeFormData(form);
+    console.group("🚀 SUBMIT DEPUTY — outgoing payload");
+    console.log("requestId:", requestId);
+    console.log("sentAt:", sentAt);
+    console.log("endpoint:", `${backendUrl}/api/musician/moderation/register-deputy`);
+    console.log("payload(summary):", preview(outgoingSummary, { maxArray: 4, maxString: 600 }));
+    console.groupEnd();
+
 
       // debug payload
       console.group("📤 FormData -> /api/musician/moderation/register-deputy");
@@ -763,6 +865,7 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
           headers: {
             token, // backend expects `token` header in your stack
             Authorization: `Bearer ${token}`,
+            "x-request-id": requestId,
             "Content-Type": "multipart/form-data",
           },
         }
@@ -770,6 +873,13 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
 
       const [response] = await Promise.all([axiosResponsePromise, popupMinTime]);
 
+
+       console.group("📬 SERVER RESPONSE — register-deputy");
+    console.log("requestId:", requestId);
+    console.log("status:", response?.status);
+    console.log("data:", response?.data);
+    console.groupEnd();
+    
       if (response?.data?.success) {
         const savedMusician = response.data.musician;
         if (savedMusician?._id) {
