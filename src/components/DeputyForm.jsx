@@ -866,7 +866,6 @@ const preview = (obj, limits = {}) => {
             token, // backend expects `token` header in your stack
             Authorization: `Bearer ${token}`,
             "x-request-id": requestId,
-            "Content-Type": "multipart/form-data",
           },
         }
       );
