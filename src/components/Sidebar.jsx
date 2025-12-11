@@ -25,12 +25,20 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
   const [pendingActCount, setPendingActCount] = useState(0);
   const [actPreSubmissions, setActPreSubmissions] = useState(0);
 
-  // 🔔 Tech issue modal
-  const [showTechModal, setShowTechModal] = useState(false);
-  const handleDeputyClick = (e) => {
-    e?.preventDefault?.();
-    setShowTechModal(true);
-  };
+// 🔔 Tech issue modal
+const [showTechModal, setShowTechModal] = useState(false);
+const handleDeputyClick = (e, path) => {
+  e?.preventDefault?.();
+
+  // Allow Rhona to bypass the tech modal and go straight to the deputy page
+  if (normalize(userId) === "693ac400ef2c3100595c0ed8" && path) {
+    navigate(path, { state: { userRole, userFirstName } });
+    return;
+  }
+
+  setShowTechModal(true);
+};
+
   useEffect(() => {
     if (!showTechModal) return;
     const onKeyDown = (e) => e.key === "Escape" && setShowTechModal(false);
@@ -68,6 +76,9 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
     }
     return { label: "Join The Books", path: "/register-as-deputy" };
   };
+
+  
+
 
   // only fetch deputy if we actually have a valid id AND the user isn’t an agent
   useEffect(() => {
@@ -108,10 +119,8 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
     })();
   }, [userRole]);
 
-  const { label: deputyCtaLabel /*, path: deputyCtaPath */ } = getDeputyCTA(
-    myDeputyStatus,
-    musicianId
-  );
+  const { label: deputyCtaLabel, path: deputyCtaPath } =
+    getDeputyCTA(myDeputyStatus, musicianId);
 
   useEffect(() => {
     if (normalize(userRole) !== "agent") return;
@@ -187,15 +196,15 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
   return (
     <div className="w-[18%] min-h-screen border-r-2">
       <div className="flex flex-col gap-4 pt-6 pl-[20%] text-[15px] rounded-md">
-        {/* Deputy CTA -> opens tech issue modal */}
-        <button
-          type="button"
-          onClick={handleDeputyClick}
-          className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
-        >
-          <img className="w-5 h-5" src={assets.deputy_icon} alt="" />
-          <p className="hidden md:block text-white">{deputyCtaLabel}</p>
-        </button>
+     {/* Deputy CTA -> opens tech issue modal */}
+<button
+  type="button"
+  onClick={(e) => handleDeputyClick(e, deputyCtaPath)}
+  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+>
+  <img className="w-5 h-5" src={assets.deputy_icon} alt="" />
+  <p className="hidden md:block text-white">{deputyCtaLabel}</p>
+</button>
 
         <button
           onClick={handleSubmitActClick}
@@ -256,6 +265,17 @@ const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
 
         {normalize(userRole) === "agent" && (
           <>
+
+           {/* Deputy CTA */}
+        <NavLink
+          className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+          to={deputyCtaPath}
+          state={{ userRole, userFirstName }}
+        >
+          <img className="w-5 h-5" src={assets.deputy_icon} alt="" />
+          <p className="hidden md:block text-white">{deputyCtaLabel}</p>
+        </NavLink>
+
             <NavLink
               className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
               to="/booking-board"
