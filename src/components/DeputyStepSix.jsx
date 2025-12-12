@@ -55,7 +55,8 @@ const handleEnd = () => {
 
     setFormData(prev => ({
       ...prev,
-      deputy_contract_signed: dataURL
+      deputy_contract_signed: dataURL,
+      signature: [dataURL], // Save signature for DeputyForm detection
     }));
 
     setHasDrawnSignature(true);
@@ -70,6 +71,7 @@ const handleEnd = () => {
     setFormData((prev) => ({
       ...prev,
       deputy_contract_signed: "",
+      signature: [], // Clear signature for DeputyForm detection
     }));
     setHasDrawnSignature(false); // ✅ use the prop here
   };
@@ -77,6 +79,13 @@ const handleEnd = () => {
 
 
   useEffect(() => {
+    // Always sync signature array for DeputyForm detection
+    if (formData.deputy_contract_signed && (!formData.signature || !Array.isArray(formData.signature) || formData.signature[0] !== formData.deputy_contract_signed)) {
+      setFormData(prev => ({
+        ...prev,
+        signature: [formData.deputy_contract_signed],
+      }));
+    }
     if (
       sigCanvas.current &&
       typeof sigCanvas.current.clear === "function" &&
@@ -162,7 +171,10 @@ if (!formData.reference && safeLastName) {
               const value = e.target.value;
               console.log("🟣 [DeputyStepSix] sort_code changed:", value);
               validateBankDetails("sortCode", value);
-              setFormData({ bank_account: { ...(formData.bank_account || {}), sort_code: value } });
+              setFormData(prev => ({
+                ...prev,
+                bank_account: { ...(prev.bank_account || {}), sort_code: value }
+              }));
             }}
             className="border rounded px-3 py-2 w-full"
           />
@@ -178,7 +190,10 @@ if (!formData.reference && safeLastName) {
               const value = e.target.value;
               console.log("🟣 [DeputyStepSix] account_number changed:", value);
               validateBankDetails("accountNumber", value);
-              setFormData({ bank_account: { ...(formData.bank_account || {}), account_number: value } });
+              setFormData(prev => ({
+                ...prev,
+                bank_account: { ...(prev.bank_account || {}), account_number: value }
+              }));
             }}
             className="border rounded px-3 py-2 w-full"
           />
@@ -194,8 +209,11 @@ if (!formData.reference && safeLastName) {
             type="text"
             value={formData.bank_account?.account_name || ""}
             onChange={(e) => {
-            console.log("🟣 [DeputyStepSix] account_name changed:", e.target.value);
-            setFormData({ bank_account: { ...(formData.bank_account || {}), account_name: e.target.value } });
+              console.log("🟣 [DeputyStepSix] account_name changed:", e.target.value);
+              setFormData(prev => ({
+                ...prev,
+                bank_account: { ...(prev.bank_account || {}), account_name: e.target.value }
+              }));
             }}
             className="border rounded px-3 py-1.5 w-full"
           />
@@ -206,8 +224,11 @@ if (!formData.reference && safeLastName) {
             id="accountType"
             value={formData.bank_account?.account_type || ""}
             onChange={(e) => {
-            console.log("🟣 [DeputyStepSix] account_type changed:", e.target.value);
-            setFormData({ bank_account: { ...(formData.bank_account || {}), account_type: e.target.value } });
+              console.log("🟣 [DeputyStepSix] account_type changed:", e.target.value);
+              setFormData(prev => ({
+                ...prev,
+                bank_account: { ...(prev.bank_account || {}), account_type: e.target.value }
+              }));
             }}
             className="border rounded px-3 py-1.5 w-full"
           >

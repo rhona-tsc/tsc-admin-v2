@@ -3,12 +3,14 @@ import DragAndDropImageUploader from "./DragAndDropImageUploader";
 import ImageCropModal from "./ImageCropModal";
 import { assets } from "../assets/assets";
 import Mp3Uploader from "./Mp3Uploader";
+import renameAndCompressImage from "../pages/utils/renameAndCompressDeputyImage";
 
 const DeputyStepOne = ({
   formData = {},
   setFormData = () => {},
   userRole,
   isUploadingImages = false,
+  setIsUploadingImages = () => {},
   isUploadingMp3s = false,
   setIsUploadingMp3s = () => {},
 }) => {
@@ -62,16 +64,11 @@ const DeputyStepOne = ({
   // -------------------------------------
   // PROFILE IMAGE
   // -------------------------------------
+  // Restore: On file select, show crop modal and preview, upload only after crop confirm
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    console.log("🟨 PROFILE PIC selected:", {
-      name: file.name,
-      type: file.type,
-      sizeKB: Math.round(file.size / 1024),
-    });
-
+    setPreviewUrl(""); // Clear preview so it doesn't show old image
     const reader = new FileReader();
     reader.onload = () => {
       setTempImage(reader.result);
@@ -80,31 +77,47 @@ const DeputyStepOne = ({
     reader.readAsDataURL(file);
   };
 
-  const handleSaveCroppedImage = (blob) => {
-    console.log("🟨 PROFILE PIC cropped:", blob);
-
-    const url = URL.createObjectURL(blob);
-    setPreviewUrl(url);
-
-    setFormData((prev) => ({
-      ...prev,
-      profilePicture: blob,
-    }));
+  const handleSaveCroppedImage = async (blob) => {
+    setIsUploadingImages(true);
+    try {
+      const [url] = await renameAndCompressImage({ images: [blob], address: formData.address });
+      setFormData((prev) => {
+        const updated = { ...prev, profilePicture: url };
+        // Autosave immediately after crop
+        try {
+          const safe = JSON.parse(
+            JSON.stringify(updated, (key, value) => {
+              if (value instanceof File) return undefined;
+              if (value instanceof Blob) return undefined;
+              if (typeof value === "function") return undefined;
+              if (value === window) return undefined;
+              return value;
+            })
+          );
+          localStorage.setItem("deputyAutosave", JSON.stringify(safe));
+        } catch (e) {
+          console.error("❌ Autosave failed after crop:", e);
+        }
+        return updated;
+      });
+      setPreviewUrl(url);
+      setModalOpen(false);
+    } catch (err) {
+      console.error("Failed to upload cropped profile picture", err);
+      alert("Failed to upload cropped profile picture. Please try again.");
+    } finally {
+      setIsUploadingImages(false);
+    }
   };
 
   // -------------------------------------
   // COVER HERO IMAGE
   // -------------------------------------
+  // Restore: On file select, show crop modal and preview, upload only after crop confirm
   const handleCoverHeroChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    console.log("🟧 COVER HERO selected:", {
-      name: file.name,
-      type: file.type,
-      sizeKB: Math.round(file.size / 1024),
-    });
-
+    setCoverHeroPreviewUrl(""); // Clear preview so it doesn't show old image
     const reader = new FileReader();
     reader.onload = () => {
       setTempCoverImage(reader.result);
@@ -113,16 +126,57 @@ const DeputyStepOne = ({
     reader.readAsDataURL(file);
   };
 
-  const handleSaveCoverCroppedImage = (blob) => {
-    console.log("🟧 COVER HERO cropped:", blob);
+  const handleSaveCoverCroppedImage = async (blob) => {
+    setIsUploadingImages(true);
+    try {
+      const [url] = await renameAndCompressImage({ images: [blob], address: formData.address });
+      setFormData((prev) => {
+        const updated = { ...prev, coverHeroImage: url };
+        // Autosave immediately after crop
+        try {
+          const safe = JSON.parse(
+            JSON.stringify(updated, (key, value) => {
+              if (value instanceof File) return undefined;
+              if (value instanceof Blob) return undefined;
+              if (typeof value === "function") return undefined;
+              if (value === window) return undefined;
+              return value;
+            })
+          );
+          localStorage.setItem("deputyAutosave", JSON.stringify(safe));
+        } catch (e) {
+          console.error("❌ Autosave failed after crop:", e);
+        }
+        return updated;
+      });
+      setCoverHeroPreviewUrl(url);
+      setCoverModalOpen(false);
+    } catch (err) {
+      console.error("Failed to upload cropped cover hero image", err);
+      alert("Failed to upload cropped cover hero image. Please try again.");
+    } finally {
+      setIsUploadingImages(false);
+    }
+  };
 
-    const url = URL.createObjectURL(blob);
-    setCoverHeroPreviewUrl(url);
-
+  // Helper for wardrobe/additional images
+  const handleWardrobeImageUpload = async (updated, wardrobeKey) => {
+    setIsUploadingImages(true);
+    const previous = formData[wardrobeKey] || [];
+    const uploaded = await Promise.all(
+      (updated || []).map(async (img) => {
+        if (typeof img === "string") return img;
+        const [url] = await renameAndCompressImage({ images: [img], address: formData.address });
+        return url;
+      })
+    );
+    const deleted = previous.filter((f) => !uploaded.includes(f) && typeof f === "string");
     setFormData((prev) => ({
       ...prev,
-      coverHeroImage: blob,
+      [wardrobeKey]: uploaded,
+      deletedImages: [...(prev.deletedImages || []), ...deleted],
     }));
+    setIsUploadingImages(false);
   };
 
   // -------------------------------------
@@ -360,23 +414,10 @@ const DeputyStepOne = ({
           <DragAndDropImageUploader
             label="Black Tie Attire"
             files={formData.digitalWardrobeBlackTie}
-            setFiles={(updatedFn) => {
-              setFormData((prev) => {
-                const previous = prev.digitalWardrobeBlackTie || [];
-                const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
-
-                const deleted = previous.filter(
-                  (f) => !updated.includes(f) && typeof f === "string"
-                );
-
-                console.log("🖼️ [DW4-BLACKTIE] UPDATE", { previous, updated, deleted });
-
-                return {
-                  ...prev,
-                  digitalWardrobeBlackTie: updated,
-                  deletedImages: [...(prev.deletedImages || []), ...deleted],
-                };
-              });
+            setFiles={async (updatedFn) => {
+              const previous = formData.digitalWardrobeBlackTie || [];
+              const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
+              await handleWardrobeImageUpload(updated, "digitalWardrobeBlackTie");
             }}
           />
         </div>
@@ -391,23 +432,10 @@ const DeputyStepOne = ({
           <DragAndDropImageUploader
             label="Formal Attire"
             files={formData.digitalWardrobeFormal}
-            setFiles={(updatedFn) => {
-              setFormData((prev) => {
-                const previous = prev.digitalWardrobeFormal || [];
-                const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
-
-                const deleted = previous.filter(
-                  (f) => !updated.includes(f) && typeof f === "string"
-                );
-
-                console.log("🖼️ [DW4-FORMAL] UPDATE", { previous, updated, deleted });
-
-                return {
-                  ...prev,
-                  digitalWardrobeFormal: updated,
-                  deletedImages: [...(prev.deletedImages || []), ...deleted],
-                };
-              });
+            setFiles={async (updatedFn) => {
+              const previous = formData.digitalWardrobeFormal || [];
+              const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
+              await handleWardrobeImageUpload(updated, "digitalWardrobeFormal");
             }}
           />
         </div>
@@ -422,23 +450,10 @@ const DeputyStepOne = ({
           <DragAndDropImageUploader
             label="Smart Casual Attire"
             files={formData.digitalWardrobeSmartCasual}
-            setFiles={(updatedFn) => {
-              setFormData((prev) => {
-                const previous = prev.digitalWardrobeSmartCasual || [];
-                const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
-
-                const deleted = previous.filter(
-                  (f) => !updated.includes(f) && typeof f === "string"
-                );
-
-                console.log("🖼️ [DW4-SMARTCASUAL] UPDATE", { previous, updated, deleted });
-
-                return {
-                  ...prev,
-                  digitalWardrobeSmartCasual: updated,
-                  deletedImages: [...(prev.deletedImages || []), ...deleted],
-                };
-              });
+            setFiles={async (updatedFn) => {
+              const previous = formData.digitalWardrobeSmartCasual || [];
+              const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
+              await handleWardrobeImageUpload(updated, "digitalWardrobeSmartCasual");
             }}
           />
         </div>
@@ -452,23 +467,10 @@ const DeputyStepOne = ({
           <DragAndDropImageUploader
             label="Session All Black"
             files={formData.digitalWardrobeSessionAllBlack}
-            setFiles={(updatedFn) => {
-              setFormData((prev) => {
-                const previous = prev.digitalWardrobeSessionAllBlack || [];
-                const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
-                const deleted = previous.filter((f) => !updated.includes(f) && typeof f === "string");
-                const filtered = (updated || []).filter(
-                  (f) => f && (typeof f === "string" || f instanceof File)
-                );
-                const unique = Array.from(
-                  new Set(filtered.map((f) => (typeof f === "string" ? f : f.name)))
-                ).map((name) => filtered.find((f) => (typeof f === "string" ? f : f.name) === name));
-                return {
-                  ...prev,
-                  digitalWardrobeSessionAllBlack: unique,
-                  deletedImages: [...(prev.deletedImages || []), ...deleted],
-                };
-              });
+            setFiles={async (updatedFn) => {
+              const previous = formData.digitalWardrobeSessionAllBlack || [];
+              const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
+              await handleWardrobeImageUpload(updated, "digitalWardrobeSessionAllBlack");
             }}
           />
         </div>
@@ -485,21 +487,10 @@ const DeputyStepOne = ({
         <DragAndDropImageUploader
           label="Additional Images"
           files={formData.additionalImages}
-          setFiles={(updatedFn) => {
-            setFormData((prev) => {
-              const previous = prev.additionalImages || [];
-              const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
-
-              const deleted = previous.filter((f) => !updated.includes(f) && typeof f === "string");
-
-              console.log("🖼️ [DW4-ADDITIONAL] UPDATE", { previous, updated, deleted });
-
-              return {
-                ...prev,
-                additionalImages: updated,
-                deletedImages: [...(prev.deletedImages || []), ...deleted],
-              };
-            });
+          setFiles={async (updatedFn) => {
+            const previous = formData.additionalImages || [];
+            const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
+            await handleWardrobeImageUpload(updated, "additionalImages");
           }}
         />
       </div>

@@ -1,5 +1,5 @@
 // src/components/DragAndDropImageUploader.jsx
-import React, { useRef } from "react";
+import React, { useRef, useEffect } from "react";
 import assets from "../assets/assets";
 
 const DragAndDropImageUploader = ({ label, files, setFiles }) => {
@@ -54,10 +54,15 @@ const DragAndDropImageUploader = ({ label, files, setFiles }) => {
       {Array.isArray(files) && files.length > 0 && (
         <div className="flex flex-wrap mt-2 gap-2">
           {files.map((file, idx) => {
-            const preview = typeof file === "string" ? file : URL.createObjectURL(file);
+            // Only use string URLs for preview, since upload is immediate
+            const preview = typeof file === "string" ? file : undefined;
             return (
               <div key={idx} className="relative w-20 h-20">
-                <img src={preview} alt={`preview-${idx}`} className="w-full h-full object-cover rounded" />
+                {preview ? (
+                  <img src={preview} alt={`preview-${idx}`} className="w-full h-full object-cover rounded" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-200 rounded">No preview</div>
+                )}
                 <button
                   type="button"
                   onClick={() => handleDeleteImage(idx)}

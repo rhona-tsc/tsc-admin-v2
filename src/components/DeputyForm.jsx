@@ -14,6 +14,43 @@ import imageCompression from "browser-image-compression";
 import renameAndCompressImage from "../pages/utils/renameAndCompressDeputyImage";
 
 const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId }) => {
+    // Handles final form submission for step 6
+    const handleSubmit = async () => {
+      try {
+        setSubmissionInProgress(true);
+        let safeFormData = { ...formData };
+        // If profilePicture is a File or Blob, upload it and replace with URL
+        if (safeFormData.profilePicture && (safeFormData.profilePicture instanceof File || safeFormData.profilePicture instanceof Blob)) {
+          const [url] = await renameAndCompressImage({ images: [safeFormData.profilePicture], address: safeFormData.address });
+          safeFormData.profilePicture = url;
+        }
+        // Remove files/functions from safeFormData
+        const safe = JSON.parse(
+          JSON.stringify(safeFormData, (key, value) => {
+            if (value instanceof File) return undefined;
+            if (value instanceof Blob) return undefined;
+            if (typeof value === "function") return undefined;
+            if (value === window) return undefined;
+            return value;
+          })
+        );
+        // Submit to backend (local deputy registration endpoint)
+        const res = await axios.post(`${backendUrl}/api/musician/moderation/register-deputy`, safe, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.data?.success) {
+          toast(<CustomToast type="success" message="Registration submitted!" />);
+          // Optionally redirect or reset form
+        } else {
+          toast(<CustomToast type="error" message={res.data?.message || "Failed to submit"} />);
+        }
+      } catch (err) {
+        console.error(err);
+        toast(<CustomToast type="error" message="Failed to submit" />);
+      } finally {
+        setSubmissionInProgress(false);
+      }
+    };
   /* --------------------------------- helpers -------------------------------- */
   const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
   const location = useLocation();
@@ -37,9 +74,15 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
     import.meta.url
   );
 
-  const [step, setStep] = useState(1);
-  const isEdit = Boolean(deputyId);
   const totalSteps = 6;
+  // Persist step in localStorage
+  const [step, setStep] = useState(() => {
+    const savedStep = Number(localStorage.getItem("deputyStep"));
+    return savedStep && savedStep >= 1 && savedStep <= totalSteps ? savedStep : 1;
+  });
+  // Add tscApprovedBio state for moderation/step 2
+  const [tscApprovedBio, setTscApprovedBio] = useState("");
+  const isEdit = Boolean(deputyId);
 
   // Uploading state indicators
   const [isUploadingImages, setIsUploadingImages] = useState(false);
@@ -48,6 +91,10 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
   const [showSubmittingPopup, setShowSubmittingPopup] = useState(false);
   const [hasDrawnSignature, setHasDrawnSignature] = useState(false);
   const [autosaveStatus, setAutosaveStatus] = useState("");
+
+  // Track if autosave was restored to prevent overwrites
+  const [hasRestoredAutosave, setHasRestoredAutosave] = useState(false);
+  const [hasHydratedFromBackend, setHasHydratedFromBackend] = useState(false);
 
   /* ------------------------------ formData state ----------------------------- */
   const [formData, setFormData] = useState({
@@ -301,626 +348,161 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
       has_dj_booth: false,
       has_mixing_decks: false,
     },
-
-    digitalWardrobeBlackTie: [],
-    digitalWardrobeFormal: [],
-    digitalWardrobeSmartCasual: [],
-    digitalWardrobeSessionAllBlack: [],
-    additionalImages: [],
-
-    bank_account: {
-      sort_code: "",
-      account_number: "",
-      account_name: "",
-      account_type: "",
-    },
-
-    deputy_contract_agreed: "",
-    deputy_contract_signed: "",
-
-    dateRegistered: new Date(),
   });
 
-  /* ------------------------------ Debug helpers ----------------------------- */
-
-const makeRequestId = () =>
-  (typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `req_${Date.now()}_${Math.random().toString(16).slice(2)}`);
-
-const tryParseJSON = (s) => {
-  if (typeof s !== "string") return s;
-  try {
-    return JSON.parse(s);
-  } catch {
-    return s;
-  }
-};
-
-// Summarise FormData (parse JSON strings, replace files with meta)
-const summarizeFormData = (fd) => {
-  const out = {};
-  for (const [k, v] of fd.entries()) {
-    if (v instanceof File || v instanceof Blob) {
-      out[k] = { _type: "file", name: v.name || "(blob)", type: v.type, sizeKB: Math.round((v.size || 0) / 1024) };
-    } else {
-      out[k] = tryParseJSON(v);
-    }
-  }
-  return out;
-};
-
-// Minify big arrays/objects for logging
-const preview = (obj, limits = {}) => {
-  const {
-    maxArray = 5,
-    maxString = 400,
-    elideKeys = [], // keys to skip entirely
-  } = limits;
-
-  const seen = new WeakSet();
-  const shrink = (val) => {
-    if (val && typeof val === "object") {
-      if (seen.has(val)) return "[Circular]";
-      seen.add(val);
-    }
-    if (Array.isArray(val)) {
-      const head = val.slice(0, maxArray).map(shrink);
-      const extra = val.length - head.length;
-      return extra > 0 ? [...head, `…(+${extra})`] : head;
-    }
-    if (val && typeof val === "object") {
-      const out = {};
-      Object.keys(val).forEach((k) => {
-        if (elideKeys.includes(k)) return;
-        out[k] = shrink(val[k]);
-      });
-      return out;
-    }
-    if (typeof val === "string" && val.length > maxString) {
-      return val.slice(0, maxString) + "…";
-    }
-    return val;
-  };
-  return shrink(obj);
-};
-
-  /* ------------------------- lift state changes to children ------------------ */
+  // Backend hydration
   useEffect(() => {
-    console.log("📡 DeputyForm state sent to child step components:", formData);
-  }, [formData]);
+    if (!deputyId) {
+      console.warn("⚠️ No valid deputyId; skipping hydration");
+      return;
+    }
 
-  const [tscApprovedBio, setTscApprovedBio] = useState(formData?.tscApprovedBio || "");
-
-  /* --------------------------- hydrate from server --------------------------- */
- useEffect(() => {
-  if (!deputyId) {
-    console.warn("⚠️ No valid deputyId; skipping hydration");
-    return;
-  }
-
-  (async () => {
-    try {
-      const url = `${backendUrl}/api/moderation/deputy/${deputyId}`;
-      const res = await axios.get(url, {
-        headers: { Authorization: `Bearer ${token}` },
-        withCredentials: true,
-      });
-
-      const deputy = res.data?.deputy || res.data?.musician || null;
-
-      console.groupCollapsed("🔎 Hydration fetch — deputy", { deputyId, url });
-      if (deputy) {
-        const summary = preview(deputy, {
-          maxArray: 3,
-          maxString: 600,
-          elideKeys: ["__v", "password", "salt"],
+    (async () => {
+      try {
+        const url = `${backendUrl}/api/moderation/deputy/${deputyId}`;
+        const res = await axios.get(url, {
+          headers: { Authorization: `Bearer ${token}` },
+          withCredentials: true,
         });
-        console.log("Fetched deputy summary:", summary);
-        console.log("Raw keys:", Object.keys(deputy));
-        // keep a handle in window for quick inspection:
-        window.__lastDeputyFetched = deputy;
-      } else {
-        console.log("No deputy found in response.");
+
+        const deputy = res.data?.deputy || res.data?.musician || null;
+
+        console.groupCollapsed("🔎 Hydration fetch — deputy", { deputyId, url });
+        if (deputy) {
+          const summary = preview(deputy, {
+            maxArray: 3,
+            maxString: 600,
+            elideKeys: ["__v", "password", "salt"],
+          });
+          console.log("Fetched deputy summary:", summary);
+          console.log("Raw keys:", Object.keys(deputy));
+          window.__lastDeputyFetched = deputy;
+        } else {
+          console.log("No deputy found in response.");
+        }
+        console.groupEnd();
+
+        if (!deputy) return;
+
+        const basicInfoFromDb = deputy.basicInfo || {
+          firstName: deputy.firstName,
+          lastName: deputy.lastName,
+          phone: deputy.phone,
+          email: deputy.email,
+        };
+        const addressFromDb = deputy.address || {};
+        const bankFromDb = deputy.bank_account || {};
+
+        setFormData((prev) => ({
+          ...prev,
+          ...deputy,
+          basicInfo: { ...prev.basicInfo, ...basicInfoFromDb },
+          address: { ...prev.address, ...addressFromDb },
+          bank_account: { ...prev.bank_account, ...bankFromDb },
+          dateRegistered: deputy.dateRegistered || prev.dateRegistered || new Date(),
+          academic_credentials: deputy.academic_credentials || prev.academic_credentials,
+          function_bands_performed_with: deputy.function_bands_performed_with || prev.function_bands_performed_with,
+          original_bands_performed_with: deputy.original_bands_performed_with || prev.original_bands_performed_with,
+          sessions: deputy.sessions || prev.sessions,
+          social_media_links: deputy.social_media_links || prev.social_media_links,
+          instrumentation: deputy.instrumentation || prev.instrumentation,
+          repertoire: deputy.repertoire || prev.repertoire,
+          selectedSongs: deputy.selectedSongs || prev.selectedSongs,
+          other_skills: deputy.other_skills || prev.other_skills,
+          logistics: deputy.logistics || prev.logistics,
+          digitalWardrobeBlackTie: deputy.digitalWardrobeBlackTie || prev.digitalWardrobeBlackTie,
+          digitalWardrobeFormal: deputy.digitalWardrobeFormal || prev.digitalWardrobeFormal,
+          digitalWardrobeSmartCasual: deputy.digitalWardrobeSmartCasual || prev.digitalWardrobeSmartCasual,
+          digitalWardrobeSessionAllBlack: deputy.digitalWardrobeSessionAllBlack || prev.digitalWardrobeSessionAllBlack,
+          additionalImages: deputy.additionalImages || prev.additionalImages,
+          deputy_contract_signed: deputy.deputy_contract_signed || prev.deputy_contract_signed || "",
+          deputy_contract_agreed: deputy.deputy_contract_agreed ?? prev.deputy_contract_agreed,
+        }));
+
+        setTscApprovedBio(deputy.tscApprovedBio || deputy.bio || "");
+        if (deputy.deputy_contract_signed) setHasDrawnSignature(true);
+        if (deputy._id) localStorage.setItem("musicianId", deputy._id);
+        setHasHydratedFromBackend(true);
+      } catch (err) {
+        console.error("❌ Failed to fetch deputy:", err);
       }
-      console.groupEnd();
+    })();
+  }, [deputyId, token]);
 
-      if (!deputy) return;
-
-      const basicInfoFromDb = deputy.basicInfo || {
-        firstName: deputy.firstName,
-        lastName: deputy.lastName,
-        phone: deputy.phone,
-        email: deputy.email,
-      };
-      const addressFromDb = deputy.address || {};
-      const bankFromDb = deputy.bank_account || {};
-
-      setFormData((prev) => ({
-        ...prev,
-        ...deputy,
-        basicInfo: { ...prev.basicInfo, ...basicInfoFromDb },
-        address: { ...prev.address, ...addressFromDb },
-        bank_account: { ...prev.bank_account, ...bankFromDb },
-        dateRegistered: deputy.dateRegistered || prev.dateRegistered || new Date(),
-        academic_credentials: deputy.academic_credentials || prev.academic_credentials,
-        function_bands_performed_with: deputy.function_bands_performed_with || prev.function_bands_performed_with,
-        original_bands_performed_with: deputy.original_bands_performed_with || prev.original_bands_performed_with,
-        sessions: deputy.sessions || prev.sessions,
-        social_media_links: deputy.social_media_links || prev.social_media_links,
-        instrumentation: deputy.instrumentation || prev.instrumentation,
-        repertoire: deputy.repertoire || prev.repertoire,
-        selectedSongs: deputy.selectedSongs || prev.selectedSongs,
-        other_skills: deputy.other_skills || prev.other_skills,
-        logistics: deputy.logistics || prev.logistics,
-        digitalWardrobeBlackTie: deputy.digitalWardrobeBlackTie || prev.digitalWardrobeBlackTie,
-        digitalWardrobeFormal: deputy.digitalWardrobeFormal || prev.digitalWardrobeFormal,
-        digitalWardrobeSmartCasual: deputy.digitalWardrobeSmartCasual || prev.digitalWardrobeSmartCasual,
-        digitalWardrobeSessionAllBlack: deputy.digitalWardrobeSessionAllBlack || prev.digitalWardrobeSessionAllBlack,
-        additionalImages: deputy.additionalImages || prev.additionalImages,
-        deputy_contract_signed: deputy.deputy_contract_signed || prev.deputy_contract_signed || "",
-        deputy_contract_agreed: deputy.deputy_contract_agreed ?? prev.deputy_contract_agreed,
-      }));
-
-      setTscApprovedBio(deputy.tscApprovedBio || deputy.bio || "");
-      if (deputy.deputy_contract_signed) setHasDrawnSignature(true);
-      if (deputy._id) localStorage.setItem("musicianId", deputy._id);
-    } catch (err) {
-      console.error("❌ Failed to fetch deputy:", err);
-    }
-  })();
-}, [deputyId, token]);
-
-  /* ----------------------------- hydrate autosave ---------------------------- */
+  // Autosave hydration
   useEffect(() => {
+    if (hasHydratedFromBackend) return;
     try {
       const saved = localStorage.getItem("deputyAutosave");
       if (saved) {
         const parsed = JSON.parse(saved);
-        setFormData((prev) => ({ ...prev, ...parsed }));
-        console.log("🔄 Restored autosaved data");
+        setFormData((prev) => {
+          // Deep merge for nested objects
+          const merged = { ...prev };
+          for (const key in parsed) {
+            if (
+              parsed[key] !== null &&
+              parsed[key] !== undefined &&
+              !(typeof parsed[key] === "string" && parsed[key].trim() === "")
+            ) {
+              // Never restore file fields from autosave
+              if (["profilePicture", "coverHeroImage"].includes(key)) {
+                merged[key] = null;
+              } else if (
+                typeof parsed[key] === "object" &&
+                !Array.isArray(parsed[key]) &&
+                parsed[key] !== null &&
+                typeof merged[key] === "object" &&
+                merged[key] !== null
+              ) {
+                if (key === "address") {
+                  merged[key] = { ...prev.address, ...parsed.address };
+                } else {
+                  merged[key] = { ...merged[key], ...parsed[key] };
+                }
+              } else {
+                merged[key] = parsed[key];
+              }
+            }
+          }
+          return merged;
+        });
+        setHasRestoredAutosave(true);
+        console.log("🔄 Restored autosaved data (deep merge, no files):", parsed);
       }
     } catch (e) {
       console.error("❌ Failed to restore autosave:", e);
     }
-  }, []);
-
-  /* --------------------- keep tscApprovedBio in sync to form ----------------- */
-  useEffect(() => {
-    setFormData((prev) => ({ ...prev, tscApprovedBio: tscApprovedBio || "" }));
-  }, [tscApprovedBio]);
-
-  /* ------------------ keep basic info in sync with top-level props ----------- */
-  useEffect(() => {
-    setFormData((prev) => ({
-      ...prev,
-      basicInfo: {
-        ...prev.basicInfo,
-        firstName: firstName,
-        lastName: lastName,
-        phone: phone,
-        email: email,
-      },
-    }));
-  }, [firstName, lastName, phone, email]);
+  }, [firstName, lastName, phone, email, hasRestoredAutosave, hasHydratedFromBackend]);
 
   /* -------------------------------- nav helpers ------------------------------ */
+
   const handleNext = () => {
     if (step < totalSteps) {
-      setStep((prev) => prev + 1);
+      setStep((prev) => {
+        const nextStep = prev + 1;
+        localStorage.setItem("deputyStep", nextStep);
+        return nextStep;
+      });
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
   const handleBack = () => {
-    if (step > 1) setStep(step - 1);
-  };
-
-  const handleChange = (updates) => {
-    setFormData((prev) => ({ ...prev, ...updates }));
-  };
-
-  /* -------------------------------- submission ------------------------------- */
-  const handleSubmit = async () => {
-    setSubmissionInProgress(true);
-    setShowSubmittingPopup(true);
-    const popupMinTime = new Promise((resolve) => setTimeout(resolve, 3000));
-
-
-      // Create correlation id
-  const requestId = makeRequestId();
-  const sentAt = new Date().toISOString();
-
-    const { deletedImages = [] } = formData;
-    for (const url of deletedImages) {
-      try {
-        await axios.post("/api/delete-image", { url });
-      } catch (err) {
-        console.error("Failed to delete image:", url, err);
-      }
-    }
-
-    try {
-      const form = new FormData();
-
-      form.append("_requestId", requestId);
-    form.append("_sentAt", sentAt);
-    form.append("_clientRoute", window.location.pathname);
-
-
-      // basics
-      form.append("basicInfo", JSON.stringify(formData.basicInfo));
-      form.append("email", formData.basicInfo?.email || "");
-      form.append("role", formData.role || "");
-      form.append("address", JSON.stringify(formData.address || {}));
-
-      // profile picture
-      if (formData.profilePicture) {
-        if (formData.profilePicture instanceof Blob || formData.profilePicture instanceof File) {
-          setIsUploadingImages(true);
-          const file =
-            formData.profilePicture instanceof File
-              ? formData.profilePicture
-              : new File([formData.profilePicture], "profile.jpg", { type: "image/jpeg" });
-          const compressed = await imageCompression(file, { maxSizeMB: 1, maxWidthOrHeight: 1920 });
-          form.append("profilePicture", compressed);
-          setIsUploadingImages(false);
-        } else if (typeof formData.profilePicture === "string") {
-          form.append("profilePicture", formData.profilePicture);
-        }
-      }
-
-      // cover hero image
-      if (formData.coverHeroImage) {
-        if (formData.coverHeroImage instanceof Blob || formData.coverHeroImage instanceof File) {
-          setIsUploadingImages(true);
-          const file =
-            formData.coverHeroImage instanceof File
-              ? formData.coverHeroImage
-              : new File([formData.coverHeroImage], "coverImage.jpg", { type: "image/jpeg" });
-          const compressed = await imageCompression(file, { maxSizeMB: 1, maxWidthOrHeight: 1920 });
-          form.append("coverHeroImage", compressed);
-          setIsUploadingImages(false);
-        } else if (typeof formData.coverHeroImage === "string") {
-          form.append("coverHeroImage", formData.coverHeroImage);
-        }
-      }
-
-      // Universal keywords for image SEO (same as MP3 additionalKeywords)
-      const imageKeywords = [
-        "wedding bands",
-        "wedding music bands",
-        "wedding bands uk",
-        "bands for hire",
-        "wedding entertainment",
-        "party bands for hire",
-        "entertainment hire",
-        "function band",
-        "wedding party band",
-        "wedding reception music",
-        "hire a band",
-        "band agency",
-        "recommendations for wedding band",
-        "unique wedding entertainment",
-        "fun wedding entertainment",
-        "wedding reception entertainment ideas",
-        "party entertainment ideas for adults",
-        "how much do bands cost to hire",
-        "wedding entertainment ideas",
-        "wedding entertainment ideas uk",
-        "entertainers for hire",
-      ];
-
-      // IMAGES — compress + rename + append URLs
-      setIsUploadingImages(true);
-
-      // Black Tie
-      {
-        const compressed = await renameAndCompressImage({
-          images: (formData.digitalWardrobeBlackTie || []).filter((img) => typeof img !== "string"),
-          address: formData.address,
-          additionalKeywords: [...imageKeywords],
-        });
-        const all = [
-          ...(formData.digitalWardrobeBlackTie || []).filter((img) => typeof img === "string"),
-          ...compressed.filter(Boolean),
-        ];
-        all.forEach((url) => form.append("digitalWardrobeBlackTie", url));
-      }
-
-      // Formal
-      {
-        const compressed = await renameAndCompressImage({
-          images: (formData.digitalWardrobeFormal || []).filter((img) => typeof img !== "string"),
-          address: formData.address,
-          additionalKeywords: [...imageKeywords],
-        });
-        const all = [
-          ...(formData.digitalWardrobeFormal || []).filter((img) => typeof img === "string"),
-          ...compressed.filter(Boolean),
-        ];
-        all.forEach((url) => form.append("digitalWardrobeFormal", url));
-      }
-
-      // Smart Casual
-      {
-        const compressed = await renameAndCompressImage({
-          images: (formData.digitalWardrobeSmartCasual || []).filter((img) => typeof img !== "string"),
-          address: formData.address,
-          additionalKeywords: [...imageKeywords],
-        });
-        const all = [
-          ...(formData.digitalWardrobeSmartCasual || []).filter((img) => typeof img === "string"),
-          ...compressed.filter(Boolean),
-        ];
-        all.forEach((url) => form.append("digitalWardrobeSmartCasual", url));
-      }
-
-      // Session All Black
-      {
-        const compressed = await renameAndCompressImage({
-          images: (formData.digitalWardrobeSessionAllBlack || []).filter((img) => typeof img !== "string"),
-          address: formData.address,
-          additionalKeywords: [...imageKeywords],
-        });
-        const all = [
-          ...(formData.digitalWardrobeSessionAllBlack || []).filter((img) => typeof img === "string"),
-          ...compressed.filter(Boolean),
-        ]
-          .filter((url) => typeof url === "string" && url.trim() !== "" && url.startsWith("http"));
-        all.forEach((url) => form.append("digitalWardrobeSessionAllBlack", url));
-      }
-
-      // Additional Images
-      {
-        const compressed = await renameAndCompressImage({
-          images: (formData.additionalImages || []).filter((img) => typeof img !== "string"),
-          address: formData.address,
-          additionalKeywords: [...imageKeywords],
-        });
-        const all = [
-          ...(formData.additionalImages || []).filter((img) => typeof img === "string"),
-          ...compressed.filter(Boolean),
-        ];
-        all.forEach((url) => form.append("additionalImages", url));
-      }
-
-      setIsUploadingImages(false);
-
-      // arrays/objects
-      form.append("function_bands_performed_with", JSON.stringify(formData.function_bands_performed_with || []));
-      form.append("original_bands_performed_with", JSON.stringify(formData.original_bands_performed_with || []));
-      form.append("sessions", JSON.stringify(formData.sessions || []));
-      form.append("social_media_links", JSON.stringify(formData.social_media_links || []));
-      form.append("functionBandVideoLinks", JSON.stringify(formData.functionBandVideoLinks || []));
-      form.append("tscApprovedFunctionBandVideoLinks", JSON.stringify(formData.tscApprovedFunctionBandVideoLinks || []));
-      form.append("originalBandVideoLinks", JSON.stringify(formData.originalBandVideoLinks || []));
-      form.append("tscApprovedOriginalBandVideoLinks", JSON.stringify(formData.tscApprovedOriginalBandVideoLinks || []));
-
-      // MP3s
-      setIsUploadingMp3s(true);
-      form.append("originalMp3s", JSON.stringify(formData.originalMp3s || []));
-      form.append("coverMp3s", JSON.stringify(formData.coverMp3s || []));
-      setIsUploadingMp3s(false);
-
-      // bios
-      form.append("tagLine", formData.tagLine || "");
-      form.append("bio", formData.bio || "");
-      form.append("tscApprovedBio", formData.tscApprovedBio || "");
-
-      // more complex JSON
-      form.append("academic_credentials", JSON.stringify(formData.academic_credentials || []));
-      form.append("cableLogistics", JSON.stringify(formData.cableLogistics || []));
-      form.append("extensionCableLogistics", JSON.stringify(formData.extensionCableLogistics || []));
-      form.append("uplights", JSON.stringify(formData.uplights || []));
-      form.append("tbars", JSON.stringify(formData.tbars || []));
-      form.append("lightBars", JSON.stringify(formData.lightBars || []));
-      form.append("discoBall", JSON.stringify(formData.discoBall || []));
-      form.append("otherLighting", JSON.stringify(formData.otherLighting || []));
-      form.append("paSpeakerSpecs", JSON.stringify(formData.paSpeakerSpecs || []));
-      form.append("mixingDesk", JSON.stringify(formData.mixingDesk || []));
-      form.append("floorMonitorSpecs", JSON.stringify(formData.floorMonitorSpecs || []));
-      form.append("djEquipment", JSON.stringify(formData.djEquipment || []));
-      form.append("djEquipmentCategories", JSON.stringify(formData.djEquipmentCategories || []));
-      form.append("agreementCheckboxes", JSON.stringify(formData.agreementCheckboxes || []));
-      form.append("djGearRequired", JSON.stringify(formData.djGearRequired || []));
-
-      // vocals payload — ensure types are safe
-      const vocalsPayload = {
-        type: formData.vocals?.type || "",
-        gender: formData.vocals?.gender || "",
-        range: formData.vocals?.range || "",
-        rap: formData.vocals?.rap === true || formData.vocals?.rap === "true",
-        genres: Array.isArray(formData.vocals?.genres) ? formData.vocals.genres : [],
-      };
-      form.append("vocals", JSON.stringify(vocalsPayload));
-
-      form.append("backline", JSON.stringify(formData.backline || []));
-      form.append("awards", JSON.stringify(formData.awards || []));
-      form.append("repertoire", JSON.stringify(formData.repertoire || []));
-      form.append("selectedSongs", JSON.stringify(formData.selectedSongs || []));
-      form.append("other_skills", JSON.stringify(formData.other_skills || []));
-      form.append("logistics", JSON.stringify(formData.logistics || []));
-      form.append("vocalMics", JSON.stringify(formData.vocalMics || {}));
-      form.append("inEarMonitoring", JSON.stringify(formData.inEarMonitoring || {}));
-      form.append("additionalEquipment", JSON.stringify(formData.additionalEquipment || {}));
-      form.append("instrumentMics", JSON.stringify(formData.instrumentMics || {}));
-      form.append("speechMics", JSON.stringify(formData.speechMics || {}));
-      form.append("instrumentSpecs", JSON.stringify(formData.instrumentSpecs || []));
-      form.append("instrumentation", JSON.stringify(formData.instrumentation || []));
-      form.append("djing", JSON.stringify(formData.djing || {}));
-      form.append("bank_account", JSON.stringify(formData.bank_account || {}));
-      form.append("deputy_contract_agreed", JSON.stringify(formData.deputy_contract_agreed || ""));
-
-      // dates
-      form.append("dateRegistered", new Date(formData.dateRegistered).toISOString());
-
-      // append any remaining primitive fields
-      for (const key in formData) {
-        if (
-          [
-            "profilePicture",
-            "coverHeroImage",
-            "basicInfo",
-            "address",
-            "role",
-            "digitalWardrobeBlackTie",
-            "digitalWardrobeFormal",
-            "digitalWardrobeSmartCasual",
-            "digitalWardrobeSessionAllBlack",
-            "additionalImages",
-            "functionBandVideoLinks",
-            "tscApprovedFunctionBandVideoLinks",
-            "originalBandVideoLinks",
-            "tscApprovedOriginalBandVideoLinks",
-            "coverMp3s",
-            "originalMp3s",
-            "bio",
-            "tagLine",
-            "tscApprovedBio",
-            "backline",
-            "academic_credentials",
-            "cableLogistics",
-            "extensionCableLogistics",
-            "uplights",
-            "tbars",
-            "otherLighting",
-            "discoBall",
-            "djEquipment",
-            "djEquipmentCategories",
-            "agreementCheckboxes",
-            "djGearRequired",
-            "lightBars",
-            "paSpeakerSpecs",
-            "mixingDesk",
-            "floorMonitorSpecs",
-            "awards",
-            "function_bands_performed_with",
-            "original_bands_performed_with",
-            "sessions",
-            "social_media_links",
-            "vocals",
-            "repertoire",
-            "selectedSongs",
-            "other_skills",
-            "logistics",
-            "vocalMics",
-            "inEarMonitoring",
-            "additionalEquipment",
-            "instrumentMics",
-            "speechMics",
-            "instrumentSpecs",
-            "instrumentation",
-            "lighting",
-            "equipment_spec",
-            "djing",
-            "bank_account",
-            "deputy_contract_signed",
-            "deputy_contract_agreed",
-            "dateRegistered",
-          ].includes(key)
-        )
-          continue;
-
-        if (typeof formData[key] === "object" && !(formData[key] instanceof File) && formData[key] !== null) {
-          form.append(key, JSON.stringify(formData[key]));
-        } else if (formData[key] !== undefined) {
-          form.append(key, formData[key]);
-        }
-      }
-
-
-
-      console.log("🎵 Parsed originalMp3s:", formData.originalMp3s);
-
-      form.append(
-        "deputy_contract_signed",
-        typeof formData.deputy_contract_signed === "string" ? formData.deputy_contract_signed : ""
-      );
-
-      const outgoingSummary = summarizeFormData(form);
-    console.group("🚀 SUBMIT DEPUTY — outgoing payload");
-    console.log("requestId:", requestId);
-    console.log("sentAt:", sentAt);
-    console.log("endpoint:", `${backendUrl}/api/musician/moderation/register-deputy`);
-    console.log("payload(summary):", preview(outgoingSummary, { maxArray: 4, maxString: 600 }));
-    console.groupEnd();
-
-
-      // debug payload
-      console.group("📤 FormData -> /api/musician/moderation/register-deputy");
-      for (const [k, v] of form.entries()) {
-        if (v instanceof File || v instanceof Blob) {
-          console.log(k, `(File) name=${v.name || "(blob)"} type=${v.type} sizeKB=${Math.round(v.size / 1024)}`);
-        } else {
-          console.log(k, v);
-        }
-      }
-      console.groupEnd();
-
-      const axiosResponsePromise = axios.post(
-        `${backendUrl}/api/musician/moderation/register-deputy`,
-        form,
-        {
-          headers: {
-            token, // backend expects `token` header in your stack
-            Authorization: `Bearer ${token}`,
-            "x-request-id": requestId,
-          },
-        }
-      );
-
-      const [response] = await Promise.all([axiosResponsePromise, popupMinTime]);
-
-
-       console.group("📬 SERVER RESPONSE — register-deputy");
-    console.log("requestId:", requestId);
-    console.log("status:", response?.status);
-    console.log("data:", response?.data);
-    console.groupEnd();
-    
-      if (response?.data?.success) {
-        const savedMusician = response.data.musician;
-        if (savedMusician?._id) {
-          localStorage.setItem("musicianId", savedMusician._id);
-        }
-
-        // clear deletedImages safely
-        setFormData((prev) => ({ ...prev, deletedImages: [] }));
-
-        if (isEdit) {
-          toast(<CustomToast type="success" message="Profile submission updated successfully!" />);
-        } else {
-          toast(<CustomToast type="success" message="Profile submitted for approval!" />);
-        }
-
-        // Save deputy status
-        localStorage.setItem("deputyStatus", formData.status || "pending");
-
-        // Redirect
-        const redirectTo =
-          import.meta.env.MODE === "production"
-            ? `${import.meta.env.VITE_FRONTEND_URL}/musicians-dashboard`
-            : "http://localhost:5173/musicians-dashboard";
-
-        setTimeout(() => {
-          window.location.href = redirectTo; // SPA-safe fallback
-          // navigate("/musicians-dashboard", { replace: true });
-        }, 2500);
-      } else {
-        toast(<CustomToast type="error" message={response?.data?.message || "Unknown error"} />);
-      }
-    } catch (err) {
-      toast(<CustomToast type="error" message="Registration failed." />);
-      console.error(err);
-      if (err.name === "ValidationError") {
-        console.error("❌ Mongoose validation error:", err.errors);
-      }
-    } finally {
-      setSubmissionInProgress(false);
-      setShowSubmittingPopup(false);
+    if (step > 1) {
+      setStep((prev) => {
+        const prevStep = prev - 1;
+        localStorage.setItem("deputyStep", prevStep);
+        return prevStep;
+      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
+
+  // Keep localStorage in sync if step changes elsewhere
+  useEffect(() => {
+    localStorage.setItem("deputyStep", step);
+  }, [step]);
 
   /* --------------------------------- steps UI ------------------------------- */
   const renderStep = () => {
@@ -928,14 +510,23 @@ const preview = (obj, limits = {}) => {
     switch (step) {
       case 1:
         return (
-          <DeputyStepOne
-            formData={formData}
-            setFormData={setFormData}
-            userRole={userRole}
-            isUploadingImages={isUploadingImages}
-            isUploadingMp3s={isUploadingMp3s}
-            setIsUploadingMp3s={setIsUploadingMp3s}
-          />
+          <>
+            {["profilePicture", "coverHeroImage"].some(
+              (f) => formData[f] === null
+            ) && (
+              <div style={{ color: "#b45309", fontSize: 13, marginBottom: 8 }}>
+                Note: File uploads (profile/cover images) cannot be restored from autosave. Please re-upload if needed after a refresh.
+              </div>
+            )}
+            <DeputyStepOne
+              formData={formData}
+              setFormData={setFormData}
+              userRole={userRole}
+              isUploadingImages={isUploadingImages}
+              isUploadingMp3s={isUploadingMp3s}
+              setIsUploadingMp3s={setIsUploadingMp3s}
+            />
+          </>
         );
       case 2:
         return (
@@ -993,8 +584,38 @@ const preview = (obj, limits = {}) => {
           : Boolean(rawAgreement.privacyPolicy),
     };
 
-    const isSignaturePresent = hasDrawnSignature === true;
+    // Consider signature present if formData.signature is a non-empty array, non-empty string, or non-empty object (for signature pad libraries)
+    let isSignaturePresent = false;
+    // Debug: log signature value and type
+    console.log('[DEBUG] formData.signature value:', formData.signature, 'type:', typeof formData.signature);
+    if (Array.isArray(formData.signature)) {
+      // If signature is an array, check if any element is a non-empty string (base64 or SVG path)
+      isSignaturePresent = formData.signature.some(
+        (item) => (typeof item === 'string' && item.trim().length > 0) || (typeof item === 'object' && Object.keys(item).length > 0)
+      );
+    } else if (typeof formData.signature === "string") {
+      isSignaturePresent = formData.signature.trim().length > 0;
+    } else if (formData.signature && typeof formData.signature === "object") {
+      // Check for base64 or data property (common for signature pad)
+      if (formData.signature.data && Array.isArray(formData.signature.data)) {
+        isSignaturePresent = formData.signature.data.length > 0;
+      } else if (formData.signature.base64 && typeof formData.signature.base64 === "string") {
+        isSignaturePresent = formData.signature.base64.trim().length > 0;
+      } else if (Object.keys(formData.signature).length > 0) {
+        isSignaturePresent = true;
+      }
+    }
     const canSubmitNow = step === totalSteps && isSignaturePresent && agreement.termsAndConditions && agreement.privacyPolicy;
+
+    // Debug output for submit enable logic
+    console.log("[DEBUG] Submit enable logic:", {
+      step,
+      totalSteps,
+      isSignaturePresent,
+      termsAndConditions: agreement.termsAndConditions,
+      privacyPolicy: agreement.privacyPolicy,
+      canSubmitNow
+    });
 
     setCanSubmit(canSubmitNow);
   }, [step, hasDrawnSignature, formData.agreementCheckboxes, isModerationMode]);
