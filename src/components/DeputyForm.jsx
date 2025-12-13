@@ -625,36 +625,74 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
   console.log("🎧 originalMp3s:", formData.originalMp3s);
 
   /* ----------------------- AUTOSAVE to localStorage (debounced) -------------- */
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      try {
-        const safe = JSON.parse(
-          JSON.stringify(formData, (key, value) => {
-            if (value instanceof File) return undefined;
-            if (value instanceof Blob) return undefined;
-            if (typeof value === "function") return undefined;
-            if (value === window) return undefined;
-            return value;
-          })
-        );
-        // strip any blobs that might sneak into wardrobes/images
-        safe.digitalWardrobeBlackTie = safe.digitalWardrobeBlackTie?.filter((x) => typeof x === "string") || [];
-        safe.digitalWardrobeFormal = safe.digitalWardrobeFormal?.filter((x) => typeof x === "string") || [];
-        safe.digitalWardrobeSmartCasual = safe.digitalWardrobeSmartCasual?.filter((x) => typeof x === "string") || [];
-        safe.digitalWardrobeSessionAllBlack = safe.digitalWardrobeSessionAllBlack?.filter((x) => typeof x === "string") || [];
-        safe.additionalImages = safe.additionalImages?.filter((x) => typeof x === "string") || [];
+ useEffect(() => {
+  const handler = setTimeout(() => {
+    try {
+      const safe = JSON.parse(
+        JSON.stringify(formData, (key, value) => {
+          if (value instanceof File) return undefined;
+          if (value instanceof Blob) return undefined;
+          if (typeof value === "function") return undefined;
+          if (value === window) return undefined;
+          return value;
+        })
+      );
 
-        localStorage.setItem("deputyAutosave", JSON.stringify(safe));
-        const ts = new Date().toLocaleTimeString();
-        setAutosaveStatus(`Autosaved at ${ts}`);
-        console.log("💾 Autosaved deputy form:", safe);
-      } catch (err) {
-        console.error("❌ Autosave failed:", err);
-      }
-    }, 800);
+      // strip any blobs that might sneak into wardrobes/images
+      safe.digitalWardrobeBlackTie =
+        safe.digitalWardrobeBlackTie?.filter((x) => typeof x === "string") || [];
+      safe.digitalWardrobeFormal =
+        safe.digitalWardrobeFormal?.filter((x) => typeof x === "string") || [];
+      safe.digitalWardrobeSmartCasual =
+        safe.digitalWardrobeSmartCasual?.filter((x) => typeof x === "string") || [];
+      safe.digitalWardrobeSessionAllBlack =
+        safe.digitalWardrobeSessionAllBlack?.filter((x) => typeof x === "string") || [];
+      safe.additionalImages =
+        safe.additionalImages?.filter((x) => typeof x === "string") || [];
 
-    return () => clearTimeout(handler);
-  }, [formData]);
+      // local autosave
+      localStorage.setItem("deputyAutosave", JSON.stringify(safe));
+
+      // backend autosave (server archives previous)
+      ;(async () => {
+        try {
+          if (!deputyId) return;
+
+          const snapshotStr = JSON.stringify(safe);
+          let hash = 0;
+          for (let i = 0; i < snapshotStr.length; i++) {
+            hash = (hash * 31 + snapshotStr.charCodeAt(i)) | 0;
+          }
+
+          await axios.post(
+            `${backendUrl}/api/musician/autosave`,
+            {
+              musicianId: deputyId,
+              formKey: "deputy",
+              snapshot: safe,
+              snapshotHash: String(hash),
+              updatedAtIso: new Date().toISOString(),
+            },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+        } catch (e) {
+          console.warn(
+            "⚠️ Backend autosave failed (non-blocking):",
+            e?.message || e
+          );
+        }
+      })();
+
+      const ts = new Date().toLocaleTimeString();
+      setAutosaveStatus(`Autosaved at ${ts}`);
+      console.log("💾 Autosaved deputy form:", safe);
+    } catch (err) {
+      console.error("❌ Autosave failed:", err);
+    }
+  }, 800);
+
+  return () => clearTimeout(handler);
+}, [formData, deputyId, token, backendUrl]);
 
   /* ---------------------------- DEBUG: track changes -------------------------- */
   useEffect(() => {

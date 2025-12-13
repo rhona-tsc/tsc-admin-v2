@@ -26,7 +26,7 @@ import songsData from '../assets/songsData';
   return "Other";
 };
 
-export const enrichAndSetSongsFromRepertoire = async (customRepertoire, setSelectedSongs) => {
+export const enrichAndSetSongsFromRepertoire = async (customRepertoire, setSelectedSongs ) => {
   const parsed = parseCustomRepertoire(customRepertoire);
 
   const enriched = await Promise.all(parsed.map(async (song) => {
@@ -92,11 +92,29 @@ const parseCustomRepertoire = (text) => {
   return parsedSongs;
 };
 
-const DeputyRepertoire = ({ customRepertoire, setCustomRepertoire, selectedSongs, setSelectedSongs }) => {
+const DeputyRepertoire = ({ customRepertoire, setCustomRepertoire, selectedSongs, setSelectedSongs, setRepertoire }) => {
   const [filter, setFilter] = useState({ decade: '', genre: '', artist: '', search: '' });
   const [filteredSongs, setFilteredSongs] = useState([]);
 
   const categorizedGenres = {};
+
+  const updateSongs = (next) => {
+  setSelectedSongs(next);
+
+  // ✅ also keep repertoire in sync for backend
+  if (typeof setRepertoire === "function") {
+    const mapped = (Array.isArray(next) ? next : [])
+      .filter((s) => (s?.title || "").trim() && (s?.artist || "").trim())
+      .map((s) => ({
+        title: String(s.title || "").trim(),
+        artist: String(s.artist || "").trim(),
+        genre: String(s.genre || "").trim(),
+        year: s.year === "" || s.year == null ? null : Number(s.year) || null,
+      }));
+
+    setRepertoire(mapped);
+  }
+};
 
   songsData.forEach(song => {
     song.genre.split("/").forEach(g => {
@@ -131,14 +149,14 @@ const DeputyRepertoire = ({ customRepertoire, setCustomRepertoire, selectedSongs
 
   const addSong = (song) => {
     if (!selectedSongs.some(s => s.title === song.title && s.artist === song.artist)) {
-      setSelectedSongs([...selectedSongs, song]);
+      updateSongs([...selectedSongs, song]);
     }
   };
 
   const removeSong = (index) => {
     const updated = [...selectedSongs];
     updated.splice(index, 1);
-    setSelectedSongs(updated);
+    updateSongs(updated);
   };
 
   return (
@@ -187,7 +205,7 @@ const DeputyRepertoire = ({ customRepertoire, setCustomRepertoire, selectedSongs
                     const updated = exists
                       ? selectedSongs.filter(s => !(s.title === song.title && s.artist === song.artist))
                       : [...selectedSongs, song];
-                    setSelectedSongs(updated);
+                    updateSongs(updated);
                   }}
                 />
                 <span className="text-sm">{song.title} – {song.artist}</span>
