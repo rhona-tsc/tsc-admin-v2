@@ -306,47 +306,42 @@ const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
 
             <div className="flex flex-col">
               <input
-                type="text"
-                placeholder="https://..."
-                value={link.link || ""}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  updateArrayItem("social_media_links", index, "link", value);
+  type="text"
+  placeholder="https://..."
+  value={link.url || ""}
+  onChange={(e) => {
+    const value = e.target.value;
+    updateArrayItem("social_media_links", index, "url", value);
 
-                  const isValid =
-                    /^(https?:\/\/)?([\w.-]+)+(:\d+)?(\/([\w/_-]*(\?\S+)?)?)?$/.test(value);
+    const isValid =
+      /^(https?:\/\/)?([\w.-]+)+(:\d+)?(\/([\w/_-]*(\?\S+)?)?)?$/.test(value);
 
-                  setEmailErrors((prev) => ({
-                    ...prev,
-                    social: {
-                      ...prev.social,
-                      [index]:
-                        !isValid && value.length > 4
-                          ? "Please enter a valid URL."
-                          : "",
-                    },
-                  }));
-                }}
-                onBlur={(e) => {
-                  const value = e.target.value;
-                  const isValid =
-                    /^(https?:\/\/)?([\w.-]+)+(:\d+)?(\/([\w/_-]*(\?\S+)?)?)?$/.test(value);
+    setEmailErrors((prev) => ({
+      ...prev,
+      social: {
+        ...prev.social,
+        [index]:
+          !isValid && value.length > 4 ? "Please enter a valid URL." : "",
+      },
+    }));
+  }}
+  onBlur={(e) => {
+    const value = e.target.value;
+    const isValid =
+      /^(https?:\/\/)?([\w.-]+)+(:\d+)?(\/([\w/_-]*(\?\S+)?)?)?$/.test(value);
 
-                  setEmailErrors((prev) => ({
-                    ...prev,
-                    social: {
-                      ...prev.social,
-                      [index]:
-                        !isValid && value
-                          ? "Please enter a valid URL."
-                          : "",
-                    },
-                  }));
-                }}
-                className={`p-2 border rounded ${
-                  emailErrors.social[index] ? "border-red-500" : ""
-                }`}
-              />
+    setEmailErrors((prev) => ({
+      ...prev,
+      social: {
+        ...prev.social,
+        [index]: !isValid && value ? "Please enter a valid URL." : "",
+      },
+    }));
+  }}
+  className={`p-2 border rounded ${
+    emailErrors.social[index] ? "border-red-500" : ""
+  }`}
+/>
 
               {emailErrors.social[index] && (
                 <p className="text-red-500 text-sm mt-1">
@@ -375,8 +370,7 @@ const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
 
         <button
           onClick={() =>
-            addItem("social_media_links", { platform: "", link: "" })
-          }
+addItem("social_media_links", { platform: "", url: "" })          }
           className="mt-2 text-sm text-blue-600 underline"
         >
           + Add Social Link
