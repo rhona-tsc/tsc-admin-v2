@@ -61,6 +61,13 @@ const DeputyStepOne = ({
     }));
   };
 
+
+  const blobToFile = (blob, filename) => {
+  if (!blob) return null;
+  if (blob instanceof File) return blob;
+  return new File([blob], filename, { type: blob.type || "image/jpeg" });
+};
+
   // -------------------------------------
   // PROFILE IMAGE
   // -------------------------------------
@@ -77,38 +84,49 @@ const DeputyStepOne = ({
     reader.readAsDataURL(file);
   };
 
-  const handleSaveCroppedImage = async (blob) => {
-    setIsUploadingImages(true);
-    try {
-      const [url] = await renameAndCompressImage({ images: [blob], address: formData.address });
-      setFormData((prev) => {
-        const updated = { ...prev, profilePicture: url };
-        // Autosave immediately after crop
-        try {
-          const safe = JSON.parse(
-            JSON.stringify(updated, (key, value) => {
-              if (value instanceof File) return undefined;
-              if (value instanceof Blob) return undefined;
-              if (typeof value === "function") return undefined;
-              if (value === window) return undefined;
-              return value;
-            })
-          );
-          localStorage.setItem("deputyAutosave", JSON.stringify(safe));
-        } catch (e) {
-          console.error("❌ Autosave failed after crop:", e);
-        }
-        return updated;
-      });
-      setPreviewUrl(url);
-      setModalOpen(false);
-    } catch (err) {
-      console.error("Failed to upload cropped profile picture", err);
-      alert("Failed to upload cropped profile picture. Please try again.");
-    } finally {
-      setIsUploadingImages(false);
-    }
-  };
+ const handleSaveCroppedImage = async (blob) => {
+  setIsUploadingImages(true);
+  try {
+    const file = blobToFile(blob, `profile-${Date.now()}.jpg`);
+    const [url] = await renameAndCompressImage({
+      images: [file],
+      address: formData.address || {},
+    });
+
+    setFormData((prev) => {
+      const updated = {
+        ...prev,
+        profilePicture: url, // ✅ for your current UI
+        profilePhoto: url,   // ✅ matches musicianModel.js
+      };
+
+      try {
+        const safe = JSON.parse(
+          JSON.stringify(updated, (key, value) => {
+            if (value instanceof File) return undefined;
+            if (value instanceof Blob) return undefined;
+            if (typeof value === "function") return undefined;
+            if (value === window) return undefined;
+            return value;
+          })
+        );
+        localStorage.setItem("deputyAutosave", JSON.stringify(safe));
+      } catch (e) {
+        console.error("❌ Autosave failed after crop:", e);
+      }
+
+      return updated;
+    });
+
+    setPreviewUrl(url);
+    setModalOpen(false);
+  } catch (err) {
+    console.error("Failed to upload cropped profile picture", err);
+    alert("Failed to upload cropped profile picture. Please try again.");
+  } finally {
+    setIsUploadingImages(false);
+  }
+};
 
   // -------------------------------------
   // COVER HERO IMAGE
@@ -126,38 +144,45 @@ const DeputyStepOne = ({
     reader.readAsDataURL(file);
   };
 
-  const handleSaveCoverCroppedImage = async (blob) => {
-    setIsUploadingImages(true);
-    try {
-      const [url] = await renameAndCompressImage({ images: [blob], address: formData.address });
-      setFormData((prev) => {
-        const updated = { ...prev, coverHeroImage: url };
-        // Autosave immediately after crop
-        try {
-          const safe = JSON.parse(
-            JSON.stringify(updated, (key, value) => {
-              if (value instanceof File) return undefined;
-              if (value instanceof Blob) return undefined;
-              if (typeof value === "function") return undefined;
-              if (value === window) return undefined;
-              return value;
-            })
-          );
-          localStorage.setItem("deputyAutosave", JSON.stringify(safe));
-        } catch (e) {
-          console.error("❌ Autosave failed after crop:", e);
-        }
-        return updated;
-      });
-      setCoverHeroPreviewUrl(url);
-      setCoverModalOpen(false);
-    } catch (err) {
-      console.error("Failed to upload cropped cover hero image", err);
-      alert("Failed to upload cropped cover hero image. Please try again.");
-    } finally {
-      setIsUploadingImages(false);
-    }
-  };
+const handleSaveCoverCroppedImage = async (blob) => {
+  setIsUploadingImages(true);
+  try {
+    const file = blobToFile(blob, `cover-hero-${Date.now()}.jpg`);
+    const [url] = await renameAndCompressImage({
+      images: [file],
+      address: formData.address || {},
+    });
+
+    setFormData((prev) => {
+      const updated = { ...prev, coverHeroImage: url };
+
+      try {
+        const safe = JSON.parse(
+          JSON.stringify(updated, (key, value) => {
+            if (value instanceof File) return undefined;
+            if (value instanceof Blob) return undefined;
+            if (typeof value === "function") return undefined;
+            if (value === window) return undefined;
+            return value;
+          })
+        );
+        localStorage.setItem("deputyAutosave", JSON.stringify(safe));
+      } catch (e) {
+        console.error("❌ Autosave failed after crop:", e);
+      }
+
+      return updated;
+    });
+
+    setCoverHeroPreviewUrl(url);
+    setCoverModalOpen(false);
+  } catch (err) {
+    console.error("Failed to upload cropped cover hero image", err);
+    alert("Failed to upload cropped cover hero image. Please try again.");
+  } finally {
+    setIsUploadingImages(false);
+  }
+};
 
   // Helper for wardrobe/additional images
   const handleWardrobeImageUpload = async (updated, wardrobeKey) => {
@@ -238,6 +263,18 @@ const DeputyStepOne = ({
       coverMp3s: updated,
     }));
   };
+  
+  const profileSrc =
+  previewUrl ||
+  (typeof formData.profilePicture === "string" && formData.profilePicture) ||
+  (typeof formData.profilePhoto === "string" && formData.profilePhoto) ||
+  "";
+
+  const coverHeroSrc =
+  coverHeroPreviewUrl ||
+  (typeof formData.coverHeroImage === "string" && formData.coverHeroImage) ||
+  "";
+  
 
   // ===================================================================
   // UI
@@ -252,39 +289,40 @@ const DeputyStepOne = ({
         {/* -------------------------------------------------------
             PROFILE PICTURE
         -------------------------------------------------------- */}
-        <div className="flex flex-col gap-2 w-1/3">
-          <label className="block font-semibold mb-1">Profile Picture</label>
+       <div className="flex flex-col gap-2 w-1/3">
+    <label className="block font-semibold mb-1">Profile Picture</label>
 
-          <label
-            htmlFor="profilePictureUpload"
-            className="bg-black text-white px-3 py-2 rounded cursor-pointer w-full text-center hover:bg-[#ff6667]"
-          >
-            {formData.profilePicture ? "Change Profile Picture" : "Choose Profile Picture"}
-          </label>
+    <label
+      htmlFor="profilePictureUpload"
+      className="bg-black text-white px-3 py-2 rounded cursor-pointer w-full text-center hover:bg-[#ff6667]"
+    >
+      {(formData.profilePicture || formData.profilePhoto)
+        ? "Change Profile Picture"
+        : "Choose Profile Picture"}
+    </label>
 
-          <input
-            id="profilePictureUpload"
-            type="file"
-            accept="image/*"
-            onChange={handleImageChange}
-            className="hidden"
-          />
+    <input
+      id="profilePictureUpload"
+      type="file"
+      accept="image/*"
+      onChange={handleImageChange}
+      className="hidden"
+    />
 
-          {previewUrl ||
-          (typeof formData.profilePicture === "string" && formData.profilePicture) ? (
-            <img
-              src={previewUrl || formData.profilePicture}
-              alt="Profile"
-              className="mt-2 w-32 h-32 object-cover rounded-full mx-auto"
-            />
-          ) : (
-            <img
-              src={assets.profile_placeholder}
-              alt="Placeholder"
-              className="mt-2 w-32 h-32 object-cover rounded-full mx-auto"
-            />
-          )}
-        </div>
+    {profileSrc ? (
+      <img
+        src={profileSrc}
+        alt="Profile"
+        className="mt-2 w-32 h-32 object-cover rounded-full mx-auto"
+      />
+    ) : (
+      <img
+        src={assets.profile_placeholder}
+        alt="Placeholder"
+        className="mt-2 w-32 h-32 object-cover rounded-full mx-auto"
+      />
+    )}
+  </div>
 
         {/* -------------------------------------------------------
             COVER HERO IMAGE
@@ -296,7 +334,7 @@ const DeputyStepOne = ({
             htmlFor="coverHeroUpload"
             className="bg-black text-white px-3 py-2 rounded cursor-pointer w-full text-center hover:bg-[#ff6667]"
           >
-            {formData.coverHeroImage ? "Change Cover Image" : "Choose Cover Image"}
+{coverHeroSrc ? "Change Cover Image" : "Choose Cover Image"}
           </label>
 
           <input
@@ -308,31 +346,19 @@ const DeputyStepOne = ({
             className="hidden"
           />
 
-          {(() => {
-            const hasFile =
-              !!coverHeroPreviewUrl ||
-              (typeof formData.coverHeroImage === "string" && !!formData.coverHeroImage);
-
-            console.log("🖼️ Cover Hero preview render:", {
-              hasFile,
-              coverHeroPreviewUrl,
-              formDataCoverHero: formData.coverHeroImage,
-            });
-
-            return hasFile ? (
-              <img
-                src={coverHeroPreviewUrl || formData.coverHeroImage}
-                alt="Cover Hero"
-                className="mt-2 w-full aspect-video object-cover rounded-md border"
-              />
-            ) : (
-              <img
-                src={assets.cover_placeholder}
-                alt="Cover Placeholder"
-                className="mt-2 w-full aspect-video object-cover rounded-md border"
-              />
-            );
-          })()}
+       {coverHeroSrc ? (
+  <img
+    src={coverHeroSrc}
+    alt="Cover Hero"
+    className="mt-2 w-full aspect-video object-cover rounded-md border"
+  />
+) : (
+  <img
+    src={assets.cover_placeholder}
+    alt="Cover Placeholder"
+    className="mt-2 w-full aspect-video object-cover rounded-md border"
+  />
+)}
         </div>
 
         {/* Address Section */}
@@ -999,6 +1025,8 @@ function SortableVideoLinkList({ links, setLinks, placeholderPrefix }) {
     updated[idx] = { ...updated[idx], [field]: value };
     setLinks(updated);
   };
+
+
 
   return (
     <div>

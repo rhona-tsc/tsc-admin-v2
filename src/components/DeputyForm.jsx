@@ -397,9 +397,12 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
         setFormData((prev) => ({
           ...prev,
           ...deputy,
+            profilePicture: deputy.profilePicture || deputy.profilePhoto || prev.profilePicture,
+
           basicInfo: { ...prev.basicInfo, ...basicInfoFromDb },
           address: { ...prev.address, ...addressFromDb },
           bank_account: { ...prev.bank_account, ...bankFromDb },
+          
           dateRegistered: deputy.dateRegistered || prev.dateRegistered || new Date(),
           academic_credentials: deputy.academic_credentials || prev.academic_credentials,
           function_bands_performed_with: deputy.function_bands_performed_with || prev.function_bands_performed_with,
@@ -520,14 +523,15 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
                 Note: File uploads (profile/cover images) cannot be restored from autosave. Please re-upload if needed after a refresh.
               </div>
             )}
-            <DeputyStepOne
-              formData={formData}
-              setFormData={setFormData}
-              userRole={userRole}
-              isUploadingImages={isUploadingImages}
-              isUploadingMp3s={isUploadingMp3s}
-              setIsUploadingMp3s={setIsUploadingMp3s}
-            />
+          <DeputyStepOne
+  formData={formData}
+  setFormData={setFormData}
+  userRole={userRole}
+  isUploadingImages={isUploadingImages}
+  setIsUploadingImages={setIsUploadingImages}   // ✅ ADD THIS
+  isUploadingMp3s={isUploadingMp3s}
+  setIsUploadingMp3s={setIsUploadingMp3s}
+/>
           </>
         );
       case 2:
