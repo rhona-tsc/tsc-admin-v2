@@ -300,6 +300,7 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
       rap: "",
       genres: [],
     },
+    customRepertoire: "",
     repertoire: [],
     selectedSongs: [
       {
@@ -406,6 +407,7 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
           sessions: deputy.sessions || prev.sessions,
           social_media_links: deputy.social_media_links || prev.social_media_links,
           instrumentation: deputy.instrumentation || prev.instrumentation,
+          customRepertoire: deputy.customRepertoire || prev.customRepertoire,
           repertoire: deputy.repertoire || prev.repertoire,
           selectedSongs: deputy.selectedSongs || prev.selectedSongs,
           other_skills: deputy.other_skills || prev.other_skills,

@@ -322,14 +322,19 @@ setFormData(prev => ({
         <p className="text-sm">
           Please select the songs from the database and/or paste your repertoire on the right that you are comfortable performing. Please note, these must be 'gig ready' and require no rehearsals.</p>
           </div>
-          <DeputyRepertoire
-            customRepertoire={formData.customRepertoire || ""}
-            setCustomRepertoire={(value) => setFormData({ ...formData, customRepertoire: value })}
-            selectedSongs={formData.selectedSongs || []}
-            setSelectedSongs={(value) => setFormData({ ...formData, selectedSongs: value })}
-            setRepertoire={(value) => setFormData({ ...formData, repertoire: value })}
-            maxHeight="500px"
-          />
+         <DeputyRepertoire
+  customRepertoire={formData.customRepertoire || ""}
+  setCustomRepertoire={(value) =>
+    setFormData((prev) => ({ ...prev, customRepertoire: value }))
+  }
+  selectedSongs={formData.selectedSongs || []}
+  setSelectedSongs={(value) =>
+    setFormData((prev) => ({ ...prev, selectedSongs: value }))
+  }
+  setRepertoire={(value) =>
+    setFormData((prev) => ({ ...prev, repertoire: value }))
+  }
+/>
 
 {userRole?.includes("agent") && (
   <DeputySongModeration
