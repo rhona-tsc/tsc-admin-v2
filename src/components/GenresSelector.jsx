@@ -3,7 +3,25 @@ import React, { useEffect, useMemo, useState } from "react";
 const GenresSelector = ({ selectedGenres = [], onChange = () => {} }) => {
   const debug = (...args) => console.log("🎛️[GenresSelector]", ...args);
 
-  const genresList = [/* ...same list... */, "Other"];
+  const genresList = [
+    "Soul & Motown",
+    "Funk & Disco",
+    "Indie & Rock",
+    "Alternative & Punk",
+    "Pop & Classic Pop",
+    "Dance & Electronic",
+    "Reggae & Afrobeat",
+    "RnB, HipHop & Garage",
+    "80s",
+    "90s",
+    "00s",
+    "Latin",
+    "Folk & Acoustic",
+    "Roaming",
+    "Jazz & Swing",
+    "Classical",
+    "Israeli",
+    "Other"];
 
   const standardSet = useMemo(
     () => new Set(genresList.filter((g) => g !== "Other")),

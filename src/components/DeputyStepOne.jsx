@@ -51,12 +51,10 @@ const asUrlArray = (v) => {
 const asVideoLinksArray = (v) => {
   const arr = asArray(v);
   return arr.map((x) => {
-    if (typeof x === "string") {
-      return { title: "", url: x.trim() };
-    }
+    if (typeof x === "string") return { title: "", url: x };
     return {
-      title: String(x?.title || "").trim(),
-      url: String(x?.url || "").trim(),
+      title: typeof x?.title === "string" ? x.title : "",
+      url: typeof x?.url === "string" ? x.url : "",
     };
   });
 };
@@ -1082,6 +1080,7 @@ function SortableVideoLinkList({ links, setLinks, placeholderPrefix }) {
             placeholder="Title"
             value={link.title || ""}
             onChange={(e) => handleChange(idx, "title", e.target.value)}
+            onBlur={(e) => handleChange(idx, "title", e.target.value.trim())}
             className="border border-gray-300 rounded py-1.5 px-3.5 w-1/2"
           />
           <input
@@ -1089,6 +1088,7 @@ function SortableVideoLinkList({ links, setLinks, placeholderPrefix }) {
             placeholder={`${placeholderPrefix} Video URL`}
             value={link.url || ""}
             onChange={(e) => handleChange(idx, "url", e.target.value)}
+            onBlur={(e) => handleChange(idx, "url", e.target.value.trim())}
             className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
           />
           <button type="button" className="text-sm text-red-500" onClick={() => handleDelete(idx)}>
