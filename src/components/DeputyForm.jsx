@@ -188,10 +188,7 @@ setShowSubmittingPopup(true);
 
   const totalSteps = 6;
   // Persist step in localStorage
-  const [step, setStep] = useState(() => {
-    const savedStep = Number(localStorage.getItem("deputyStep"));
-    return savedStep && savedStep >= 1 && savedStep <= totalSteps ? savedStep : 1;
-  });
+ const [step, setStep] = useState(1);
   // Add tscApprovedBio state for moderation/step 2
   const [tscApprovedBio, setTscApprovedBio] = useState("");
   const isEdit = Boolean(deputyId);
@@ -599,10 +596,6 @@ setShowSubmittingPopup(true);
     }
   };
 
-  // Keep localStorage in sync if step changes elsewhere
-  useEffect(() => {
-    localStorage.setItem("deputyStep", step);
-  }, [step]);
 
   /* --------------------------------- steps UI ------------------------------- */
   const renderStep = () => {
@@ -830,6 +823,8 @@ setShowSubmittingPopup(true);
 
       if (res.data?.success) {
         toast(<CustomToast type="success" message="Changes saved" />);
+        localStorage.removeItem("deputyStep");
+localStorage.removeItem("deputyAutosave");
         navigate("/moderate-deputies");
       } else {
         toast(<CustomToast type="error" message={res.data?.message || "Failed to save"} />);
