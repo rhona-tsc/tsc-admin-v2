@@ -32,7 +32,7 @@ const isModerationMode =
 const handleSubmit = async () => {
   try {
     setSubmissionInProgress(true);
-
+setShowSubmittingPopup(true);
     // --- normalize agreement shape ---
     const rawAgree = (Array.isArray(formData.agreementCheckboxes) && formData.agreementCheckboxes[0]) || {};
     const agreementCheckboxes = [{
