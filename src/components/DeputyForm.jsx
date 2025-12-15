@@ -929,14 +929,14 @@ const handleSubmit = async () => {
           )}
         </div>
 
-        {showSubmittingPopup && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 shadow-lg text-center">
-              <p className="text-lg font-semibold">Submitting your form...</p>
-              <p className="text-sm mt-2 text-gray-500">Please wait a moment.</p>
-            </div>
-          </div>
-        )}
+       {showSuccessPopup && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg p-6 shadow-lg text-center max-w-sm w-full">
+      <p className="text-lg font-semibold">{successPopupMessage}</p>
+      <p className="text-sm mt-2 text-gray-500">Redirecting you to your dashboard…</p>
+    </div>
+  </div>
+)}
       </div>
     </>
   );
