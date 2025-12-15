@@ -52,7 +52,6 @@ const handleSubmit = async () => {
     appendJSON("function_bands_performed_with", formData.function_bands_performed_with);
     appendJSON("original_bands_performed_with", formData.original_bands_performed_with);
     appendJSON("social_media_links", formData.social_media_links);
-    appendJSON("repertoire", formData.repertoire);
     appendJSON("selectedSongs", formData.selectedSongs);
     appendJSON("other_skills", formData.other_skills);
     appendJSON("logistics", formData.logistics);
@@ -389,7 +388,6 @@ const handleSubmit = async () => {
       genres: [],
     },
     customRepertoire: "",
-    repertoire: [],
     selectedSongs: [
       {
         title: "",
@@ -484,7 +482,6 @@ const handleSubmit = async () => {
           social_media_links: deputy.social_media_links || prev.social_media_links,
           instrumentation: deputy.instrumentation || prev.instrumentation,
           customRepertoire: deputy.customRepertoire || prev.customRepertoire,
-          repertoire: deputy.repertoire || prev.repertoire,
           selectedSongs: deputy.selectedSongs || prev.selectedSongs,
           other_skills: deputy.other_skills || prev.other_skills,
           logistics: deputy.logistics || prev.logistics,
