@@ -1,8 +1,6 @@
 import React from "react";
 
 const DepFiveInstrumentSpecs = ({ formData = {}, setFormData = () => {} }) => {
-
-
   const { instrumentSpecs = [] } = formData;
 
   const updateArrayItem = (arrayName, index, field, value) => {
@@ -29,52 +27,54 @@ const DepFiveInstrumentSpecs = ({ formData = {}, setFormData = () => {} }) => {
         <p className="text-sm text-gray-600">
           Please confirm the instrument specs you have in your setup and the respective wattage if applicable.
         </p>
-        <div>
-        {instrumentSpecs.map((instrumentSpecs, index) => (
-  <div key={index} className="grid grid-cols-3 gap-4 mb-3">
-    <div>
-      <label className="block text-sm font-medium text-gray-700">Make & Model</label>
-      <input
-        type="text"
-        value={instrumentSpecs.name || ""}
-        onChange={(e) => updateArrayItem("instrumentSpecs", index, "name", e.target.value)}
-        className="p-2 border rounded w-full"
-        placeholder="Enter Make & Model"
-      />
-    </div>
 
-    <div>
-      <label className="block text-sm font-medium text-gray-700">Wattage</label>
-      <input
-        type="number"
-        min="0"
-        value={instrumentSpecs.wattage || ""}
-        onChange={(e) => updateArrayItem("instrumentSpecs", index, "wattage", e.target.value)}
-        className="p-2 border rounded w-full"
-        placeholder="Enter wattage"
-      />
-    </div>
+        {instrumentSpecs.map((spec, index) => (
+          <div key={index} className="grid grid-cols-3 gap-4 mb-3">
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700">Make &amp; Model</label>
+              <input
+                type="text"
+                value={spec.name || ""}
+                onChange={(e) => updateArrayItem("instrumentSpecs", index, "name", e.target.value)}
+                className="p-2 border rounded w-full"
+                placeholder="Enter Make & Model"
+              />
+            </div>
 
-    <button
-      onClick={() => removeItem("instrumentSpecs", index)}
-      className="text-red-500 text-left col-span-3"
-    >
-      Remove
-    </button>
-  </div>
-))}
-          <button
-            onClick={() =>
-              addItem("instrumentSpecs", {
-                quantity: "",
-                wattage: "",
-              })
-            }
-            className="mt-2 text-sm text-blue-600 underline"
-          >
-            + Add an instrument
-          </button>
-        </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Wattage</label>
+              <input
+                type="number"
+                min="0"
+                value={spec.wattage ?? ""}
+                onChange={(e) => updateArrayItem("instrumentSpecs", index, "wattage", e.target.value)}
+                className="p-2 border rounded w-full"
+                placeholder="Enter wattage"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => removeItem("instrumentSpecs", index)}
+              className="text-red-500 text-left col-span-3"
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+
+        <button
+          type="button"
+          onClick={() =>
+            addItem("instrumentSpecs", {
+              name: "",
+              wattage: "",
+            })
+          }
+          className="mt-2 text-sm text-blue-600 underline"
+        >
+          + Add an instrument
+        </button>
       </div>
     </div>
   );

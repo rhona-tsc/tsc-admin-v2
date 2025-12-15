@@ -298,18 +298,17 @@ setFormData(prev => ({
 {Array.isArray(formData.vocals?.type) &&
   formData.vocals.type.length > 0 &&
   !formData.vocals.type.includes("I don't sing") && (
-    <GenresSelector
-      selectedGenres={formData.vocals?.genres || []}
-      onChange={(updatedGenres) =>
-        setFormData({
-          ...formData,
-          vocals: {
-            ...formData.vocals,
-            genres: updatedGenres,
-          },
-        })
-      }
-    />
+
+   <GenresSelector
+  selectedGenres={formData.vocals?.genres || []}
+  onChange={(updatedGenres) => {
+    console.log("🎤[DeputyStepFour] vocals.genres onChange:", updatedGenres);
+    setFormData({
+      ...formData,
+      vocals: { ...formData.vocals, genres: updatedGenres },
+    });
+  }}
+/>
 )}
  
       {/* Genre Tags */}

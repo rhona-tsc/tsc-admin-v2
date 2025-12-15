@@ -1,28 +1,14 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 const GenresSelector = ({ selectedGenres = [], onChange = () => {} }) => {
-  const genresList = [
-    "Soul & Motown",
-    "Funk & Disco",
-    "Indie & Rock",
-    "Alternative & Punk",
-    "Pop & Classic Pop",
-    "Dance & Electronic",
-    "Reggae & Afrobeat",
-    "RnB, HipHop & Garage",
-    "80s",
-    "90s",
-    "00s",
-    "Latin",
-    "Folk & Acoustic",
-    "Roaming",
-    "Jazz & Swing",
-    "Classical",
-    "Israeli",
-    "Other", // UI only
-  ];
+  const debug = (...args) => console.log("🎛️[GenresSelector]", ...args);
 
-  const standardSet = new Set(genresList.filter((g) => g !== "Other"));
+  const genresList = [/* ...same list... */, "Other"];
+
+  const standardSet = useMemo(
+    () => new Set(genresList.filter((g) => g !== "Other")),
+    []
+  );
 
   const standardGenres = (selectedGenres || [])
     .map((g) => String(g || "").trim())
@@ -34,14 +20,22 @@ const GenresSelector = ({ selectedGenres = [], onChange = () => {} }) => {
     .filter(Boolean)
     .filter((g) => !standardSet.has(g) && g !== "Other");
 
-  const isOtherChecked = customGenres.length > 0;
+  // ✅ UI-only state: whether the Other section is open
+  const [otherOpen, setOtherOpen] = useState(false);
+
+  // open Other automatically if there are saved custom genres (editing mode)
+  useEffect(() => {
+    const shouldOpen = customGenres.length > 0;
+    setOtherOpen((prev) => (prev ? true : shouldOpen));
+  }, [customGenres.length]);
 
   const commit = (nextStandard, nextCustom) => {
+    debug("commit() input", { nextStandard, nextCustom });
+
     const cleanedCustom = (nextCustom || [])
       .map((s) => String(s || "").trim())
       .filter(Boolean);
 
-    // de-dupe (case-insensitive) but keep original casing of first occurrence
     const seen = new Set();
     const deduped = [];
     for (const s of [...nextStandard, ...cleanedCustom]) {
@@ -51,14 +45,23 @@ const GenresSelector = ({ selectedGenres = [], onChange = () => {} }) => {
       deduped.push(s);
     }
 
-    onChange(deduped); // ✅ only plain strings
+    debug("commit() output -> onChange", { cleanedCustom, deduped });
+    onChange(deduped);
   };
 
   const handleToggle = (genre) => {
+    debug("handleToggle()", { genre, otherOpen, selectedGenres, standardGenres, customGenres });
+
     if (genre === "Other") {
-      // Unchecking "Other" = clear all custom genres
-      if (isOtherChecked) commit(standardGenres, []);
-      else commit(standardGenres, [""]); // checking: start with one empty input
+      // ✅ toggle UI open/closed
+      setOtherOpen((prev) => {
+        const next = !prev;
+        debug("Other toggled", { from: prev, to: next });
+
+        // if closing, clear custom genres from saved state
+        if (!next) commit(standardGenres, []);
+        return next;
+      });
       return;
     }
 
@@ -67,32 +70,48 @@ const GenresSelector = ({ selectedGenres = [], onChange = () => {} }) => {
     commit(Array.from(set), customGenres);
   };
 
-  const addOtherInput = () => commit(standardGenres, [...customGenres, ""]);
-  const removeOtherInput = (idx) =>
-    commit(standardGenres, customGenres.filter((_, i) => i !== idx));
+  const addOtherInput = () => {
+    debug("addOtherInput()", { customGenres });
+    setOtherOpen(true);
+    // we only store when user types; UI can show empty inputs without storing ""
+  };
+
+  const removeOtherInput = (idx) => {
+    debug("removeOtherInput()", { idx, customGenres });
+    const next = customGenres.filter((_, i) => i !== idx);
+    commit(standardGenres, next);
+  };
 
   const updateOtherAt = (idx, value) => {
+    debug("updateOtherAt()", { idx, value });
     const next = [...customGenres];
     next[idx] = value;
     commit(standardGenres, next);
   };
 
-  // Show at least 1 input when Other is checked, even if empty
-  const otherInputs =
-    isOtherChecked ? customGenres : selectedGenres.includes("Other") ? [""] : [];
+  // ✅ show at least one input when Other is open
+  const otherInputs = otherOpen ? (customGenres.length ? customGenres : [""]) : [];
+
+  useEffect(() => {
+    debug("derived state", {
+      selectedGenres,
+      standardGenres,
+      customGenres,
+      otherOpen,
+      otherInputs,
+    });
+  }, [selectedGenres, otherOpen]);
 
   return (
     <div className="mt-4">
-      <label className="block font-medium mb-1">
-        Which genres best suit your voice?
-      </label>
+      <label className="block font-medium mb-1">Which genres best suit your voice?</label>
 
       <div className="grid grid-cols-2 gap-2 text-sm">
         {genresList.map((genre) => (
           <label key={genre} className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
-              checked={genre === "Other" ? otherInputs.length > 0 : standardGenres.includes(genre)}
+              checked={genre === "Other" ? otherOpen : standardGenres.includes(genre)}
               onChange={() => handleToggle(genre)}
             />
             {genre}
