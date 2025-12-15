@@ -14,7 +14,7 @@ import imageCompression from "browser-image-compression";
 import renameAndCompressImage from "../pages/utils/renameAndCompressDeputyImage";
 
 const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId }) => {
-  const DASHBOARD_ROUTE = isModerationMode ? "/moderate-deputies" : "/dashboard"; // change if needed
+  const DASHBOARD_ROUTE = isModerationMode ? "/moderate-deputies" : "/musicians-dashboard"; // change if needed
 
 const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 const [successPopupMessage, setSuccessPopupMessage] = useState("");
