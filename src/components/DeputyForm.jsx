@@ -368,12 +368,6 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
 
         const deputy = res.data?.deputy || res.data?.musician || null;
 
-console.groupCollapsed("🔎 Hydration fetch — deputy", { deputyId, url });
-console.log("status:", res.status);
-console.log("data keys:", Object.keys(res.data || {}));
-console.log("deputy keys:", deputy ? Object.keys(deputy) : null);
-console.groupEnd();
-
         if (!deputy) return;
 
         const basicInfoFromDb = deputy.basicInfo || {
