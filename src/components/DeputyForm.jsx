@@ -14,10 +14,19 @@ import imageCompression from "browser-image-compression";
 import renameAndCompressImage from "../pages/utils/renameAndCompressDeputyImage";
 
 const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId }) => {
-  const DASHBOARD_ROUTE = isModerationMode ? "/moderate-deputies" : "/musicians-dashboard"; // change if needed
+const location = useLocation();
+const navigate = useNavigate();
 
-const [showSuccessPopup, setShowSuccessPopup] = useState(false);
-const [successPopupMessage, setSuccessPopupMessage] = useState("");
+const isModerationMode =
+    location.pathname.includes("moderate-deputy") ||
+    (userRole || "").toLowerCase() === "agent";
+
+  const DASHBOARD_ROUTE = isModerationMode
+    ? "/moderate-deputies"
+    : "/musicians-dashboard";
+
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [successPopupMessage, setSuccessPopupMessage] = useState("");
 
     // Handles final form submission for step 6
 const handleSubmit = async () => {
@@ -160,10 +169,6 @@ const handleSubmit = async () => {
 
   /* --------------------------------- helpers -------------------------------- */
   const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
-  const location = useLocation();
-  const navigate = useNavigate();
-  const isModerationMode =
-    location.pathname.includes("moderate-deputy") || (userRole || "").toLowerCase() === "agent";
 
   const { id: routeId } = useParams();
 
