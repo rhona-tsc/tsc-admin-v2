@@ -105,6 +105,9 @@ setShowSubmittingPopup(true);
     fd.append("deputy_contract_signed", formData.deputy_contract_signed || "");
     fd.append("deputy_contract_agreed", String(deputyContractAgreed));
 
+
+
+
     // These 3 fields are NOT safeParsed on backend (you use urlArray directly),
     // so send them as repeated string fields (not JSON).
     (formData.digitalWardrobeBlackTie || []).forEach((u) => fd.append("digitalWardrobeBlackTie", u));
@@ -124,6 +127,20 @@ setShowSubmittingPopup(true);
     (formData.originalMp3s || []).forEach((m) => {
       if (m?.file instanceof File) fd.append("originalMp3s", m.file);
     });
+
+        // image URL strings (when you already uploaded to Cloudinary client-side)
+const profileUrl =
+  (typeof formData.profilePhoto === "string" && formData.profilePhoto) ||
+  (typeof formData.profilePicture === "string" && formData.profilePicture) ||
+  "";
+
+const coverUrl =
+  (typeof formData.coverHeroImage === "string" && formData.coverHeroImage) || "";
+
+if (profileUrl) fd.append("profilePhoto", profileUrl);      // matches mongoose schema
+if (coverUrl) fd.append("coverHeroImage", coverUrl);        // matches mongoose schema
+
+
 
     const res = await axios.post(
       `${backendUrl}/api/musician/moderation/register-deputy`,
@@ -490,8 +507,9 @@ setShowSubmittingPopup(true);
         setFormData((prev) => ({
           ...prev,
           ...deputy,
-            profilePicture: deputy.profilePicture || deputy.profilePhoto || prev.profilePicture,
-
+profilePicture: deputy.profilePhoto || prev.profilePicture,
+profilePhoto: deputy.profilePhoto || prev.profilePhoto,
+coverHeroImage: deputy.coverHeroImage || prev.coverHeroImage,
           basicInfo: { ...prev.basicInfo, ...basicInfoFromDb },
           address: { ...prev.address, ...addressFromDb },
           bank_account: { ...prev.bank_account, ...bankFromDb },
