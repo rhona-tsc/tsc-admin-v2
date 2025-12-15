@@ -35,6 +35,40 @@ const DeputyStepOne = ({
   const [originalMp3s, setOriginalMp3s] = useState([]);
   const [coverMp3s, setCoverMp3s] = useState([]);
 
+  const asArray = (v) => {
+  if (Array.isArray(v)) return v;
+  if (!v) return [];
+  // allow single string url / single object to still show
+  return [v];
+};
+
+const asUrlArray = (v) => {
+  const arr = asArray(v);
+  // keep only strings (image urls)
+  return arr.filter((x) => typeof x === "string" && x.trim());
+};
+
+const asVideoLinksArray = (v) => {
+  const arr = asArray(v);
+  // normalize to [{title,url}]
+  return arr
+    .map((x) => ({
+      title: (x?.title || "").trim(),
+      url: (x?.url || "").trim(),
+    }))
+    .filter((x) => x.url);
+};
+
+const asMp3Array = (v) => {
+  const arr = asArray(v);
+  // normalize to [{title,url}]
+  return arr
+    .map((x) =>
+      typeof x === "string" ? { title: "", url: x } : { title: x?.title || "", url: x?.url || "" }
+    )
+    .filter((x) => x.url);
+};
+
   // -------------------------------------
   // PREFILL MP3s WHEN EDITING
   // -------------------------------------
@@ -44,8 +78,8 @@ const DeputyStepOne = ({
       cover: formData.coverMp3s,
     });
 
-    setOriginalMp3s(formData.originalMp3s || []);
-    setCoverMp3s(formData.coverMp3s || []);
+setOriginalMp3s(asMp3Array(formData.originalMp3s));
+setCoverMp3s(asMp3Array(formData.coverMp3s));
   }, [formData.originalMp3s, formData.coverMp3s]);
 
   // -------------------------------------
@@ -631,7 +665,7 @@ const handleSaveCoverCroppedImage = async (blob) => {
 
           <DragAndDropImageUploader
             label="Black Tie Attire"
-            files={formData.digitalWardrobeBlackTie}
+            files={asUrlArray(formData.digitalWardrobeBlackTie)}
             setFiles={async (updatedFn) => {
               const previous = formData.digitalWardrobeBlackTie || [];
               const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
@@ -649,7 +683,7 @@ const handleSaveCoverCroppedImage = async (blob) => {
 
           <DragAndDropImageUploader
             label="Formal Attire"
-            files={formData.digitalWardrobeFormal}
+            files={asUrlArray(formData.digitalWardrobeFormal)}
             setFiles={async (updatedFn) => {
               const previous = formData.digitalWardrobeFormal || [];
               const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
@@ -667,7 +701,7 @@ const handleSaveCoverCroppedImage = async (blob) => {
 
           <DragAndDropImageUploader
             label="Smart Casual Attire"
-            files={formData.digitalWardrobeSmartCasual}
+            files={asUrlArray(formData.digitalWardrobeSmartCasual)}
             setFiles={async (updatedFn) => {
               const previous = formData.digitalWardrobeSmartCasual || [];
               const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
@@ -684,7 +718,7 @@ const handleSaveCoverCroppedImage = async (blob) => {
           </p>
           <DragAndDropImageUploader
             label="Session All Black"
-            files={formData.digitalWardrobeSessionAllBlack}
+            files={asUrlArray(formData.digitalWardrobeSessionAllBlack)}
             setFiles={async (updatedFn) => {
               const previous = formData.digitalWardrobeSessionAllBlack || [];
               const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
@@ -722,7 +756,7 @@ const handleSaveCoverCroppedImage = async (blob) => {
         </p>
 
         <SortableVideoLinkList
-          links={formData.functionBandVideoLinks || []}
+links={asVideoLinksArray(formData.functionBandVideoLinks)}
           setLinks={(updated) => {
             console.log("🎥 [VID-FUNCTION] UPDATE", {
               previous: formData.functionBandVideoLinks,
@@ -739,7 +773,7 @@ const handleSaveCoverCroppedImage = async (blob) => {
 
         {userRole?.includes?.("agent") && (
           <SortableVideoLinkList
-            links={formData.tscApprovedFunctionBandVideoLinks || []}
+links={asVideoLinksArray(formData.tscApprovedFunctionBandVideoLinks)}
             setLinks={(updated) => {
               console.log("🎥 [VID-FUNCTION-TSC] UPDATE", {
                 previous: formData.tscApprovedFunctionBandVideoLinks,
@@ -762,7 +796,7 @@ const handleSaveCoverCroppedImage = async (blob) => {
         <p className="text-sm text-gray-500">Add links to your original band videos here.</p>
 
         <SortableVideoLinkList
-          links={formData.originalBandVideoLinks || []}
+links={asVideoLinksArray(formData.originalBandVideoLinks)}
           setLinks={(updated) => {
             console.log("🎥 [VID-ORIGINAL] UPDATE", {
               previous: formData.originalBandVideoLinks,
