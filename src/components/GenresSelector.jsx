@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 const GenresSelector = ({ selectedGenres = [], onChange = () => {} }) => {
-  const debug = (...args) => console.log("🎛️[GenresSelector]", ...args);
-
   const genresList = [
     "Soul & Motown",
     "Funk & Disco",
@@ -21,7 +19,8 @@ const GenresSelector = ({ selectedGenres = [], onChange = () => {} }) => {
     "Jazz & Swing",
     "Classical",
     "Israeli",
-    "Other"];
+    "Other",
+  ];
 
   const standardSet = useMemo(
     () => new Set(genresList.filter((g) => g !== "Other")),
@@ -38,18 +37,27 @@ const GenresSelector = ({ selectedGenres = [], onChange = () => {} }) => {
     .filter(Boolean)
     .filter((g) => !standardSet.has(g) && g !== "Other");
 
-  // ✅ UI-only state: whether the Other section is open
   const [otherOpen, setOtherOpen] = useState(false);
+
+  // ✅ UI-only: how many "Other" inputs are shown (including empty ones)
+  const [otherCount, setOtherCount] = useState(0);
 
   // open Other automatically if there are saved custom genres (editing mode)
   useEffect(() => {
-    const shouldOpen = customGenres.length > 0;
-    setOtherOpen((prev) => (prev ? true : shouldOpen));
+    if (customGenres.length > 0) setOtherOpen(true);
   }, [customGenres.length]);
 
-  const commit = (nextStandard, nextCustom) => {
-    debug("commit() input", { nextStandard, nextCustom });
+  // keep UI count in sync when opening/closing or when editing loads values
+  useEffect(() => {
+    if (!otherOpen) {
+      setOtherCount(0);
+      return;
+    }
+    // show at least 1 input when open; if editing with N customs, show N
+    setOtherCount((prev) => Math.max(prev || 0, Math.max(customGenres.length, 1)));
+  }, [otherOpen, customGenres.length]);
 
+  const commit = (nextStandard, nextCustom) => {
     const cleanedCustom = (nextCustom || [])
       .map((s) => String(s || "").trim())
       .filter(Boolean);
@@ -63,21 +71,20 @@ const GenresSelector = ({ selectedGenres = [], onChange = () => {} }) => {
       deduped.push(s);
     }
 
-    debug("commit() output -> onChange", { cleanedCustom, deduped });
     onChange(deduped);
   };
 
   const handleToggle = (genre) => {
-    debug("handleToggle()", { genre, otherOpen, selectedGenres, standardGenres, customGenres });
-
     if (genre === "Other") {
-      // ✅ toggle UI open/closed
       setOtherOpen((prev) => {
         const next = !prev;
-        debug("Other toggled", { from: prev, to: next });
-
-        // if closing, clear custom genres from saved state
-        if (!next) commit(standardGenres, []);
+        // if closing, clear custom genres and remove inputs
+        if (!next) {
+          commit(standardGenres, []);
+          setOtherCount(0);
+        } else {
+          setOtherCount((c) => Math.max(c, 1));
+        }
         return next;
       });
       return;
@@ -89,40 +96,46 @@ const GenresSelector = ({ selectedGenres = [], onChange = () => {} }) => {
   };
 
   const addOtherInput = () => {
-    debug("addOtherInput()", { customGenres });
     setOtherOpen(true);
-    // we only store when user types; UI can show empty inputs without storing ""
+    setOtherCount((c) => (c || 0) + 1);
   };
 
   const removeOtherInput = (idx) => {
-    debug("removeOtherInput()", { idx, customGenres });
-    const next = customGenres.filter((_, i) => i !== idx);
-    commit(standardGenres, next);
+    // remove the persisted custom genre at this index (if it exists)
+    const nextCustom = customGenres.filter((_, i) => i !== idx);
+    commit(standardGenres, nextCustom);
+
+    // remove the UI slot
+    setOtherCount((c) => {
+      const nextCount = Math.max((c || 0) - 1, 0);
+
+      // ✅ if no inputs left (and no custom genres left), close Other + uncheck
+      if (nextCount === 0 && nextCustom.length === 0) {
+        setOtherOpen(false);
+        commit(standardGenres, []);
+        return 0;
+      }
+
+      return nextCount;
+    });
   };
 
   const updateOtherAt = (idx, value) => {
-    debug("updateOtherAt()", { idx, value });
-    const next = [...customGenres];
-    next[idx] = value;
-    commit(standardGenres, next);
+    // Build an array of length otherCount using current customGenres + blanks
+    const slots = Array.from({ length: otherCount }, (_, i) => customGenres[i] || "");
+    slots[idx] = value;
+    commit(standardGenres, slots);
   };
 
-  // ✅ show at least one input when Other is open
-  const otherInputs = otherOpen ? (customGenres.length ? customGenres : [""]) : [];
-
-  useEffect(() => {
-    debug("derived state", {
-      selectedGenres,
-      standardGenres,
-      customGenres,
-      otherOpen,
-      otherInputs,
-    });
-  }, [selectedGenres, otherOpen]);
+  const otherInputs = otherOpen
+    ? Array.from({ length: otherCount }, (_, i) => customGenres[i] || "")
+    : [];
 
   return (
     <div className="mt-4">
-      <label className="block font-medium mb-1">Which genres best suit your voice?</label>
+      <label className="block font-medium mb-1">
+        Which genres best suit your voice?
+      </label>
 
       <div className="grid grid-cols-2 gap-2 text-sm">
         {genresList.map((genre) => (
