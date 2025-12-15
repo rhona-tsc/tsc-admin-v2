@@ -14,6 +14,11 @@ import imageCompression from "browser-image-compression";
 import renameAndCompressImage from "../pages/utils/renameAndCompressDeputyImage";
 
 const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId }) => {
+  const DASHBOARD_ROUTE = isModerationMode ? "/moderate-deputies" : "/dashboard"; // change if needed
+
+const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+const [successPopupMessage, setSuccessPopupMessage] = useState("");
+
     // Handles final form submission for step 6
 const handleSubmit = async () => {
   try {
@@ -114,19 +119,31 @@ const handleSubmit = async () => {
     const res = await axios.post(
       `${backendUrl}/api/musician/moderation/register-deputy`,
       fd,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          // DO NOT set Content-Type manually with FormData (axios/browser will add boundary)
-        },
-      }
+      { headers: { Authorization: `Bearer ${token}` } }
     );
 
     if (res.data?.success) {
-      toast(<CustomToast type="success" message="Registration submitted!" />);
-    } else {
-      toast(<CustomToast type="error" message={res.data?.message || "Failed to submit"} />);
+      // Decide which message to show
+      const msg = isEdit
+        ? "✅ Your updates have been received."
+        : "✅ Your application has been received.";
+
+      setSuccessPopupMessage(msg);
+      setShowSuccessPopup(true);
+
+      // optional toast too
+      toast(<CustomToast type="success" message={res.data?.message || "Submitted"} />);
+
+      // Redirect after a short pause
+      setTimeout(() => {
+        setShowSuccessPopup(false);
+        navigate(DASHBOARD_ROUTE);
+      }, 1200);
+
+      return;
     }
+
+    toast(<CustomToast type="error" message={res.data?.message || "Failed to submit"} />);
   } catch (err) {
     console.error(err);
     const msg =
@@ -136,8 +153,11 @@ const handleSubmit = async () => {
     toast(<CustomToast type="error" message={msg} />);
   } finally {
     setSubmissionInProgress(false);
+    setShowSubmittingPopup(false);
   }
 };
+
+
   /* --------------------------------- helpers -------------------------------- */
   const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
   const location = useLocation();
