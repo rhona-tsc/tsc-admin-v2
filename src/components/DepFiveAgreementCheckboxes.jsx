@@ -7,19 +7,18 @@ export const DepFiveAgreementCheckboxes = ({ formData = {}, setFormData = () => 
     privacyPolicy: false,
   };
 
-  const updateField = (field, value) => {
-    setFormData((prev) => {
-      const prevArr = Array.isArray(prev.agreementCheckboxes) ? prev.agreementCheckboxes : [];
-      const first = prevArr[0] || { termsAndConditions: false, privacyPolicy: false };
+const updateField = (field, value) => {
+  setFormData((prev) => {
+    const current = Array.isArray(prev.agreementCheckboxes) && prev.agreementCheckboxes[0]
+      ? prev.agreementCheckboxes[0]
+      : { termsAndConditions: false, privacyPolicy: false };
 
-      const nextArr = [{ ...first, [field]: value }];
-
-      return {
-        ...prev,
-        agreementCheckboxes: nextArr, // ✅ matches schema
-      };
-    });
-  };
+    return {
+      ...prev,
+      agreementCheckboxes: [{ ...current, [field]: value }],
+    };
+  });
+};
 
   return (
     <div className="flex flex-col gap-8">

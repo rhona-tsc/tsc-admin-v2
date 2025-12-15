@@ -15,42 +15,130 @@ import renameAndCompressImage from "../pages/utils/renameAndCompressDeputyImage"
 
 const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId }) => {
     // Handles final form submission for step 6
-    const handleSubmit = async () => {
-      try {
-        setSubmissionInProgress(true);
-        let safeFormData = { ...formData };
-        // If profilePicture is a File or Blob, upload it and replace with URL
-        if (safeFormData.profilePicture && (safeFormData.profilePicture instanceof File || safeFormData.profilePicture instanceof Blob)) {
-          const [url] = await renameAndCompressImage({ images: [safeFormData.profilePicture], address: safeFormData.address });
-          safeFormData.profilePicture = url;
-        }
-        // Remove files/functions from safeFormData
-        const safe = JSON.parse(
-          JSON.stringify(safeFormData, (key, value) => {
-            if (value instanceof File) return undefined;
-            if (value instanceof Blob) return undefined;
-            if (typeof value === "function") return undefined;
-            if (value === window) return undefined;
-            return value;
-          })
-        );
-        // Submit to backend (local deputy registration endpoint)
-        const res = await axios.post(`${backendUrl}/api/musician/moderation/register-deputy`, safe, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.data?.success) {
-          toast(<CustomToast type="success" message="Registration submitted!" />);
-          // Optionally redirect or reset form
-        } else {
-          toast(<CustomToast type="error" message={res.data?.message || "Failed to submit"} />);
-        }
-      } catch (err) {
-        console.error(err);
-        toast(<CustomToast type="error" message="Failed to submit" />);
-      } finally {
-        setSubmissionInProgress(false);
+const handleSubmit = async () => {
+  try {
+    setSubmissionInProgress(true);
+
+    // --- normalize agreement shape ---
+    const rawAgree = (Array.isArray(formData.agreementCheckboxes) && formData.agreementCheckboxes[0]) || {};
+    const agreementCheckboxes = [{
+      termsAndConditions: Boolean(rawAgree.termsAndConditions),
+      privacyPolicy: Boolean(rawAgree.privacyPolicy),
+    }];
+
+    // optional: also populate the simple boolean the backend supports
+    const deputyContractAgreed =
+      agreementCheckboxes[0].termsAndConditions && agreementCheckboxes[0].privacyPolicy;
+
+    const fd = new FormData();
+
+    // helper: JSON fields the backend safeParses
+    const appendJSON = (key, value) => fd.append(key, JSON.stringify(value ?? null));
+
+    // IMPORTANT: basicInfo must arrive (your backend derives email from it)
+    appendJSON("basicInfo", formData.basicInfo);
+    appendJSON("address", formData.address);
+    appendJSON("bank_account", formData.bank_account);
+    appendJSON("academic_credentials", formData.academic_credentials);
+    appendJSON("agreementCheckboxes", agreementCheckboxes);
+
+    appendJSON("vocalMics", formData.vocalMics);
+    appendJSON("inEarMonitoring", formData.inEarMonitoring);
+    appendJSON("instrumentMics", formData.instrumentMics);
+    appendJSON("speechMics", formData.speechMics);
+    appendJSON("instrumentation", formData.instrumentation);
+    appendJSON("awards", formData.awards);
+    appendJSON("sessions", formData.sessions);
+    appendJSON("function_bands_performed_with", formData.function_bands_performed_with);
+    appendJSON("original_bands_performed_with", formData.original_bands_performed_with);
+    appendJSON("social_media_links", formData.social_media_links);
+    appendJSON("repertoire", formData.repertoire);
+    appendJSON("selectedSongs", formData.selectedSongs);
+    appendJSON("other_skills", formData.other_skills);
+    appendJSON("logistics", formData.logistics);
+
+    appendJSON("functionBandVideoLinks", formData.functionBandVideoLinks);
+    appendJSON("tscApprovedFunctionBandVideoLinks", formData.tscApprovedFunctionBandVideoLinks);
+    appendJSON("originalBandVideoLinks", formData.originalBandVideoLinks);
+    appendJSON("tscApprovedOriginalBandVideoLinks", formData.tscApprovedOriginalBandVideoLinks);
+
+    appendJSON("cableLogistics", formData.cableLogistics);
+    appendJSON("extensionCableLogistics", formData.extensionCableLogistics);
+    appendJSON("uplights", formData.uplights);
+    appendJSON("tbars", formData.tbars);
+    appendJSON("lightBars", formData.lightBars);
+    appendJSON("discoBall", formData.discoBall);
+    appendJSON("otherLighting", formData.otherLighting);
+    appendJSON("paSpeakerSpecs", formData.paSpeakerSpecs);
+    appendJSON("backline", formData.backline);
+    appendJSON("mixingDesk", formData.mixingDesk);
+    appendJSON("floorMonitorSpecs", formData.floorMonitorSpecs);
+    appendJSON("djEquipment", formData.djEquipment);
+    appendJSON("djEquipmentCategories", formData.djEquipmentCategories);
+    appendJSON("djGearRequired", formData.djGearRequired);
+    appendJSON("instrumentSpecs", formData.instrumentSpecs);
+
+    appendJSON("vocals", formData.vocals);
+
+    // simple string fields
+    fd.append("role", formData.role || "");
+    fd.append("status", formData.status || "pending");
+    fd.append("bio", formData.bio || "");
+    fd.append("tscApprovedBio", formData.tscApprovedBio || "");
+    fd.append("tagLine", formData.tagLine || "");
+    fd.append("customRepertoire", formData.customRepertoire || "");
+
+    // contracts/signature
+    fd.append("deputy_contract_signed", formData.deputy_contract_signed || "");
+    fd.append("deputy_contract_agreed", String(deputyContractAgreed));
+
+    // These 3 fields are NOT safeParsed on backend (you use urlArray directly),
+    // so send them as repeated string fields (not JSON).
+    (formData.digitalWardrobeBlackTie || []).forEach((u) => fd.append("digitalWardrobeBlackTie", u));
+    (formData.digitalWardrobeFormal || []).forEach((u) => fd.append("digitalWardrobeFormal", u));
+    (formData.digitalWardrobeSmartCasual || []).forEach((u) => fd.append("digitalWardrobeSmartCasual", u));
+    (formData.digitalWardrobeSessionAllBlack || []).forEach((u) => fd.append("digitalWardrobeSessionAllBlack", u));
+    (formData.additionalImages || []).forEach((u) => fd.append("additionalImages", u));
+
+    // If you still have Files in state, append them so multer can see them:
+    if (formData.profilePicture instanceof File) fd.append("profilePicture", formData.profilePicture);
+    if (formData.coverHeroImage instanceof File) fd.append("coverHeroImage", formData.coverHeroImage);
+
+    // MP3 files if present in your { file, title } objects
+    (formData.coverMp3s || []).forEach((m) => {
+      if (m?.file instanceof File) fd.append("coverMp3s", m.file);
+    });
+    (formData.originalMp3s || []).forEach((m) => {
+      if (m?.file instanceof File) fd.append("originalMp3s", m.file);
+    });
+
+    const res = await axios.post(
+      `${backendUrl}/api/musician/moderation/register-deputy`,
+      fd,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          // DO NOT set Content-Type manually with FormData (axios/browser will add boundary)
+        },
       }
-    };
+    );
+
+    if (res.data?.success) {
+      toast(<CustomToast type="success" message="Registration submitted!" />);
+    } else {
+      toast(<CustomToast type="error" message={res.data?.message || "Failed to submit"} />);
+    }
+  } catch (err) {
+    console.error(err);
+    const msg =
+      err?.response?.data?.error ||
+      err?.response?.data?.message ||
+      "Failed to submit";
+    toast(<CustomToast type="error" message={msg} />);
+  } finally {
+    setSubmissionInProgress(false);
+  }
+};
   /* --------------------------------- helpers -------------------------------- */
   const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
   const location = useLocation();
