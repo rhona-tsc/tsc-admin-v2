@@ -55,7 +55,15 @@ setShowSubmittingPopup(true);
     appendJSON("bank_account", formData.bank_account);
     appendJSON("academic_credentials", formData.academic_credentials);
     appendJSON("agreementCheckboxes", agreementCheckboxes);
+appendJSON(
+  "coverMp3s",
+  (formData.coverMp3s || []).map(({ title, url }) => ({ title: title || "", url: url || "" }))
+);
 
+appendJSON(
+  "originalMp3s",
+  (formData.originalMp3s || []).map(({ title, url }) => ({ title: title || "", url: url || "" }))
+);
     appendJSON("vocalMics", formData.vocalMics);
     appendJSON("inEarMonitoring", formData.inEarMonitoring);
     appendJSON("instrumentMics", formData.instrumentMics);
