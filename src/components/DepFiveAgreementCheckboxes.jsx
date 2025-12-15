@@ -1,4 +1,7 @@
-const DepFiveAgreementCheckboxes = ({ formData = {}, setFormData = () => {} }) => {
+import React from "react";
+
+
+export const DepFiveAgreementCheckboxes = ({ formData = {}, setFormData = () => {} }) => {
   const agreementCheckboxes = formData.agreementCheckboxes?.[0] || {
     termsAndConditions: false,
     privacyPolicy: false,
@@ -52,3 +55,5 @@ const DepFiveAgreementCheckboxes = ({ formData = {}, setFormData = () => {} }) =
     </div>
   );
 };
+
+export default DepFiveAgreementCheckboxes;
