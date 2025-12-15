@@ -81,6 +81,7 @@ const DepFiveOtherLighting = ({ formData = {}, setFormData = () => {} }) => {
     </div>
 
     <button
+    type="button"
       onClick={() => removeItem("otherLighting", index)}
       className="text-red-500 text-left col-span-3"
     >
@@ -89,11 +90,9 @@ const DepFiveOtherLighting = ({ formData = {}, setFormData = () => {} }) => {
   </div>
 ))}
           <button
+          type="button"
             onClick={() =>
-              addItem("otherLighting", {
-                quantity: "",
-                wattage: "",
-              })
+              addItem("otherLighting", { name: "", quantity: "", wattage: "" })
             }
             className="mt-2 text-sm text-blue-600 underline"
           >

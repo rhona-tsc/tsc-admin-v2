@@ -60,6 +60,7 @@ const DepFiveDiscoBall = ({ formData = {}, setFormData = () => {} }) => {
   />
 </div>
               <button
+              type="button"
                 onClick={() => removeItem("discoBall", index)}
                 className="text-red-500 text-left col-span-1"
               >
@@ -68,6 +69,7 @@ const DepFiveDiscoBall = ({ formData = {}, setFormData = () => {} }) => {
             </div>
           ))}
           <button
+          type="button"
             onClick={() =>
               addItem("discoBall", {
                 quantity: "",

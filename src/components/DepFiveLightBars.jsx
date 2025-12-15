@@ -69,6 +69,7 @@ const DepFiveLightBars = ({ formData = {}, setFormData = () => {} }) => {
   />
 </div>
               <button
+              type="button"
                 onClick={() => removeItem("lightBars", index)}
                 className="text-red-500 text-left col-span-1"
               >
@@ -77,6 +78,7 @@ const DepFiveLightBars = ({ formData = {}, setFormData = () => {} }) => {
             </div>
           ))}
           <button
+          type="button"
             onClick={() =>
               addItem("lightBars", {
                 quantity: "",

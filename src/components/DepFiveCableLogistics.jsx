@@ -69,7 +69,9 @@ const DepFiveCableLogistics = ({ formData = {}, setFormData = () => {} }) => {
                 </select>
               </div>
               <button
+              type="button"
                 onClick={() => removeItem("cableLogistics", index)}
+                
                 className="text-red-500 text-left col-span-2"
               >
                 Remove
@@ -77,6 +79,7 @@ const DepFiveCableLogistics = ({ formData = {}, setFormData = () => {} }) => {
             </div>
           ))}
           <button
+          type="button"
             onClick={() =>
               addItem("cableLogistics", {
                 length: "",
@@ -84,6 +87,7 @@ const DepFiveCableLogistics = ({ formData = {}, setFormData = () => {} }) => {
               })
             }
             className="mt-2 text-sm text-blue-600 underline"
+         
           >
             + Add Another XLR Length
           </button>

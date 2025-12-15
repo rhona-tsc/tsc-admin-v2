@@ -69,14 +69,16 @@ const DepFiveTbars = ({ formData = {}, setFormData = () => {} }) => {
   />
 </div>
               <button
+              type="button"
                 onClick={() => removeItem("tbars", index)}
-                className="text-red-500 text-left col-span-1"
+                className="text-red-500 text-left col-span-2"
               >
                 Remove
               </button>
             </div>
           ))}
           <button
+          type="button"
             onClick={() =>
               addItem("tbars", {
                 quantity: "",

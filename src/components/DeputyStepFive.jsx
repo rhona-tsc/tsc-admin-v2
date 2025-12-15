@@ -69,6 +69,7 @@ const DeputyStepFive = ({ formData, setFormData, userRole, stepProps }) => {
   const showExtensionCableLogistics = hasSoundEngineering;
   const showLighting = hasSoundEngineering;
   const showDJSections = hasDJDecks || hasDJMixingConsole;
+  
 
   console.log("🟧 [StepFive Visibility]", {
     showInstrumentSpecs,

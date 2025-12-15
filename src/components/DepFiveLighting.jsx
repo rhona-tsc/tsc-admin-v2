@@ -69,6 +69,7 @@ const DepFiveLighting = ({ formData = {}, setFormData = () => {} }) => {
   />
 </div>
               <button
+              type="button"
                 onClick={() => removeItem("uplights", index)}
                 className="text-red-500 text-left col-span-2"
               >
@@ -77,6 +78,7 @@ const DepFiveLighting = ({ formData = {}, setFormData = () => {} }) => {
             </div>
           ))}
           <button
+          type="button"
             onClick={() =>
               addItem("uplights", {
                 quantity: "",

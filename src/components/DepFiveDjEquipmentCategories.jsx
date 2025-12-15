@@ -4,6 +4,8 @@ const DepFiveDjEquipmentCategories = ({
   formData = {},
   setFormData = () => {},
 }) => {
+
+  
   const updateField = (field, value) => {
     const updatedArray = formData.djEquipmentCategories?.length
       ? [...formData.djEquipmentCategories]
@@ -24,13 +26,10 @@ const DepFiveDjEquipmentCategories = ({
     }));
   };
 
-  const djEquipment = formData.djEquipmentCategories?.[0] || {
-    hasDjTable: false,
-    hasDjBooth: false,
-    hasMixingConsole: false,
-    hasCdjs: false,
-    hasVinylDecks: false,
-  };
+const djEquipment = formData.djEquipmentCategories?.[0] || {};
+
+const hasCdjs = !!(djEquipment.hasCdjs ?? djEquipment.hasCDJs);
+const hasVinylDecks = !!(djEquipment.hasVinylDecks ?? djEquipment.hasVinylDeck ?? djEquipment.hasVinyl);
 
   return (
     <div className="flex flex-col gap-8 max-w-[100%]">
@@ -77,23 +76,21 @@ const DepFiveDjEquipmentCategories = ({
             <label className="block text-sm font-medium text-gray-700">
               CDJs
             </label>
-            <input
-              type="checkbox"
-              checked={djEquipment.hasCdjs}
-              onChange={(e) => updateField("hasCdjs", e.target.checked)}
-              className="p-2 border rounded"
-            />
+          <input
+  type="checkbox"
+  checked={hasCdjs}
+  onChange={(e) => updateField("hasCdjs", e.target.checked)}
+/>
           </div>
           <div className="flex items-center justify-between">
             <label className="block text-sm font-medium text-gray-700">
               Vinyl Decks
             </label>
-            <input
-              type="checkbox"
-              checked={djEquipment.hasVinylDecks}
-              onChange={(e) => updateField("hasVinylDecks", e.target.checked)}
-              className="p-2 border rounded"
-            />
+           <input
+  type="checkbox"
+  checked={hasVinylDecks}
+  onChange={(e) => updateField("hasVinylDecks", e.target.checked)}
+/>
           </div>
         </div>
       </div>
