@@ -98,7 +98,7 @@ appendJSON(
     appendJSON("djEquipmentCategories", formData.djEquipmentCategories);
     appendJSON("djGearRequired", formData.djGearRequired);
     appendJSON("instrumentSpecs", formData.instrumentSpecs);
-
+appendJSON("additionalEquipment", formData.additionalEquipment);
     appendJSON("vocals", formData.vocals);
 
     // simple string fields
