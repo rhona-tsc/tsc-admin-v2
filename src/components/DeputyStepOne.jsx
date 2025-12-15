@@ -50,13 +50,15 @@ const asUrlArray = (v) => {
 
 const asVideoLinksArray = (v) => {
   const arr = asArray(v);
-  // normalize to [{title,url}]
-  return arr
-    .map((x) => ({
-      title: (x?.title || "").trim(),
-      url: (x?.url || "").trim(),
-    }))
-    .filter((x) => x.url);
+  return arr.map((x) => {
+    if (typeof x === "string") {
+      return { title: "", url: x.trim() };
+    }
+    return {
+      title: String(x?.title || "").trim(),
+      url: String(x?.url || "").trim(),
+    };
+  });
 };
 
 const asMp3Array = (v) => {
