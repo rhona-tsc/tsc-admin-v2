@@ -196,15 +196,17 @@ const handleDeputyClick = (e, path) => {
   return (
     <div className="w-[18%] min-h-screen border-r-2">
       <div className="flex flex-col gap-4 pt-6 pl-[20%] text-[15px] rounded-md">
-     {/* Deputy CTA -> opens tech issue modal */}
-<button
-  type="button"
-  onClick={(e) => handleDeputyClick(e, deputyCtaPath)}
-  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
->
-  <img className="w-5 h-5" src={assets.deputy_icon} alt="" />
-  <p className="hidden md:block text-white">{deputyCtaLabel}</p>
-</button>
+ {/* Deputy CTA */}
+        <NavLink
+          className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+          to={deputyCtaPath}
+          state={{ userRole, userFirstName }}
+        >
+          <img className="w-5 h-5" src={assets.deputy_icon} alt="" />
+          <p className="hidden md:block text-white">{deputyCtaLabel}</p>
+        </NavLink>
+
+
 
         <button
           onClick={handleSubmitActClick}

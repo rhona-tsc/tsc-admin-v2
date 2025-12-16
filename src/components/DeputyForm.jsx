@@ -871,10 +871,10 @@ localStorage.removeItem("deputyAutosave");
     try {
       if (!deputyId) return;
       const res = await axios.post(
-        `${backendUrl}/api/approve-deputy`,
-        { id: deputyId },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+  `${backendUrl}/api/musician/approve-deputy`,
+  { id: deputyId },
+  { headers: { Authorization: `Bearer ${token}` } }
+);
       if (res.data?.success) {
         toast(<CustomToast type="success" message={res.data.message || "Deputy approved"} />);
         navigate("/moderate-deputies");
