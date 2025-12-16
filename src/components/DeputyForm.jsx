@@ -476,6 +476,12 @@ if (coverUrl) fd.append("coverHeroImage", coverUrl);        // matches mongoose 
       },
     ],
     signature: [],
+    bank_account: {
+  sort_code: "",
+  account_number: "",
+  account_name: "",
+  account_type: "",
+},
     djing: {
       has_mixing_console: false,
       has_dj_table: false,
