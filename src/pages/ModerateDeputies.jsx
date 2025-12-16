@@ -49,7 +49,10 @@ const ModerateDeputies = ({ token }) => {
   const handleApproval = async (id, action) => {
     const endpoint = action === "approve" ? "approve-deputy" : "reject-deputy";
     try {
-      const res = await axios.post(`${backendUrl}/api/${endpoint}`, { id }, { headers: { token } });
+const res = await axios.post(
+  `${backendUrl}/api/musician/${endpoint}`,
+  { id },
+{ headers: { Authorization: `Bearer ${token}` } });
       toast(<CustomToast type="success" message={res.data.message || `Deputy ${action}d`} />);
       fetchQueue();
     } catch (err) {
