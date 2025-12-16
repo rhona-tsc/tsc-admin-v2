@@ -71,7 +71,7 @@ const DepFiveInstrumentSpecs = ({ formData = {}, setFormData = () => {} }) => {
               wattage: "",
             })
           }
-          className="mt-2 text-sm text-blue-600 underline"
+          className="mt-2 text-sm text-blue-600 text-left underline"
         >
           + Add an instrument
         </button>
