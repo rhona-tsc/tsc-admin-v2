@@ -1,165 +1,71 @@
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { backendUrl } from "../App";
 import { toast } from "react-toastify";
 import { assets } from "../assets/assets";
 import CustomToast from "../components/CustomToast";
-
-
-const isObjectId = (v) => /^[0-9a-fA-F]{24}$/.test(String(v || ""));
-
-// --- helpers to resolve current user id ---
-const getStoredUserId = () =>
-  sessionStorage.getItem("userId") || localStorage.getItem("userId") || null;
-
-const decodeUserIdFromToken = (tok) => {
-  try {
-    if (!tok || !tok.includes(".")) return null;
-    const payloadPart = tok.split(".")[1];
-    const json = JSON.parse(atob(payloadPart.replace(/-/g, "+").replace(/_/g, "/")));
-
-    // Prefer real ids; ignore non-OID values like "agent"
-    const candidates = [json?.id, json?._id, json?.userId, json?.musicianId, json?.sub];
-    const found = candidates.find((v) => isObjectId(v));
-    return found || null;
-  } catch {
-    return null;
-  }
-};
 
 const List = ({ token }) => {
   const navigate = useNavigate();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // who is the current user?
-  const currentUserId = useMemo(
-    () => getStoredUserId() || decodeUserIdFromToken(token),
-    [token]
-  );
-
-    useEffect(() => {
-    console.log("👤 resolved currentUserId:", currentUserId);
-  }, [currentUserId]);
-
-    const buildHeaders = () => ({
+  const buildHeaders = () => ({
     headers: {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(token ? { token } : {}),
     },
-    // We do NOT use cookies for auth; sending credentials triggers strict CORS requirements.
-    // Leave credentials off so the browser doesn't require Access-Control-Allow-Credentials.
     withCredentials: false,
-});
-
-const fetchList = async () => {
-  const controller = new AbortController();
-  try {
-    setLoading(true);
-
-const baseParams = {
-    // NOTE: don't pass `status` until the backend/DB status values are normalized.
-    // The legacy enum value "Approved, changes pending" contains a comma, which breaks CSV-style query parsing.
-    // status: "approved,pending,draft,live,approved_changes_pending",
-
-    // API-allowed projection
-    fields: "_id,name,tscName,images,coverImage,createdAt,updatedAt,status,amendment,createdBy",
-    sort: "-createdAt",
-    limit: 100,
-    legacy: "include", // show legacy (unowned) during transition
-  };
-
-     // --- 1) Try server-scoped first
-    const scopedParams = {
-      ...baseParams,
-      mine: true,
-      ...(isObjectId(currentUserId) ? { authorId: currentUserId } : {}),
-    };
-
-    const scopedResp = await axios.get(
-      `${backendUrl}/api/musician/act-v2/list`,
-      { params: scopedParams, signal: controller.signal, ...buildHeaders() }
-    );
-
-    const scopedOK = scopedResp?.data?.success === true;
-    const scopedRows = scopedOK && Array.isArray(scopedResp?.data?.acts) ? scopedResp.data.acts : [];
-    const scopedVisible = scopedRows.filter(a => a?.status !== "trashed");
-
-    
-    
-  console.log("📥 scopedResp:", {
-    success: scopedResp?.data?.success,
-    count: Array.isArray(scopedResp?.data?.acts) ? scopedResp.data.acts.length : null,
-    message: scopedResp?.data?.message,
   });
 
-// If the server returns rows for `mine=true`, trust server scoping and render them.
-// Client-side filtering here can hide everything if `createdBy` is not included in the allowed projection.
-if (scopedOK) {
-  if (scopedVisible.length > 0) {
-    setList(scopedVisible);
-    return;
-  }
-  // If the server scoped list is empty, fall back to unscoped during backfill
-  setList([]);
-}
+  const fetchList = async () => {
+    const controller = new AbortController();
+    try {
+      setLoading(true);
 
-  // Only return acts if they actually belong to this user
-  if (filteredScoped.length > 0) {
-    setList(filteredScoped);
-    return;
-  }
+      const params = {
+        // NOTE: don't pass `status` until backend/DB status values are normalized.
+        // The legacy enum value "Approved, changes pending" contains a comma, which breaks CSV-style query parsing.
+        // status: "approved,pending,draft,live,approved_changes_pending",
 
-  // If none match, force empty list and continue to fallback
-  setList([]);
-}
+        fields:
+          "_id,name,tscName,images,coverImage,createdAt,updatedAt,status,amendment,createdBy",
+        sort: "-createdAt",
+        limit: 200,
+        legacy: "include",
+      };
 
-console.warn("ℹ️ Scoped query returned 0 rows. Falling back to unscoped for visibility during backfill…");
-    // --- 2) Fallback: unscoped (no mine/authorId)
-    const unscopedResp = await axios.get(
-      `${backendUrl}/api/musician/act-v2/list`,
-      { params: baseParams, signal: controller.signal, ...buildHeaders() }
-    );
+      const resp = await axios.get(`${backendUrl}/api/musician/act-v2/list`, {
+        params,
+        signal: controller.signal,
+        ...buildHeaders(),
+      });
 
-    const unscopedOK = unscopedResp?.data?.success === true;
-    const rows = unscopedOK && Array.isArray(unscopedResp?.data?.acts) ? unscopedResp.data.acts : [];
-    const notTrashed = rows.filter(a => a?.status !== "trashed");
+      const ok = resp?.data?.success === true;
+      const rows = ok && Array.isArray(resp?.data?.acts) ? resp.data.acts : [];
+      const visible = rows.filter((a) => a?.status !== "trashed");
 
-      console.log("📥 unscopedResp:", {
-    success: unscopedResp?.data?.success,
-    count: Array.isArray(unscopedResp?.data?.acts) ? unscopedResp.data.acts.length : null,
-    message: unscopedResp?.data?.message,
-  });
+      setList(visible);
 
-
-    let filteredFallback = notTrashed;
-    if (isObjectId(currentUserId)) {
-        filteredFallback = notTrashed.filter((a) => {
-      const createdById = a?.createdBy?._id || a?.createdBy;
-      return createdById && String(createdById) === String(currentUserId);
-    });
-    
+      console.log("📥 act-v2/list:", {
+        success: resp?.data?.success,
+        count: rows.length,
+        visibleCount: visible.length,
+        message: resp?.data?.message,
+      });
+    } catch (error) {
+      console.error("❌ Failed to fetch act list:", {
+        message: error?.message,
+        status: error?.response?.status,
+        data: error?.response?.data,
+      });
+      toast(<CustomToast type="error" message="No acts to load" />);
+      setList([]);
+    } finally {
+      setLoading(false);
     }
-
-    // Only show acts the user owns when we can identify the user; otherwise show visible rows
-    setList(filteredFallback);
-
-    if (!notTrashed.length) {
-      console.warn("❔ Unscoped fallback also returned 0. Check API auth + ownership backfill.");
-    } else {
-console.info(`✅ Showing ${filteredFallback.length} acts via unscoped fallback.`);    }
-   } catch (error) {
-    console.error("❌ Failed to fetch act list:", {
-      message: error?.message,
-      status: error?.response?.status,
-      data: error?.response?.data,
-    });
-    toast(<CustomToast type="error" message="No acts to load" />);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const removeAct = async (id) => {
     console.log("🧹 Move to trash ID:", id);
@@ -192,15 +98,12 @@ console.info(`✅ Showing ${filteredFallback.length} acts via unscoped fallback.
         />
       );
     }
-          if (!currentUserId) {
-        console.warn("⚠️ No currentUserId could be resolved from storage/JWT. The server will still try to scope by req.user; ensure your auth middleware sets req.user.");
-      }
   };
 
   useEffect(() => {
     fetchList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUserId]); // refetch if auth context changes
+  }, [token]);
 
   const getActStatusLabel = (act) => {
     if (!act?.status) return "Unknown";
@@ -229,11 +132,10 @@ console.info(`✅ Showing ${filteredFallback.length} acts via unscoped fallback.
     }
   };
 
-
-
   return (
     <>
       <p className="mb-2">All Acts List</p>
+
       <div className="flex flex-col gap-2">
         {/* ------- List Table Title ---------- */}
         <div className="hidden md:grid grid-cols-[1fr_3fr_1fr_1fr_1fr] items-center py-1 px-2 border bg-gray-100 text-sm">
@@ -289,6 +191,7 @@ console.info(`✅ Showing ${filteredFallback.length} acts via unscoped fallback.
                     }
                   />
                 </div>
+
                 <div className="flex flex-col">
                   <span>{item.name}</span>
                   <span
@@ -307,6 +210,7 @@ console.info(`✅ Showing ${filteredFallback.length} acts via unscoped fallback.
                     {getActStatusLabel(item)}
                   </span>
                 </div>
+
                 <p className="text-center">100</p>
                 <p className="text-center">10</p>
 
