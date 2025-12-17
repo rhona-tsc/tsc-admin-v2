@@ -94,11 +94,16 @@ const baseParams = {
     message: scopedResp?.data?.message,
   });
 
+// If the server returns rows for `mine=true`, trust server scoping and render them.
+// Client-side filtering here can hide everything if `createdBy` is not included in the allowed projection.
 if (scopedOK) {
-const filteredScoped = scopedVisible.filter((a) => {
-  const createdById = a?.createdBy?._id || a?.createdBy;
-  return createdById && String(createdById) === String(currentUserId);
-});
+  if (scopedVisible.length > 0) {
+    setList(scopedVisible);
+    return;
+  }
+  // If the server scoped list is empty, fall back to unscoped during backfill
+  setList([]);
+}
 
   // Only return acts if they actually belong to this user
   if (filteredScoped.length > 0) {
@@ -110,8 +115,7 @@ const filteredScoped = scopedVisible.filter((a) => {
   setList([]);
 }
 
-    console.warn("ℹ️ Scoped query returned 0. Falling back to unscoped for visibility during backfill…");
-
+console.warn("ℹ️ Scoped query returned 0 rows. Falling back to unscoped for visibility during backfill…");
     // --- 2) Fallback: unscoped (no mine/authorId)
     const unscopedResp = await axios.get(
       `${backendUrl}/api/musician/act-v2/list`,
@@ -127,7 +131,7 @@ const filteredScoped = scopedVisible.filter((a) => {
     count: Array.isArray(unscopedResp?.data?.acts) ? unscopedResp.data.acts.length : null,
     message: unscopedResp?.data?.message,
   });
-  
+
 
     let filteredFallback = notTrashed;
     if (isObjectId(currentUserId)) {
@@ -144,8 +148,7 @@ const filteredScoped = scopedVisible.filter((a) => {
     if (!notTrashed.length) {
       console.warn("❔ Unscoped fallback also returned 0. Check API auth + ownership backfill.");
     } else {
-      console.info(`✅ Showing ${notTrashed.length} acts via unscoped fallback.`);
-    }
+console.info(`✅ Showing ${filteredFallback.length} acts via unscoped fallback.`);    }
    } catch (error) {
     console.error("❌ Failed to fetch act list:", {
       message: error?.message,
