@@ -11,6 +11,124 @@ const preview = (str, n = 300) =>
   (str || "").replace(/\s+/g, " ").slice(0, n) +
   ((str || "").length > n ? " …" : "");
 
+// Convert JS-like arrays/objects with single-quoted strings into JSON-safe text.
+// Heuristics: treats apostrophes inside words (e.g. Sittin', O'Connor) as part of the string.
+const toJsonSafeText = (input) => {
+  let src = String(input || "");
+
+  // Remove leading/trailing whitespace
+  src = src.trim();
+
+  // If user pasted multiple objects without wrapping [], wrap them.
+  // e.g. `{...},\n{...}` -> `[{...},\n{...}]`
+  if (src && !/^\s*\[/.test(src)) {
+    src = `[${src}]`;
+  }
+
+  // Strip trailing semicolons
+  src = src.replace(/;\s*$/, "");
+
+  // 1) Normalize unicode quotes/spaces first
+  src = src
+    .replace(/[\u2018\u2019\u2032]/g, "'")
+    .replace(/[\u201C\u201D\u2033]/g, '"')
+    .replace(/\u00A0/g, " ");
+
+  // 2) Convert single-quoted strings to double-quoted strings (with simple apostrophe heuristics)
+  let out = "";
+  let inSingle = false;
+  let inDouble = false;
+
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+
+    // Inside double-quoted string: keep as-is (respect escapes)
+    if (inDouble) {
+      out += ch;
+      if (ch === "\\" && i + 1 < src.length) {
+        out += src[i + 1];
+        i++;
+        continue;
+      }
+      if (ch === '"') inDouble = false;
+      continue;
+    }
+
+    // Inside single-quoted string: emit JSON-safe content
+    if (inSingle) {
+      if (ch === "\\" && i + 1 < src.length) {
+        // Preserve escapes; also allow \' to become a literal apostrophe
+        const nxt = src[i + 1];
+        if (nxt === "'") {
+          out += "'";
+          i++;
+          continue;
+        }
+        out += "\\" + nxt;
+        i++;
+        continue;
+      }
+
+      if (ch === "'") {
+        const prev = src[i - 1] || "";
+        const next = src[i + 1] || "";
+        const isWordApostrophe = /[0-9A-Za-z]/.test(prev) && /[0-9A-Za-z]/.test(next);
+        if (isWordApostrophe) {
+          out += "'";
+          continue;
+        }
+        // end single-quoted string
+        inSingle = false;
+        out += '"';
+        continue;
+      }
+
+      if (ch === '"') {
+        out += "\\\"";
+        continue;
+      }
+
+      if (ch === "\n") {
+        out += "\\n";
+        continue;
+      }
+
+      if (ch === "\r") {
+        continue;
+      }
+
+      out += ch;
+      continue;
+    }
+
+    // Not in any string
+    if (ch === '"') {
+      inDouble = true;
+      out += ch;
+      continue;
+    }
+
+    if (ch === "'") {
+      inSingle = true;
+      out += '"';
+      continue;
+    }
+
+    out += ch;
+  }
+
+  // If we ended while still in a single-quoted string, close it to avoid hard parse failures.
+  if (inSingle) out += '"';
+
+  // 3) Quote unquoted keys: { title: "x" } -> { "title": "x" }
+  out = out.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
+
+  // 4) Remove trailing commas before } or ]
+  out = out.replace(/,\s*([}\]])/g, "$1");
+
+  return out;
+};
+
 // key helpers
 const makeKey = (s) =>
   `${(s?.title || "").trim().toLowerCase()}|${(s?.artist || "")
@@ -55,27 +173,8 @@ const DeputySongModeration = ({
       log("Strict JSON.parse failed:", e.message);
     }
 
-    // 2) normalize quotes/spaces
-    let normalized = text
-      .replace(/[\u2018\u2019\u2032]/g, "'")
-      .replace(/[\u201C\u201D\u2033]/g, '"')
-      .replace(/\u00A0/g, " ");
-
-    log("after unicode normalize preview:", preview(normalized));
-
-    const looksJson =
-      /"\s*[a-zA-Z0-9_]+\s*":/.test(normalized) ||
-      /"\s*title\s*":/.test(normalized);
-
-    if (!looksJson && !/"/.test(normalized) && /'/.test(normalized)) {
-      normalized = normalized.replace(/'/g, '"');
-      log("applied ' → \" substitution (JS-like input)");
-    } else {
-      log("skipped global ' → \" substitution");
-    }
-
-    normalized = normalized.replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":');
-    normalized = normalized.replace(/,\s*([}\]])/g, "$1");
+    // 2) normalize/convert JS-like input (single quotes, unquoted keys, missing array brackets)
+    const normalized = toJsonSafeText(text);
 
     log("final normalized preview:", preview(normalized));
 
