@@ -58,14 +58,17 @@ const fetchList = async () => {
   try {
     setLoading(true);
 
-    const baseParams = {
-status: "approved,pending,draft,approved_changes_pending",
-      // API-allowed projection
-      fields: "_id,name,tscName,images,coverImage,createdAt,updatedAt,status,amendment",
-      sort: "-createdAt",
-      limit: 100,
-      legacy: "include", // show legacy (unowned) during transition
-    };
+const baseParams = {
+    // NOTE: don't pass `status` until the backend/DB status values are normalized.
+    // The legacy enum value "Approved, changes pending" contains a comma, which breaks CSV-style query parsing.
+    // status: "approved,pending,draft,live,approved_changes_pending",
+
+    // API-allowed projection
+    fields: "_id,name,tscName,images,coverImage,createdAt,updatedAt,status,amendment,createdBy",
+    sort: "-createdAt",
+    limit: 100,
+    legacy: "include", // show legacy (unowned) during transition
+  };
 
      // --- 1) Try server-scoped first
     const scopedParams = {
@@ -83,10 +86,19 @@ status: "approved,pending,draft,approved_changes_pending",
     const scopedRows = scopedOK && Array.isArray(scopedResp?.data?.acts) ? scopedResp.data.acts : [];
     const scopedVisible = scopedRows.filter(a => a?.status !== "trashed");
 
+    
+    
+  console.log("📥 scopedResp:", {
+    success: scopedResp?.data?.success,
+    count: Array.isArray(scopedResp?.data?.acts) ? scopedResp.data.acts.length : null,
+    message: scopedResp?.data?.message,
+  });
+
 if (scopedOK) {
-  const filteredScoped = scopedVisible.filter(
-    (a) => a?.createdBy?.toString?.() === currentUserId?.toString?.()
-  );
+const filteredScoped = scopedVisible.filter((a) => {
+  const createdById = a?.createdBy?._id || a?.createdBy;
+  return createdById && String(createdById) === String(currentUserId);
+});
 
   // Only return acts if they actually belong to this user
   if (filteredScoped.length > 0) {
@@ -110,12 +122,20 @@ if (scopedOK) {
     const rows = unscopedOK && Array.isArray(unscopedResp?.data?.acts) ? unscopedResp.data.acts : [];
     const notTrashed = rows.filter(a => a?.status !== "trashed");
 
+      console.log("📥 unscopedResp:", {
+    success: unscopedResp?.data?.success,
+    count: Array.isArray(unscopedResp?.data?.acts) ? unscopedResp.data.acts.length : null,
+    message: unscopedResp?.data?.message,
+  });
+  
+
     let filteredFallback = notTrashed;
     if (isObjectId(currentUserId)) {
-      filteredFallback = notTrashed.filter((a) => {
-        const createdById = a?.createdBy?._id || a?.createdBy;
-        return createdById && String(createdById) === String(currentUserId);
-      });
+        filteredFallback = notTrashed.filter((a) => {
+      const createdById = a?.createdBy?._id || a?.createdBy;
+      return createdById && String(createdById) === String(currentUserId);
+    });
+    
     }
 
     // Only show acts the user owns when we can identify the user; otherwise show visible rows

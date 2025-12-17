@@ -22,13 +22,7 @@ const steps = [
   "Reviews & Submit",
 ];
 
-const AddAct2StepperForm = ({
-  initialData = null,
-  mode = "add",
-  userEmail,
-  userRole,
-  isModeration = false,
-}) => {
+const AddAct2StepperForm = ({  initialData = null, mode = "add", userEmail, userRole, isModeration = false })  => {
   const hs = null;
   console.log("🔍 AddAct2StepperForm userEmail:", userEmail);
   console.log("🔍 AddAct2StepperForm userRole:", userRole);
@@ -37,7 +31,7 @@ const location = useLocation();
 const codeFromState = location.state?.actInviteCode;
 const codeFromStorage = localStorage.getItem("actInviteCode");
 const actInviteCode = codeFromState || codeFromStorage || "";
-
+const token = localStorage.getItem("token") || sessionStorage.getItem("token");
 // naive validation (backend validation comes later)
 const hasValidCode = Boolean(actInviteCode);
 
@@ -92,7 +86,7 @@ const [hydratedFromInitial, setHydratedFromInitial] = useState(false);
   const [tscBio, setTscBio] = useState("");
   const [usesGenericRiskAssessment, setUsesGenericRiskAssessment] =
     useState(false);
-  const [extras, setExtras] = useState("");
+  const [extras, setExtras] = useState({});
   const [changedFields, setChangedFields] = useState({});
   const isAgent = userEmail
     ?.toLowerCase()
@@ -109,6 +103,9 @@ const [hydratedFromInitial, setHydratedFromInitial] = useState(false);
   const [initializedFromData, setInitializedFromData] = useState(false);
   const isEditMode = Boolean(id);
   const modeToUse = mode || (isEditMode ? "edit" : "add");
+  const authHeaders = token
+    ? { Authorization: `Bearer ${token}`, token }
+    : {};
 
   const sanitizeMediaArray = (media) => {
     return (media || [])
@@ -289,7 +286,9 @@ const normalizeLineup = (lineup) => ({
       if (!id) return; // Only run for edit mode
       if (initialData) return; // If parent already provided data, don't refetch
       try {
-        const res = await axios.get(`${backendUrl}/api/musician/acts/get/${id}`);
+        const res = await axios.get(`${backendUrl}/api/musician/acts/get/${id}`, {
+          headers: authHeaders,
+        });
         const data = res.data;
 
         console.log("🎯 Full data from DB:", data);
@@ -502,13 +501,15 @@ const sanitizeLineups = (lineups) => {
       console.log("📤 Payload being sent:", payload);
       console.log("📝 Saving draft using method:", method);
 
-      const res = await axios[method](url, payload);
+      const res = await axios[method](url, payload, { headers: authHeaders });
       console.log("📬 Server responded with:", res.data);
 
-      if (!existingDraftId && res.data._id) {
-        console.log("🆕 New draft created:", res.data._id);
-        setActId(res.data._id);
-        localStorage.setItem("currentDraftActId", res.data._id);
+      const newId = res?.data?._id || res?.data?.id;
+
+      if (!existingDraftId && newId) {
+        console.log("🆕 New draft created:", newId);
+        setActId(newId);
+        localStorage.setItem("currentDraftActId", newId);
       } else {
         console.log("♻️ Reused existing draft _id:", existingDraftId);
       }
@@ -698,9 +699,17 @@ console.log("[DeputiesInput] genres flowing down:", { actGenres: genre });
       });
   
       if (resolvedId) {
-        await axios.put(`${backendUrl}/api/musician/act-v2/update/${resolvedId}`, payload);
+        await axios.put(
+          `${backendUrl}/api/musician/act-v2/update/${resolvedId}`,
+          payload,
+          { headers: authHeaders }
+        );
       } else {
-        await axios.post(`${backendUrl}/api/musician/act-v2/create`, payload);
+        await axios.post(
+          `${backendUrl}/api/musician/act-v2/create`,
+          payload,
+          { headers: authHeaders }
+        );
       }
   
       toast.success("Act submitted for review", { autoClose: 2000 });

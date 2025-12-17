@@ -10,7 +10,7 @@ const Add = () => {
 
   return (
     <div className="p-4">
-      <AddAct2StepperForm userEmail={userEmail} token={token} userRole={userRole} />
+      <AddAct2StepperForm token={token} userEmail={userEmail}  userRole={userRole} />
     </div>
   );
 };
