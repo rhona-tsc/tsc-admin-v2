@@ -16,8 +16,12 @@ const DeputiesInput = ({
   actGenres = [],
   isVocalSlot: isVocalSlotProp,
 }) => {
- const apiBase = (import.meta.env.VITE_ADMIN_API_BASE || "").replace(/\/$/, "");
-const publicSiteBase =
+const apiBase =
+  (import.meta.env.VITE_ADMIN_API_BASE ||
+   import.meta.env.VITE_BACKEND_URL ||
+   "").replace(/\/$/, "");
+   
+   const publicSiteBase =
   import.meta.env.VITE_PUBLIC_SITE_URL || "http://localhost:5174";
 
   // ---------- Utilities ----------
