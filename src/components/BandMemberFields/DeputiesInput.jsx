@@ -333,9 +333,9 @@ const publicSiteBase =
     setLastPayload(payload);
 
     // Primary endpoint (singular)
-    const primaryUrl = `${apiBase}/api/musician/suggest`;
+    const primaryUrl = `${apiBase}/musician/suggest`;
     // Fallback endpoint (plural) if 404
-    const fallbackUrl = `${apiBase}/api/musicians/suggest`;
+    const fallbackUrl = `${apiBase}/musicians/suggest`;
 
     dlog("POST (primary):", primaryUrl, payload);
     setLastEndpointUsed(primaryUrl);
