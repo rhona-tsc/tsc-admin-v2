@@ -16,9 +16,9 @@ const DeputiesInput = ({
   actGenres = [],
   isVocalSlot: isVocalSlotProp,
 }) => {
-  const backendUrl = import.meta.env.VITE_BACKEND_URL || "";
-  const apiBase = backendUrl ? backendUrl.replace(/\/$/, "") : "";
-  const publicSiteBase = import.meta.env.VITE_PUBLIC_SITE_URL || "http://localhost:5174";
+ const apiBase = (import.meta.env.VITE_ADMIN_API_BASE || "").replace(/\/$/, "");
+const publicSiteBase =
+  import.meta.env.VITE_PUBLIC_SITE_URL || "http://localhost:5174";
 
   // ---------- Utilities ----------
   // postcode -> county lookups (built once)
