@@ -13,8 +13,8 @@ const getDeputyId = (d) =>
 // Suggested = has a DB id AND is not a manual (clientKey) row
 const isSuggestedDeputy = (d) => Boolean(getDeputyId(d)) && !d?.clientKey;
 
-const getDeputyRowKey = (d, i) =>
-  getDeputyId(d) || String(d?.clientKey || `deputy-${i}`);
+const getDeputyRowKey = (deputy, i) =>
+  String(deputy?.id || deputy?._id || deputy?.tempId || `manual-${i}`);
 
 const makeClientKey = () => {
   try {
