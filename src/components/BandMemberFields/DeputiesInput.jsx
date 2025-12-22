@@ -7,6 +7,42 @@ import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 const DEBUG = true;
 const dlog = (...a) => DEBUG && console.log("%c[DeputiesInput]", "color:#0ea5e9", ...a);
 
+const getSuggestionImageUrl = (m) => {
+  const direct =
+    m?.profilePhoto ||
+    m?.profilePicture ||
+    m?.profile_picture ||
+    m?.profileImage ||
+    m?.profile_image;
+
+  const objUrl =
+    (m?.profilePicture &&
+      typeof m.profilePicture === "object" &&
+      (m.profilePicture.url || m.profilePicture.secure_url)) ||
+    (m?.profilePhoto &&
+      typeof m.profilePhoto === "object" &&
+      (m.profilePhoto.url || m.profilePhoto.secure_url));
+
+  const additional0 = Array.isArray(m?.additionalImages)
+    ? m.additionalImages[0]
+    : "";
+
+  return String(direct || objUrl || additional0 || "").trim();
+};
+
+const hasEmailOnFile = (m) => Boolean(String(m?.email || "").trim());
+const hasPhoneOnFile = (m) =>
+  Boolean(String(m?.phone || m?.phoneNumber || m?.phone_number || "").trim());
+
+const getMemberSelfId = (member) =>
+  String(
+    member?.musicianId ||
+      member?.musician_id ||
+      member?.id ||
+      member?._id ||
+      ""
+  ).trim();
+
 const DeputiesInput = ({
   member,
   index,
@@ -205,11 +241,18 @@ const apiBase =
     return essentials;
   }, [member?.additionalRoles]);
 
-  // Exclude already-added deputy IDs
-  const excludeIds = useMemo(
-    () => (member?.deputies || []).map((d) => d.id || d._id).filter(Boolean),
-    [member?.deputies]
-  );
+  // Exclude already-added deputy IDs and self
+  const excludeIds = useMemo(() => {
+    const deputyIds = (member?.deputies || [])
+      .map((d) => d.id || d._id)
+      .filter(Boolean);
+
+    const selfId = getMemberSelfId(member);
+    const all = selfId ? [...deputyIds, selfId] : deputyIds;
+
+    // unique
+    return Array.from(new Set(all));
+  }, [member?.deputies, member]);
 
   // Build a stable hash/key for the repertoire (ignore casing/whitespace)
   const actRepKey = useMemo(() => {
@@ -242,13 +285,12 @@ const apiBase =
         apiBase,
         instrument: instrument.toLowerCase(),
         roles: essentialRoles.slice().sort(),
-        excludeIds: excludeIds.slice().sort(),
         isVocalSlot: !!isVocalSlot,
         actRepKey,
         memberCounty,
         memberDistrict,
       }),
-    [apiBase, instrument, essentialRoles, excludeIds, isVocalSlot, actRepKey, memberCounty, memberDistrict]
+    [apiBase, instrument, essentialRoles, isVocalSlot, actRepKey, memberCounty, memberDistrict]
   );
 
   // ---------- Local state ----------
@@ -392,6 +434,18 @@ const apiBase =
     dlog(`Suggestions (${list.length})`);
     setSuggestions(list);
 
+    if (DEBUG) {
+  const photoFields = list.map((m) => ({
+    _id: m?._id,
+    name: `${m?.firstName || ""} ${m?.lastName || ""}`.trim(),
+    profilePhoto: m?.profilePhoto,
+    profilePicture: m?.profilePicture,
+    additionalImages0: Array.isArray(m?.additionalImages) ? m.additionalImages[0] : undefined,
+    resolvedImageUrl: getSuggestionImageUrl(m),
+  }));
+  console.log("[DeputiesInput] suggestion image fields:", photoFields);
+}
+
     // --- Keep this optional debug non-fatal ---
     try {
       if (list[0]) {
@@ -483,21 +537,22 @@ return () => {
   // ---------- Handlers ----------
   const addDeputy = (m) => {
     dlog("➕ addDeputy:", m?._id, m?.firstName, m?.lastName);
+
+    // Never store contact details for suggested deputies.
     const updated = [
       ...(member.deputies || []),
       {
         id: m._id,
         firstName: m.firstName || "",
         lastName: m.lastName || "",
-        email: m.email || "",
-        phoneNumber: m.phone || "",
-        image:
-          m.profilePicture ||
-          (Array.isArray(m.additionalImages) ? m.additionalImages[0] : "") ||
-          "",
+        image: getSuggestionImageUrl(m) || "",
       },
     ];
+
     updateBandMember(index, memberIndex, "deputies", updated);
+
+    // Remove from carousel immediately (prevents confusion and avoids a refetch)
+    setSuggestions((prev) => (Array.isArray(prev) ? prev.filter((x) => x?._id !== m?._id) : []));
   };
 
   const handleDeputyChange = (deputyIndex, field, value) => {
@@ -543,48 +598,55 @@ return () => {
         {loading ? (
           <div className="text-sm text-gray-500">Loading suggestions…</div>
         ) : suggestions.length ? (
-          suggestions.map((m) => (
-            <div key={m._id} className="text-center min-w-[84px]">
-              {m.profilePicture ||
-              (Array.isArray(m.additionalImages) && m.additionalImages[0]) ? (
-                <img
-                  src={m.profilePicture || m.additionalImages[0]}
-                  alt={`${m.firstName || ""} ${m.lastName || ""}`}
-                  className="w-16 h-16 rounded-full object-cover border"
-                  onClick={() => addDeputy(m)}
-                  style={{ cursor: "pointer" }}
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => addDeputy(m)}
-                  className="w-16 h-16 rounded-full border bg-gray-100 text-gray-600 text-sm flex items-center justify-center"
-                >
-                  {initials(m) || "Add"}
-                </button>
-              )}
+          suggestions
+            .filter((m) => !excludeIds.includes(m?._id))
+            .map((m) => (
+              <div key={m._id} className="text-center min-w-[84px]">
+                {getSuggestionImageUrl(m) ? (
+                  <img
+                    src={getSuggestionImageUrl(m)}
+                    alt={`${m.firstName || ""} ${m.lastName || ""}`}
+                    className="w-16 h-16 rounded-full object-cover border"
+                    onClick={() => addDeputy(m)}
+                    style={{ cursor: "pointer" }}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => addDeputy(m)}
+                    className="w-16 h-16 rounded-full border bg-gray-100 text-gray-600 text-sm flex items-center justify-center"
+                  >
+                    {initials(m) || "Add"}
+                  </button>
+                )}
 
-              <p className="text-xs font-semibold mt-1 line-clamp-1">
-                {m.firstName} {(m.lastName || "").charAt(0)}
-              </p>
-              <a
-                href={`${publicSiteBase}/musician/${m._id}`}
-                className="text-[10px] text-blue-600 underline block mt-1"
-                target="_blank"
-                rel="noreferrer"
-              >
-                view profile
-              </a>
-              {"matchPct" in m ? (
-                <p
-                  className="text-xs mt-0.5 text-gray-600"
-                  title="Based on repertoire overlap (fuzzy titles), instrument/vocal fit, essential roles, and location."
-                >
-                  {m.matchPct}% match
+                <p className="text-xs font-semibold mt-1 line-clamp-1">
+                  {m.firstName} {(m.lastName || "").charAt(0)}
                 </p>
-              ) : null}
-            </div>
-          ))
+                <a
+                  href={`${publicSiteBase}/musician/${m._id}`}
+                  className="text-[10px] text-blue-600 underline block mt-1"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  view profile
+                </a>
+                {hasEmailOnFile(m) ? (
+                  <p className="text-[10px] text-gray-500 mt-1">--email on file--</p>
+                ) : null}
+                {hasPhoneOnFile(m) ? (
+                  <p className="text-[10px] text-gray-500">--phone number on file--</p>
+                ) : null}
+                {"matchPct" in m ? (
+                  <p
+                    className="text-xs mt-0.5 text-gray-600"
+                    title="Based on repertoire overlap (fuzzy titles), instrument/vocal fit, essential roles, and location."
+                  >
+                    {m.matchPct}% match
+                  </p>
+                ) : null}
+              </div>
+            ))
         ) : (
           <div className="text-sm text-gray-500">No suggestions yet.</div>
         )}
