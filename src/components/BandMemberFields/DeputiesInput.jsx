@@ -7,27 +7,51 @@ import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 const DEBUG = true;
 const dlog = (...a) => DEBUG && console.log("%c[DeputiesInput]", "color:#0ea5e9", ...a);
 
-const getSuggestionImageUrl = (m) => {
-  const direct =
-    m?.profilePhoto ||
-    m?.profilePicture ||
-    m?.profile_picture ||
-    m?.profileImage ||
-    m?.profile_image;
+const getDeputyId = (d) =>
+  String(d?.id || d?._id || d?.musicianId || d?.musician_id || "").trim();
 
-  const objUrl =
-    (m?.profilePicture &&
-      typeof m.profilePicture === "object" &&
-      (m.profilePicture.url || m.profilePicture.secure_url)) ||
-    (m?.profilePhoto &&
-      typeof m.profilePhoto === "object" &&
-      (m.profilePhoto.url || m.profilePhoto.secure_url));
+const isSuggestedDeputy = (d) => Boolean(getDeputyId(d));
+
+const makeClientKey = () => {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return `ck_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+  }
+};
+
+const pickUrl = (v) => {
+  if (!v) return "";
+  if (typeof v === "string") return v.trim();
+
+  if (typeof v === "object") {
+    const u =
+      v.secure_url ||
+      v.secureUrl ||
+      v.url ||
+      v.path ||
+      v.location ||
+      v.src;
+    return typeof u === "string" ? u.trim() : "";
+  }
+
+  return "";
+};
+
+const getSuggestionImageUrl = (m) => {
+  // handle string or object formats across old/new records
+  const direct =
+    pickUrl(m?.profilePhoto) ||
+    pickUrl(m?.profilePicture) ||
+    pickUrl(m?.profile_picture) ||
+    pickUrl(m?.profileImage) ||
+    pickUrl(m?.profile_image);
 
   const additional0 = Array.isArray(m?.additionalImages)
-    ? m.additionalImages[0]
+    ? pickUrl(m.additionalImages[0])
     : "";
 
-  return String(direct || objUrl || additional0 || "").trim();
+  return (direct || additional0 || "").trim();
 };
 
 const hasEmailOnFile = (m) => Boolean(String(m?.email || "").trim());
@@ -243,16 +267,15 @@ const apiBase =
 
   // Exclude already-added deputy IDs and self
   const excludeIds = useMemo(() => {
-    const deputyIds = (member?.deputies || [])
-      .map((d) => d.id || d._id)
-      .filter(Boolean);
+  const deputyIds = (member?.deputies || [])
+    .map((d) => getDeputyId(d))
+    .filter(Boolean);
 
-    const selfId = getMemberSelfId(member);
-    const all = selfId ? [...deputyIds, selfId] : deputyIds;
+  const selfId = getMemberSelfId(member);
+  const all = selfId ? [...deputyIds, selfId] : deputyIds;
 
-    // unique
-    return Array.from(new Set(all));
-  }, [member?.deputies, member]);
+  return Array.from(new Set(all));
+}, [member?.deputies, member]);
 
   // Build a stable hash/key for the repertoire (ignore casing/whitespace)
   const actRepKey = useMemo(() => {
@@ -299,7 +322,7 @@ const apiBase =
   const [loadingPct, setLoadingPct] = useState(0);
   const [lastPayload, setLastPayload] = useState(null);
   const [lastEndpointUsed, setLastEndpointUsed] = useState("");
-
+const [imgErrorIds, setImgErrorIds] = useState(() => new Set());
   // Debounce timer + last key to avoid duplicate fetches
   const debounceRef = useRef(null);
   const lastKeyRef = useRef("");
@@ -536,27 +559,34 @@ return () => {
   ]);
 
   // ---------- Handlers ----------
-  const addDeputy = (m) => {
-    dlog("➕ addDeputy:", m?._id, m?.firstName, m?.lastName);
+const addDeputy = (m) => {
+  dlog("➕ addDeputy:", m?._id, m?.firstName, m?.lastName);
 
-    const updated = [
-      ...(member.deputies || []),
-      {
-        id: m._id,
-        firstName: m.firstName || "",
-        lastName: m.lastName || "",
-        // Store contact details for messaging, but UI will always mask these for suggested deputies.
-        email: String(m?.email || "").trim(),
-        phoneNumber: String(m?.phone || m?.phoneNumber || m?.phone_number || "").trim(),
-        image: getSuggestionImageUrl(m) || "",
-      },
-    ];
+  const newId = String(m?._id || "").trim();
 
-    updateBandMember(index, memberIndex, "deputies", updated);
+  const updated = [
+    ...(member.deputies || []),
+    {
+      id: newId,     // ✅ keep id
+      _id: newId,    // ✅ also keep _id so reloads still detect "suggested"
+      firstName: m.firstName || "",
+      lastName: m.lastName || "",
 
-    // Remove from carousel immediately (prevents confusion and avoids a refetch)
-    setSuggestions((prev) => (Array.isArray(prev) ? prev.filter((x) => x?._id !== m?._id) : []));
-  };
+      // ✅ store for messaging, but UI will NEVER display these for suggested deputies
+      email: String(m?.email || "").trim(),
+      phoneNumber: String(m?.phone || m?.phoneNumber || m?.phone_number || "").trim(),
+
+      image: getSuggestionImageUrl(m) || "",
+    },
+  ];
+
+  updateBandMember(index, memberIndex, "deputies", updated);
+
+  // Remove from carousel immediately
+  setSuggestions((prev) =>
+    Array.isArray(prev) ? prev.filter((x) => String(x?._id || "") !== newId) : []
+  );
+};
 
   const handleDeputyChange = (deputyIndex, field, value) => {
     dlog("✏️ handleDeputyChange:", { deputyIndex, field, value });
@@ -616,23 +646,51 @@ return () => {
             .filter((m) => !excludeIds.includes(m?._id))
             .map((m) => (
               <div key={m._id} className="text-center min-w-[84px]">
-                {getSuggestionImageUrl(m) ? (
-                  <img
-                    src={getSuggestionImageUrl(m)}
-                    alt={`${m.firstName || ""} ${m.lastName || ""}`}
-                    className="w-16 h-16 rounded-full object-cover border"
-                    onClick={() => addDeputy(m)}
-                    style={{ cursor: "pointer" }}
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => addDeputy(m)}
-                    className="w-16 h-16 rounded-full border bg-gray-100 text-gray-600 text-sm flex items-center justify-center"
-                  >
-                    {initials(m) || "Add"}
-                  </button>
-                )}
+               {(() => {
+  const url = getSuggestionImageUrl(m);
+  const id = String(m?._id || "").trim();
+  const broken = imgErrorIds.has(id);
+
+  if (DEBUG) {
+    // one-line per item, easy to scan
+    console.log("[DeputiesInput] pic check:", {
+      id,
+      name: `${m?.firstName || ""} ${m?.lastName || ""}`.trim(),
+      profilePhoto: m?.profilePhoto,
+      profilePicture: m?.profilePicture,
+      additional0: Array.isArray(m?.additionalImages) ? m.additionalImages[0] : undefined,
+      resolved: url,
+    });
+  }
+
+  return url && !broken ? (
+    <button
+      type="button"
+      onClick={() => addDeputy(m)}
+      className="w-16 h-16 rounded-full overflow-hidden border flex items-center justify-center mx-auto"
+      title="Add deputy"
+    >
+      <img
+        src={url}
+        alt={`${m.firstName || ""} ${m.lastName || ""}`}
+        className="w-full h-full object-cover"
+        onError={() => {
+          console.warn("[DeputiesInput] image failed to load:", { id, url });
+          setImgErrorIds((prev) => new Set(prev).add(id));
+        }}
+      />
+    </button>
+  ) : (
+    <button
+      type="button"
+      onClick={() => addDeputy(m)}
+      className="w-16 h-16 rounded-full border bg-gray-100 text-gray-600 text-sm flex items-center justify-center mx-auto"
+      title="Add deputy"
+    >
+      {initials(m) || "Add"}
+    </button>
+  );
+})()}
 
                 <p className="text-xs font-semibold mt-1 line-clamp-1">
                   {m.firstName} {(m.lastName || "").charAt(0)}
@@ -671,6 +729,7 @@ return () => {
       <DragDropContext onDragEnd={handleDragEnd}>
         <Droppable droppableId="deputy-list" direction="vertical">
           {(provided) => (
+            
             <div
               {...provided.droppableProps}
               ref={provided.innerRef}
@@ -722,78 +781,61 @@ return () => {
 
                       {/* Last Name */}
                       <div className="col-span-2">
-                        {!deputy.id ? (
-                          <input
-                            type="text"
-                            value={deputy.lastName || ""}
-                            onChange={(e) =>
-                              handleDeputyChange(
-                                deputyIndex,
-                                "lastName",
-                                e.target.value
-                              )
-                            }
-                            className="w-full px-3 py-2 border"
-                          />
-                        ) : (
-                          <input
-                            type="text"
-                            value={(deputy.lastName || "").charAt(0)}
-                            readOnly
-                            className="w-full px-3 py-2 border text-gray-600 bg-gray-100"
-                          />
-                        )}
+                        
+                      {!isSuggestedDeputy(deputy) ? (
+  <input
+    type="text"
+    value={deputy.lastName || ""}
+    onChange={(e) => handleDeputyChange(deputyIndex, "lastName", e.target.value)}
+    className="w-full px-3 py-2 border"
+  />
+) : (
+  <input
+    type="text"
+    value={String(deputy.lastName || "").charAt(0)}
+    readOnly
+    className="w-full px-3 py-2 border text-gray-600 bg-gray-100"
+  />
+)}
                       </div>
 
                       {/* Email */}
                       <div className="col-span-2">
-                        {!deputy.id ? (
-                          <input
-                            type="email"
-                            value={deputy.email || ""}
-                            onChange={(e) =>
-                              handleDeputyChange(
-                                deputyIndex,
-                                "email",
-                                e.target.value
-                              )
-                            }
-                            className="w-full px-3 py-2 border text-gray-600"
-                          />
-                        ) : (
-                          <input
-                            type="email"
-                            value="--email on file--"
-                            disabled
-                            className="w-full px-3 py-2 border text-gray-600 bg-gray-100"
-                          />
-                        )}
+                      {!isSuggestedDeputy(deputy) ? (
+  <input
+    type="email"
+    value={deputy.email || ""}
+    onChange={(e) => handleDeputyChange(deputyIndex, "email", e.target.value)}
+    className="w-full px-3 py-2 border text-gray-600"
+  />
+) : (
+  <input
+    type="email"
+    value="--email on file--"
+    disabled
+    className="w-full px-3 py-2 border text-gray-600 bg-gray-100"
+  />
+)}
                       </div>
 
                       {/* Phone Number */}
                       <div className="col-span-2">
                         <div className="flex gap-2">
-                          {!deputy.id ? (
-                            <input
-                              type="tel"
-                              value={deputy.phoneNumber || ""}
-                              onChange={(e) =>
-                                handleDeputyChange(
-                                  deputyIndex,
-                                  "phoneNumber",
-                                  e.target.value
-                                )
-                              }
-                              className="w-full px-3 py-2 border text-gray-600"
-                            />
-                          ) : (
-                                                     <input
-                            type="tel"
-                            value="--phone number on file--"
-                            disabled
-                            className="w-full px-3 py-2 border text-gray-600 bg-gray-100"
-                          />
-                          )}
+                       {!isSuggestedDeputy(deputy) ? (
+  <input
+    type="tel"
+    value={deputy.phoneNumber || ""}
+    onChange={(e) => handleDeputyChange(deputyIndex, "phoneNumber", e.target.value)}
+    className="w-full px-3 py-2 border text-gray-600"
+  />
+) : (
+  <input
+    type="tel"
+    value="--phone number on file--"
+    disabled
+    className="w-full px-3 py-2 border text-gray-600 bg-gray-100"
+  />
+)}
                           <button
                             type="button"
                             onClick={() => removeDeputy(deputyIndex)}
@@ -823,14 +865,16 @@ return () => {
           type="button"
           className="mt-2 px-4 py-2 bg-[#ff6667] text-white rounded shadow hover:bg-black transition"
           onClick={() =>
-            addDeputy({
-              _id: undefined,
-              firstName: "",
-              lastName: "",
-              email: "",
-              phoneNumber: "",
-            })
-          }
+  addDeputy({
+    _id: undefined,
+    id: undefined,
+    clientKey: makeClientKey(), // ✅ marks as manual entry created this session
+    firstName: "",
+    lastName: "",
+    email: "",
+    phoneNumber: "",
+  })
+}
         >
           ➕ Add Deputy
         </button>
