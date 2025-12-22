@@ -296,6 +296,7 @@ const apiBase =
   // ---------- Local state ----------
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingPct, setLoadingPct] = useState(0);
   const [lastPayload, setLastPayload] = useState(null);
   const [lastEndpointUsed, setLastEndpointUsed] = useState("");
 
@@ -305,32 +306,32 @@ const apiBase =
 
   // ---------- Effects ----------
 
-   useEffect(() => {
-    const deps = Array.isArray(member?.deputies) ? member.deputies : [];
-    if (!deps.length) return;
+  useEffect(() => {
+    if (!loading) {
+      // snap to 100 briefly then reset
+      if (loadingPct !== 0) {
+        setLoadingPct(100);
+        const t = setTimeout(() => setLoadingPct(0), 250);
+        return () => clearTimeout(t);
+      }
+      return;
+    }
 
-    const hasContactFields = deps.some((d) => {
-      const hasId = Boolean(d?.id || d?._id);
-      if (!hasId) return false;
-      return Boolean(d?.email || d?.phoneNumber || d?.phone || d?.phone_number);
-    });
+    // Fake progress: ramp quickly to 90%, then creep.
+    setLoadingPct(10);
+    const startedAt = Date.now();
+    const t = setInterval(() => {
+      setLoadingPct((p) => {
+        const elapsed = Date.now() - startedAt;
+        const cap = elapsed < 1200 ? 90 : 95;
+        const next = p + (elapsed < 1200 ? 7 : 2);
+        return next >= cap ? cap : next;
+      });
+    }, 180);
 
-    if (!hasContactFields) return;
-
-    const sanitized = deps.map((d) => {
-      const hasId = Boolean(d?.id || d?._id);
-      if (!hasId) return d;
-      const out = { ...d };
-      delete out.email;
-      delete out.phone;
-      delete out.phoneNumber;
-      delete out.phone_number;
-      return out;
-    });
-
-    dlog("🧼 Sanitising deputy contact fields (email/phone) from saved act data");
-    updateBandMember(index, memberIndex, "deputies", sanitized);
-  }, [member?.deputies, index, memberIndex, updateBandMember]);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   useEffect(() => {
     const hasFilters = instrument || essentialRoles.length;
@@ -538,13 +539,15 @@ return () => {
   const addDeputy = (m) => {
     dlog("➕ addDeputy:", m?._id, m?.firstName, m?.lastName);
 
-    // Never store contact details for suggested deputies.
     const updated = [
       ...(member.deputies || []),
       {
         id: m._id,
         firstName: m.firstName || "",
         lastName: m.lastName || "",
+        // Store contact details for messaging, but UI will always mask these for suggested deputies.
+        email: String(m?.email || "").trim(),
+        phoneNumber: String(m?.phone || m?.phoneNumber || m?.phone_number || "").trim(),
         image: getSuggestionImageUrl(m) || "",
       },
     ];
@@ -596,7 +599,18 @@ return () => {
 
       <div className="flex gap-4 mb-4 overflow-x-auto">
         {loading ? (
-          <div className="text-sm text-gray-500">Loading suggestions…</div>
+          <div className="text-sm text-gray-500 min-w-[220px]">
+            <div className="flex items-center justify-between">
+              <span>Loading suggestions…</span>
+              <span className="tabular-nums">{loadingPct}%</span>
+            </div>
+            <div className="mt-2 h-2 w-full rounded bg-gray-200 overflow-hidden">
+              <div
+                className="h-2 rounded bg-gray-500 transition-all"
+                style={{ width: `${Math.max(0, Math.min(100, loadingPct))}%` }}
+              />
+            </div>
+          </div>
         ) : suggestions.length ? (
           suggestions
             .filter((m) => !excludeIds.includes(m?._id))
@@ -631,12 +645,12 @@ return () => {
                 >
                   view profile
                 </a>
-                {hasEmailOnFile(m) ? (
-                  <p className="text-[10px] text-gray-500 mt-1">--email on file--</p>
-                ) : null}
-                {hasPhoneOnFile(m) ? (
-                  <p className="text-[10px] text-gray-500">--phone number on file--</p>
-                ) : null}
+                <p className="text-[10px] text-gray-500 mt-1">
+                  {hasEmailOnFile(m) ? "--email on file--" : "--email not provided--"}
+                </p>
+                <p className="text-[10px] text-gray-500">
+                  {hasPhoneOnFile(m) ? "--phone number on file--" : "--phone not provided--"}
+                </p>
                 {"matchPct" in m ? (
                   <p
                     className="text-xs mt-0.5 text-gray-600"
@@ -820,7 +834,7 @@ return () => {
               firstName: "",
               lastName: "",
               email: "",
-              phone: "",
+              phoneNumber: "",
             })
           }
         >
