@@ -10,7 +10,11 @@ const dlog = (...a) => DEBUG && console.log("%c[DeputiesInput]", "color:#0ea5e9"
 const getDeputyId = (d) =>
   String(d?.id || d?._id || d?.musicianId || d?.musician_id || "").trim();
 
-const isSuggestedDeputy = (d) => Boolean(getDeputyId(d));
+// Suggested = has a DB id AND is not a manual (clientKey) row
+const isSuggestedDeputy = (d) => Boolean(getDeputyId(d)) && !d?.clientKey;
+
+const getDeputyRowKey = (d, i) =>
+  getDeputyId(d) || String(d?.clientKey || `deputy-${i}`);
 
 const makeClientKey = () => {
   try {
@@ -266,7 +270,7 @@ const apiBase =
   }, [member?.additionalRoles]);
 
   // Exclude already-added deputy IDs and self
-  const excludeIds = useMemo(() => {
+const excludeIds = useMemo(() => {
   const deputyIds = (member?.deputies || [])
     .map((d) => getDeputyId(d))
     .filter(Boolean);
@@ -276,6 +280,21 @@ const apiBase =
 
   return Array.from(new Set(all));
 }, [member?.deputies, member]);
+
+const addManualDeputy = () => {
+  const updated = [
+    ...(member.deputies || []),
+    {
+      clientKey: makeClientKey(), // ✅ manual marker + stable key
+      firstName: "",
+      lastName: "",
+      email: "",
+      phoneNumber: "",
+    },
+  ];
+
+  updateBandMember(index, memberIndex, "deputies", updated);
+};
 
   // Build a stable hash/key for the repertoire (ignore casing/whitespace)
   const actRepKey = useMemo(() => {
@@ -560,31 +579,34 @@ return () => {
 
   // ---------- Handlers ----------
 const addDeputy = (m) => {
-  dlog("➕ addDeputy:", m?._id, m?.firstName, m?.lastName);
+  const newId = getDeputyId(m);
+  dlog("➕ addDeputy:", newId, m?.firstName, m?.lastName);
 
-  const newId = String(m?._id || "").trim();
+  if (!newId) {
+    console.warn("[DeputiesInput] addDeputy called without id/_id:", m);
+    return;
+  }
 
   const updated = [
     ...(member.deputies || []),
     {
-      id: newId,     // ✅ keep id
-      _id: newId,    // ✅ also keep _id so reloads still detect "suggested"
-      firstName: m.firstName || "",
-      lastName: m.lastName || "",
-
-      // ✅ store for messaging, but UI will NEVER display these for suggested deputies
+      id: newId,
+      _id: newId,
+      firstName: m?.firstName || "",
+      lastName: m?.lastName || "",
       email: String(m?.email || "").trim(),
       phoneNumber: String(m?.phone || m?.phoneNumber || m?.phone_number || "").trim(),
-
       image: getSuggestionImageUrl(m) || "",
     },
   ];
 
   updateBandMember(index, memberIndex, "deputies", updated);
 
-  // Remove from carousel immediately
+  // Remove from carousel immediately (handle _id OR id)
   setSuggestions((prev) =>
-    Array.isArray(prev) ? prev.filter((x) => String(x?._id || "") !== newId) : []
+    Array.isArray(prev)
+      ? prev.filter((x) => getDeputyId(x) !== newId)
+      : []
   );
 };
 
@@ -643,10 +665,12 @@ const addDeputy = (m) => {
           </div>
         ) : suggestions.length ? (
           suggestions
-            .filter((m) => !excludeIds.includes(m?._id))
-            .map((m) => (
-              <div key={m._id} className="text-center min-w-[84px]">
-               {(() => {
+            .filter((m) => !excludeIds.includes(getDeputyId(m)))
+            .map((m) => {
+              const mid = getDeputyId(m);
+              return (
+<div key={mid} className="text-center min-w-[84px]">
+                 {(() => {
   const url = getSuggestionImageUrl(m);
   const id = String(m?._id || "").trim();
   const broken = imgErrorIds.has(id);
@@ -662,6 +686,8 @@ const addDeputy = (m) => {
       resolved: url,
     });
   }
+
+  
 
   return url && !broken ? (
     <button
@@ -695,8 +721,8 @@ const addDeputy = (m) => {
                 <p className="text-xs font-semibold mt-1 line-clamp-1">
                   {m.firstName} {(m.lastName || "").charAt(0)}
                 </p>
-                <a
-                  href={`${publicSiteBase}/musician/${m._id}`}
+                 <a
+    href={`${publicSiteBase}/musician/${mid}`}
                   className="text-[10px] text-blue-600 underline block mt-1"
                   target="_blank"
                   rel="noreferrer"
@@ -712,7 +738,8 @@ const addDeputy = (m) => {
                   </p>
                 ) : null}
               </div>
-            ))
+            );
+            })
         ) : (
           <div className="text-sm text-gray-500">No suggestions yet.</div>
         )}
@@ -735,10 +762,15 @@ const addDeputy = (m) => {
               ref={provided.innerRef}
               className="flex flex-col gap-2"
             >
-              {(member.deputies || []).map((deputy, deputyIndex) => (
+             {(member.deputies || []).map((deputy, deputyIndex) => {
+  const rowKey = getDeputyRowKey(deputy, deputyIndex);
+
+  return (
                 <Draggable
-                  key={deputy.id || `deputy-${deputyIndex}`}
-                  draggableId={deputy.id || `deputy-${deputyIndex}`}
+                  
+
+key={rowKey}
+draggableId={rowKey}
                   index={deputyIndex}
                 >
                   {(drag) => (
@@ -853,7 +885,8 @@ const addDeputy = (m) => {
                     </div>
                   )}
                 </Draggable>
-              ))}
+  );
+              })}
               {provided.placeholder}
             </div>
           )}
@@ -864,17 +897,7 @@ const addDeputy = (m) => {
         <button
           type="button"
           className="mt-2 px-4 py-2 bg-[#ff6667] text-white rounded shadow hover:bg-black transition"
-          onClick={() =>
-  addDeputy({
-    _id: undefined,
-    id: undefined,
-    clientKey: makeClientKey(), // ✅ marks as manual entry created this session
-    firstName: "",
-    lastName: "",
-    email: "",
-    phoneNumber: "",
-  })
-}
+          onClick={addManualDeputy}
         >
           ➕ Add Deputy
         </button>
