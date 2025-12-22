@@ -4,6 +4,204 @@ import { postcodes as POSTCODE_DATA } from "../../assets/postcodes.js";
 import { assets } from "../../assets/assets";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 
+// -------------------------------
+// 1-at-a-time suggestion queue
+// - prioritise in-view sections
+// - after first completes, prefetch sequentially
+// -------------------------------
+const DeputySuggestQueue = (() => {
+  const cache = new Map(); // key -> { ts, list }
+  const tasks = new Map(); // key -> task
+  let activeKey = null;
+  let prefetchAfterFirst = false;
+
+  const TTL_MS = 10 * 60 * 1000;
+  const now = () => Date.now();
+
+  const getCached = (key) => {
+    const hit = cache.get(key);
+    if (!hit) return null;
+    if (now() - hit.ts > TTL_MS) {
+      cache.delete(key);
+      return null;
+    }
+    return hit.list;
+  };
+
+  const setCached = (key, list) => cache.set(key, { ts: now(), list });
+
+  const pickNextKey = () => {
+    const idle = Array.from(tasks.values()).filter((t) => t.status === "idle");
+
+    // Phase 1: only load something that is in view
+    const inView = idle
+      .filter((t) => t.inView)
+      .sort((a, b) => a.order - b.order);
+
+    if (inView[0]) return inView[0].key;
+
+    // Phase 2: once we’ve loaded at least one visible section,
+    // sequentially prefetch the rest (still only 1 at a time)
+    if (!prefetchAfterFirst) return null;
+
+    const nextByOrder = idle.sort((a, b) => a.order - b.order);
+    return nextByOrder[0]?.key || null;
+  };
+
+  const pump = async () => {
+    if (activeKey) return;
+
+    const nextKey = pickNextKey();
+    if (!nextKey) return;
+
+    const t = tasks.get(nextKey);
+    if (!t || t.status !== "idle") return;
+
+    activeKey = nextKey;
+    t.status = "loading";
+    t.error = null;
+
+    const controller = new AbortController();
+    t.controller = controller;
+
+    try {
+      const list = await t.run({ signal: controller.signal });
+
+      setCached(nextKey, Array.isArray(list) ? list : []);
+      t.status = "done";
+      t.controller = null;
+
+      // resolve waiters
+      const waiters = t.waiters.slice();
+      t.waiters.length = 0;
+      waiters.forEach((w) => w.resolve(getCached(nextKey) || []));
+
+      // once we’ve successfully loaded at least one in-view section,
+      // allow sequential prefetching
+      prefetchAfterFirst = true;
+    } catch (err) {
+      const aborted =
+        err?.name === "AbortError" ||
+        err?.code === "ERR_CANCELED" ||
+        err?.message === "canceled";
+
+      if (aborted) {
+        t.status = "idle";
+      } else {
+        t.status = "error";
+        t.error = err;
+      }
+
+      t.controller = null;
+
+      const waiters = t.waiters.slice();
+      t.waiters.length = 0;
+      waiters.forEach((w) => w.reject(err));
+    } finally {
+      activeKey = null;
+      // keep the chain going
+      Promise.resolve().then(pump);
+    }
+  };
+
+  const ensureTask = (key, { order, run }) => {
+    if (!tasks.has(key)) {
+      tasks.set(key, {
+        key,
+        order: typeof order === "number" ? order : 0,
+        run,
+        inView: false,
+        status: "idle",
+        controller: null,
+        waiters: [],
+        error: null,
+      });
+      return;
+    }
+
+    const t = tasks.get(key);
+    if (typeof order === "number") t.order = order;
+    if (run) t.run = run;
+  };
+
+  return {
+    getCached,
+
+    register(key, opts) {
+      if (!key) return;
+      ensureTask(key, opts);
+      pump();
+    },
+
+    unregister(key) {
+      const t = tasks.get(key);
+      if (!t) return;
+
+      if (activeKey === key && t.controller) {
+        try {
+          t.controller.abort();
+        } catch {}
+      }
+
+      tasks.delete(key);
+      pump();
+    },
+
+    setInView(key, inView) {
+      const t = tasks.get(key);
+      if (!t) return;
+      t.inView = !!inView;
+      pump();
+    },
+
+    request(key) {
+      if (!key) return Promise.resolve([]);
+
+      const cached = getCached(key);
+      if (cached) return Promise.resolve(cached);
+
+      const t = tasks.get(key);
+      if (!t) return Promise.reject(new Error("Suggest task not registered"));
+
+      if (t.status === "done") return Promise.resolve(getCached(key) || []);
+      if (t.status === "loading") {
+        return new Promise((resolve, reject) => t.waiters.push({ resolve, reject }));
+      }
+      if (t.status === "error") {
+        // allow retry
+        t.status = "idle";
+      }
+
+      const p = new Promise((resolve, reject) => t.waiters.push({ resolve, reject }));
+      pump();
+      return p;
+    },
+  };
+})();
+
+// -------------------------------
+// IntersectionObserver hook
+// -------------------------------
+const useInView = (ref, opts = {}) => {
+  const { root = null, rootMargin = "300px 0px", threshold = 0 } = opts;
+  const [inView, setInView] = React.useState(false);
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const obs = new IntersectionObserver(
+      ([entry]) => setInView(!!entry.isIntersecting),
+      { root, rootMargin, threshold }
+    );
+
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [ref, root, rootMargin, threshold]);
+
+  return inView;
+};
+
 const DEBUG = true;
 const dlog = (...a) => DEBUG && console.log("%c[DeputiesInput]", "color:#0ea5e9", ...a);
 
@@ -345,7 +543,8 @@ const [imgErrorIds, setImgErrorIds] = useState(() => new Set());
   // Debounce timer + last key to avoid duplicate fetches
   const debounceRef = useRef(null);
   const lastKeyRef = useRef("");
-
+const containerRef = useRef(null);
+const inView = useInView(containerRef, { rootMargin: "350px 0px", threshold: 0 });
   // ---------- Effects ----------
 
   useEffect(() => {
@@ -375,55 +574,41 @@ const [imgErrorIds, setImgErrorIds] = useState(() => new Set());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
-  useEffect(() => {
-    const hasFilters = instrument || essentialRoles.length;
-    dlog("effect fired. hasFilters?", hasFilters, {
-      instrument,
-      essentialRoles,
-      excludeIds,
-      isVocalSlot,
-      actRepertoireCount: Array.isArray(actRepertoire) ? actRepertoire.length : 0,
-    });
+useEffect(() => {
+  const hasFilters = instrument || essentialRoles.length;
 
-    if (!hasFilters) {
-      dlog("Skip fetch: No instrument or essentialRoles.");
-      setSuggestions([]);
-      return;
-    }
+  dlog("queue effect", { hasFilters, inView, instrument, essentialRoles });
 
-    if (lastKeyRef.current === queryKey) {
-      dlog("Skip fetch: queryKey unchanged.");
-      return;
-    }
-    lastKeyRef.current = queryKey;
+  if (!hasFilters) {
+    setSuggestions([]);
+    setLoading(false);
+    return;
+  }
 
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+  // IMPORTANT: give each section a stable “order”
+  // tweak if your “index/memberIndex” meanings differ
+  const order = (Number(index) || 0) * 1000 + (Number(memberIndex) || 0);
 
-    let cancelled = false;
-    const controller = new AbortController();
+  let cancelled = false;
 
-   debounceRef.current = setTimeout(async () => {
-  try {
-    setLoading(true);
-
-    // Choose origin postcode: prefer member, else optional actPostcode prop
+  const run = async ({ signal }) => {
+    // Choose origin postcode: prefer member
     const originPostcode = (memberPost && memberPost.trim()) || "";
     const originLoc = countyAndNeighboursFromPostcode(originPostcode);
 
-    // Build payload
     const payload = {
       instrument,
       isVocalSlot,
-      essentialRoles, // hard must-haves
+      essentialRoles,
       desiredRoles: [
         ...(Array.isArray(member?.additionalRoles)
           ? member.additionalRoles.map((r) => r?.role).filter(Boolean)
           : []),
         ...desiredRolesFromInstrument,
       ],
-      secondaryInstruments, // enforces Vocalist-Guitarist etc
+      secondaryInstruments,
       excludeIds,
-      actRepertoire, // still sending full repertoire
+      actRepertoire,
       actGenres,
       originLocation: {
         county: originLoc.county || memberCounty,
@@ -431,151 +616,96 @@ const [imgErrorIds, setImgErrorIds] = useState(() => new Set());
         district: originLoc.normDistrict || memberDistrict,
         neighbouringCounties: originLoc.neighbours || memberNeighbourCounties || [],
       },
-      // NEW: fuzzy song support – title-only canonical list
-      fuzzySongTitles, // e.g., ["the best", "valerie", ...]
+      fuzzySongTitles,
       fuzzySongMode: "title-only-loose-1token",
       debug: true,
     };
 
-    dlog("Act origin county/postcode:", {
-      memberCounty: originLoc.county || memberCounty,
-      memberPost: originPostcode,
-      memberDistrict: originLoc.normDistrict || memberDistrict,
-      neighbourCounties: originLoc.neighbours,
-    });
-    dlog("Act genres:", actGenres);
-    dlog("Member additional roles:", Array.isArray(member?.additionalRoles) ? member.additionalRoles : []);
-    dlog("🎶 Fuzzy titles preview:", fuzzyOverlapPreview.canonTitles.slice(0, 10));
-
     setLastPayload(payload);
 
-    // Primary endpoint (singular)
     const primaryUrl = `${apiBase}/musician/suggest`;
-    // Fallback endpoint (plural) if 404
     const fallbackUrl = `${apiBase}/musicians/suggest`;
 
-    dlog("POST (primary):", primaryUrl, payload);
     setLastEndpointUsed(primaryUrl);
+    dlog("QUEUE POST (primary):", primaryUrl, payload);
 
     let res;
     try {
-      res = await axios.post(primaryUrl, payload, { signal: controller.signal });
+      res = await axios.post(primaryUrl, payload, { signal });
     } catch (e) {
-      const status = e?.response?.status;
-      if (status === 404) {
-        dlog("Primary 404 — trying fallback:", fallbackUrl);
+      if (e?.response?.status === 404) {
         setLastEndpointUsed(fallbackUrl);
-        res = await axios.post(fallbackUrl, payload, { signal: controller.signal });
+        dlog("QUEUE primary 404 -> fallback:", fallbackUrl);
+        res = await axios.post(fallbackUrl, payload, { signal });
       } else {
         throw e;
       }
     }
 
-    if (cancelled) return;
-
     const list = Array.isArray(res?.data?.musicians) ? res.data.musicians : [];
-    dlog(`Suggestions (${list.length})`);
-    setSuggestions(list);
+    return list;
+  };
 
-    if (DEBUG) {
-  const photoFields = list.map((m) => ({
-    _id: m?._id,
-    name: `${m?.firstName || ""} ${m?.lastName || ""}`.trim(),
-    profilePhoto: m?.profilePhoto,
-    profilePicture: m?.profilePicture,
-    additionalImages0: Array.isArray(m?.additionalImages) ? m.additionalImages[0] : undefined,
-    resolvedImageUrl: getSuggestionImageUrl(m),
-  }));
-  console.log("[DeputiesInput] suggestion image fields:", photoFields);
-}
+  // register this job with the queue
+  DeputySuggestQueue.register(queryKey, { order, run });
+  DeputySuggestQueue.setInView(queryKey, inView);
 
-    // --- Keep this optional debug non-fatal ---
-    try {
-      if (list[0]) {
-        const first = list[0];
-        const depPost =
-          first?.address?.postcode || first?.address?.postCode || first?.postcode || "";
-        const depLoc = countyAndNeighboursFromPostcode(depPost);
-        const depCounty = depLoc.county;
-        const depDistrict = depLoc.normDistrict;
-        const isSameCounty = !!(depCounty && (depCounty === (originLoc.county || memberCounty)));
-        const isNeighbour = !!(depCounty && (originLoc.neighbours || []).includes(depCounty));
-
-        const depOtherSkills = Array.isArray(first?.other_skills) ? first.other_skills : [];
-        dlog("Deputy county/postcode:", { depCounty, depPost, depDistrict, isSameCounty, isNeighbour });
-        console.log("[DeputiesInput] Deputy other skills:", depOtherSkills);
-
-        const depVocalGenres = (() => {
-          const fromVocals =
-            Array.isArray(first?.vocals?.genres)
-              ? first.vocals.genres
-              : typeof first?.vocals?.genres === "string"
-                ? first.vocals.genres.split(",").map((s) => s.trim())
-                : [];
-          const fromTop =
-            Array.isArray(first?.genres)
-              ? first.genres
-              : typeof first?.genres === "string"
-                ? first.genres.split(",").map((s) => s.trim())
-                : [];
-          return (fromVocals.length ? fromVocals : fromTop).filter(Boolean);
-        })();
-
-        dlog("Genres (ACT vs DEPUTY vocals)", { actGenres, deputyVocalGenres: depVocalGenres });
-
-        if (first?._debug) {
-          console.log("🔎 match debug (first):", first._debug, first);
-        }
-
-        const sampleDeputyTitles = (first?.repertoire || [])
-          .map((s) => s?.title || "")
-          .slice(0, 50);
-        const matched = [];
-        for (const a of (actRepertoire || []).map((s) => s?.title || "")) {
-          for (const b of sampleDeputyTitles) {
-            if (titlesLooseMatch(a, b)) {
-              matched.push({ act: a, deputy: b });
-              break;
-            }
-          }
-        }
-        dlog("Sample matched songs (fuzzy title-only):", matched.slice(0, 15));
-      }
-    } catch (e) {
-      dlog("⚠️ Post-fetch debug failed (non-fatal):", e);
-    }
-  } catch (err) {
-    if (cancelled) return;
-    if (axios.isCancel?.(err)) return;
-    dlog("❌ Suggest fetch failed:", err?.response?.data || err);
-    setSuggestions([]);
-  } finally {
-    if (!cancelled) setLoading(false);
+  // hydrate instantly if already cached (from prefetch)
+  const cached = DeputySuggestQueue.getCached(queryKey);
+  if (cached && cached.length) {
+    setSuggestions(cached);
   }
-}, 350);
 
+  // if in view, show loading UI and request (queue will run 1-at-a-time)
+  if (inView) {
+    setLoading(true);
 
+    DeputySuggestQueue.request(queryKey)
+      .then((list) => {
+        if (cancelled) return;
+        setSuggestions(Array.isArray(list) ? list : []);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (axios.isCancel?.(err)) return;
+        dlog("❌ QUEUE request failed:", err?.response?.data || err);
+        setSuggestions([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+  } else {
+    // if not in view, don’t show spinner (it may prefetch quietly later)
+    setLoading(false);
+  }
 
-return () => {
-  cancelled = true;
-  controller.abort();
-  if (debounceRef.current) clearTimeout(debounceRef.current);
-};
+  return () => {
+    cancelled = true;
+    DeputySuggestQueue.unregister(queryKey);
+  };
 }, [
-    queryKey,
-    apiBase,
-    instrument,
-    essentialRoles,
-    excludeIds,
-    isVocalSlot,
-    actRepertoire,
-    actGenres,
-    memberCounty,
-    memberDistrict,
-    memberPost,
-    fuzzySongTitles,
-    fuzzyOverlapPreview,
-  ]);
+  queryKey,
+  inView,
+
+  // used inside run()
+  apiBase,
+  instrument,
+  isVocalSlot,
+  essentialRoles,
+  desiredRolesFromInstrument,
+  secondaryInstruments,
+  excludeIds,
+  actRepertoire,
+  actGenres,
+  member,
+  memberPost,
+  memberCounty,
+  memberDistrict,
+  memberNeighbourCounties,
+  fuzzySongTitles,
+  index,
+  memberIndex,
+]);
 
   // ---------- Handlers ----------
 const addDeputy = (m) => {
@@ -646,6 +776,7 @@ const addDeputy = (m) => {
 
   // ---------- UI ----------
   return (
+      <div ref={containerRef} className="w-full mt-4">
     <div className="w-full mt-4">
       <p className="font-semibold mb-2">Suitable Deputies for this Role</p>
 
@@ -902,6 +1033,7 @@ draggableId={rowKey}
           ➕ Add Deputy
         </button>
       )}
+    </div>
     </div>
   );
 };
