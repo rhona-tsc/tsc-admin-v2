@@ -462,7 +462,7 @@ return () => {
         email: m.email || "",
         phoneNumber: m.phone || "",
         image:
-          m.profilePicture ||
+          m.profilePhoto ||
           (Array.isArray(m.additionalImages) ? m.additionalImages[0] : "") ||
           "",
       },
@@ -515,10 +515,10 @@ return () => {
         ) : suggestions.length ? (
           suggestions.map((m) => (
             <div key={m._id} className="text-center min-w-[84px]">
-              {m.profilePicture ||
+              {m.profilePhoto ||
               (Array.isArray(m.additionalImages) && m.additionalImages[0]) ? (
                 <img
-                  src={m.profilePicture || m.additionalImages[0]}
+                  src={m.profilePhoto || m.additionalImages[0]}
                   alt={`${m.firstName || ""} ${m.lastName || ""}`}
                   className="w-16 h-16 rounded-full object-cover border"
                   onClick={() => addDeputy(m)}
