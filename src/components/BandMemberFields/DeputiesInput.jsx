@@ -4,7 +4,7 @@ import { postcodes as POSTCODE_DATA } from "../../assets/postcodes.js";
 import { assets } from "../../assets/assets";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 
-const DEBUG = true;
+const DEBUG = Boolean(import.meta?.env?.DEV) && import.meta.env.VITE_DEBUG_DEPUTIES !== "false";
 const dlog = (...a) => DEBUG && console.log("%c[DeputiesInput]", "color:#0ea5e9", ...a);
 
 const DeputiesInput = ({
@@ -23,6 +23,67 @@ const apiBase =
    
    const publicSiteBase =
   import.meta.env.VITE_PUBLIC_SITE_URL || "http://localhost:5174";
+
+  // ---------- Helpers ----------
+  const toUrl = (v) => {
+    if (!v) return "";
+    if (typeof v === "string") return v;
+    if (typeof v === "object") {
+      return (
+        v.secure_url ||
+        v.url ||
+        v.src ||
+        v.path ||
+        v.location ||
+        ""
+      );
+    }
+    return "";
+  };
+
+  const getAvatarUrl = (m) => {
+    if (!m) return "";
+
+    // common field names
+    const direct =
+      toUrl(m.profilePhoto) ||
+      toUrl(m.profile_photo) ||
+      toUrl(m.profileImage) ||
+      toUrl(m.profile_image) ||
+      toUrl(m.profile_picture) ||
+      toUrl(m.profilePicture) ||
+      toUrl(m.image) ||
+      toUrl(m.photo);
+
+    if (direct) return direct;
+
+    // sometimes images come as arrays/objects
+    const fromAdditional = Array.isArray(m.additionalImages)
+      ? toUrl(m.additionalImages[0])
+      : "";
+    if (fromAdditional) return fromAdditional;
+
+    const fromImagesArray = Array.isArray(m.images) ? toUrl(m.images[0]) : "";
+    if (fromImagesArray) return fromImagesArray;
+
+    const fromNested = toUrl(m.images?.profilePhoto) || toUrl(m.images?.profile_photo);
+    if (fromNested) return fromNested;
+
+    return "";
+  };
+
+  // tiny stable hash (djb2-ish) for arrays of strings
+  const hashStrings = (arr = []) => {
+    let h = 5381;
+    for (let i = 0; i < arr.length; i++) {
+      const s = String(arr[i] || "");
+      for (let j = 0; j < s.length; j++) {
+        h = ((h << 5) + h) ^ s.charCodeAt(j);
+      }
+    }
+    // make it shorter + stable
+    return (h >>> 0).toString(36);
+  };
 
   // ---------- Utilities ----------
   // postcode -> county lookups (built once)
@@ -211,21 +272,42 @@ const apiBase =
     [member?.deputies]
   );
 
-  // Build a stable hash/key for the repertoire (ignore casing/whitespace)
-  const actRepKey = useMemo(() => {
-    try {
-      const norm = (actRepertoire || []).map((s) => ({
-        t: (s?.title || "").trim().toLowerCase(),
-        // artist intentionally ignored for fuzzy path
-      }));
-      const key = JSON.stringify(norm);
-      dlog("actRepKey built; count:", norm.length);
-      return key;
-    } catch (e) {
-      dlog("actRepKey error:", e);
-      return "[]";
-    }
-  }, [actRepertoire]);
+  // Exclude the musician we are finding a deputy for (if we have an id on the slot)
+  const selfExcludeId = useMemo(() => {
+    return (
+      member?.musicianId ||
+      member?.musician_id ||
+      member?.userId ||
+      member?.user_id ||
+      member?.id ||
+      member?._id ||
+      member?.musician?._id ||
+      member?.musician?.id ||
+      ""
+    );
+  }, [
+    member?.musicianId,
+    member?.musician_id,
+    member?.userId,
+    member?.user_id,
+    member?.id,
+    member?._id,
+    member?.musician?._id,
+    member?.musician?.id,
+  ]);
+
+  // Final exclude list used for filtering + API (de-duped)
+  const excludeIdsMerged = useMemo(() => {
+    const set = new Set([...(excludeIds || []), ...(selfExcludeId ? [selfExcludeId] : [])]);
+    return Array.from(set).filter(Boolean);
+  }, [excludeIds, selfExcludeId]);
+
+  // Lightweight repertoire key (avoid serialising the full repertoire)
+  const repHash = useMemo(() => {
+    const h = hashStrings(fuzzySongTitles);
+    dlog("repHash built; count:", fuzzySongTitles.length, h);
+    return `${fuzzySongTitles.length}:${h}`;
+  }, [fuzzySongTitles]);
 
   // Member location (derive county via postcode)
   const memberPost = (member?.postCode || member?.postcode || member?.post_code || "").trim();
@@ -242,13 +324,12 @@ const apiBase =
         apiBase,
         instrument: instrument.toLowerCase(),
         roles: essentialRoles.slice().sort(),
-        excludeIds: excludeIds.slice().sort(),
         isVocalSlot: !!isVocalSlot,
-        actRepKey,
+        repHash,
         memberCounty,
         memberDistrict,
       }),
-    [apiBase, instrument, essentialRoles, excludeIds, isVocalSlot, actRepKey, memberCounty, memberDistrict]
+    [apiBase, instrument, essentialRoles, isVocalSlot, repHash, memberCounty, memberDistrict]
   );
 
   // ---------- Local state ----------
@@ -257,9 +338,24 @@ const apiBase =
   const [lastPayload, setLastPayload] = useState(null);
   const [lastEndpointUsed, setLastEndpointUsed] = useState("");
 
-  // Debounce timer + last key to avoid duplicate fetches
+  // Cache + debounce timer + last key to avoid duplicate fetches
+  const cacheRef = useRef(new Map()); // stores RAW suggestions keyed by queryKey
+  const rawSuggestionsRef = useRef([]); // last RAW suggestions list (unfiltered)
+  const excludeIdsRef = useRef([]); // latest exclude list without forcing refetch
   const debounceRef = useRef(null);
   const lastKeyRef = useRef("");
+
+  const filterByExclude = (list = []) => {
+    const ex = new Set(excludeIdsRef.current || []);
+    return (Array.isArray(list) ? list : []).filter((m) => !ex.has(m?._id));
+  };
+
+  // Keep latest exclude list in a ref so selecting a deputy doesn't trigger a new fetch.
+  useEffect(() => {
+    excludeIdsRef.current = excludeIdsMerged;
+    // Re-filter current raw list in-place (no network)
+    setSuggestions(filterByExclude(rawSuggestionsRef.current));
+  }, [excludeIdsMerged]);
 
   // ---------- Effects ----------
   useEffect(() => {
@@ -267,7 +363,7 @@ const apiBase =
     dlog("effect fired. hasFilters?", hasFilters, {
       instrument,
       essentialRoles,
-      excludeIds,
+      excludeIds: excludeIdsMerged,
       isVocalSlot,
       actRepertoireCount: Array.isArray(actRepertoire) ? actRepertoire.length : 0,
     });
@@ -284,170 +380,194 @@ const apiBase =
     }
     lastKeyRef.current = queryKey;
 
+    const cachedRaw = cacheRef.current.get(queryKey);
+    if (cachedRaw) {
+      dlog("✅ Using cached suggestions", { count: cachedRaw.length });
+      rawSuggestionsRef.current = cachedRaw;
+      setSuggestions(filterByExclude(cachedRaw));
+      setLoading(false);
+      return;
+    }
+
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     let cancelled = false;
     const controller = new AbortController();
 
-   debounceRef.current = setTimeout(async () => {
-  try {
-    setLoading(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        setLoading(true);
 
-    // Choose origin postcode: prefer member, else optional actPostcode prop
-    const originPostcode = (memberPost && memberPost.trim()) || "";
-    const originLoc = countyAndNeighboursFromPostcode(originPostcode);
+        // Choose origin postcode: prefer member, else optional actPostcode prop
+        const originPostcode = (memberPost && memberPost.trim()) || "";
+        const originLoc = countyAndNeighboursFromPostcode(originPostcode);
 
-    // Build payload
-    const payload = {
-      instrument,
-      isVocalSlot,
-      essentialRoles, // hard must-haves
-      desiredRoles: [
-        ...(Array.isArray(member?.additionalRoles)
-          ? member.additionalRoles.map((r) => r?.role).filter(Boolean)
-          : []),
-        ...desiredRolesFromInstrument,
-      ],
-      secondaryInstruments, // enforces Vocalist-Guitarist etc
-      excludeIds,
-      actRepertoire, // still sending full repertoire
-      actGenres,
-      originLocation: {
-        county: originLoc.county || memberCounty,
-        postcode: originPostcode,
-        district: originLoc.normDistrict || memberDistrict,
-        neighbouringCounties: originLoc.neighbours || memberNeighbourCounties || [],
-      },
-      // NEW: fuzzy song support – title-only canonical list
-      fuzzySongTitles, // e.g., ["the best", "valerie", ...]
-      fuzzySongMode: "title-only-loose-1token",
-      debug: true,
-    };
+        // Build payload
+        const payload = {
+          instrument,
+          isVocalSlot,
+          essentialRoles, // hard must-haves
+          desiredRoles: [
+            ...(Array.isArray(member?.additionalRoles)
+              ? member.additionalRoles.map((r) => r?.role).filter(Boolean)
+              : []),
+            ...desiredRolesFromInstrument,
+          ],
+          secondaryInstruments, // enforces Vocalist-Guitarist etc
+          excludeIds: excludeIdsRef.current,
+          actGenres,
+          originLocation: {
+            county: originLoc.county || memberCounty,
+            postcode: originPostcode,
+            district: originLoc.normDistrict || memberDistrict,
+            neighbouringCounties: originLoc.neighbours || memberNeighbourCounties || [],
+          },
+          // NEW: fuzzy song support – title-only canonical list
+          fuzzySongTitles, // e.g., ["the best", "valerie", ...]
+          fuzzySongMode: "title-only-loose-1token",
+          limit: 12,
+          fields: [
+            "_id",
+            "firstName",
+            "lastName",
+            "profilePhoto",
+            "profile_photo",
+            "profileImage",
+            "profile_image",
+            "additionalImages",
+            "images",
+            "matchPct",
+          ],
+          fuzzySongTitlesCount: fuzzySongTitles.length,
+          debug: true,
+        };
 
-    dlog("Act origin county/postcode:", {
-      memberCounty: originLoc.county || memberCounty,
-      memberPost: originPostcode,
-      memberDistrict: originLoc.normDistrict || memberDistrict,
-      neighbourCounties: originLoc.neighbours,
-    });
-    dlog("Act genres:", actGenres);
-    dlog("Member additional roles:", Array.isArray(member?.additionalRoles) ? member.additionalRoles : []);
-    dlog("🎶 Fuzzy titles preview:", fuzzyOverlapPreview.canonTitles.slice(0, 10));
+        dlog("Act origin county/postcode:", {
+          memberCounty: originLoc.county || memberCounty,
+          memberPost: originPostcode,
+          memberDistrict: originLoc.normDistrict || memberDistrict,
+          neighbourCounties: originLoc.neighbours,
+        });
+        dlog("Act genres:", actGenres);
+        dlog("Member additional roles:", Array.isArray(member?.additionalRoles) ? member.additionalRoles : []);
+        dlog("🎶 Fuzzy titles preview:", fuzzyOverlapPreview.canonTitles.slice(0, 10));
 
-    setLastPayload(payload);
+        setLastPayload(payload);
 
-    // Primary endpoint (singular)
-    const primaryUrl = `${apiBase}/musician/suggest`;
-    // Fallback endpoint (plural) if 404
-    const fallbackUrl = `${apiBase}/musicians/suggest`;
+        // Primary endpoint (singular)
+        const primaryUrl = `${apiBase}/musician/suggest`;
+        // Fallback endpoint (plural) if 404
+        const fallbackUrl = `${apiBase}/musicians/suggest`;
 
-    dlog("POST (primary):", primaryUrl, payload);
-    setLastEndpointUsed(primaryUrl);
+        dlog("POST (primary):", primaryUrl, payload);
+        setLastEndpointUsed(primaryUrl);
 
-    let res;
-    try {
-      res = await axios.post(primaryUrl, payload, { signal: controller.signal });
-    } catch (e) {
-      const status = e?.response?.status;
-      if (status === 404) {
-        dlog("Primary 404 — trying fallback:", fallbackUrl);
-        setLastEndpointUsed(fallbackUrl);
-        res = await axios.post(fallbackUrl, payload, { signal: controller.signal });
-      } else {
-        throw e;
-      }
-    }
-
-    if (cancelled) return;
-
-    const list = Array.isArray(res?.data?.musicians) ? res.data.musicians : [];
-    dlog(`Suggestions (${list.length})`);
-    setSuggestions(list);
-
-    // --- Keep this optional debug non-fatal ---
-    try {
-      if (list[0]) {
-        const first = list[0];
-        const depPost =
-          first?.address?.postcode || first?.address?.postCode || first?.postcode || "";
-        const depLoc = countyAndNeighboursFromPostcode(depPost);
-        const depCounty = depLoc.county;
-        const depDistrict = depLoc.normDistrict;
-        const isSameCounty = !!(depCounty && (depCounty === (originLoc.county || memberCounty)));
-        const isNeighbour = !!(depCounty && (originLoc.neighbours || []).includes(depCounty));
-
-        const depOtherSkills = Array.isArray(first?.other_skills) ? first.other_skills : [];
-        dlog("Deputy county/postcode:", { depCounty, depPost, depDistrict, isSameCounty, isNeighbour });
-        console.log("[DeputiesInput] Deputy other skills:", depOtherSkills);
-
-        const depVocalGenres = (() => {
-          const fromVocals =
-            Array.isArray(first?.vocals?.genres)
-              ? first.vocals.genres
-              : typeof first?.vocals?.genres === "string"
-                ? first.vocals.genres.split(",").map((s) => s.trim())
-                : [];
-          const fromTop =
-            Array.isArray(first?.genres)
-              ? first.genres
-              : typeof first?.genres === "string"
-                ? first.genres.split(",").map((s) => s.trim())
-                : [];
-          return (fromVocals.length ? fromVocals : fromTop).filter(Boolean);
-        })();
-
-        dlog("Genres (ACT vs DEPUTY vocals)", { actGenres, deputyVocalGenres: depVocalGenres });
-
-        if (first?._debug) {
-          console.log("🔎 match debug (first):", first._debug, first);
-        }
-
-        const sampleDeputyTitles = (first?.repertoire || [])
-          .map((s) => s?.title || "")
-          .slice(0, 50);
-        const matched = [];
-        for (const a of (actRepertoire || []).map((s) => s?.title || "")) {
-          for (const b of sampleDeputyTitles) {
-            if (titlesLooseMatch(a, b)) {
-              matched.push({ act: a, deputy: b });
-              break;
-            }
+        let res;
+        try {
+          res = await axios.post(primaryUrl, payload, { signal: controller.signal });
+        } catch (e) {
+          const status = e?.response?.status;
+          if (status === 404) {
+            dlog("Primary 404 — trying fallback:", fallbackUrl);
+            setLastEndpointUsed(fallbackUrl);
+            res = await axios.post(fallbackUrl, payload, { signal: controller.signal });
+          } else {
+            throw e;
           }
         }
-        dlog("Sample matched songs (fuzzy title-only):", matched.slice(0, 15));
-      }
-    } catch (e) {
-      dlog("⚠️ Post-fetch debug failed (non-fatal):", e);
-    }
-  } catch (err) {
-    if (cancelled) return;
-    if (axios.isCancel?.(err)) return;
-    dlog("❌ Suggest fetch failed:", err?.response?.data || err);
-    setSuggestions([]);
-  } finally {
-    if (!cancelled) setLoading(false);
-  }
-}, 350);
 
-return () => {
-  cancelled = true;
-  controller.abort();
-  if (debounceRef.current) clearTimeout(debounceRef.current);
-};
-}, [
+        if (cancelled) return;
+
+        const list = Array.isArray(res?.data?.musicians) ? res.data.musicians : [];
+        dlog(`Suggestions (${list.length})`);
+        rawSuggestionsRef.current = list;
+        setSuggestions(filterByExclude(list));
+        cacheRef.current.set(queryKey, list);
+
+        // --- Keep this optional debug non-fatal ---
+        try {
+          if (list[0]) {
+            const first = list[0];
+            const depPost =
+              first?.address?.postcode || first?.address?.postCode || first?.postcode || "";
+            const depLoc = countyAndNeighboursFromPostcode(depPost);
+            const depCounty = depLoc.county;
+            const depDistrict = depLoc.normDistrict;
+            const isSameCounty = !!(depCounty && (depCounty === (originLoc.county || memberCounty)));
+            const isNeighbour = !!(depCounty && (originLoc.neighbours || []).includes(depCounty));
+
+            const depOtherSkills = Array.isArray(first?.other_skills) ? first.other_skills : [];
+            dlog("Deputy county/postcode:", { depCounty, depPost, depDistrict, isSameCounty, isNeighbour });
+            console.log("[DeputiesInput] Deputy other skills:", depOtherSkills);
+
+            const depVocalGenres = (() => {
+              const fromVocals =
+                Array.isArray(first?.vocals?.genres)
+                  ? first.vocals.genres
+                  : typeof first?.vocals?.genres === "string"
+                    ? first.vocals.genres.split(",").map((s) => s.trim())
+                    : [];
+              const fromTop =
+                Array.isArray(first?.genres)
+                  ? first.genres
+                  : typeof first?.genres === "string"
+                    ? first.genres.split(",").map((s) => s.trim())
+                    : [];
+              return (fromVocals.length ? fromVocals : fromTop).filter(Boolean);
+            })();
+
+            dlog("Genres (ACT vs DEPUTY vocals)", { actGenres, deputyVocalGenres: depVocalGenres });
+
+            if (first?._debug) {
+              console.log("🔎 match debug (first):", first._debug, first);
+            }
+
+            // Avoid heavy local matching when repertoire is large (can be slow in the browser)
+            if (DEBUG && Array.isArray(actRepertoire) && actRepertoire.length <= 200) {
+              const sampleDeputyTitles = (first?.repertoire || [])
+                .map((s) => s?.title || "")
+                .slice(0, 50);
+              const matched = [];
+              for (const a of (actRepertoire || []).map((s) => s?.title || "")) {
+                for (const b of sampleDeputyTitles) {
+                  if (titlesLooseMatch(a, b)) {
+                    matched.push({ act: a, deputy: b });
+                    break;
+                  }
+                }
+              }
+              dlog("Sample matched songs (fuzzy title-only):", matched.slice(0, 15));
+            }
+          }
+        } catch (e) {
+          dlog("⚠️ Post-fetch debug failed (non-fatal):", e);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        if (axios.isCancel?.(err)) return;
+        dlog("❌ Suggest fetch failed:", err?.response?.data || err);
+        setSuggestions([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [
     queryKey,
     apiBase,
     instrument,
     essentialRoles,
-    excludeIds,
     isVocalSlot,
-    actRepertoire,
     actGenres,
     memberCounty,
     memberDistrict,
     memberPost,
     fuzzySongTitles,
-    fuzzyOverlapPreview,
   ]);
 
   // ---------- Handlers ----------
@@ -461,13 +581,11 @@ return () => {
         lastName: m.lastName || "",
         email: m.email || "",
         phoneNumber: m.phone || "",
-        image:
-          m.profilePhoto ||
-          (Array.isArray(m.additionalImages) ? m.additionalImages[0] : "") ||
-          "",
+        image: getAvatarUrl(m) || "",
       },
     ];
     updateBandMember(index, memberIndex, "deputies", updated);
+    setSuggestions((prev) => (Array.isArray(prev) ? prev.filter((x) => x?._id !== m?._id) : prev));
   };
 
   const handleDeputyChange = (deputyIndex, field, value) => {
@@ -515,10 +633,9 @@ return () => {
         ) : suggestions.length ? (
           suggestions.map((m) => (
             <div key={m._id} className="text-center min-w-[84px]">
-              {m.profilePhoto ||
-              (Array.isArray(m.additionalImages) && m.additionalImages[0]) ? (
+              {getAvatarUrl(m) ? (
                 <img
-                  src={m.profilePhoto || m.additionalImages[0]}
+                  src={getAvatarUrl(m)}
                   alt={`${m.firstName || ""} ${m.lastName || ""}`}
                   className="w-16 h-16 rounded-full object-cover border"
                   onClick={() => addDeputy(m)}
