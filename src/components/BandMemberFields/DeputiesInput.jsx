@@ -645,12 +645,6 @@ return () => {
                 >
                   view profile
                 </a>
-                <p className="text-[10px] text-gray-500 mt-1">
-                  {hasEmailOnFile(m) ? "--email on file--" : "--email not provided--"}
-                </p>
-                <p className="text-[10px] text-gray-500">
-                  {hasPhoneOnFile(m) ? "--phone number on file--" : "--phone not provided--"}
-                </p>
                 {"matchPct" in m ? (
                   <p
                     className="text-xs mt-0.5 text-gray-600"
