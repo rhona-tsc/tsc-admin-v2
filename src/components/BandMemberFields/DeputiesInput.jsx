@@ -262,6 +262,34 @@ const apiBase =
   const lastKeyRef = useRef("");
 
   // ---------- Effects ----------
+
+   useEffect(() => {
+    const deps = Array.isArray(member?.deputies) ? member.deputies : [];
+    if (!deps.length) return;
+
+    const hasContactFields = deps.some((d) => {
+      const hasId = Boolean(d?.id || d?._id);
+      if (!hasId) return false;
+      return Boolean(d?.email || d?.phoneNumber || d?.phone || d?.phone_number);
+    });
+
+    if (!hasContactFields) return;
+
+    const sanitized = deps.map((d) => {
+      const hasId = Boolean(d?.id || d?._id);
+      if (!hasId) return d;
+      const out = { ...d };
+      delete out.email;
+      delete out.phone;
+      delete out.phoneNumber;
+      delete out.phone_number;
+      return out;
+    });
+
+    dlog("🧼 Sanitising deputy contact fields (email/phone) from saved act data");
+    updateBandMember(index, memberIndex, "deputies", sanitized);
+  }, [member?.deputies, index, memberIndex, updateBandMember]);
+
   useEffect(() => {
     const hasFilters = instrument || essentialRoles.length;
     dlog("effect fired. hasFilters?", hasFilters, {
@@ -429,6 +457,8 @@ const apiBase =
   }
 }, 350);
 
+
+
 return () => {
   cancelled = true;
   controller.abort();
@@ -459,10 +489,10 @@ return () => {
         id: m._id,
         firstName: m.firstName || "",
         lastName: m.lastName || "",
-        // IMPORTANT: never store or display deputy email/phone in the act form
+        email: m.email || "",
+        phoneNumber: m.phone || "",
         image:
           m.profilePicture ||
-          m.profilePhoto ||
           (Array.isArray(m.additionalImages) ? m.additionalImages[0] : "") ||
           "",
       },
@@ -516,10 +546,9 @@ return () => {
           suggestions.map((m) => (
             <div key={m._id} className="text-center min-w-[84px]">
               {m.profilePicture ||
-              m.profilePhoto ||
               (Array.isArray(m.additionalImages) && m.additionalImages[0]) ? (
                 <img
-                  src={m.profilePicture || m.profilePhoto || m.additionalImages[0]}
+                  src={m.profilePicture || m.additionalImages[0]}
                   alt={`${m.firstName || ""} ${m.lastName || ""}`}
                   className="w-16 h-16 rounded-full object-cover border"
                   onClick={() => addDeputy(m)}
@@ -688,7 +717,7 @@ return () => {
                               className="w-full px-3 py-2 border text-gray-600"
                             />
                           ) : (
-                          <input
+                                                     <input
                             type="tel"
                             value="--phone number on file--"
                             disabled
@@ -741,31 +770,3 @@ return () => {
 };
 
 export default DeputiesInput;
-  // Safety: if an older saved act contains deputy email/phone fields, strip them out.
-  // We never want to display OR re-submit deputy contact details from the act form.
-  useEffect(() => {
-    const deps = Array.isArray(member?.deputies) ? member.deputies : [];
-    if (!deps.length) return;
-
-    const hasContactFields = deps.some((d) => {
-      const hasId = Boolean(d?.id || d?._id);
-      if (!hasId) return false;
-      return Boolean(d?.email || d?.phoneNumber || d?.phone || d?.phone_number);
-    });
-
-    if (!hasContactFields) return;
-
-    const sanitized = deps.map((d) => {
-      const hasId = Boolean(d?.id || d?._id);
-      if (!hasId) return d;
-      const out = { ...d };
-      delete out.email;
-      delete out.phone;
-      delete out.phoneNumber;
-      delete out.phone_number;
-      return out;
-    });
-
-    dlog("🧼 Sanitising deputy contact fields (email/phone) from saved act data");
-    updateBandMember(index, memberIndex, "deputies", sanitized);
-  }, [member?.deputies, index, memberIndex, updateBandMember]);
