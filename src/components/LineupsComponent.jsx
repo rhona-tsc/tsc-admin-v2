@@ -59,17 +59,26 @@ const LineupsComponent = ({ lineups = [], setLineups, setExtrasPricing, selected
       setOpenLineups(Array(lineups.length).fill(false));
     }
   }, [lineups.length]);
+
+  const getMemberKey = (m) => {
+  const email = (m?.email || "").trim().toLowerCase();
+  const musicianId = String(m?.musicianId || m?.musician_id || m?.id || m?._id || "").trim();
+  if (musicianId) return `id:${musicianId}`;
+  if (email) return `email:${email}`;
+
+  const fn = (m?.firstName || "").trim().toLowerCase();
+  const ln = (m?.lastName || "").trim().toLowerCase();
+  return `name:${fn}_${ln}`; // last resort
+};
   
-    const allSavedMembers = Array.from(
-    new Map(
-      lineups
-        .flatMap((l) => l.bandMembers || [])
-        .map((m) => [
-          `${m.firstName?.trim()?.toLowerCase() || ""}_${m.lastName?.trim()?.toLowerCase() || ""}_${m.instrument?.trim()?.toLowerCase() || ""}`,
-          m,
-        ])
-    ).values()
-  );
+const allSavedMembers = Array.from(
+  new Map(
+    lineups
+      .flatMap((l) => l.bandMembers || [])
+      .map((m) => [getMemberKey(m), m])
+  ).values()
+);
+
   const [openLineups, setOpenLineups] = useState([true]);
 
   const toggleLineup = (index) => {
@@ -84,36 +93,61 @@ const LineupsComponent = ({ lineups = [], setLineups, setExtrasPricing, selected
     setOpenLineups((prev) => prev.filter((_, i) => i !== indexToRemove));
   };
 
-  const updateBandMember = (lineupIndex, memberIndex, field, value) => {
-    setLineups((prev) => {
-      const updated = [...prev];
-      updated[lineupIndex].bandMembers[memberIndex][field] = value;
-  
-      // handle isEssential within setLineups (safe access to updated data)
-      if (field === "isEssential") {
-        const member = updated[lineupIndex].bandMembers[memberIndex];
-        const roleKey = member.instrument?.toLowerCase().replace(/\s+/g, "_");
-  
-        if (roleKey) {
-          const fee = parseFloat(member.fee) || 0;
-  
-          setExtrasPricing((prevExtras) => {
-            const newPricing = { ...prevExtras };
-            if (!value) {
-              newPricing[roleKey] = fee;
-              toast.info(`"${member.instrument}" has been added as an extra.`);
-            } else {
-              delete newPricing[roleKey];
-              toast.info(`"${member.instrument}" has been removed from the extras list.`);
-            }
-            return newPricing;
-          });
-        }
+ const updateBandMember = (lineupIndex, memberIndex, field, value) => {
+  setLineups((prev) => {
+    const updated = [...prev];
+
+    const targetMember = updated?.[lineupIndex]?.bandMembers?.[memberIndex];
+    if (!targetMember) return prev;
+
+    // apply to the specific member first
+    updated[lineupIndex].bandMembers[memberIndex] = {
+      ...targetMember,
+      [field]: value,
+    };
+
+    // 🔁 If deputies updated, sync to ALL bandMembers that represent same person
+    if (field === "deputies") {
+      const key = getMemberKey(targetMember);
+
+      updated.forEach((lineup, li) => {
+        (lineup.bandMembers || []).forEach((m, mi) => {
+          if (li === lineupIndex && mi === memberIndex) return;
+          if (getMemberKey(m) === key) {
+            updated[li].bandMembers[mi] = {
+              ...m,
+              deputies: value,
+            };
+          }
+        });
+      });
+    }
+
+    // existing isEssential logic (unchanged)
+    if (field === "isEssential") {
+      const member = updated[lineupIndex].bandMembers[memberIndex];
+      const roleKey = member.instrument?.toLowerCase().replace(/\s+/g, "_");
+
+      if (roleKey) {
+        const fee = parseFloat(member.fee) || 0;
+
+        setExtrasPricing((prevExtras) => {
+          const newPricing = { ...prevExtras };
+          if (!value) {
+            newPricing[roleKey] = fee;
+            toast.info(`"${member.instrument}" has been added as an extra.`);
+          } else {
+            delete newPricing[roleKey];
+            toast.info(`"${member.instrument}" has been removed from the extras list.`);
+          }
+          return newPricing;
+        });
       }
-  
-      return updated;
-    });
-  };
+    }
+
+    return updated;
+  });
+};
   
   
 
@@ -1058,10 +1092,11 @@ const LineupsComponent = ({ lineups = [], setLineups, setExtrasPricing, selected
                         if (selectedIndex !== "") {
                           const selectedMember = allSavedMembers[selectedIndex];
                           const clonedMember = {
-                            ...JSON.parse(JSON.stringify(selectedMember)),
-                            isEssential: selectedMember.isEssential ?? true,
-                          };
-                          handleAddBandMember(lineupIndex, clonedMember);
+  ...JSON.parse(JSON.stringify(selectedMember)),
+  isEssential: selectedMember.isEssential ?? true,
+};
+clonedMember.deputies = Array.isArray(clonedMember.deputies) ? clonedMember.deputies : [];
+handleAddBandMember(lineupIndex, clonedMember);
                           e.target.value = "";
                         }
                       }}

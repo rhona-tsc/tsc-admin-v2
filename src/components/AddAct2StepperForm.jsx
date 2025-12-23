@@ -144,9 +144,15 @@ const [hydratedFromInitial, setHydratedFromInitial] = useState(false);
               role: role.role,
               additionalFee: parseFloat(role.additionalFee || 0),
             })),
-          deputies: (member.deputies || []).filter(
-            (d) => d && typeof d === "object" && (d.email || d.firstName)
-          ),
+          deputies: (member.deputies || []).filter((d) => {
+  if (!d || typeof d !== "object") return false;
+
+  // keep suggested rows (has id/_id) OR manual rows (has clientKey)
+  if (d.id || d._id || d.musicianId || d.clientKey) return true;
+
+  // otherwise keep if user has typed anything
+  return Boolean(d.email || d.firstName || d.lastName || d.phoneNumber);
+}),
         };
       });
       return newLineup;
@@ -186,9 +192,15 @@ const normalizeLineup = (lineup) => ({
             role: role.role,
             additionalFee: parseFloat(role.additionalFee || 0),
           })),
-        deputies: (member.deputies || []).filter(
-          (d) => d && typeof d === "object" && (d.email || d.firstName)
-        ),
+        deputies: (member.deputies || []).filter((d) => {
+  if (!d || typeof d !== "object") return false;
+
+  // keep suggested rows (has id/_id) OR manual rows (has clientKey)
+  if (d.id || d._id || d.musicianId || d.clientKey) return true;
+
+  // otherwise keep if user has typed anything
+  return Boolean(d.email || d.firstName || d.lastName || d.phoneNumber);
+}),
       };
     }
 
@@ -212,9 +224,15 @@ const normalizeLineup = (lineup) => ({
           role: role.role,
           additionalFee: parseFloat(role.additionalFee || 0),
         })),
-      deputies: (member.deputies || []).filter(
-        (d) => d && typeof d === "object" && (d.email || d.firstName)
-      ),
+      deputies: (member.deputies || []).filter((d) => {
+  if (!d || typeof d !== "object") return false;
+
+  // keep suggested rows (has id/_id) OR manual rows (has clientKey)
+  if (d.id || d._id || d.musicianId || d.clientKey) return true;
+
+  // otherwise keep if user has typed anything
+  return Boolean(d.email || d.firstName || d.lastName || d.phoneNumber);
+}),
     };
   }),
 
@@ -405,9 +423,15 @@ const sanitizeLineups = (lineups) => {
             role: role.role,
             additionalFee: parseFloat(role.additionalFee || 0),
           })),
-        deputies: (member.deputies || []).filter(
-          (d) => d && typeof d === "object" && (d.email || d.firstName)
-        ),
+        deputies: (member.deputies || []).filter((d) => {
+  if (!d || typeof d !== "object") return false;
+
+  // keep suggested rows (has id/_id) OR manual rows (has clientKey)
+  if (d.id || d._id || d.musicianId || d.clientKey) return true;
+
+  // otherwise keep if user has typed anything
+  return Boolean(d.email || d.firstName || d.lastName || d.phoneNumber);
+}),
       };
     }),
   }));
