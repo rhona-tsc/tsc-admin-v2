@@ -345,6 +345,7 @@ const normalizeLineup = (lineup) => ({
         setDiscountToClient(data.discountToClient || "");
         setIsPercentage(data.isPercentage || false);
         setHydratedFromInitial(true);
+        setInitializedFromData(true);
       } catch (err) {
         console.error("Failed to fetch act for edit:", err);
       }
@@ -356,11 +357,6 @@ const normalizeLineup = (lineup) => ({
     const hasAnyChanges = Object.keys(changedFields || {}).length > 0;
 
   const saveDraft = async () => {
-    // ⛔ Do not autosave while in moderation mode
-    if (isModeration) {
-      console.log("🛑 Moderation mode: skipping saveDraft()");
-      return;
-    }
 
 // Updated sanitizeLineups function to ensure ceremonySets is always a plain object,
 // preserving all keys and instrument arrays as expected.
@@ -528,20 +524,16 @@ const sanitizeLineups = (lineups) => {
 
     useEffect(() => {
     // 🚧 HARD GUARDS to stop empty overwrite:
-    // 1) If this is a moderation open, never autosave
-    if (isModeration) {
-      console.log("⛔ Autosave skipped: moderation mode");
+    // 1) Always wait until we've hydrated the act data before autosaving
+    //    (this prevents the old bug where an empty form overwrote existing data)
+    if ((isModeration || mode === "edit") && !initializedFromData) {
+      console.log("⛔ Autosave skipped: waiting for hydration");
       return;
     }
 
-    // 2) In edit mode, wait until we've hydrated from DB
-    if (mode === "edit" && !initializedFromData) {
-      console.log("⛔ Autosave skipped: waiting for initialData hydration");
-      return;
-    }
-
-    // 3) In edit mode, don’t autosave if nothing has changed yet
-    if (mode === "edit" && !hasAnyChanges) {
+    // 2) In normal edit mode, don’t autosave if nothing has changed yet
+    //    (but in moderation mode we DO want autosave even if markChanged isn't wired everywhere)
+    if (mode === "edit" && !isModeration && !hasAnyChanges) {
       console.log("⛔ Autosave skipped: no changes yet");
       return;
     }
