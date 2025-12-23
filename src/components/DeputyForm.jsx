@@ -17,6 +17,20 @@ const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId
 const location = useLocation();
 const navigate = useNavigate();
 
+const authToken =
+  token ||
+  localStorage.getItem("token") ||
+  localStorage.getItem("adminToken") ||
+  localStorage.getItem("musicianToken") ||
+  "";
+
+const authHeaders = authToken
+  ? {
+      Authorization: `Bearer ${authToken}`,
+      token: authToken, // ✅ covers backends that expect req.headers.token
+    }
+  : {};
+
 const isModerationMode =
     location.pathname.includes("moderate-deputy") ||
     (userRole || "").toLowerCase() === "agent";
@@ -490,6 +504,10 @@ if (coverUrl) fd.append("coverHeroImage", coverUrl);        // matches mongoose 
     },
   });
 
+  useEffect(() => {
+  console.log("[DeputyForm] authToken present?", !!authToken, authToken?.slice?.(0, 20));
+}, [authToken]);
+
   // Backend hydration
   useEffect(() => {
     if (!deputyId) {
@@ -790,17 +808,20 @@ coverHeroImage: deputy.coverHeroImage || prev.coverHeroImage,
             hash = (hash * 31 + snapshotStr.charCodeAt(i)) | 0;
           }
 
-          await axios.post(
-            `${backendUrl}/api/musician/autosave`,
-            {
-              musicianId: deputyId,
-              formKey: "deputy",
-              snapshot: safe,
-              snapshotHash: String(hash),
-              updatedAtIso: new Date().toISOString(),
-            },
-            { headers: { Authorization: `Bearer ${token}` } }
-          );
+       await axios.post(
+  `${backendUrl}/api/musician/autosave`,
+  {
+    musicianId: deputyId,
+    formKey: "deputy",
+    snapshot: safe,
+    snapshotHash: String(hash),
+    updatedAtIso: new Date().toISOString(),
+  },
+  {
+    headers: authHeaders,
+    withCredentials: true, // ✅ safe even if you’re not using cookies
+  }
+);
         } catch (e) {
           console.warn(
             "⚠️ Backend autosave failed (non-blocking):",
@@ -849,9 +870,14 @@ coverHeroImage: deputy.coverHeroImage || prev.coverHeroImage,
         })
       );
 
-      const res = await axios.patch(`${backendUrl}/api/musician/moderation/deputy/${deputyId}/save`, safe, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    const res = await axios.patch(
+  `${backendUrl}/api/musician/moderation/deputy/${deputyId}/save`,
+  safe,
+  {
+    headers: authHeaders,
+    withCredentials: true,
+  }
+);
 
       if (res.data?.success) {
         toast(<CustomToast type="success" message="Changes saved" />);
@@ -862,9 +888,14 @@ localStorage.removeItem("deputyAutosave");
         toast(<CustomToast type="error" message={res.data?.message || "Failed to save"} />);
       }
     } catch (err) {
-      console.error(err);
-      toast(<CustomToast type="error" message="Failed to save" />);
-    }
+  console.error(err);
+  const msg =
+    err?.response?.data?.message ||
+    err?.response?.data?.error ||
+    err?.message ||
+    "Failed to save";
+  toast(<CustomToast type="error" message={msg} />);
+}
   };
 
   const handleApproveDeputy = async () => {
