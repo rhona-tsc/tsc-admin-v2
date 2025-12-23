@@ -527,7 +527,12 @@ const sanitizeLineups = (lineups) => {
   }, []);
 
     useEffect(() => {
-   
+    // 🚧 HARD GUARDS to stop empty overwrite:
+    // 1) If this is a moderation open, never autosave
+    if (isModeration) {
+      console.log("⛔ Autosave skipped: moderation mode");
+      return;
+    }
 
     // 2) In edit mode, wait until we've hydrated from DB
     if (mode === "edit" && !initializedFromData) {
