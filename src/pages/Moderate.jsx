@@ -16,35 +16,57 @@ const Moderate = () => {
     navigate(`/moderate/edit/${id}`);
   };
 
-  const fetchPendingActs = async () => {
-    try {
-      setLoading(true);
+ const fetchPendingActs = async () => {
+  try {
+    setLoading(true);
 
-      // These params are optional – your backend can ignore them if unsupported
-      const params = {
-        status: 'pending,Approved, changes pending',
-        fields: '_id,name,tscName,images,profileImage,coverImage,createdAt,status'
-      };
+    // ✅ DO NOT send `status` as CSV because "Approved, changes pending" contains a comma
+    // and many backends split by comma -> it gets broken into "Approved" + " changes pending"
+    // which can return 0 matches.
+    const params = {
+      fields: "_id,name,tscName,images,profileImage,coverImage,createdAt,status,updatedAt",
+      limit: 500, // ✅ grab more and filter client-side
+      page: 1,
+      _cb: Date.now(), // ✅ cache-buster (avoid stale 304 / cached empty result)
+    };
 
-const response = await axios.get(`${backendUrl}/api/act/list`, { params });
+    const response = await axios.get(`${backendUrl}/api/act/list`, {
+      params,
+      headers: { "Cache-Control": "no-cache" },
+    });
 
-      if (response.data?.success) {
-        const acts = Array.isArray(response.data.acts) ? response.data.acts : [];
-    const pending = acts.filter((act) => {
-  const s = String(act?.status || "").toLowerCase().trim();
-  return s === "pending" || s === "live_changes_pending" || s.includes("changes pending");
-});
-setPendingActs(pending);
-      } else {
-        toast(<CustomToast type="error" message={response.data?.message || "Failed to load acts"} />);
-      }
-    } catch (error) {
-      console.error('❌ fetchPendingActs error:', error?.response?.data || error);
-      toast(<CustomToast type="error" message="Failed to load pending acts" />);
-    } finally {
-      setLoading(false);
+    if (!response.data?.success) {
+      toast(<CustomToast type="error" message={response.data?.message || "Failed to load acts"} />);
+      setPendingActs([]);
+      return;
     }
-  };
+
+    // ✅ your API response in the screenshot shows `items: []` (and also `acts: []`)
+    // so support both shapes
+    const actsRaw =
+      (Array.isArray(response.data.acts) && response.data.acts) ||
+      (Array.isArray(response.data.items) && response.data.items) ||
+      [];
+
+    // ✅ normalize + filter locally (covers "Approved, changes pending")
+    const pending = actsRaw.filter((act) => {
+      const s = String(act?.status || "").toLowerCase().trim();
+      return (
+        s === "pending" ||
+        s === "live_changes_pending" ||
+        s.includes("changes pending") // matches "approved, changes pending"
+      );
+    });
+
+    setPendingActs(pending);
+  } catch (error) {
+    console.error("❌ fetchPendingActs error:", error?.response?.data || error);
+    toast(<CustomToast type="error" message="Failed to load pending acts" />);
+    setPendingActs([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Token refresh via HTTP-only cookie (optional)
   const refreshToken = async () => {
