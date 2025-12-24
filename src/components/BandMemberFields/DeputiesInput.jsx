@@ -452,20 +452,20 @@ const apiBase =
 
   const isVocalSlot = typeof isVocalSlotProp === "boolean" ? isVocalSlotProp : inferredVocalSlot;
 
-  // Essential roles (just the ones marked isEssential)
-  const essentialRoles = useMemo(() => {
-    const roles = Array.isArray(member?.additionalRoles)
-      ? member.additionalRoles
-          .filter((r) => r?.role)
-          .map((r) => ({
-            role: String(r.role),
-            isEssential: Boolean(r.isEssential),
-          }))
-      : [];
-    const essentials = roles.filter((r) => r.isEssential).map((r) => r.role);
-    dlog("essentialRoles:", essentials);
-    return essentials;
-  }, [member?.additionalRoles]);
+const roleName = (r) => String(r?.customRole || r?.role || "").trim();
+
+const essentialRoles = useMemo(() => {
+  const roles = Array.isArray(member?.additionalRoles) ? member.additionalRoles : [];
+  return roles.filter(r => r?.isEssential).map(roleName).filter(Boolean);
+}, [member?.additionalRoles]);
+
+// and in payload desiredRoles:
+desiredRoles: [
+  ...(Array.isArray(member?.additionalRoles)
+    ? member.additionalRoles.map(roleName).filter(Boolean)
+    : []),
+  ...desiredRolesFromInstrument,
+],
 
   // Exclude already-added deputy IDs and self
 const excludeIds = useMemo(() => {

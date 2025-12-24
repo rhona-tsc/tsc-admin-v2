@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 
 const performanceModes = ["Unplugged", "With PA", "With PA & Backing Tracks"];
 
+const SIZE_ORDER = ["solo", "duo", "trio", "fourPiece"];
+
 const CeremonySets = ({
   lineups = [],
   setLineups
@@ -109,14 +111,46 @@ const CeremonySets = ({
   };
 
 // Modified: Directly update the ceremonySets source of truth for the target lineup/size/type/instrument.
-// Modified: Directly update the ceremonySets source of truth for the target lineup/size/type/instrument.
+// Helpers to determine max allowed size for each lineup
+const getLineupMaxSizeKey = (ln) => {
+  const count = Array.isArray(ln?.bandMembers)
+    ? ln.bandMembers.filter(Boolean).length
+    : 0;
+
+  if (count >= 1) {
+    if (count === 1) return "solo";
+    if (count === 2) return "duo";
+    if (count === 3) return "trio";
+    return "fourPiece";
+  }
+
+  // Fallback to actSize string when bandMembers aren't present
+  const a = String(ln?.actSize || "").toLowerCase();
+  if (/\bsolo\b|\b1\b|1-?piece/.test(a)) return "solo";
+  if (/\bduo\b|\b2\b|2-?piece/.test(a)) return "duo";
+  if (/\btrio\b|\b3\b|3-?piece/.test(a)) return "trio";
+  if (/\b4\b|four|4-?piece/.test(a)) return "fourPiece";
+
+  // safest default: allow all
+  return "fourPiece";
+};
+
+const getLineupMaxSizeIdx = (ln) => {
+  const key = getLineupMaxSizeKey(ln);
+  const idx = SIZE_ORDER.indexOf(key);
+  return idx === -1 ? SIZE_ORDER.length - 1 : idx;
+};
+
 const handleCheckboxChange = (lineupIndex, size, type, instrument, e) => {
   const checked = e?.target?.checked ?? false;
   const newLineups = [...lineups];
 
   // size order for forward propagation
-  const sizeOrder = ["solo", "duo", "trio", "fourPiece"];
+  const sizeOrder = SIZE_ORDER;
   const startSizeIdx = Math.max(0, sizeOrder.indexOf(size));
+
+  // clamp propagation to the maximum size this lineup actually supports
+  const maxIdxForLineup = (ln) => Math.max(0, getLineupMaxSizeIdx(ln));
 
   // Display ↔ original instrument mapping for presence checks
   const toNormalized = (name) => {
@@ -162,6 +196,7 @@ const handleCheckboxChange = (lineupIndex, size, type, instrument, e) => {
   let curr = { ...newLineups[lineupIndex] };
   curr = setTick(curr, size, type, instrument, checked);
   newLineups[lineupIndex] = curr;
+  let currMaxIdx = maxIdxForLineup(curr);
 
   // 2) Forward propagation (only when checking)
   if (checked) {
@@ -176,14 +211,15 @@ const handleCheckboxChange = (lineupIndex, size, type, instrument, e) => {
 
     // Rule A: Lead Vocal + Unplugged → this lineup (sizes ≥ current) + all later lineups (sizes ≥ current)
     if (isLeadVocal && type === "unplugged") {
-      for (let si = startSizeIdx; si < sizeOrder.length; si++) {
+      for (let si = startSizeIdx; si <= currMaxIdx; si++) {
         curr = setTick(curr, sizeOrder[si], type, instrument, true);
       }
       newLineups[lineupIndex] = curr;
 
       for (let li = lineupIndex + 1; li < newLineups.length; li++) {
         let ln = { ...newLineups[li] };
-        for (let si = startSizeIdx; si < sizeOrder.length; si++) {
+        const lnMaxIdx = maxIdxForLineup(ln);
+        for (let si = startSizeIdx; si <= lnMaxIdx; si++) {
           ln = setTick(ln, sizeOrder[si], type, instrument, true);
         }
         newLineups[li] = ln;
@@ -192,19 +228,26 @@ const handleCheckboxChange = (lineupIndex, size, type, instrument, e) => {
 
     // Rule B: Acoustic Guitar + Amplified + Trio
     if (instrument === "Acoustic Guitar" && type === "amplified" && size === "trio") {
-      curr = setTick(curr, "fourPiece", type, instrument, true);
+      if (currMaxIdx >= sizeOrder.indexOf("fourPiece")) {
+        curr = setTick(curr, "fourPiece", type, instrument, true);
+      }
       newLineups[lineupIndex] = curr;
 
       for (let li = lineupIndex + 1; li < newLineups.length; li++) {
         let ln = { ...newLineups[li] };
-        ln = setTick(ln, "trio", type, instrument, true);
-        ln = setTick(ln, "fourPiece", type, instrument, true);
+        const lnMaxIdx = maxIdxForLineup(ln);
+        if (lnMaxIdx >= sizeOrder.indexOf("trio")) {
+          ln = setTick(ln, "trio", type, instrument, true);
+        }
+        if (lnMaxIdx >= sizeOrder.indexOf("fourPiece")) {
+          ln = setTick(ln, "fourPiece", type, instrument, true);
+        }
         newLineups[li] = ln;
       }
     }
 
     // Generic: also tick same mode for later sizes in THIS lineup
-    for (let si = startSizeIdx + 1; si < sizeOrder.length; si++) {
+    for (let si = startSizeIdx + 1; si <= currMaxIdx; si++) {
       curr = setTick(curr, sizeOrder[si], type, instrument, true);
     }
     newLineups[lineupIndex] = curr;
@@ -212,7 +255,8 @@ const handleCheckboxChange = (lineupIndex, size, type, instrument, e) => {
     // Generic: forward across SUBSEQUENT lineups for same & later sizes
     for (let li = lineupIndex + 1; li < newLineups.length; li++) {
       let ln = { ...newLineups[li] };
-      for (let si = startSizeIdx; si < sizeOrder.length; si++) {
+      const lnMaxIdx = maxIdxForLineup(ln);
+      for (let si = startSizeIdx; si <= lnMaxIdx; si++) {
         ln = setTick(ln, sizeOrder[si], type, instrument, true);
       }
       newLineups[li] = ln;
@@ -276,6 +320,8 @@ const handleCheckboxChange = (lineupIndex, size, type, instrument, e) => {
         // Sort instruments for header display as well
         const sortedHeaderInstruments = sortInstruments(rawInstruments);
         const displayHeaderInstruments = sortedHeaderInstruments.join(", ");
+        const lineupMaxIdx = getLineupMaxSizeIdx(lineup);
+        const sizesForLineup = sizes.filter(({ key }) => SIZE_ORDER.indexOf(key) <= lineupMaxIdx);
 
         return (
           <div key={idx} className="border border-gray-300 rounded mb-3">
@@ -289,7 +335,7 @@ const handleCheckboxChange = (lineupIndex, size, type, instrument, e) => {
             </button>
             {openLineups[idx] && (
               <div className="p-4 bg-gray-50">
-                {sizes.map(({ key, label }) => (
+                {sizesForLineup.map(({ key, label }) => (
                   <div key={key} className="mb-1">
                     <p className="font-medium mb-2 uppercase">{label} Ceremony or Afternoon Additional Performances</p>
                     <table className="table-auto w-full text-sm border border-collapse mb-4">
