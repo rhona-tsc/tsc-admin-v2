@@ -459,13 +459,14 @@ const essentialRoles = useMemo(() => {
   return roles.filter(r => r?.isEssential).map(roleName).filter(Boolean);
 }, [member?.additionalRoles]);
 
-// and in payload desiredRoles:
-desiredRoles: [
-  ...(Array.isArray(member?.additionalRoles)
-    ? member.additionalRoles.map(roleName).filter(Boolean)
-    : []),
-  ...desiredRolesFromInstrument,
-],
+const desiredRoles = useMemo(() => {
+  const roles =
+    Array.isArray(member?.additionalRoles)
+      ? member.additionalRoles.map(roleName).filter(Boolean)
+      : [];
+
+  return Array.from(new Set([...roles, ...desiredRolesFromInstrument]));
+}, [member?.additionalRoles, desiredRolesFromInstrument]);
 
   // Exclude already-added deputy IDs and self
 const excludeIds = useMemo(() => {
@@ -600,12 +601,7 @@ useEffect(() => {
       instrument,
       isVocalSlot,
       essentialRoles,
-      desiredRoles: [
-        ...(Array.isArray(member?.additionalRoles)
-          ? member.additionalRoles.map((r) => r?.role).filter(Boolean)
-          : []),
-        ...desiredRolesFromInstrument,
-      ],
+   desiredRoles,
       secondaryInstruments,
       excludeIds,
       actRepertoire,
