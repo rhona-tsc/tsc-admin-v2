@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { backendUrl } from '../App';
-import { toast } from 'react-toastify';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { backendUrl } from "../App";
+import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
 import CustomToast from "../components/CustomToast";
-import { assets } from '../assets/assets';
+import { assets } from "../assets/assets";
 
 const Moderate = () => {
   const navigate = useNavigate();
@@ -16,68 +16,86 @@ const Moderate = () => {
     navigate(`/moderate/edit/${id}`);
   };
 
- const fetchPendingActs = async () => {
-  try {
-    setLoading(true);
+  const fetchPendingActs = async () => {
+    try {
+      setLoading(true);
 
-    // ✅ DO NOT send `status` as CSV because "Approved, changes pending" contains a comma
-    // and many backends split by comma -> it gets broken into "Approved" + " changes pending"
-    // which can return 0 matches.
-    const params = {
-      fields: "_id,name,tscName,images,profileImage,coverImage,createdAt,status,updatedAt",
-      limit: 500, // ✅ grab more and filter client-side
-      page: 1,
-      _cb: Date.now(), // ✅ cache-buster (avoid stale 304 / cached empty result)
-    };
-
-    const response = await axios.get(`${backendUrl}/api/act/list`, {
-      params,
-      headers: { "Cache-Control": "no-cache" },
-    });
-
-    if (!response.data?.success) {
-      toast(<CustomToast type="error" message={response.data?.message || "Failed to load acts"} />);
-      setPendingActs([]);
-      return;
-    }
-
-    // ✅ your API response in the screenshot shows `items: []` (and also `acts: []`)
-    // so support both shapes
-    const actsRaw =
-      (Array.isArray(response.data.acts) && response.data.acts) ||
-      (Array.isArray(response.data.items) && response.data.items) ||
-      [];
-
-    // ✅ normalize + filter locally (covers "Approved, changes pending")
-    const pending = actsRaw.filter((act) => {
-      const s = String(act?.status || "").toLowerCase().trim();
-      return (
-        s === "pending" ||
-        s === "live_changes_pending" ||
-        s.includes("changes pending") // matches "approved, changes pending"
+      // ✅ Use URLSearchParams so we can send repeated `status` params safely.
+      // This avoids breaking "Approved, changes pending" (comma in the value).
+      const qs = new URLSearchParams();
+      qs.set(
+        "fields",
+        "_id,name,tscName,images,profileImage,coverImage,createdAt,status,updatedAt"
       );
-    });
+      qs.set("limit", "500");
+      qs.set("page", "1");
+      qs.set("_cb", String(Date.now())); // ✅ cache-buster
 
-    setPendingActs(pending);
-  } catch (error) {
-    console.error("❌ fetchPendingActs error:", error?.response?.data || error);
-    toast(<CustomToast type="error" message="Failed to load pending acts" />);
-    setPendingActs([]);
-  } finally {
-    setLoading(false);
-  }
-};
+      // ✅ repeated status params (NOT CSV)
+      qs.append("status", "pending");
+      qs.append("status", "live_changes_pending");
+      qs.append("status", "Approved, changes pending");
+
+      const url = `${backendUrl}/api/act/list?${qs.toString()}`;
+
+      const response = await axios.get(url, {
+        headers: {
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+      });
+
+      if (!response.data?.success) {
+        toast(
+          <CustomToast
+            type="error"
+            message={response.data?.message || "Failed to load acts"}
+          />
+        );
+        setPendingActs([]);
+        return;
+      }
+
+      // ✅ Support both shapes (your API returns `items` and sometimes `acts`)
+      const actsRaw =
+        (Array.isArray(response.data.acts) && response.data.acts) ||
+        (Array.isArray(response.data.items) && response.data.items) ||
+        [];
+
+      // ✅ Normalize + filter locally (covers "Approved, changes pending")
+      const pending = actsRaw.filter((act) => {
+        const s = String(act?.status || "").toLowerCase().trim();
+        return (
+          s === "pending" ||
+          s === "live_changes_pending" ||
+          s.includes("changes pending") // matches "approved, changes pending"
+        );
+      });
+
+      setPendingActs(pending);
+    } catch (error) {
+      console.error("❌ fetchPendingActs error:", error?.response?.data || error);
+      toast(<CustomToast type="error" message="Failed to load pending acts" />);
+      setPendingActs([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Token refresh via HTTP-only cookie (optional)
   const refreshToken = async () => {
     try {
-      const res = await axios.post(`${backendUrl}/api/auth/refresh`, {}, { withCredentials: true });
+      const res = await axios.post(
+        `${backendUrl}/api/auth/refresh`,
+        {},
+        { withCredentials: true }
+      );
       if (res.data?.success && res.data?.token) {
-        localStorage.setItem('authToken', res.data.token);
+        localStorage.setItem("authToken", res.data.token);
         return res.data.token;
       }
     } catch (err) {
-      console.error('❌ Token refresh failed:', err);
+      console.error("❌ Token refresh failed:", err);
     }
     return null;
   };
@@ -91,14 +109,19 @@ const Moderate = () => {
       );
 
     try {
-      let token = localStorage.getItem('authToken');
-      let response = await makeRequest(token);
+      const token = localStorage.getItem("authToken");
+      const response = await makeRequest(token);
 
       if (response.data?.success) {
         toast(<CustomToast type="success" message={`Act ${status}`} />);
         fetchPendingActs();
       } else {
-        toast(<CustomToast type="error" message={response.data?.message || "Update failed"} />);
+        toast(
+          <CustomToast
+            type="error"
+            message={response.data?.message || "Update failed"}
+          />
+        );
       }
     } catch (error) {
       if (error.response?.status === 401) {
@@ -111,13 +134,28 @@ const Moderate = () => {
               fetchPendingActs();
               return;
             } else {
-              toast(<CustomToast type="error" message={retry.data?.message || "Update failed"} />);
+              toast(
+                <CustomToast
+                  type="error"
+                  message={retry.data?.message || "Update failed"}
+                />
+              );
             }
           } catch {
-            toast(<CustomToast type="error" message="Retry failed after token refresh" />);
+            toast(
+              <CustomToast
+                type="error"
+                message="Retry failed after token refresh"
+              />
+            );
           }
         } else {
-          toast(<CustomToast type="error" message="Session expired. Please log in again." />);
+          toast(
+            <CustomToast
+              type="error"
+              message="Session expired. Please log in again."
+            />
+          );
         }
       } else {
         toast(<CustomToast type="error" message="Error updating status" />);
@@ -136,7 +174,10 @@ const Moderate = () => {
       {loading ? (
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="animate-pulse flex items-center justify-between border p-4 rounded bg-white">
+            <div
+              key={i}
+              className="animate-pulse flex items-center justify-between border p-4 rounded bg-white"
+            >
               <div className="flex gap-4 items-center">
                 <div className="w-20 h-20 bg-gray-200 rounded" />
                 <div>
@@ -155,10 +196,10 @@ const Moderate = () => {
           {pendingActs.map((act) => {
             // prefer profileImage[0], fallback to images[0]
             const profileSrc =
-              typeof act?.profileImage?.[0] === 'string'
+              typeof act?.profileImage?.[0] === "string"
                 ? act.profileImage[0]
                 : act?.profileImage?.[0]?.url ||
-                  (typeof act?.images?.[0] === 'string'
+                  (typeof act?.images?.[0] === "string"
                     ? act.images[0]
                     : act?.images?.[0]?.url) ||
                   assets.placeholder_image;
@@ -180,11 +221,19 @@ const Moderate = () => {
                   <div>
                     <p className="font-semibold">{act.name}</p>
                     <p className="text-xs text-gray-500">{act.tscName}</p>
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      Status: {act.status || "—"}
+                    </p>
                   </div>
                 </div>
 
                 <div className="text-sm text-gray-600">
-                  <p>Created At: {act.createdAt ? new Date(act.createdAt).toLocaleDateString() : '-'}</p>
+                  <p>
+                    Created At:{" "}
+                    {act.createdAt
+                      ? new Date(act.createdAt).toLocaleDateString()
+                      : "-"}
+                  </p>
                 </div>
 
                 <div className="text-sm text-gray-600">
@@ -200,13 +249,13 @@ const Moderate = () => {
                   <div className="flex gap-2">
                     <button
                       className="bg-green-600 text-white px-4 py-2 rounded text-sm"
-                      onClick={() => updateStatus(act._id, 'approved')}
+                      onClick={() => updateStatus(act._id, "approved")}
                     >
                       Approve
                     </button>
                     <button
                       className="bg-red-600 text-white px-4 py-2 rounded text-sm"
-                      onClick={() => updateStatus(act._id, 'rejected')}
+                      onClick={() => updateStatus(act._id, "rejected")}
                     >
                       Reject
                     </button>
