@@ -26,14 +26,15 @@ const Moderate = () => {
         fields: '_id,name,tscName,images,profileImage,coverImage,createdAt,status'
       };
 
-      const response = await axios.get(`${backendUrl}/api/musician/act-v2/list`, { params });
+const response = await axios.get(`${backendUrl}/api/act/list`, { params });
 
       if (response.data?.success) {
         const acts = Array.isArray(response.data.acts) ? response.data.acts : [];
-        const pending = acts.filter(
-          (act) => act.status === 'pending' || act.status === 'Approved, changes pending'
-        );
-        setPendingActs(pending);
+    const pending = acts.filter((act) => {
+  const s = String(act?.status || "").toLowerCase().trim();
+  return s === "pending" || s === "live_changes_pending" || s.includes("changes pending");
+});
+setPendingActs(pending);
       } else {
         toast(<CustomToast type="error" message={response.data?.message || "Failed to load acts"} />);
       }
