@@ -60,7 +60,11 @@ const TableWrap = ({ children }) => (
   </div>
 );
 
-const AgentDashboard = ({ token }) => {
+const AgentDashboard = () => {
+  const token =
+    localStorage.getItem("token") ||
+    localStorage.getItem("adminToken") ||
+    "";
   const [active, setActive] = useState("users");
 
   // DATA
