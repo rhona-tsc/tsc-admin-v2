@@ -26,6 +26,7 @@ import Security from "./pages/Security";
 import BookingBoard from "./pages/BookingBoard";
 import EnquiryBoard from "./pages/EnquiryBoard";
 import ActPreSubmissionsPage from "./pages/ActPreSubmissionsPage";
+import AgentDashboard from "./pages/AgentDashboard";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -179,6 +180,10 @@ const App = () => {
                   <Route
                     path="/act-pre-submissions"
                     element={<ActPreSubmissionsPage userRole={userRole} />}
+                  />
+                   <Route
+                    path="/agent-dashboard"
+                    element={<AgentDashboard userRole={userRole} />}
                   />
                   <Route
                     path="/add-act-2"

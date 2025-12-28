@@ -400,6 +400,21 @@ const handleDeputyClick = (e, path) => {
             </NavLink>
 
             <NavLink
+              className="relative flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+              to="/agent-dashboard"
+              state={{ userRole }}
+            >
+              <div className="flex items-center gap-3">
+                <img
+                  className="w-5 h-5"
+                  src={assets.agent_dashboard_icon}
+                  alt="Agent Dashboard"
+                />
+                <p className="hidden md:block text-white">Agent Dashboard</p>
+              </div>
+            </NavLink>
+
+            <NavLink
               className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
               to="/trash"
               state={{ userRole }}
