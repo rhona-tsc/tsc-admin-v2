@@ -99,6 +99,9 @@ const AgentDashboard = () => {
     const usersRes = await firstSuccess({
       token,
       urls: [
+        // ✅ canonical admin endpoint
+        `${backendUrl}/api/agent-dashboard/users`,
+        // legacy fallbacks (if you add them later)
         `${backendUrl}/api/user/all`,
         `${backendUrl}/api/user/list`,
         `${backendUrl}/api/users/all`,
@@ -289,9 +292,12 @@ const AgentDashboard = () => {
     });
   }, [users, usersQ]);
 
-  const renderShortlistActs = (userId) => {
-    const lists = shortlistsByUser.get(String(userId)) || [];
-    // Try common shapes:
+  const renderShortlistActs = (u) => {
+    const userId = u?._id;
+
+    // 1) Prefer dedicated shortlist docs (if you later add shortlistModel)
+    const lists = userId ? shortlistsByUser.get(String(userId)) || [] : [];
+
     const actNames = [];
     lists.forEach((s) => {
       const acts = s?.acts || s?.shortlistedActs || s?.items || s?.actIds;
@@ -299,10 +305,20 @@ const AgentDashboard = () => {
       if (Array.isArray(acts)) {
         acts.forEach((a) => {
           if (typeof a === "string") actNames.push(a);
-          else actNames.push(a?.name || a?.tscName || a?._id || "");
+          else actNames.push(a?.name || a?.tscName || a?._id || a?.$oid || "");
         });
       }
     });
+
+    // 2) Fallback: shortlist stored on the user document (your current setup)
+    if (!actNames.length && Array.isArray(u?.shortlistedActs)) {
+      u.shortlistedActs.forEach((a) => {
+        if (!a) return;
+        if (typeof a === "string") actNames.push(a);
+        else actNames.push(a?.name || a?.tscName || a?._id || a?.$oid || "");
+      });
+    }
+
     const cleaned = actNames.map((x) => String(x || "").trim()).filter(Boolean);
     if (!cleaned.length) return "-";
     return cleaned.slice(0, 8).join(", ") + (cleaned.length > 8 ? "…" : "");
@@ -468,7 +484,7 @@ const AgentDashboard = () => {
                       {eventDate ? format(new Date(eventDate), "dd MMM yyyy") : "-"}
                     </td>
                     <td className="border px-4 py-2">{eventLoc || "-"}</td>
-                    <td className="border px-4 py-2">{renderShortlistActs(u?._id)}</td>
+                    <td className="border px-4 py-2">{renderShortlistActs(u)}</td>
                   </tr>
                 );
               })}
