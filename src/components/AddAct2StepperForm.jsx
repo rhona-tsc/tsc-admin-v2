@@ -103,9 +103,22 @@ const [hydratedFromInitial, setHydratedFromInitial] = useState(false);
   const [initializedFromData, setInitializedFromData] = useState(false);
   const isEditMode = Boolean(id);
   const modeToUse = mode || (isEditMode ? "edit" : "add");
-  const authHeaders = token
-    ? { Authorization: `Bearer ${token}`, token }
-    : {};
+
+  const userId =
+  localStorage.getItem("userId") ||
+  localStorage.getItem("musicianId") ||
+  localStorage.getItem("_id") ||
+  "";
+
+const authHeaders = token
+  ? {
+      Authorization: `Bearer ${token}`,
+      token,              // keep if other endpoints rely on it
+      userid: userId,     // IMPORTANT (Node lowercases headers)
+      userrole: userRole || "",
+      useremail: userEmail || "",
+    }
+  : {};
 
   const sanitizeMediaArray = (media) => {
     return (media || [])
