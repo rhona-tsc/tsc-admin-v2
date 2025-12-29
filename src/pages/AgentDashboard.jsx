@@ -123,11 +123,10 @@ const AgentDashboard = () => {
 
     const shortlistRes = await firstSuccess({
       token,
-      urls: [
-        `${backendUrl}/api/shortlist/all`,
-        `${backendUrl}/api/shortlist/admin/all`,
-        `${backendUrl}/api/shortlist/admin`,
-      ],
+  urls: [
+  `${backendUrl}/api/agent-dashboard/shortlists`,
+  `${backendUrl}/api/shortlist/all`,
+],
     });
 
     if (shortlistRes.ok) {
