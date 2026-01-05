@@ -36,10 +36,13 @@ const CoverImageUpload = ({ coverImage, setCoverImage, tscName, genres, bandMemb
   };
 
 const completeCrop = async () => {
+  if (!imageToCrop || !croppedAreaPixels) return;
   setIsCompressing(true);
 
-  const croppedFile = await getCroppedImg(imageToCrop, croppedAreaPixels, 2756, 896);
-
+const croppedBlob = await getCroppedImg(imageToCrop, croppedAreaPixels, 2756, 896);
+ const croppedFile = new File([croppedBlob], "cover-cropped.jpg", {
+   type: croppedBlob.type || "image/jpeg",
+ });
   // 🆕 Upload to Cloudinary
   const formData = new FormData();
   formData.append("file", croppedFile);
@@ -70,14 +73,14 @@ const completeCrop = async () => {
   });
 
   const moveImage = (dragIndex, hoverIndex) => {
-    const updated = [...coverImage];
+    const updated = Array.isArray(coverImage) ? [...coverImage] : [];
     const [moved] = updated.splice(dragIndex, 1);
     updated.splice(hoverIndex, 0, moved);
     setCoverImage(updated);
   };
 
   const removeImage = (id) => {
-    setCoverImage((prev) => prev.filter((img) => img.id !== id));
+    setCoverImage((prev) => (Array.isArray(prev) ? prev : []).filter((img) => img.id !== id));
   };
 
   return (

@@ -45,7 +45,7 @@ const [hydratedFromInitial, setHydratedFromInitial] = useState(false);
   const [tscName, setTscName] = useState("");
   const [images, setImages] = useState([]);
   const [coverImage, setCoverImage] = useState([]);
-  const [profileImage, setProfileImage] = useState(null);
+const [profileImage, setProfileImage] = useState([]);
   const [videos, setVideos] = useState([]);
   const [tscVideos, setTscVideos] = useState([]);
   const [mp3s, setMp3s] = useState([]);
@@ -262,8 +262,8 @@ const normalizeLineup = (lineup) => ({
       setName(initialData.name || "");
       setTscName(initialData.tscName || "");
       setImages(initialData.images || []);
-      setCoverImage(initialData.coverImage || []);
-      setProfileImage(initialData.profileImage || []);
+      setCoverImage(Array.isArray(initialData.coverImage) ? initialData.coverImage : []);
+      setProfileImage(Array.isArray(initialData.profileImage) ? initialData.profileImage : []);
       setVideos(initialData.videos || []);
       setTscVideos(initialData.tscVideos || []);
       setMp3s(
@@ -336,7 +336,7 @@ const normalizeLineup = (lineup) => ({
         setTscName(data.tscName || "");
         setImages(data.images || []);
         setCoverImage(data.coverImage || []);
-        setProfileImage(data.profileImage || []);
+setProfileImage(Array.isArray(data.profileImage) ? data.profileImage : []);
         setVideos(data.videos || []);
         setTscVideos(data.tscVideos || []);
         setMp3s(data.mp3s || []);
@@ -521,6 +521,10 @@ const sanitizeLineups = (lineups) => {
             : "draft"
         ),
       };
+
+      if (!existingDraftId) {
+  delete payload._id;
+}
 
       ["pliFile", "patFile", "riskAssessment"].forEach((key) => {
         if (typeof payload[key] !== "string") payload[key] = "";

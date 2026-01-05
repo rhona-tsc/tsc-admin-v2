@@ -99,7 +99,7 @@ userRole,
         genres={genre}
         bandMembers={bandMembers}
         lineupSize={lineupSize}
-        highlight={isChanged('images')}
+        highlight={isChanged('profileImage')}
       />
        <CoverImageUpload
         coverImage={coverImage}
@@ -111,7 +111,7 @@ userRole,
         genres={genre}
         bandMembers={bandMembers}
         lineupSize={lineupSize}
-        highlight={isChanged('images')}
+        highlight={isChanged('coverImage')}
       />
 
   

@@ -96,10 +96,11 @@ const ProfileImageUpload = ({
         url: data.secure_url,
         title: "Main Act Profile Picture",
       };
-      setProfileImage((prev = []) => {
-        const next = [newEntry, ...prev];
-        return next.slice(0, MAX_IMAGES);
-      });
+      setProfileImage((prev) => {
+  const safePrev = Array.isArray(prev) ? prev : [];
+   const next = [newEntry, ...safePrev];
+   return next.slice(0, MAX_IMAGES);
+ });
     } catch (err) {
       console.error("🛑 Crop/upload error:", err);
       // Optional: toast error here
@@ -125,7 +126,7 @@ const ProfileImageUpload = ({
 
   const moveImage = (dragIndex, hoverIndex) => {
     setProfileImage((prev = []) => {
-      const updated = [...prev];
+      const updated = Array.isArray(prev) ? [...prev] : [];
       const [moved] = updated.splice(dragIndex, 1);
       updated.splice(hoverIndex, 0, moved);
       return updated;
@@ -133,7 +134,7 @@ const ProfileImageUpload = ({
   };
 
   const removeImage = (id) => {
-    setProfileImage((prev = []) => prev.filter((img) => img.id !== id));
+    setProfileImage((prev = []) => (Array.isArray(prev) ? prev : []).filter((img) => img.id !== id));
   };
 
   return (
