@@ -284,7 +284,7 @@ const apiBase =
    "").replace(/\/$/, "");
    
    const publicSiteBase =
-  import.meta.env.VITE_PUBLIC_SITE_URL || "https://admin.thesupremecollective.co.uk" ;
+  import.meta.env.VITE_PUBLIC_SITE_URL || "http://localhost:5174" ;
 
   // ---------- Utilities ----------
   // postcode -> county lookups (built once)
