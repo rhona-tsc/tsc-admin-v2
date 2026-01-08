@@ -2,7 +2,7 @@ import assets from "../assets/assets";
 
 const DashboardUnderConstruction = ({ firstname }) => {
   return (
-    <div className="bg-black text-white p-6 mt-8 rounded-md shadow-lg border border-white-800">
+    <div className="bg-black text-white p-6 shadow-lg border border-gray-200 rounded-xl ">
       <div className="flex flex-col items-center gap-4">
         {/* Equalizer Animation */}
         <div className="flex gap-1 h-12 items-end">
