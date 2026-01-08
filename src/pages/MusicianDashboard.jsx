@@ -462,7 +462,7 @@ const deputyCTA = useMemo(
           <DashboardUnderConstruction firstname={firstName} />
 
           {/* ------- Quick Stats ------- */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 space-y-6">
             <div className="p-4 bg-white shadow rounded">
               <p className="text-sm text-gray-500">Acts You Lead</p>
               <p className="text-3xl font-bold">{myActs.length}</p>
