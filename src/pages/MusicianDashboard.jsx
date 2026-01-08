@@ -195,15 +195,14 @@ const PeerReviewCard = ({ peer }) => {
           ))}
         </div>
 
-        <button
-          className="mt-5 inline-flex items-center justify-center w-full px-4 py-2 rounded-md bg-black text-white font-semibold hover:bg-[#ff6667] transition"
-          onClick={() => {
-            // hook this up to your peer review flow later
-            // e.g. navigate("/peer-review/request")
-          }}
-        >
-          Request a peer review
-        </button>
+       <button
+  type="button"
+  className="mt-5 inline-flex items-center justify-center w-full px-4 py-2 rounded-md
+             bg-gray-200 text-gray-500 font-semibold border border-gray-300
+             opacity-80 cursor-not-allowed pointer-events-none"
+>
+  Request a peer review — Coming Soon
+</button>
       </div>
     </div>
   );
