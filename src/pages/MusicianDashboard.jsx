@@ -86,7 +86,6 @@ const YourProfileCard = ({ me, fallbackFirstName }) => {
           </div>
         )}
 
-        <p className="mt-3 text-lg font-semibold text-gray-900">Hi {firstName}!</p>
         <p className="text-sm text-gray-600">{nameLine}</p>
 
         {viewHref ? (
@@ -111,7 +110,7 @@ const YourProfileCard = ({ me, fallbackFirstName }) => {
 
           {/* Change this route to your “The Books / Profile” route */}
           <a
-            href="/the-books"
+            href="/edit-deputy"
             className="inline-flex items-center justify-center w-full px-4 py-2 rounded-md bg-[#ff6667] text-white font-semibold hover:bg-black transition"
           >
             Update my profile

@@ -36,14 +36,20 @@ const DashboardUnderConstruction = ({ firstname }) => {
                   Add your skills, equipment, talents, and logistics so we can put you
                   forward to <strong>deputise</strong> in acts that suit you.
                 </li>
-                <img src={assets.join_the_books} alt="Join The Books" className="rounded shadow-md my-2" />
-                <li>
+<img
+  src={assets.join_the_books}
+  alt="Join The Books"
+  className="w-32 h-auto rounded shadow-md my-2"
+/>                <li>
                   Once submitted, you’ll show up as a <strong>possible deputy</strong> for
                   acts registered on The Supreme Collective. Band leaders/managers can
                   browse and click through to your profile when they need your skill set.
                 </li>
-                <img src={assets.suitable_deputies} alt="Suitable Deputies" className="rounded shadow-md my-2" />
-              </ul>
+<img
+  src={assets.suitable_deputies}
+  alt="Suitable Deputies"
+  className="w-48 h-auto rounded shadow-md my-2"
+/>              </ul>
             </div>
 
             <div>
@@ -58,7 +64,7 @@ const DashboardUnderConstruction = ({ firstname }) => {
                 clear with clients and lets you tailor exactly what you offer (set
                 lengths, add-ons, rider requests, and more).
               </li>
-              <img src={assets.submit_your_act} alt="Submit Your Act" className="rounded shadow-md my-2" />
+              <img src={assets.submit_your_act} alt="Submit Your Act" className="w-56 h-auto rounded shadow-md my-2" />
                </ul>
             </div>
 
@@ -78,7 +84,7 @@ const DashboardUnderConstruction = ({ firstname }) => {
                   Lead vocalists are asked for <strong>availability instantly</strong> when
                   an enquiry comes in, and it’s their responsibility to respond promptly using the new quick reply buttons. Please also note that these enquiry messages will come from 07453423200 on WhatsApp.
                 </li>
-                <img src={assets.quick_reply_buttons} alt="Quick Reply Bbuttons" className="rounded shadow-md my-2" />
+                <img src={assets.quick_reply_buttons} alt="Quick Reply Buttons" className="w-32 h-auto rounded shadow-md my-2" />
                  <li>
                   If a lead vocalist is unavailable the system will automatically contact the next three deputies in line based on the order they were added to the act. When a deputy confirms availability the client will be notified immediately and a link to their profile shared with them. If none of the first three deputies are available the system will then contact the next three deputies in line and so on until someone confirms availability.
                  </li>
