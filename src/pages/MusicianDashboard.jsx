@@ -5,6 +5,7 @@ import BookingsChart from "../components/BookingsChart";
 import RevenueChart from "../components/RevenueChart";
 import EnquiriesVsBookingsChart from "../components/EnquiriesVsBookingsChart";
 import DashboardUnderConstruction from "../components/DashboardUnderConstruction";
+import { useNavigate } from "react-router-dom";
 
 const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -49,12 +50,13 @@ const lastInitial = (u) => {
 };
 
 /* -------------------- Right Profile Card -------------------- */
-const YourProfileCard = ({ me, fallbackFirstName }) => {
+const YourProfileCard = ({ me, fallbackFirstName, deputyCTA }) => {
+const navigate = useNavigate();
   const [imgBroken, setImgBroken] = useState(false);
-
   const id = useMemo(() => getUserId(me), [me]);
   const imgUrl = useMemo(() => getProfileImageUrl(me), [me]);
-
+const ctaLabel = deputyCTA?.label || "Join The Books";
+  const ctaPath = deputyCTA?.path || "/register-as-deputy";
   const firstName =
     String(me?.firstName || me?.firstname || "").trim() ||
     String(fallbackFirstName || "").trim() ||
@@ -107,13 +109,13 @@ const YourProfileCard = ({ me, fallbackFirstName }) => {
             Keep your profile updated so acts can find you faster.
           </p>
 
-          {/* Change this route to your “The Books / Profile” route */}
-          <a
-            href="/edit-deputy"
-            className="inline-flex items-center justify-center w-full px-4 py-2 rounded-md bg-[#ff6667] text-white font-semibold hover:bg-black transition"
-          >
-            Update my profile
-          </a>
+          <button
+          type="button"
+          onClick={() => navigate(ctaPath)}
+          className="inline-flex items-center justify-center w-full px-4 py-2 rounded-md bg-[#ff6667] text-white font-semibold hover:bg-black transition"
+        >
+          {ctaLabel}
+        </button>
         </div>
       </div>
     </div>
@@ -232,6 +234,70 @@ const [peerReview, setPeerReview] = useState(null);
   if (!storedUserId) {
     console.error("❌ No stored userId!");
   }
+
+  
+  // add near the top of the file (or inside MusicianDashboard)
+const normalize = (s) => (s || "").toLowerCase().trim();
+const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
+
+// ✅ same CTA helper as Sidebar
+const getDeputyCTA = (status, id) => {
+  const st = normalize(status);
+  if (st === "approved" || st === "approved, changes pending") {
+    return id
+      ? {
+          label:
+            st === "approved"
+              ? "Update My Profile"
+              : "Update My Profile Submission",
+          path: `/edit-deputy/${id}`,
+        }
+      : { label: "Join The Books", path: "/register-as-deputy" };
+  }
+  return { label: "Join The Books", path: "/register-as-deputy" };
+};
+
+const [myDeputyStatus, setMyDeputyStatus] = useState(
+  localStorage.getItem("myDeputyStatus") ||
+    localStorage.getItem("deputyStatus") ||
+    null
+);
+
+const musicianId = useMemo(() => {
+  const fromProps = userId;
+  const fromLS = localStorage.getItem("musicianId") || localStorage.getItem("userId");
+  if (isObjectId(fromProps)) return fromProps;
+  if (isObjectId(fromLS)) return fromLS;
+  return null;
+}, [userId]);
+
+useEffect(() => {
+  if (!musicianId) return;
+
+  (async () => {
+    try {
+      const t = localStorage.getItem("token");
+      const res = await axios.get(`${backendUrl}/api/moderation/deputy/${musicianId}`, {
+        headers: t ? { Authorization: `Bearer ${t}` } : {},
+        withCredentials: true,
+      });
+
+      if (res.data?.success && res.data.deputy) {
+        const status = (res.data.deputy.status || "").trim();
+        setMyDeputyStatus(status);
+        localStorage.setItem("myDeputyStatus", status);
+        localStorage.setItem("deputyStatus", status);
+      }
+    } catch (e) {
+      console.error("❌ Failed to fetch deputy:", e);
+    }
+  })();
+}, [musicianId]);
+
+const deputyCTA = useMemo(
+  () => getDeputyCTA(myDeputyStatus, musicianId),
+  [myDeputyStatus, musicianId]
+);
 
   // helper headers: some endpoints want token, others want Bearer
   const headers = useMemo(
@@ -393,7 +459,7 @@ const [peerReview, setPeerReview] = useState(null);
       {/* MAIN + RIGHT SIDEBAR */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT: dashboard content */}
-        <div className="lg:col-span-9 space-y-2">
+        <div className="lg:col-span-9 ">
           {/* 🚧 UNDER CONSTRUCTION BANNER */}
           <DashboardUnderConstruction firstname={firstName} />
 
@@ -497,8 +563,11 @@ const [peerReview, setPeerReview] = useState(null);
        {/* RIGHT: sticky sidebar (profile + peer review) */}
 <div className="lg:col-span-3">
   <div className="sticky top-6 space-y-4">
-    <YourProfileCard me={me} fallbackFirstName={firstName} />
-    <PeerReviewCard peer={peerReview} />
+<YourProfileCard
+  me={me}
+  fallbackFirstName={firstName}
+  deputyCTA={deputyCTA}
+/>    <PeerReviewCard peer={peerReview} />
   </div>
 </div>
       </div>
