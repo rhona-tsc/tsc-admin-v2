@@ -11,7 +11,6 @@ const backendUrl =
 
 const publicSiteBase =
   import.meta.env.VITE_PUBLIC_SITE_URL || "http://localhost:5174";
-const [peerReview, setPeerReview] = useState(null);
 /* -------------------- avatar helpers (same idea as DeputiesInput) -------------------- */
 const pickUrl = (v) => {
   if (!v) return "";
@@ -210,6 +209,7 @@ const PeerReviewCard = ({ peer }) => {
 
 const MusicianDashboard = ({ token, userId, firstName }) => {
   const navigate = useNavigate();
+const [peerReview, setPeerReview] = useState(null);
 
   const [myActs, setMyActs] = useState([]);
   const [deppingActs, setDeppingActs] = useState([]);
