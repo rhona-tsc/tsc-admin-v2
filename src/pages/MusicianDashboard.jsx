@@ -482,7 +482,7 @@ const deputyCTA = useMemo(
           </div>
 
           {/* ------- Acts You Lead ------- */}
-          <div className="bg-white shadow rounded p-4">
+          <div className="bg-white shadow rounded gap-4 space-y-2 md:space-y-0 my-6 p-4">
             <h3 className="text-lg font-semibold mb-3">Acts You Lead</h3>
             {myActs.length === 0 ? (
               <p className="text-gray-600">You haven't registered any acts yet.</p>
@@ -500,7 +500,7 @@ const deputyCTA = useMemo(
           </div>
 
           {/* ------- Acts You're Depping For ------- */}
-          <div className="bg-white shadow rounded p-4">
+          <div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
             <h3 className="text-lg font-semibold mb-3">Acts You're Depping For</h3>
             {deppingActs.length === 0 ? (
               <p className="text-gray-600">No depping roles yet.</p>
@@ -518,7 +518,7 @@ const deputyCTA = useMemo(
           </div>
 
           {/* ------- Charts Section ------- */}
-          <div className="bg-white shadow rounded p-4">
+          <div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
             <h3 className="text-lg font-semibold mb-4">
               Monthly Performance Overview
             </h3>
@@ -533,7 +533,7 @@ const deputyCTA = useMemo(
           </div>
 
           {/* ------- Noticeboard ------- */}
-          <div className="bg-white shadow rounded p-4">
+          <div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
             <h3 className="text-lg font-semibold mb-4">Noticeboard</h3>
             <p className="text-gray-600">
               Important updates, opportunities, and announcements will appear here.
@@ -541,7 +541,7 @@ const deputyCTA = useMemo(
           </div>
 
           {/* ------- Feedback Section ------- */}
-          <div className="bg-white shadow rounded p-4">
+          <div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
             <h3 className="text-lg font-semibold mb-3">Feedback</h3>
             <p className="text-gray-600 mb-3">
               Help us improve your dashboard and musician tools.
