@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { backendUrl } from "../App";
 import { toast } from "react-toastify";
 import { assets } from "../assets/assets";
@@ -10,6 +10,41 @@ const List = ({ token }) => {
   const navigate = useNavigate();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // ✅ Pull the logged-in user id from storage (covers both patterns)
+  const storedUserId = useMemo(() => {
+    return (
+      sessionStorage.getItem("userId") ||
+      localStorage.getItem("userId") ||
+      sessionStorage.getItem("musicianId") ||
+      localStorage.getItem("musicianId") ||
+      ""
+    );
+  }, []);
+
+  // ✅ Normalise ID shapes: string, ObjectId-ish, populated object, etc.
+  const normId = (v) => {
+    if (!v) return "";
+    if (typeof v === "string") return v.trim();
+
+    // handle populated object: { _id: "..." }
+    if (typeof v === "object") {
+      const maybe =
+        v?._id?.toString?.() ||
+        v?.id?.toString?.() ||
+        v?.toString?.() ||
+        "";
+      return String(maybe).trim();
+    }
+
+    return String(v).trim();
+  };
+
+  const sameId = (a, b) => {
+    const A = normId(a);
+    const B = normId(b);
+    return Boolean(A && B && A === B);
+  };
 
   const buildHeaders = () => ({
     headers: {
@@ -25,10 +60,6 @@ const List = ({ token }) => {
       setLoading(true);
 
       const params = {
-        // NOTE: don't pass `status` until backend/DB status values are normalized.
-        // The legacy enum value "Approved, changes pending" contains a comma, which breaks CSV-style query parsing.
-        // status: "approved,pending,draft,live,approved_changes_pending",
-
         fields:
           "_id,name,tscName,images,coverImage,createdAt,updatedAt,status,amendment,createdBy",
         sort: "-createdAt",
@@ -44,16 +75,28 @@ const List = ({ token }) => {
 
       const ok = resp?.data?.success === true;
       const rows = ok && Array.isArray(resp?.data?.acts) ? resp.data.acts : [];
+
       const visible = rows.filter((a) => a?.status !== "trashed");
 
-      setList(visible);
+      // ✅ Only show acts created by the logged-in musician
+      const mine = storedUserId
+        ? visible.filter((a) => sameId(a?.createdBy, storedUserId))
+        : [];
+
+      setList(mine);
 
       console.log("📥 act-v2/list:", {
         success: resp?.data?.success,
         count: rows.length,
         visibleCount: visible.length,
+        mineCount: mine.length,
+        storedUserId,
         message: resp?.data?.message,
       });
+
+      if (!storedUserId) {
+        console.warn("⚠️ No stored userId/musicianId found; list will be empty.");
+      }
     } catch (error) {
       console.error("❌ Failed to fetch act list:", {
         message: error?.message,
