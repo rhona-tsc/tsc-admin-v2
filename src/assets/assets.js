@@ -67,6 +67,7 @@ import { join } from "lodash";
 import submit_your_act from "./submit_your_act.jpg";
 import suitable_deputies from "./suitable_deputies.jpg";
 import join_the_books from "./join_the_books.jpg";
+import quick_reply_buttons from "./quick_reply_buttons.jpg";
 
 export const assets = {
   logo,
@@ -137,6 +138,7 @@ enquiry_board_icon,
   submit_your_act,
   suitable_deputies,
   join_the_books,
+  quick_reply_buttons,
 };
 
 

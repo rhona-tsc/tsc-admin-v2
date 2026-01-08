@@ -1,3 +1,5 @@
+import assets from "../assets/assets";
+
 const DashboardUnderConstruction = ({ firstname }) => {
   return (
     <div className="bg-black text-white p-6 mt-8 rounded-md shadow-lg border border-gray-800">
@@ -34,17 +36,20 @@ const DashboardUnderConstruction = ({ firstname }) => {
                   Add your skills, equipment, talents, and logistics so we can put you
                   forward to <strong>deputise</strong> in acts that suit you.
                 </li>
+                <img src={assets.join_the_books} alt="Join The Books" className="rounded shadow-md my-2" />
                 <li>
                   Once submitted, you’ll show up as a <strong>possible deputy</strong> for
                   acts registered on The Supreme Collective. Band leaders/managers can
                   browse and click through to your profile when they need your skill set.
                 </li>
+                <img src={assets.suitable_deputies} alt="Suitable Deputies" className="rounded shadow-md my-2" />
               </ul>
             </div>
 
             <div>
               <h3 className="font-semibold text-white mb-1">Submit An Act</h3>
-              <p className="text-gray-200">
+             <ul className="list-disc pl-5 space-y-2 text-gray-200">
+              <li>
                 We’re a little more selective with <strong>Submit Act</strong>. When you
                 click it, there’s a quick <strong>pre-screen</strong> (act name, video
                 links, and anything you want to highlight). If it’s a great fit, we’ll
@@ -52,7 +57,9 @@ const DashboardUnderConstruction = ({ firstname }) => {
                 act submission form. It’s detailed on purpose — it helps us be crystal
                 clear with clients and lets you tailor exactly what you offer (set
                 lengths, add-ons, rider requests, and more).
-              </p>
+              </li>
+              <img src={assets.submit_your_act} alt="Submit Your Act" className="rounded shadow-md my-2" />
+               </ul>
             </div>
 
             <div>
@@ -69,9 +76,14 @@ const DashboardUnderConstruction = ({ firstname }) => {
                 </li>
                 <li>
                   Lead vocalists are asked for <strong>availability instantly</strong> when
-                  an enquiry comes in, and it’s their responsibility to respond promptly.
+                  an enquiry comes in, and it’s their responsibility to respond promptly using the new quick reply buttons. Please also note that these enquiry messages will come from 07453423200 on WhatsApp.
                 </li>
-                 
+                <img src={assets.quick_reply_buttons} alt="Quick Reply Bbuttons" className="rounded shadow-md my-2" />
+                 <li>
+                  If a lead vocalist is unavailable the system will automatically contact the next three deputies in line based on the order they were added to the act. When a deputy confirms availability the client will be notified immediately and a link to their profiel shared with them. If none of the first three deputies are available the system will then contact the next three deputies in line and so on until someone confirms availability.
+                 </li>
+                 <li>
+The client will be able to select their preferred vocalist upon checkout.                 </li>
               </ul>
             </div>
 
@@ -79,13 +91,13 @@ const DashboardUnderConstruction = ({ firstname }) => {
               <h3 className="font-semibold text-white mb-1">What’s coming next</h3>
               <ul className="list-disc pl-5 space-y-2 text-gray-200">
                  <li>
-                  Upon booking the system will eventually automatically allocate the original band members' if available and if not the sytem will automatically allocate your named deputies. Currently we'll do this manually until we're confident everything's running smoothly.
+                  Upon booking the system will eventually automatically allocate the original band members' if available (and any preselected deputy vocalist) and if not the sytem will automatically allocate your named deputies. Currently we'll do this manually until we're confident everything's running smoothly.
                 </li>
                 <li>
-                  <strong>Payment Tracker</strong> to track payouts due to you (and your act team). For the moment please rely on the WhatsApp messages to confirm gig fees and make your own notes, as per usual.
+                  The <strong>Payment Tracker</strong> will track payouts due to you (and your act's team). For the moment please rely on the WhatsApp messages to confirm gig fees and make your own notes, as per usual.
                 </li>
                 <li>
-                  A <strong>monthly performance overview</strong> with bookings, revenue, and
+                  A <strong>monthly performance overview</strong> will give you stats such as bookings, revenue, and
                   enquiries per act.
                 </li>
                 <li>
