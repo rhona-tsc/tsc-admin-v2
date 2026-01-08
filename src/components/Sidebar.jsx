@@ -63,7 +63,7 @@ const handleDeputyClick = (e, path) => {
   // ✅ single CTA helper (accepts id)
   const getDeputyCTA = (status, id) => {
     const st = normalize(status);
-    if (st === "approved" || st === "pending" || st === "approved, changes pending") {
+    if (st === "approved" || st === "approved, changes pending") {
       return id
         ? {
             label:

@@ -63,6 +63,10 @@ import cover_placeholder from "./cover_placeholder.png";
 import moderate_icon from "./moderate_icon.png";
 import hero_w_TSC_logo from "./hero_w_TSC_logo.png";
 import black_bin_icon from "./black_bin_icon.png";
+import { join } from "lodash";
+import submit_your_act from "./submit_your_act.jpg";
+import suitable_deputies from "./suitable_deputies.jpg";
+import join_the_books from "./join_the_books.jpg";
 
 export const assets = {
   logo,
@@ -129,7 +133,10 @@ enquiry_board_icon,
   cover_placeholder,
   moderate_icon,
   hero_w_TSC_logo,
-  black_bin_icon
+  black_bin_icon,
+  submit_your_act,
+  suitable_deputies,
+  join_the_books,
 };
 
 

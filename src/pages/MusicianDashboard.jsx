@@ -100,11 +100,11 @@ const fetchStats = async () => {
   if (!stats) return <p>Loading...</p>;
 
   return (
-    <div className="p-6 space-y-8">
-<p className="text-3xl font-bold">Hi {firstName}!</p>
+    <div className="p-4 space-y-2">
+<p className="text-2xl font-bold">Hi {firstName}!</p>
           {/* 🚧 UNDER CONSTRUCTION BANNER */}
    <>
-   <DashboardUnderConstruction />
+   <DashboardUnderConstruction firstname={firstName} />
    </>
 
 
