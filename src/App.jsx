@@ -305,13 +305,12 @@ const App = () => {
                       element={<PendingSongsModeration token={token} />}
                     />
                   )}
-                  {(userRole === "agent" ||
-                    email === "hello@thesupremecollective.co.uk") && (
+                 
                     <Route
                       path="/enquiry-board"
                       element={<EnquiryBoard token={token} />}
                     />
-                  )}
+               
                   {(userRole === "agent" ||
                     email === "hello@thesupremecollective.co.uk") && (
                     <Route

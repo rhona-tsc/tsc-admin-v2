@@ -39,7 +39,7 @@ const DashboardUnderConstruction = ({ firstname }) => {
 <img
   src={assets.join_the_books}
   alt="Join The Books"
-  className="w-120 h-auto rounded shadow-md my-2"
+  className="w-90 h-auto rounded shadow-md my-2"
 />                <li>
                   Once submitted, you’ll show up as a <strong>possible deputy</strong> for
                   acts registered on The Supreme Collective. Band leaders/managers can
@@ -84,7 +84,7 @@ const DashboardUnderConstruction = ({ firstname }) => {
                   Lead vocalists are asked for <strong>availability instantly</strong> when
                   an enquiry comes in, and it’s their responsibility to respond promptly using the new quick reply buttons. Please also note that these enquiry messages will come from 07453423200 on WhatsApp.
                 </li>
-                <img src={assets.quick_reply_buttons} alt="Quick Reply Buttons" className="w-90 h-auto rounded shadow-md my-2" />
+                <img src={assets.quick_reply_buttons} alt="Quick Reply Buttons" className="w-50 h-auto rounded shadow-md my-2" />
                  <li>
                   If a lead vocalist is unavailable the system will automatically contact the next three deputies in line based on the order they were added to the act. When a deputy confirms availability the client will be notified immediately and a link to their profile shared with them. If none of the first three deputies are available the system will then contact the next three deputies in line and so on until someone confirms availability.
                  </li>
