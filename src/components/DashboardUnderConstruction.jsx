@@ -39,7 +39,7 @@ const DashboardUnderConstruction = ({ firstname }) => {
 <img
   src={assets.join_the_books}
   alt="Join The Books"
-  className="w-90 h-auto rounded shadow-md my-2"
+  className="w-60 h-auto rounded shadow-md my-2"
 />                <li>
                   Once submitted, you’ll show up as a <strong>possible deputy</strong> for
                   acts registered on The Supreme Collective. Band leaders/managers can
