@@ -2,7 +2,7 @@ import assets from "../assets/assets";
 
 const DashboardUnderConstruction = ({ firstname }) => {
   return (
-    <div className="bg-black text-white p-6 mt-8 rounded-md shadow-lg border border-gray-800">
+    <div className="bg-black text-white p-6 mt-8 rounded-md shadow-lg border border-white-800">
       <div className="flex flex-col items-center gap-4">
         {/* Equalizer Animation */}
         <div className="flex gap-1 h-12 items-end">
@@ -30,7 +30,7 @@ const DashboardUnderConstruction = ({ firstname }) => {
           <div className="text-sm leading-relaxed opacity-90 text-left space-y-4">
             <div>
               <h3 className="font-semibold text-white mb-1">What you can do here</h3>
-              <ul className="list-disc pl-5 space-y-2 text-gray-200">
+              <ul className="list-disc pl-5 space-y-2 text-white-200">
                 <li>
                   <strong>Join The Books</strong> — think of this like your CV.
                   Add your skills, equipment, talents, and logistics so we can put you
@@ -39,7 +39,7 @@ const DashboardUnderConstruction = ({ firstname }) => {
 <img
   src={assets.join_the_books}
   alt="Join The Books"
-  className="w-32 h-auto rounded shadow-md my-2"
+  className="w-120 h-auto rounded shadow-md my-2"
 />                <li>
                   Once submitted, you’ll show up as a <strong>possible deputy</strong> for
                   acts registered on The Supreme Collective. Band leaders/managers can
@@ -48,13 +48,13 @@ const DashboardUnderConstruction = ({ firstname }) => {
 <img
   src={assets.suitable_deputies}
   alt="Suitable Deputies"
-  className="w-48 h-auto rounded shadow-md my-2"
+  className="w-180 h-auto rounded shadow-md my-2"
 />              </ul>
             </div>
 
             <div>
               <h3 className="font-semibold text-white mb-1">Submit An Act</h3>
-             <ul className="list-disc pl-5 space-y-2 text-gray-200">
+             <ul className="list-disc pl-5 space-y-2 text-white-200">
               <li>
                 We’re a little more selective with <strong>Submit Act</strong>. When you
                 click it, there’s a quick <strong>pre-screen</strong> (act name, video
@@ -64,13 +64,13 @@ const DashboardUnderConstruction = ({ firstname }) => {
                 clear with clients and lets you tailor exactly what you offer (set
                 lengths, add-ons, rider requests, and more).
               </li>
-              <img src={assets.submit_your_act} alt="Submit Your Act" className="w-56 h-auto rounded shadow-md my-2" />
+              <img src={assets.submit_your_act} alt="Submit Your Act" className="w-200 h-auto rounded shadow-md my-2" />
                </ul>
             </div>
 
             <div>
               <h3 className="font-semibold text-white mb-1">How The Admin System Works</h3>
-              <ul className="list-disc pl-5 space-y-2 text-gray-200">
+              <ul className="list-disc pl-5 space-y-2 text-white-200">
                 <li>
                   Your acts will appear in <strong>Your Acts</strong>. Booked gigs will
                   appear in <strong>Bookings</strong>.
@@ -84,7 +84,7 @@ const DashboardUnderConstruction = ({ firstname }) => {
                   Lead vocalists are asked for <strong>availability instantly</strong> when
                   an enquiry comes in, and it’s their responsibility to respond promptly using the new quick reply buttons. Please also note that these enquiry messages will come from 07453423200 on WhatsApp.
                 </li>
-                <img src={assets.quick_reply_buttons} alt="Quick Reply Buttons" className="w-32 h-auto rounded shadow-md my-2" />
+                <img src={assets.quick_reply_buttons} alt="Quick Reply Buttons" className="w-90 h-auto rounded shadow-md my-2" />
                  <li>
                   If a lead vocalist is unavailable the system will automatically contact the next three deputies in line based on the order they were added to the act. When a deputy confirms availability the client will be notified immediately and a link to their profile shared with them. If none of the first three deputies are available the system will then contact the next three deputies in line and so on until someone confirms availability.
                  </li>
@@ -95,7 +95,7 @@ The client will be able to select their preferred vocalist upon checkout.       
 
             <div>
               <h3 className="font-semibold text-white mb-1">What’s coming next</h3>
-              <ul className="list-disc pl-5 space-y-2 text-gray-200">
+              <ul className="list-disc pl-5 space-y-2 text-white-200">
                  <li>
                   Upon booking the system will eventually automatically allocate the original band members' if available (and any preselected deputy vocalist/s) and if no oriignal band member instrumentalists are available the sytem will automatically allocate your named deputies. Currently we'll do this manually until we're confident everything's running smoothly.
                 </li>
@@ -116,7 +116,7 @@ The client will be able to select their preferred vocalist upon checkout.       
 
             <div>
               <h3 className="font-semibold text-white mb-1">Notice Board & Feedback</h3>
-              <p className="text-gray-200">
+              <p className="text-white-200">
                 Any announcements from The Supreme Collective will appear in the <strong>Notice Board</strong>.
                 And please use <strong>Feedback</strong> for anything that could improve the
                 site or the overall experience — tech issues, workflow ideas, or constructive
@@ -124,13 +124,13 @@ The client will be able to select their preferred vocalist upon checkout.       
               </p>
             </div>
 
-            <p className="text-center text-gray-200 pt-2">
+            <p className="text-center text-white-200 pt-2">
               <strong>Minimalist for now</strong> — but built to scale. Thanks for being here.
               <br />
               <span className="font-semibold">Let’s go.</span>
             </p>
 
-            <p className="text-center text-gray-300 pt-1">
+            <p className="text-center text-white-300 pt-1">
               In the meantime, you’re here because you’ve been invited to{" "}
               <strong>Join The Books</strong> — you’ll find that button in the menu on
               the left.
