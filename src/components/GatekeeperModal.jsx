@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import CustomToast from "./CustomToast";
@@ -26,6 +27,25 @@ const GatekeeperModal = ({
   });
 
   const [submitting, setSubmitting] = useState(false);
+
+  // ✅ lock page scroll + ESC close
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -73,21 +93,19 @@ const GatekeeperModal = ({
     try {
       // ✅ If they have a code, verify and route them to Add Act
       if (form.hasCode && form.inviteCode.trim()) {
+        const code = form.inviteCode.trim().toUpperCase();
+
         const verifyRes = await axios.post(
           `${backendUrl}/api/act-invites/validate-code`,
           {
-            code: form.inviteCode.trim().toUpperCase(),
+            code,
             userId,
             actName: form.actName.trim(),
           }
         );
 
         if (verifyRes.data?.success) {
-          // store code so AddAct2 can read it
-          localStorage.setItem(
-            "actInviteCode",
-            form.inviteCode.trim().toUpperCase()
-          );
+          localStorage.setItem("actInviteCode", code);
 
           toast(
             <CustomToast
@@ -96,10 +114,8 @@ const GatekeeperModal = ({
             />
           );
 
-          onClose();
-          navigate("/add-act-2", {
-            state: { actInviteCode: form.inviteCode.trim().toUpperCase() },
-          });
+          onClose?.();
+          navigate("/add-act-2", { state: { actInviteCode: code } });
           return;
         }
 
@@ -123,14 +139,8 @@ const GatekeeperModal = ({
           email: userEmail,
         },
         bandLeaderOrManager: form.isBandLeader
-          ? {
-              name: userFirstName,
-              email: userEmail,
-            }
-          : {
-              name: form.managerName.trim(),
-              email: form.managerEmail.trim(),
-            },
+          ? { name: userFirstName, email: userEmail }
+          : { name: form.managerName.trim(), email: form.managerEmail.trim() },
       };
 
       const res = await axios.post(
@@ -145,7 +155,7 @@ const GatekeeperModal = ({
             message="Thanks! We’ll review your videos and be in touch if it’s a fit."
           />
         );
-        onClose();
+        onClose?.();
       } else {
         toast(
           <CustomToast
@@ -167,22 +177,35 @@ const GatekeeperModal = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[9999] isolate">
+  const modal = (
+    <div className="fixed inset-0 z-[2147483647]">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/75" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/75"
+        onClick={() => !submitting && onClose?.()}
+      />
 
-      {/* Dialog wrapper */}
+      {/* Dialog container */}
       <div className="relative flex min-h-screen items-center justify-center px-4 py-8">
-        <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-white opacity-100 shadow-xl">
+        {/* Dialog */}
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="gatekeeper-title"
+          className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-white shadow-2xl border border-gray-200"
+          onClick={(e) => e.stopPropagation()} // prevent backdrop-close when clicking inside
+        >
           {/* header */}
           <div className="flex items-center justify-between border-b px-6 py-4">
-            <h3 className="text-lg font-semibold">Submit Your Act</h3>
+            <h3 id="gatekeeper-title" className="text-lg font-semibold">
+              Submit Your Act
+            </h3>
             <button
-              onClick={onClose}
+              onClick={() => onClose?.()}
               className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100"
               aria-label="Close"
               disabled={submitting}
+              type="button"
             >
               ✕
             </button>
@@ -191,8 +214,7 @@ const GatekeeperModal = ({
           {/* body */}
           <div className="px-6 py-5 space-y-4">
             <p className="text-sm text-gray-700">
-              Submit your act’s video links and we’ll be in touch if we feel it's
-              a good fit for TSC.
+              Submit your act’s video links and we’ll be in touch if we feel it's a good fit for TSC.
             </p>
 
             {/* Act name */}
@@ -223,6 +245,7 @@ const GatekeeperModal = ({
                         type="button"
                         onClick={() => removeVideoLink(i)}
                         className="px-3 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200"
+                        disabled={submitting}
                       >
                         Remove
                       </button>
@@ -235,6 +258,7 @@ const GatekeeperModal = ({
                 type="button"
                 onClick={addVideoLink}
                 className="mt-2 text-sm px-3 py-2 bg-black text-white rounded hover:bg-[#ff6667]"
+                disabled={submitting}
               >
                 + Add another link
               </button>
@@ -243,8 +267,7 @@ const GatekeeperModal = ({
             {/* Optional info */}
             <div>
               <label className="block text-sm font-medium mb-1">
-                If you need to provide any specific information you can do that
-                here (optional)
+                If you need to provide any specific information you can do that here (optional)
               </label>
               <textarea
                 className="w-full border rounded px-3 py-2 min-h-[90px]"
@@ -316,9 +339,10 @@ const GatekeeperModal = ({
           {/* footer */}
           <div className="flex justify-end gap-2 border-t px-6 py-4">
             <button
-              onClick={onClose}
+              onClick={() => onClose?.()}
               className="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200"
               disabled={submitting}
+              type="button"
             >
               Cancel
             </button>
@@ -326,6 +350,7 @@ const GatekeeperModal = ({
               onClick={handleSubmit}
               className="px-4 py-2 rounded bg-black text-white hover:bg-[#ff6667]"
               disabled={submitting}
+              type="button"
             >
               {submitting
                 ? "Submitting..."
@@ -338,6 +363,9 @@ const GatekeeperModal = ({
       </div>
     </div>
   );
+
+  // ✅ Portal to BODY so it sits above everything
+  return createPortal(modal, document.body);
 };
 
 export default GatekeeperModal;
