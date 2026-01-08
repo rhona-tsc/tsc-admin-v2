@@ -194,8 +194,7 @@ const handleDeputyClick = (e, path) => {
   };
 
   return (
-    <div className="w-[18%] min-h-screen border-r-2">
-      <div className="flex flex-col gap-4 pt-6 pl-[20%] text-[15px] rounded-md">
+<div className="w-[18%] border-r-2 sticky top-0 h-screen overflow-y-auto">      <div className="flex flex-col gap-4 pt-6 pl-[20%] text-[15px] rounded-md">
  {/* Deputy CTA */}
         <NavLink
           className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"

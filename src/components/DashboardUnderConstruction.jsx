@@ -80,7 +80,7 @@ const DashboardUnderConstruction = ({ firstname }) => {
                 </li>
                 <img src={assets.quick_reply_buttons} alt="Quick Reply Bbuttons" className="rounded shadow-md my-2" />
                  <li>
-                  If a lead vocalist is unavailable the system will automatically contact the next three deputies in line based on the order they were added to the act. When a deputy confirms availability the client will be notified immediately and a link to their profiel shared with them. If none of the first three deputies are available the system will then contact the next three deputies in line and so on until someone confirms availability.
+                  If a lead vocalist is unavailable the system will automatically contact the next three deputies in line based on the order they were added to the act. When a deputy confirms availability the client will be notified immediately and a link to their profile shared with them. If none of the first three deputies are available the system will then contact the next three deputies in line and so on until someone confirms availability.
                  </li>
                  <li>
 The client will be able to select their preferred vocalist upon checkout.                 </li>
@@ -91,7 +91,7 @@ The client will be able to select their preferred vocalist upon checkout.       
               <h3 className="font-semibold text-white mb-1">What’s coming next</h3>
               <ul className="list-disc pl-5 space-y-2 text-gray-200">
                  <li>
-                  Upon booking the system will eventually automatically allocate the original band members' if available (and any preselected deputy vocalist) and if not the sytem will automatically allocate your named deputies. Currently we'll do this manually until we're confident everything's running smoothly.
+                  Upon booking the system will eventually automatically allocate the original band members' if available (and any preselected deputy vocalist/s) and if no oriignal band member instrumentalists are available the sytem will automatically allocate your named deputies. Currently we'll do this manually until we're confident everything's running smoothly.
                 </li>
                 <li>
                   The <strong>Payment Tracker</strong> will track payouts due to you (and your act's team). For the moment please rely on the WhatsApp messages to confirm gig fees and make your own notes, as per usual.

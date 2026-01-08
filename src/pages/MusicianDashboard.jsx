@@ -11,7 +11,7 @@ const backendUrl =
 
 const publicSiteBase =
   import.meta.env.VITE_PUBLIC_SITE_URL || "http://localhost:5174";
-
+const [peerReview, setPeerReview] = useState(null);
 /* -------------------- avatar helpers (same idea as DeputiesInput) -------------------- */
 const pickUrl = (v) => {
   if (!v) return "";
@@ -66,7 +66,7 @@ const YourProfileCard = ({ me, fallbackFirstName }) => {
   const viewHref = id ? `${publicSiteBase}/musician/${id}` : "";
 
   return (
-    <div className="sticky top-6 bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+    <div className=" bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
       <p className="text-xs uppercase tracking-widest text-gray-500">Your Profile</p>
 
       <div className="mt-4 flex flex-col items-center text-center">
@@ -122,6 +122,93 @@ const YourProfileCard = ({ me, fallbackFirstName }) => {
   );
 };
 
+const StarRow = ({ value = 0 }) => {
+  const v = Math.max(0, Math.min(5, Number(value) || 0));
+  const full = Math.floor(v);
+  const half = v - full >= 0.5;
+
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((i) => {
+        const filled = i <= full;
+        const halfStar = !filled && half && i === full + 1;
+        return (
+          <span
+            key={i}
+            className={filled || halfStar ? "text-[#ff6667] text-lg" : "text-gray-300 text-lg"}
+            aria-hidden="true"
+            title={`${v}/5`}
+          >
+            ★
+          </span>
+        );
+      })}
+    </div>
+  );
+};
+
+const PeerReviewCard = ({ peer }) => {
+  const avg = peer?.average;
+  const count = peer?.count;
+
+  const categories = peer?.categories || [
+    { label: "Technical Skill", value: null },
+    { label: "Team Spirit", value: null },
+    { label: "Preparation", value: null },
+    { label: "Timeliness", value: null },
+    { label: "Stage Presence", value: null },
+    { label: "Client Satisfaction", value: null },
+  ];
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+      <p className="text-xs uppercase tracking-widest text-gray-500">Peer Review</p>
+
+      <div className="mt-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-600">Overall rating</p>
+            <p className="text-2xl font-semibold text-gray-900">
+              {typeof avg === "number" ? avg.toFixed(1) : "—"}
+              <span className="text-sm font-normal text-gray-500"> / 5</span>
+            </p>
+          </div>
+
+          <div className="text-right">
+            <StarRow value={typeof avg === "number" ? avg : 0} />
+            <p className="mt-1 text-xs text-gray-500">
+              {typeof count === "number" ? `${count} review${count === 1 ? "" : "s"}` : "No reviews yet"}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {categories.map((c) => (
+            <div key={c.label} className="flex items-center justify-between">
+              <span className="text-sm text-gray-700">{c.label}</span>
+              {typeof c.value === "number" ? (
+                <StarRow value={c.value} />
+              ) : (
+                <span className="text-xs text-gray-400">—</span>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <button
+          className="mt-5 inline-flex items-center justify-center w-full px-4 py-2 rounded-md bg-black text-white font-semibold hover:bg-[#ff6667] transition"
+          onClick={() => {
+            // hook this up to your peer review flow later
+            // e.g. navigate("/peer-review/request")
+          }}
+        >
+          Request a peer review
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const MusicianDashboard = ({ token, userId, firstName }) => {
   const navigate = useNavigate();
 
@@ -155,6 +242,42 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
     }),
     [token]
   );
+
+  const fetchPeerReview = async () => {
+  const id = storedUserId || userId;
+  if (!id) return;
+
+  const candidates = [
+    `${backendUrl}/api/peer-review/summary/${id}`,
+    `${backendUrl}/api/peer-reviews/summary/${id}`,
+    `${backendUrl}/api/reviews/peer/summary/${id}`,
+    `${backendUrl}/api/musician/${id}/peer-review-summary`,
+  ];
+
+  for (const url of candidates) {
+    try {
+      const res = await axios.get(url, { headers });
+      const payload = res?.data;
+
+      const summary =
+        payload?.summary ||
+        payload?.peerReview ||
+        payload?.data ||
+        payload ||
+        null;
+
+      if (summary && (typeof summary.average === "number" || typeof summary.count === "number")) {
+        setPeerReview(summary);
+        return;
+      }
+    } catch {
+      // keep trying
+    }
+  }
+
+  // no endpoint yet? don’t error — just show placeholders
+  setPeerReview(null);
+};
 
   // -------- Fetch my musician profile for avatar card (robust endpoint attempts) --------
   const fetchMe = async () => {
@@ -246,6 +369,7 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
     fetchMyActs();
     fetchDeppingActs();
     fetchStats();
+     fetchPeerReview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -368,36 +492,16 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
             </button>
           </div>
 
-          {/* ------- Peer Review Section ------- */}
-          <div className="bg-white shadow rounded p-4">
-            <h3 className="text-lg font-semibold mb-4">Peer Review</h3>
-
-            {[
-              "Technical Skill",
-              "Team Spirit",
-              "Preparation",
-              "Timeliness",
-              "Stage Presence",
-              "Client Satisfaction",
-            ].map((cat) => (
-              <div key={cat} className="mb-4">
-                <p className="font-medium">{cat}</p>
-                <div className="flex gap-1 mt-1">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <span key={i} className="text-gray-300 text-2xl">
-                      ★
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+  
         </div>
 
-        {/* RIGHT: avatar/profile panel */}
-        <div className="lg:col-span-3">
-          <YourProfileCard me={me} fallbackFirstName={firstName} />
-        </div>
+       {/* RIGHT: sticky sidebar (profile + peer review) */}
+<div className="lg:col-span-3">
+  <div className="sticky top-6 space-y-4">
+    <YourProfileCard me={me} fallbackFirstName={firstName} />
+    <PeerReviewCard peer={peerReview} />
+  </div>
+</div>
       </div>
     </div>
   );
