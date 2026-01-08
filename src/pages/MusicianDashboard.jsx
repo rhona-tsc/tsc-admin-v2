@@ -5,7 +5,6 @@ import BookingsChart from "../components/BookingsChart";
 import RevenueChart from "../components/RevenueChart";
 import EnquiriesVsBookingsChart from "../components/EnquiriesVsBookingsChart";
 import DashboardUnderConstruction from "../components/DashboardUnderConstruction";
-import { useNavigate } from "react-router-dom";
 
 const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
