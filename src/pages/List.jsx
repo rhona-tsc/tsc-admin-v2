@@ -117,7 +117,7 @@ const mine = storedUserId
   : [];
 
 // ✅ IMPORTANT: actually update state
-setList(mine); // or setList(visible) for testing
+setList(visible);
 
   console.log("🧪 match check:", {
   storedUserId,
