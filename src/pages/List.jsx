@@ -12,37 +12,61 @@ const List = ({ token }) => {
   const [loading, setLoading] = useState(true);
 
   // ✅ Pull the logged-in user id from storage (covers both patterns)
-const storedUserId = useMemo(() => {
-  return (
-    sessionStorage.getItem("userId") ||
-    localStorage.getItem("userId") ||
-    sessionStorage.getItem("userid") ||     // ✅ add this
-    localStorage.getItem("userid") ||       // ✅ add this
-    sessionStorage.getItem("musicianId") ||
-    localStorage.getItem("musicianId") ||
-    sessionStorage.getItem("musicianid") || // ✅ optional
-    localStorage.getItem("musicianid") ||   // ✅ optional
-    ""
-  );
-}, []);
+const getStoredUserId = () => {
+  const candidates = [
+    sessionStorage.getItem("userId"),
+    localStorage.getItem("userId"),
+    sessionStorage.getItem("userid"),
+    localStorage.getItem("userid"),
+    sessionStorage.getItem("musicianId"),
+    localStorage.getItem("musicianId"),
+    sessionStorage.getItem("musicianid"),
+    localStorage.getItem("musicianid"),
+  ]
+    .map(v => (v ?? "").trim())
+    .filter(v => v && v !== "undefined" && v !== "null");
+
+  return candidates[0] || "";
+};
 
   // ✅ Normalise ID shapes: string, ObjectId-ish, populated object, etc.
-  const normId = (v) => {
-    if (!v) return "";
-    if (typeof v === "string") return v.trim();
+const normId = (v) => {
+  if (!v) return "";
 
-    // handle populated object: { _id: "..." }
-    if (typeof v === "object") {
-      const maybe =
-        v?._id?.toString?.() ||
-        v?.id?.toString?.() ||
-        v?.toString?.() ||
-        "";
-      return String(maybe).trim();
+  // already a string id
+  if (typeof v === "string") {
+    const s = v.trim();
+
+    // handle "ObjectId('...')" / 'ObjectId("...")'
+    const m = s.match(/ObjectId\((?:'|")?([a-fA-F0-9]{24})(?:'|")?\)/);
+    if (m?.[1]) return m[1];
+
+    // handle plain 24-char id
+    if (/^[a-fA-F0-9]{24}$/.test(s)) return s;
+
+    return s;
+  }
+
+  // objects
+  if (typeof v === "object") {
+    // Extended JSON: { $oid: "..." }
+    if (v?.$oid && typeof v.$oid === "string") return v.$oid.trim();
+
+    // populated: { _id: "..." } or { _id: { $oid: "..." } }
+    if (v?._id) return normId(v._id);
+
+    // sometimes { id: "..." }
+    if (v?.id) return normId(v.id);
+
+    // native ObjectId (mongodb / mongoose)
+    if (typeof v.toString === "function") {
+      const s = String(v.toString()).trim();
+      if (/^[a-fA-F0-9]{24}$/.test(s)) return s;
     }
+  }
 
-    return String(v).trim();
-  };
+  return String(v).trim();
+};
 
   const sameId = (a, b) => {
     const A = normId(a);
@@ -79,16 +103,25 @@ const storedUserId = useMemo(() => {
 
       const ok = resp?.data?.success === true;
       const rows = ok && Array.isArray(resp?.data?.acts) ? resp.data.acts : [];
-
+console.log("🧪 createdBy samples:", rows.slice(0, 5).map(a => ({
+  _id: a?._id,
+  createdBy: a?.createdBy,
+  typeof: typeof a?.createdBy,
+})));
       const visible = rows.filter((a) => a?.status !== "trashed");
 
-      // ✅ Only show acts created by the logged-in musician
-      const mine = storedUserId
-        ? visible.filter((a) => sameId(a?.createdBy, storedUserId))
-        : [];
+   const storedUserId = getStoredUserId();
 
-      setList(mine);
+const mine = storedUserId
+  ? visible.filter((a) => sameId(a?.createdBy, storedUserId))
+  : [];
 
+  console.log("🧪 match check:", {
+  storedUserId,
+  storedUserIdNorm: normId(storedUserId),
+  firstCreatedBy: visible?.[0]?.createdBy,
+  firstCreatedByNorm: normId(visible?.[0]?.createdBy),
+});
       console.log("📥 act-v2/list:", {
         success: resp?.data?.success,
         count: rows.length,
