@@ -108,13 +108,16 @@ console.log("🧪 createdBy samples:", rows.slice(0, 5).map(a => ({
   createdBy: a?.createdBy,
   typeof: typeof a?.createdBy,
 })));
-      const visible = rows.filter((a) => a?.status !== "trashed");
+    const visible = rows.filter((a) => a?.status !== "trashed");
 
-   const storedUserId = getStoredUserId();
+const storedUserId = getStoredUserId();
 
 const mine = storedUserId
   ? visible.filter((a) => sameId(a?.createdBy, storedUserId))
   : [];
+
+// ✅ IMPORTANT: actually update state
+setList(mine); // or setList(visible) for testing
 
   console.log("🧪 match check:", {
   storedUserId,
