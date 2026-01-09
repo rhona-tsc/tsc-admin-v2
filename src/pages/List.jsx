@@ -12,15 +12,19 @@ const List = ({ token }) => {
   const [loading, setLoading] = useState(true);
 
   // ✅ Pull the logged-in user id from storage (covers both patterns)
-  const storedUserId = useMemo(() => {
-    return (
-      sessionStorage.getItem("userId") ||
-      localStorage.getItem("userId") ||
-      sessionStorage.getItem("musicianId") ||
-      localStorage.getItem("musicianId") ||
-      ""
-    );
-  }, []);
+const storedUserId = useMemo(() => {
+  return (
+    sessionStorage.getItem("userId") ||
+    localStorage.getItem("userId") ||
+    sessionStorage.getItem("userid") ||     // ✅ add this
+    localStorage.getItem("userid") ||       // ✅ add this
+    sessionStorage.getItem("musicianId") ||
+    localStorage.getItem("musicianId") ||
+    sessionStorage.getItem("musicianid") || // ✅ optional
+    localStorage.getItem("musicianid") ||   // ✅ optional
+    ""
+  );
+}, []);
 
   // ✅ Normalise ID shapes: string, ObjectId-ish, populated object, etc.
   const normId = (v) => {
