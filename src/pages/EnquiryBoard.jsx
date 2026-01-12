@@ -13,6 +13,44 @@ const getAuthToken = () =>
   sessionStorage.getItem("token") ||
   "";
 
+
+  const parseJwt = (token) => {
+  try {
+    if (!token) return null;
+    const base64Url = token.split(".")[1];
+    if (!base64Url) return null;
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+};
+
+const isAgentUser = (jwtUser) => {
+  const role = String(jwtUser?.role || "").toLowerCase();
+
+  const email = String(
+    jwtUser?.email ||
+    jwtUser?.useremail ||
+    jwtUser?.Useremail ||
+    ""
+  ).toLowerCase();
+
+  return (
+    ["admin", "superadmin", "tsc_admin", "agent"].includes(role) ||
+    email === "hello@thesupremecollective.co.uk"
+  );
+};
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
+
+
 const fmtShort = (iso) => {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -64,6 +102,9 @@ function AgentCell({ value, onSave }) {
     value && !AGENTS.includes(value) ? "Other" : value || ""
   );
   const [text, setText] = useState(() => (value && !AGENTS.includes(value) ? value : ""));
+
+
+
 
   useEffect(() => {
     const isOther = value && !AGENTS.includes(value);
@@ -152,6 +193,218 @@ export default function EnquiryBoard() {
   // local UI state for sending availability
   const [sending, setSending] = useState({}); // { [enquiryId]: true|false }
   const [slotPick, setSlotPick] = useState({}); // { [enquiryId]: "all"|"0"|"1"|... }
+
+  // ✅ Manual add modal
+  const [showAdd, setShowAdd] = useState(false);
+  const [addBusy, setAddBusy] = useState(false);
+
+    const token = getAuthToken();
+  const jwtUser = useMemo(() => parseJwt(token), [token]);
+  const canManualAdd = isAgentUser(jwtUser);
+  
+
+      // ---- Act picker (manual add) ----
+  const [actSearch, setActSearch] = useState("");
+  const [actResults, setActResults] = useState([]);
+  const [actLoading, setActLoading] = useState(false);
+  const [selectedAct, setSelectedAct] = useState(null);
+
+
+
+  const [draft, setDraft] = useState({
+    agent: "Direct",
+    enquiryDateISO: todayISO(),
+    eventDateISO: "",
+    actName: "",
+    actTscName: "",
+    address: "",
+    county: "",
+    clientName: "",
+    clientEmail: "",
+    notes: "",
+    bandSize: "",
+    maxBudget: "",
+    grossValue: "",
+    netCommission: "",
+    // optional (only if you want to wire availability later)
+    actId: "",
+    lineupId: "",
+    enquiryRef: "",
+  });
+
+  const openManualAdd = () => {
+    setActSearch("");
+    setActResults([]);
+    setSelectedAct(null);
+
+    setDraft((d) => ({
+      ...d,
+      agent: d.agent || "Direct",
+      enquiryDateISO: d.enquiryDateISO || todayISO(),
+      actId: "",
+      lineupId: "",
+      actName: d.actName || "",
+      actTscName: d.actTscName || "",
+    }));
+
+    setShowAdd(true);
+  };
+  const closeManualAdd = () => setShowAdd(false);
+
+  const submitManualAdd = async () => {
+    if (!canManualAdd) {
+      window.alert("Manual add is agent-only.");
+      return;
+    }
+
+    // Basic validation (keep it light)
+    const eventDateISO = (draft.eventDateISO || "").trim();
+    if (!eventDateISO) {
+      window.alert("Please add an Event Date.");
+      return;
+    }
+    if (!draft.actId) {
+  window.alert("Please select an Act from the search (so we store actId for availability).");
+  return;
+}
+
+    const payload = {
+      agent: (draft.agent || "").trim(),
+      enquiryDateISO: (draft.enquiryDateISO || "").trim() || todayISO(),
+      eventDateISO,
+      actName: (draft.actName || "").trim(),
+      actTscName: (draft.actTscName || "").trim(),
+      address: (draft.address || "").trim(),
+      county: (draft.county || "").trim(),
+      clientName: (draft.clientName || "").trim(),
+      clientEmail: (draft.clientEmail || "").trim().toLowerCase(),
+      notes: (draft.notes || "").trim(),
+      enquiryRef: (draft.enquiryRef || "").trim(),
+
+      // numbers (optional)
+      bandSize: draft.bandSize ? Number(draft.bandSize) : undefined,
+      maxBudget: draft.maxBudget ? Number(draft.maxBudget) : undefined,
+      grossValue: draft.grossValue ? Number(draft.grossValue) : undefined,
+      netCommission: draft.netCommission ? Number(draft.netCommission) : undefined,
+
+      // optional IDs
+      actId: (draft.actId || "").trim() || undefined,
+      lineupId: (draft.lineupId || "").trim() || undefined,
+    };
+
+    // Remove undefined keys (clean payload)
+    Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
+
+    setAddBusy(true);
+    try {
+      const res = await fetch(`${API_BASE}/board/enquiries`, {
+        method: "POST",
+        headers: buildHeaders(),
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+
+      const raw = await res.text();
+      let json = null;
+      try { json = JSON.parse(raw); } catch {}
+
+      if (!res.ok || !json?.success) {
+        console.error("Manual add failed:", { status: res.status, raw, json });
+        window.alert(json?.message || "Manual add failed (see console).");
+        return;
+      }
+
+      closeManualAdd();
+      await fetchRows();
+      window.alert("✅ Enquiry added.");
+    } catch (e) {
+      console.error("Manual add crashed:", e);
+      window.alert("Manual add crashed (see console).");
+    } finally {
+      setAddBusy(false);
+    }
+  };
+
+
+
+  const lineupOptions = useMemo(() => {
+    const l = selectedAct?.lineups;
+    if (!Array.isArray(l)) return [];
+    // Try to make a sensible label regardless of your lineup shape
+    return l
+      .map((x, idx) => {
+        const id = x?.lineupId || x?.id || x?._id || x?.uuid || "";
+        const label =
+          x?.act_size ||
+          x?.actSize ||
+          x?.name ||
+          x?.lineupName ||
+          (typeof x === "string" ? x : `Lineup ${idx + 1}`);
+        return id ? { id, label } : null;
+      })
+      .filter(Boolean);
+  }, [selectedAct]);
+
+    const pickAct = (act) => {
+    setSelectedAct(act);
+    setDraft((p) => ({
+      ...p,
+      actId: act?._id || "",
+      actName: act?.name || p.actName,
+      actTscName: act?.tscName || p.actTscName,
+      lineupId: "", // reset; optional
+    }));
+    setActResults([]); // collapse results
+    setActSearch(act?.tscName || act?.name || "");
+  };
+
+
+
+  // fetch acts as you type (simple debounce)
+  useEffect(() => {
+    if (!showAdd) return;
+
+    const term = (actSearch || "").trim();
+    if (term.length < 2) {
+      setActResults([]);
+      return;
+    }
+
+    const t = setTimeout(async () => {
+      setActLoading(true);
+      try {
+        const qs = new URLSearchParams();
+        qs.set("q", term);
+        qs.set("limit", "25");
+        qs.set("page", "1");
+        qs.set("fields", "_id,name,tscName,lineups");
+        qs.set("_cb", String(Date.now()));
+
+        const res = await fetch(`${API_BASE}/act/list?${qs.toString()}`, {
+          headers: buildHeaders(),
+          credentials: "include",
+        });
+        const raw = await res.text();
+        let json = null;
+        try { json = JSON.parse(raw); } catch {}
+
+        const items =
+          (Array.isArray(json?.acts) && json.acts) ||
+          (Array.isArray(json?.items) && json.items) ||
+          (Array.isArray(json?.data) && json.data) ||
+          [];
+
+        setActResults(items);
+      } catch (e) {
+        console.error("Act search failed:", e);
+        setActResults([]);
+      } finally {
+        setActLoading(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(t);
+  }, [actSearch, showAdd]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const buildHeaders = () => {
     const token = getAuthToken();
@@ -543,13 +796,26 @@ export default function EnquiryBoard() {
             })}
 
             {/* Manual add – coming soon */}
-            <tr className="bg-yellow-50">
-              <td colSpan={999} className="px-3 py-3">
-                <button className="px-3 py-2 border rounded opacity-60 cursor-not-allowed" disabled>
-                  Manual add (coming soon)
-                </button>
-              </td>
-            </tr>
+           <tr className="bg-yellow-50">
+  <td colSpan={999} className="px-3 py-3">
+    <button
+      className={`px-3 py-2 border rounded ${
+        canManualAdd ? "bg-white hover:bg-gray-50" : "opacity-60 cursor-not-allowed"
+      }`}
+      disabled={!canManualAdd}
+      onClick={openManualAdd}
+      title={canManualAdd ? "Add a manual enquiry" : "Agent-only"}
+    >
+      + Manual add enquiry
+    </button>
+
+    {!canManualAdd && (
+      <span className="ml-3 text-xs text-gray-600">
+        (Agent-only)
+      </span>
+    )}
+  </td>
+</tr>
 
             {rows.length === 0 && (
               <tr>
@@ -563,6 +829,212 @@ export default function EnquiryBoard() {
             )}
           </tbody>
         </table>
+
+        {showAdd && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-lg font-semibold">Manual Enquiry</h3>
+        <button className="text-sm underline" onClick={closeManualAdd}>
+          Close
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+
+                {/* Act picker (search + results) */}
+        <div className="text-xs col-span-2">
+          <div className="flex items-center justify-between">
+            <span>
+              Act (search & select) <span className="text-red-500">*</span>
+            </span>
+            {draft.actId ? (
+              <span className="text-[11px] text-gray-500">actId: {draft.actId}</span>
+            ) : (
+              <span className="text-[11px] text-gray-500">Pick an act to enable availability</span>
+            )}
+          </div>
+
+          <input
+            className="border rounded px-2 py-2 w-full mt-1"
+            placeholder="Type 2+ chars (e.g. dancefloor magic)…"
+            value={actSearch}
+            onChange={(e) => setActSearch(e.target.value)}
+          />
+
+          {actLoading && (
+            <div className="mt-2 text-[11px] text-gray-500">Searching…</div>
+          )}
+
+          {!actLoading && actResults.length > 0 && (
+            <div className="mt-2 border rounded max-h-56 overflow-auto">
+              {actResults.map((a) => (
+                <button
+                  key={a._id}
+                  type="button"
+                  className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b last:border-b-0"
+                  onClick={() => pickAct(a)}
+                >
+                  <div className="font-medium text-sm">{a.name || "—"}</div>
+                  <div className="text-[11px] text-gray-500">{a.tscName || "—"}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Optional lineup picker */}
+        <label className="text-xs col-span-2">
+          Lineup (optional — leave blank to auto-pick smallest)
+          <select
+            className="border rounded px-2 py-2 w-full"
+            value={draft.lineupId || ""}
+            onChange={(e) => setDraft((p) => ({ ...p, lineupId: e.target.value }))}
+            disabled={!draft.actId || lineupOptions.length === 0}
+          >
+            <option value="">Auto (smallest lineup)</option>
+            {lineupOptions.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="text-xs">
+          Source / Agent
+          <select
+            className="border rounded px-2 py-2 w-full"
+            value={draft.agent}
+            onChange={(e) => setDraft((p) => ({ ...p, agent: e.target.value }))}
+          >
+            {AGENTS.filter(a => a !== "Other").map((a) => (
+              <option key={a} value={a}>{a}</option>
+            ))}
+            <option value="Other">Other</option>
+          </select>
+        </label>
+
+        <label className="text-xs">
+          Enquiry Date
+          <input
+            type="date"
+            className="border rounded px-2 py-2 w-full"
+            value={draft.enquiryDateISO}
+            onChange={(e) => setDraft((p) => ({ ...p, enquiryDateISO: e.target.value }))}
+          />
+        </label>
+
+        <label className="text-xs">
+          Event Date <span className="text-red-500">*</span>
+          <input
+            type="date"
+            className="border rounded px-2 py-2 w-full"
+            value={draft.eventDateISO}
+            onChange={(e) => setDraft((p) => ({ ...p, eventDateISO: e.target.value }))}
+          />
+        </label>
+
+        <label className="text-xs">
+          Ref (optional)
+          <input
+            className="border rounded px-2 py-2 w-full"
+            placeholder="ENQ-..."
+            value={draft.enquiryRef}
+            onChange={(e) => setDraft((p) => ({ ...p, enquiryRef: e.target.value }))}
+          />
+        </label>
+
+        <label className="text-xs col-span-1">
+          Act Name
+          <input
+            className="border rounded px-2 py-2 w-full"
+            value={draft.actName}
+            onChange={(e) => setDraft((p) => ({ ...p, actName: e.target.value }))}
+          />
+        </label>
+
+        <label className="text-xs col-span-1">
+          Act tscName
+          <input
+            className="border rounded px-2 py-2 w-full"
+            value={draft.actTscName}
+            onChange={(e) => setDraft((p) => ({ ...p, actTscName: e.target.value }))}
+          />
+        </label>
+
+        <label className="text-xs col-span-2">
+          Venue / Address
+          <input
+            className="border rounded px-2 py-2 w-full"
+            value={draft.address}
+            onChange={(e) => setDraft((p) => ({ ...p, address: e.target.value }))}
+          />
+        </label>
+
+        <label className="text-xs col-span-1">
+          County
+          <input
+            className="border rounded px-2 py-2 w-full"
+            value={draft.county}
+            onChange={(e) => setDraft((p) => ({ ...p, county: e.target.value }))}
+          />
+        </label>
+
+        <label className="text-xs col-span-1">
+          Band size quoted
+          <input
+            type="number"
+            className="border rounded px-2 py-2 w-full"
+            value={draft.bandSize}
+            onChange={(e) => setDraft((p) => ({ ...p, bandSize: e.target.value }))}
+          />
+        </label>
+
+        <label className="text-xs col-span-1">
+          Client Name
+          <input
+            className="border rounded px-2 py-2 w-full"
+            value={draft.clientName}
+            onChange={(e) => setDraft((p) => ({ ...p, clientName: e.target.value }))}
+          />
+        </label>
+
+        <label className="text-xs col-span-1">
+          Client Email
+          <input
+            className="border rounded px-2 py-2 w-full"
+            value={draft.clientEmail}
+            onChange={(e) => setDraft((p) => ({ ...p, clientEmail: e.target.value }))}
+          />
+        </label>
+
+        <label className="text-xs col-span-2">
+          Notes
+          <textarea
+            rows={3}
+            className="border rounded px-2 py-2 w-full"
+            value={draft.notes}
+            onChange={(e) => setDraft((p) => ({ ...p, notes: e.target.value }))}
+          />
+        </label>
+      </div>
+
+      <div className="flex justify-end gap-2 mt-4">
+        <button className="px-4 py-2 border rounded" onClick={closeManualAdd}>
+          Cancel
+        </button>
+        <button
+          className={`px-4 py-2 rounded text-white ${addBusy ? "bg-gray-400" : "bg-[#ff6667]"}`}
+          disabled={addBusy}
+          onClick={submitManualAdd}
+        >
+          {addBusy ? "Saving..." : "Create enquiry"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       </div>
     </div>
   );
