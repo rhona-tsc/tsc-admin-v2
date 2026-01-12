@@ -201,7 +201,7 @@ export default function EnquiryBoard() {
     const token = getAuthToken();
   const jwtUser = useMemo(() => parseJwt(token), [token]);
   const canManualAdd = isAgentUser(jwtUser);
-  
+
 
       // ---- Act picker (manual add) ----
   const [actSearch, setActSearch] = useState("");
@@ -268,6 +268,18 @@ export default function EnquiryBoard() {
   return;
 }
 
+const address = (draft.address || "").trim();
+const clientEmail = (draft.clientEmail || "").trim().toLowerCase();
+
+if (!address) {
+  window.alert("Please add Venue / Address (needed to send availability request).");
+  return;
+}
+if (!clientEmail || !/\S+@\S+\.\S+/.test(clientEmail)) {
+  window.alert("Please add a valid Client Email (needed to send availability request).");
+  return;
+}
+
     const payload = {
       agent: (draft.agent || "").trim(),
       enquiryDateISO: (draft.enquiryDateISO || "").trim() || todayISO(),
@@ -314,9 +326,19 @@ export default function EnquiryBoard() {
         return;
       }
 
-      closeManualAdd();
-      await fetchRows();
-      window.alert("✅ Enquiry added.");
+     const createdRow = json.row;
+
+closeManualAdd();
+await fetchRows();
+
+// auto-trigger availability (silent)
+const out = await triggerAvailability(createdRow, { notify: false });
+
+if (out?.ok) {
+  window.alert("✅ Enquiry added + availability request sent.");
+} else {
+  window.alert(`✅ Enquiry added, but availability was NOT sent: ${out?.message || "Unknown error"}`);
+}
     } catch (e) {
       console.error("Manual add crashed:", e);
       window.alert("Manual add crashed (see console).");
