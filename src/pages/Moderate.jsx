@@ -36,7 +36,7 @@ const Moderate = () => {
       qs.append("status", "live_changes_pending");
       qs.append("status", "Approved, changes pending");
 
-      const url = `${backendUrl}/api/act/list?${qs.toString()}`;
+      const url = `${backendUrl}/api/act-presubmissions?${qs.toString()}`;
 
       const response = await axios.get(url, {
         headers: {
@@ -169,7 +169,7 @@ const Moderate = () => {
 
   return (
     <div>
-      <h2 className="mb-4 text-lg font-bold">Pending Acts</h2>
+      <h2 className="mb-4 text-lg font-bold">Pending PreSubmissions</h2>
 
       {loading ? (
         <div className="space-y-3">
@@ -190,7 +190,7 @@ const Moderate = () => {
           ))}
         </div>
       ) : pendingActs.length === 0 ? (
-        <p>No pending acts found.</p>
+        <p>No pending presubmissions found.</p>
       ) : (
         <div className="flex flex-col gap-4">
           {pendingActs.map((act) => {
