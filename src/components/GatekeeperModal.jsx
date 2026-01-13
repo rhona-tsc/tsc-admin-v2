@@ -144,7 +144,7 @@ const GatekeeperModal = ({
       };
 
       const res = await axios.post(
-        `${backendUrl}/api/act-presubmissions/submit`,
+        `${backendUrl}/api/act-pre-submissions/submit`,
         payload
       );
 

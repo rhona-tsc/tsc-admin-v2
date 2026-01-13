@@ -31,7 +31,7 @@ const ActPreSubmissionPage = () => {
     try {
       setLoading(true);
 
-      const url = `${backendUrl}/api/act-presubmissions/pending?_cb=${Date.now()}`;
+      const url = `${backendUrl}/api/act-pre-submissions/pending?_cb=${Date.now()}`;
 
       const response = await axios.get(url, {
         withCredentials: true,
@@ -76,7 +76,7 @@ const ActPreSubmissionPage = () => {
       setModalLoading(true);
 
       // 🔧 Change this if your route differs
-      const fetchOneUrl = `${backendUrl}/api/act-presubmissions/${id}?_cb=${Date.now()}`;
+      const fetchOneUrl = `${backendUrl}/api/act-pre-submissions/${id}?_cb=${Date.now()}`;
 
       const res = await axios.get(fetchOneUrl, {
         withCredentials: true,
@@ -115,8 +115,8 @@ const ActPreSubmissionPage = () => {
     try {
       const endpoint =
         action === "approved"
-          ? `${backendUrl}/api/act-presubmissions/approve/${id}`
-          : `${backendUrl}/api/act-presubmissions/reject/${id}`;
+          ? `${backendUrl}/api/act-pre-submissions/approve/${id}`
+          : `${backendUrl}/api/act-pre-submissions/reject/${id}`;
 
       const res = await axios.post(
         endpoint,
