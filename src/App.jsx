@@ -178,7 +178,7 @@ const App = () => {
                     }
                   />
                   <Route
-                    path="/act-pre-submissions"
+                    path="/act-presubmissions"
                     element={<ActPreSubmissionsPage userRole={userRole} />}
                   />
                    <Route
