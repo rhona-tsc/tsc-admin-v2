@@ -1,95 +1,227 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { backendUrl } from "../App";
-import { format } from "date-fns";
+import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
+import CustomToast from "../components/CustomToast";
+import { assets } from "../assets/assets";
 
-const ActPreSubmissionsPage = () => {
-  const [items, setItems] = useState([]);
+const ActPreSubmissionPage = () => {
+  const navigate = useNavigate();
+  const [pendingActs, setPendingActs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const fetchItems = async () => {
-    try {
-const res = await axios.get(`${backendUrl}/api/act-pre-submissions/pending`);
-      setItems(res.data.items || []);
-    } catch (err) {
-      console.error("Failed to load Pre-Submissions:", err);
-    }
+  const handleEdit = (id) => {
+    // open the moderation-safe editor which won’t autosave empties
+    navigate(`/moderate/edit/${id}`);
   };
+
+const fetchPendingActs = async () => {
+  try {
+    setLoading(true);
+
+    const url = `${backendUrl}/api/act-presubmissions/pending?_cb=${Date.now()}`;
+
+    const token =
+      localStorage.getItem("authToken") ||
+      localStorage.getItem("token") ||
+      "";
+
+    const response = await axios.get(url, {
+      withCredentials: true,
+      headers: {
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        ...(token ? { Authorization: `Bearer ${token}`, token } : {}),
+      },
+    });
+
+    if (!response.data?.success) {
+      toast(
+        <CustomToast
+          type="error"
+          message={response.data?.message || "Failed to load pending submissions"}
+        />
+      );
+      setPendingActs([]);
+      return;
+    }
+
+    // ✅ presubmissions return { subs: [...] }
+    const subsRaw = Array.isArray(response.data.subs) ? response.data.subs : [];
+
+    // route already filters pending, but keep safe
+    const pending = subsRaw.filter(
+      (s) => String(s?.status || "").toLowerCase().trim() === "pending"
+    );
+
+    setPendingActs(pending);
+  } catch (error) {
+    console.error("❌ fetchPendingActs error:", error?.response?.data || error);
+    toast(<CustomToast type="error" message="Failed to load pending submissions" />);
+    setPendingActs([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
+  // Token refresh via HTTP-only cookie (optional)
+  const refreshToken = async () => {
+    try {
+      const res = await axios.post(
+        `${backendUrl}/api/auth/refresh`,
+        {},
+        { withCredentials: true }
+      );
+      if (res.data?.success && res.data?.token) {
+        localStorage.setItem("authToken", res.data.token);
+        return res.data.token;
+      }
+    } catch (err) {
+      console.error("❌ Token refresh failed:", err);
+    }
+    return null;
+  };
+
+const updateStatus = async (id, action) => {
+  try {
+    const token =
+      localStorage.getItem("authToken") ||
+      localStorage.getItem("token") ||
+      "";
+
+    const endpoint =
+      action === "approved"
+        ? `${backendUrl}/api/act-presubmissions/approve/${id}`
+        : `${backendUrl}/api/act-presubmissions/reject/${id}`;
+
+    const res = await axios.post(
+      endpoint,
+      {},
+      {
+        withCredentials: true,
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}`, token } : {}),
+        },
+      }
+    );
+
+    if (res.data?.success) {
+      toast(<CustomToast type="success" message={`Submission ${action}`} />);
+      fetchPendingActs();
+    } else {
+      toast(
+        <CustomToast
+          type="error"
+          message={res.data?.message || "Update failed"}
+        />
+      );
+    }
+  } catch (e) {
+    console.error("❌ updateStatus error:", e?.response?.data || e);
+    toast(<CustomToast type="error" message="Error updating submission status" />);
+  }
+};
 
   useEffect(() => {
-    fetchItems();
+    fetchPendingActs();
   }, []);
 
-  const approveItem = async (id) => {
-    try {
-      const res = await axios.post(`${backendUrl}/api/act-pre-submissions/${id}/approve`);
-      await fetchItems();
-      alert("Act approved & invite sent!");
-    } catch (err) {
-      console.error("Approval failed:", err);
-    }
-  };
-
-  const rejectItem = async (id) => {
-    try {
-      await axios.post(`${backendUrl}/api/act-pre-submissions/${id}/reject`);
-      await fetchItems();
-      alert("Act rejected & notice sent.");
-    } catch (err) {
-      console.error("Reject failed:", err);
-    }
-  };
-
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold mb-4">Act Pre-Submissions</h1>
+    <div>
+      <h2 className="mb-4 text-lg font-bold">Pending PreSubmissions</h2>
 
-      <div className="space-y-4">
-        {items.map((item) => (
-          <div
-            key={item._id}
-            className={`p-4 border rounded shadow-sm ${
-              item.status !== "pending" ? "opacity-50 pointer-events-none" : ""
-            }`}
-          >
-            <div className="font-semibold text-lg">{item.actName}</div>
-            <div className="text-sm text-gray-600">
-              Submitted by {item.contactName} ({item.contactEmail})
-              <br />
-              {format(new Date(item.createdAt), "dd MMM yyyy • HH:mm")}
-            </div>
-
-            {item.extraInfo && (
-              <div className="mt-2 text-gray-700 text-sm">
-                <strong>Notes:</strong> {item.extraInfo}
+      {loading ? (
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <div
+              key={i}
+              className="animate-pulse flex items-center justify-between border p-4 rounded bg-white"
+            >
+              <div className="flex gap-4 items-center">
+                <div className="w-20 h-20 bg-gray-200 rounded" />
+                <div>
+                  <div className="h-4 w-40 bg-gray-200 rounded mb-2" />
+                  <div className="h-3 w-24 bg-gray-200 rounded" />
+                </div>
               </div>
-            )}
-
-            <div className="flex gap-3 mt-4">
-              <button
-                onClick={() => approveItem(item._id)}
-                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-              >
-                Approve & Send Invite
-              </button>
-
-              <button
-                onClick={() => rejectItem(item._id)}
-                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-              >
-                Reject
-              </button>
+              <div className="h-4 w-32 bg-gray-200 rounded" />
             </div>
+          ))}
+        </div>
+      ) : pendingActs.length === 0 ? (
+        <p>No pending presubmissions found.</p>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {pendingActs.map((act) => {
+            // prefer profileImage[0], fallback to images[0]
+          const profileSrc = assets.placeholder_image;
 
-            {item.status !== "pending" && (
-              <p className="mt-2 text-sm italic text-gray-500">
-                {item.status === "approved" ? "Approved" : "Rejected"}
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
+            return (
+              <div
+                key={act._id}
+                className="border p-4 flex items-center justify-between rounded shadow-sm bg-white"
+              >
+                <div className="flex gap-4 items-center">
+                  <img
+                    src={profileSrc}
+                    alt={act.name}
+                    className="w-20 h-20 object-cover rounded"
+                    onError={(e) => {
+                      e.currentTarget.src = assets.placeholder_image;
+                    }}
+                  />
+                  <div>
+                   <p className="font-semibold">{act.actName || "—"}</p>
+<p className="text-xs text-gray-500">{act.bandLeaderEmail || act.musicianEmail || "—"}</p>
+<p className="text-[11px] text-gray-400 mt-1">Status: {act.status || "—"}</p>
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      Status: {act.status || "—"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-sm text-gray-600">
+                  <p>
+                    Created At:{" "}
+                    {act.createdAt
+                      ? new Date(act.createdAt).toLocaleDateString()
+                      : "-"}
+                  </p>
+                </div>
+
+                <div className="text-sm text-gray-600">
+                  <button
+                    className="bg-blue-600 text-white px-4 py-2 rounded text-sm"
+                    onClick={() => handleEdit(act._id)}
+                  >
+                    View/Edit
+                  </button>
+                </div>
+
+                {act._id && (
+                  <div className="flex gap-2">
+                    <button
+                      className="bg-green-600 text-white px-4 py-2 rounded text-sm"
+                      onClick={() => updateStatus(act._id, "approved")}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      className="bg-red-600 text-white px-4 py-2 rounded text-sm"
+                      onClick={() => updateStatus(act._id, "rejected")}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
 
-export default ActPreSubmissionsPage;
+export default ActPreSubmissionPage;
