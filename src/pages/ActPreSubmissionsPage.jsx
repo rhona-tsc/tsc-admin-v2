@@ -128,7 +128,7 @@ const ActPreSubmissionPage = () => {
       );
 
       if (res.data?.success) {
-        toast(<CustomToast type="success" message={`Submission ${action}`} />);
+        toast(<CustomToast type="success" message={`Pre Submission ${action}`} />);
         await fetchPendingActs();
         closeModal();
       } else {

@@ -100,7 +100,7 @@ const resolvedMusicianId = musicianId || userId;
 
         
 const verifyRes = await axios.post(
-  `${backendUrl}/api/act-presubmissions/validate-code`,
+  `${backendUrl}/api/act-pre-submissions/validate-code`,
   {
     code,
     userId: resolvedMusicianId,
