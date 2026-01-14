@@ -8,10 +8,11 @@ import GatekeeperModal from "./GatekeeperModal";
 const normalize = (s) => (s || "").toLowerCase().trim();
 const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
 
-const Sidebar = ({ userRole, userFirstName, userId, userEmail }) => {
+const Sidebar = ({ userRole, firstName, userId, email }) => {
   const navigate = useNavigate();
   const location = useLocation();
-
+  const userFirstName = firstName;
+  const userEmail = email;
   const [showGatekeeper, setShowGatekeeper] = useState(false);
   const [feedbackCount, setFeedbackCount] = useState(0);
   const [noticeCount, setNoticeCount] = useState(0);
