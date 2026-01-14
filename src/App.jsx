@@ -96,18 +96,21 @@ const App = () => {
   };
 
   // If token changes at runtime (login), re-hydrate fields
-  useEffect(() => {
-    if (!token) return;
-    const d = parseToken(token);
-    setFirstName(d.firstName || "");
-    setLastName(d.lastName || "");
-    setEmail(d.email || "");
-    setPhone(d.phone || "");
-    setUserId(d.userId || "");
-    setUserRole(d.userRole || "");
-    setPassword(d.password || "");
-    setHydrated(true);
-  }, [token]);
+useEffect(() => {
+  if (!token) return;
+
+  const d = parseToken(token);
+
+  setFirstName((prev) => d.firstName || prev);
+  setLastName((prev) => d.lastName || prev);
+  setEmail((prev) => d.email || prev);
+  setPhone((prev) => d.phone || prev);
+  setUserId((prev) => d.userId || prev);
+  setUserRole((prev) => d.userRole || prev);
+  setPassword((prev) => d.password || prev);
+
+  setHydrated(true);
+}, [token]);
 
   return (
     <div className="bg-gray-50 min-h-screen">

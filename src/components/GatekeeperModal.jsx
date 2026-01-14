@@ -96,15 +96,17 @@ const GatekeeperModal = ({
       // ✅ If they have a code, verify and route them to Add Act
       if (form.hasCode && form.inviteCode.trim()) {
         const code = form.inviteCode.trim().toUpperCase();
+const resolvedMusicianId = musicianId || userId;
 
-        const verifyRes = await axios.post(
-          `${backendUrl}/api/act-presubmissions/validate-code`,
-          {
-            code,
-            userId,
-            actName: form.actName.trim(),
-          }
-        );
+        
+const verifyRes = await axios.post(
+  `${backendUrl}/api/act-presubmissions/validate-code`,
+  {
+    code,
+    userId: resolvedMusicianId,
+    actName: form.actName.trim(),
+  }
+);
 
         if (verifyRes.data?.success) {
           localStorage.setItem("actInviteCode", code);
@@ -129,17 +131,19 @@ const GatekeeperModal = ({
         );
         return;
       }
+       const resolvedMusicianId = musicianId || userId;
 
       // ✅ Otherwise, create PRE-submission
       const payload = {
         actName: form.actName.trim(),
         videoLinks: trimmedLinks,
         extraInfo: form.extraInfo.trim(),
-        submittedBy: {
-          userId,
-          name: userFirstName,
-          email: userEmail,
-        },
+
+submittedBy: {
+  userId: resolvedMusicianId,
+  name: userFirstName || "",
+  email: userEmail || "",
+},
         bandLeaderOrManager: form.isBandLeader
           ? { name: userFirstName, email: userEmail }
           : { name: form.managerName.trim(), email: form.managerEmail.trim() },
