@@ -103,6 +103,10 @@ const [profileImage, setProfileImage] = useState([]);
   const [initializedFromData, setInitializedFromData] = useState(false);
   const isEditMode = Boolean(id);
   const modeToUse = mode || (isEditMode ? "edit" : "add");
+const codeFromQuery = new URLSearchParams(location.search).get("code");
+const codeFromState = location.state?.actInviteCode;
+const codeFromStorage = localStorage.getItem("actInviteCode");
+const actInviteCode = codeFromQuery || codeFromState || codeFromStorage || "";
 
   const userId =
   localStorage.getItem("userId") ||
@@ -744,6 +748,38 @@ console.log("[DeputiesInput] genres flowing down:", { actGenres: genre });
           { headers: authHeaders }
         );
       }
+
+            if (resolvedId) {
+        await axios.put(
+          `${backendUrl}/api/musician/act-v2/update/${resolvedId}`,
+          payload,
+          { headers: authHeaders }
+        );
+      } else {
+        await axios.post(
+          `${backendUrl}/api/musician/act-v2/create`,
+          payload,
+          { headers: authHeaders }
+        );
+      }
+
+      // ✅ MARK INVITE CODE USED (only after successful submit)
+      const code =
+        new URLSearchParams(location.search).get("code") ||
+        location.state?.actInviteCode ||
+        localStorage.getItem("actInviteCode");
+
+      if (code) {
+        await axios.post(`${backendUrl}/api/act-pre-submissions/mark-used`, {
+          code: code.trim().toUpperCase(),
+          musicianId: userId,
+        });
+        localStorage.removeItem("actInviteCode");
+      }
+
+      toast.success("Act submitted for review", { autoClose: 2000 });
+      localStorage.removeItem("currentDraftActId");
+      setTimeout(() => navigate("/musicians-dashboard"), 2000);
   
       toast.success("Act submitted for review", { autoClose: 2000 });
       localStorage.removeItem("currentDraftActId");
@@ -753,6 +789,8 @@ console.log("[DeputiesInput] genres flowing down:", { actGenres: genre });
       toast.error("Failed to submit act. Check console.");
     }
   };
+
+  
 
   const extractedInstruments = Array.from(
     new Set(

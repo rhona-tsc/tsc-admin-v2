@@ -9,9 +9,10 @@ import { useNavigate } from "react-router-dom";
 const GatekeeperModal = ({
   isOpen,
   onClose,
-  userFirstName = "",
-  userEmail = "",
-  userId = "",
+  userFirstName,
+  userEmail,
+  userId,
+  musicianId,
 }) => {
   const navigate = useNavigate();
 
@@ -27,6 +28,7 @@ const GatekeeperModal = ({
   });
 
   const [submitting, setSubmitting] = useState(false);
+  console.log("GATEKEEPERMODAL props:", { userFirstName, userEmail, userId, musicianId });
 
   // ✅ lock page scroll + ESC close
   useEffect(() => {
@@ -96,7 +98,7 @@ const GatekeeperModal = ({
         const code = form.inviteCode.trim().toUpperCase();
 
         const verifyRes = await axios.post(
-          `${backendUrl}/api/act-invites/validate-code`,
+          `${backendUrl}/api/act-presubmissions/validate-code`,
           {
             code,
             userId,

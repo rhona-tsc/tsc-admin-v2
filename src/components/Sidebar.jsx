@@ -193,6 +193,8 @@ const handleDeputyClick = (e, path) => {
     setShowGatekeeper(true);
   };
 
+  console.log("SIDEBAR props:", { userFirstName, userEmail, userId, musicianId });
+
   return (
 <div className="w-[18%] border-r-2 sticky top-0 h-screen overflow-y-auto">      <div className="flex flex-col gap-4 pt-6 pl-[20%] text-[15px] rounded-md">
  {/* Deputy CTA */}
@@ -423,6 +425,7 @@ const handleDeputyClick = (e, path) => {
             </NavLink>
           </>
         )}
+        
       </div>
 
       <GatekeeperModal
@@ -431,6 +434,7 @@ const handleDeputyClick = (e, path) => {
         userFirstName={userFirstName}
         userEmail={userEmail}
         userId={userId}
+        musicianId={musicianId}
       />
 
       {showTechModal && (
