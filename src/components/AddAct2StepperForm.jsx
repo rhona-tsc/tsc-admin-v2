@@ -27,10 +27,7 @@ const AddAct2StepperForm = ({  initialData = null, mode = "add", userEmail, user
   console.log("🔍 AddAct2StepperForm userEmail:", userEmail);
   console.log("🔍 AddAct2StepperForm userRole:", userRole);
   console.log("🔒 AddAct2StepperForm isModeration:", isModeration);
-const location = useLocation();
-const codeFromState = location.state?.actInviteCode;
-const codeFromStorage = localStorage.getItem("actInviteCode");
-const actInviteCode = codeFromState || codeFromStorage || "";
+  const location = useLocation();
 const token = localStorage.getItem("token") || sessionStorage.getItem("token");
 // naive validation (backend validation comes later)
 const hasValidCode = Boolean(actInviteCode);
