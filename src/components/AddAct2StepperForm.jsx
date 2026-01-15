@@ -144,7 +144,7 @@ const authHeaders = token
       // Patch: transform "HAS_CAR" to carRegistrationValue for each band member
       newLineup.bandMembers = (lineup.bandMembers || []).map((member) => {
         const carRegToSave =
-          member.carRegistration === "HAS_CAR"a
+          member.carRegistration === "HAS_CAR"
             ? member.carRegistrationValue
             : member.carRegistration;
 
