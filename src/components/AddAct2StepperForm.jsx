@@ -147,7 +147,7 @@ const authHeaders = token
       // Patch: transform "HAS_CAR" to carRegistrationValue for each band member
       newLineup.bandMembers = (lineup.bandMembers || []).map((member) => {
         const carRegToSave =
-          member.carRegistration === "HAS_CAR"
+          member.carRegistration === "HAS_CAR"a
             ? member.carRegistrationValue
             : member.carRegistration;
 
@@ -651,144 +651,134 @@ const sanitizeLineups = (lineups) => {
     if (step > 0) setStep(step - 1);
   };
 
-  const handleSubmit = async () => {
-    // Use updated sanitizeLineups implementation
-  
-    const formattedExtras = Object.entries(extras).reduce((acc, [key, value]) => {
-      if (typeof value === "object") {
-        acc[key] = {
-          price: Number(value.price) || 0,
-          complimentary: !!value.complimentary,
-        };
-      } else {
-        acc[key] = {
-          price: Number(value) || 0,
-          complimentary: false,
-        };
-      }
-      return acc;
-    }, {});
-  
- 
-  
-    const resolvedId = initialData?._id || actId || localStorage.getItem("currentDraftActId");
-  
-    try {
-console.log("[DeputiesInput] genres flowing down:", { actGenres: genre });
-      const payload = {
-        name,
-        _id: resolvedId,
-        tscName,
-        images: sanitizeMediaArray(images),
-        coverImage: sanitizeMediaArray(coverImage),
-        profileImage: sanitizeMediaArray(profileImage),
-        videos: sanitizeMediaArray(videos),
-        mp3s: sanitizeMediaArray(mp3s),
-        tscVideos: sanitizeMediaArray(tscVideos),
-        description,
-        tscDescription,
-        bio,
-        tscBio,
-        genre,
-        repertoire,
-        customRepertoire,
-        selectedSongs,
-        numberOfSets,
-        lengthOfSets,
-        minimumIntervalLength,
-        paSystem: typeof paSystem === "string" ? paSystem : "",
-        lightingSystem: typeof lightingSystem === "string" ? lightingSystem : "",
-        setlist: typeof setlist === "string" ? setlist : "",
-
-        offRepertoireRequests,
-        patCert,
-        pli,
-        pliAmount,
-        pliExpiry,
-        patExpiry,
-        pliFile,
-        patFile,
-        riskAssessment,
-        vatRegistered,
-        lineups: sanitizeLineups(lineups),
-        reviews,
-        useCountyTravelFee,
-        countyFees,
-        costPerMile,
-        useMUTravelRates,
-        useMURates,
-        extras: formattedExtras,
-        discountToClient,
-        isPercentage,
-        status: (
-          initialData?.status === "live"
-            ? "Approved, changes pending"
-            : initialData?.status === "pending"
-            ? "pending"
-            : "draft"
-        ),
-        submit: true,
-        
+const handleSubmit = async () => {
+  const formattedExtras = Object.entries(extras).reduce((acc, [key, value]) => {
+    if (typeof value === "object") {
+      acc[key] = {
+        price: Number(value.price) || 0,
+        complimentary: !!value.complimentary,
       };
-  
-      ["pliFile", "patFile", "riskAssessment"].forEach((key) => {
-        if (typeof payload[key] !== "string") payload[key] = "";
-      });
-  
-      if (resolvedId) {
-        await axios.put(
-          `${backendUrl}/api/musician/act-v2/update/${resolvedId}`,
-          payload,
-          { headers: authHeaders }
-        );
-      } else {
-        await axios.post(
-          `${backendUrl}/api/musician/act-v2/create`,
-          payload,
-          { headers: authHeaders }
-        );
-      }
+    } else {
+      acc[key] = {
+        price: Number(value) || 0,
+        complimentary: false,
+      };
+    }
+    return acc;
+  }, {});
 
-            if (resolvedId) {
-        await axios.put(
-          `${backendUrl}/api/musician/act-v2/update/${resolvedId}`,
-          payload,
-          { headers: authHeaders }
-        );
-      } else {
-        await axios.post(
-          `${backendUrl}/api/musician/act-v2/create`,
-          payload,
-          { headers: authHeaders }
-        );
-      }
+  const resolvedId =
+    initialData?._id || actId || localStorage.getItem("currentDraftActId");
 
-      // ✅ MARK INVITE CODE USED (only after successful submit)
-      const code =
-        new URLSearchParams(location.search).get("code") ||
-        location.state?.actInviteCode ||
-        localStorage.getItem("actInviteCode");
+  try {
+    const payload = {
+      name,
+      _id: resolvedId,
+      tscName,
+      images: sanitizeMediaArray(images),
+      coverImage: sanitizeMediaArray(coverImage),
+      profileImage: sanitizeMediaArray(profileImage),
+      videos: sanitizeMediaArray(videos),
+      mp3s: sanitizeMediaArray(mp3s),
+      tscVideos: sanitizeMediaArray(tscVideos),
+      description,
+      tscDescription,
+      bio,
+      tscBio,
+      genre,
+      repertoire,
+      customRepertoire,
+      selectedSongs,
+      numberOfSets,
+      lengthOfSets,
+      minimumIntervalLength,
+      paSystem: typeof paSystem === "string" ? paSystem : "",
+      lightingSystem: typeof lightingSystem === "string" ? lightingSystem : "",
+      setlist: typeof setlist === "string" ? setlist : "",
+      offRepertoireRequests,
+      patCert,
+      pli,
+      pliAmount,
+      pliExpiry,
+      patExpiry,
+      pliFile,
+      patFile,
+      riskAssessment,
+      vatRegistered,
+      lineups: sanitizeLineups(lineups),
+      reviews,
+      useCountyTravelFee,
+      countyFees,
+      costPerMile,
+      useMUTravelRates,
+      useMURates,
+      extras: formattedExtras,
+      discountToClient,
+      isPercentage,
 
-      if (code) {
-        await axios.post(`${backendUrl}/api/act-pre-submissions/mark-used`, {
+      // keep your status logic
+      status:
+        initialData?.status === "live"
+          ? "Approved, changes pending"
+          : initialData?.status === "pending"
+          ? "pending"
+          : "draft",
+
+      submit: true,
+    };
+
+    // ensure files fields are strings
+    ["pliFile", "patFile", "riskAssessment"].forEach((key) => {
+      if (typeof payload[key] !== "string") payload[key] = "";
+    });
+
+    // ✅ 1) SAVE ACT (ONE TIME ONLY)
+    let savedId = resolvedId;
+
+    if (resolvedId) {
+      const res = await axios.put(
+        `${backendUrl}/api/musician/act-v2/update/${resolvedId}`,
+        payload,
+        { headers: authHeaders }
+      );
+      savedId = res?.data?._id || res?.data?.id || resolvedId;
+    } else {
+      const res = await axios.post(
+        `${backendUrl}/api/musician/act-v2/create`,
+        payload,
+        { headers: authHeaders }
+      );
+      savedId = res?.data?._id || res?.data?.id || savedId;
+    }
+
+    // ✅ 2) MARK INVITE CODE USED (only AFTER successful submit)
+    const code =
+      new URLSearchParams(location.search).get("code") ||
+      location.state?.actInviteCode ||
+      localStorage.getItem("actInviteCode");
+
+    if (code) {
+      await axios.post(
+        `${backendUrl}/api/act-pre-submissions/mark-used`,
+        {
           code: code.trim().toUpperCase(),
           musicianId: userId,
-        });
-        localStorage.removeItem("actInviteCode");
-      }
-
-      toast.success("Act submitted for review", { autoClose: 2000 });
-      localStorage.removeItem("currentDraftActId");
-      setTimeout(() => navigate("/musicians-dashboard"), 2000);
-  
-      toast.success("Act submitted for review", { autoClose: 2000 });
-      localStorage.removeItem("currentDraftActId");
-      setTimeout(() => navigate("/musicians-dashboard"), 2000);
-    } catch (err) {
-      console.error("Submission failed:", err);
-      toast.error("Failed to submit act. Check console.");
+          actId: savedId, // optional, but useful if your backend supports it
+        },
+        { headers: authHeaders } // optional (depends if endpoint is protected)
+      );
+      localStorage.removeItem("actInviteCode");
     }
-  };
+
+    // ✅ 3) CLEANUP + NAVIGATE (ONCE)
+    toast.success("Act submitted for review", { autoClose: 2000 });
+    localStorage.removeItem("currentDraftActId");
+    setTimeout(() => navigate("/musicians-dashboard"), 2000);
+  } catch (err) {
+    console.error("Submission failed:", err);
+    toast.error("Failed to submit act. Check console.");
+  }
+};
 
   
 
