@@ -109,34 +109,24 @@ const handleDeputyClick = (e, path) => {
 useEffect(() => {
   if (normalize(userRole) !== "agent") return;
 
-  let cancelled = false;
-
   (async () => {
     try {
-      const res = await axios.get(`${backendUrl}/api/act-pre-submissions/pending-count`);
+      const token = localStorage.getItem("token");
 
-      // ✅ support both {count} and {success,count}
-      const count =
-        typeof res.data?.count === "number"
-          ? res.data.count
-          : typeof res.data?.data?.count === "number"
-          ? res.data.data.count
-          : 0;
+      const res = await axios.get(
+        `${backendUrl}/api/act-pre-submissions/pending-count`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          withCredentials: true,
+        }
+      );
 
-      if (!cancelled) setActPreSubmissions(count);
+      // backend returns: { success: true, count }
+      setActPreSubmissions(res.data?.count ?? 0);
     } catch (err) {
-      console.error("❌ Failed to fetch act pre-submissions count:", {
-        message: err?.message,
-        status: err?.response?.status,
-        data: err?.response?.data,
-        url: `${backendUrl}/api/act-pre-submissions/pending-count`,
-      });
+      console.error("Failed to fetch count:", err);
     }
   })();
-
-  return () => {
-    cancelled = true;
-  };
 }, [userRole]);
 
   const { label: deputyCtaLabel, path: deputyCtaPath } =
