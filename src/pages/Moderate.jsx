@@ -6,73 +6,76 @@ import { useNavigate } from "react-router-dom";
 import CustomToast from "../components/CustomToast";
 import { assets } from "../assets/assets";
 
-const Moderate = () => {
+const Moderate = ({ token: tokenProp }) => {
   const navigate = useNavigate();
   const [pendingActs, setPendingActs] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const handleEdit = (id) => {
-    // open the moderation-safe editor which won’t autosave empties
-    navigate(`/moderate/edit/${id}`);
+  // Pull token from prop OR storage (matches your working List page pattern)
+  const getToken = () =>
+    tokenProp ||
+    localStorage.getItem("authToken") ||
+    localStorage.getItem("token") ||
+    sessionStorage.getItem("authToken") ||
+    sessionStorage.getItem("token") ||
+    "";
+
+  const buildHeaders = (token) => ({
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(token ? { token } : {}),
+    "Cache-Control": "no-cache",
+    Pragma: "no-cache",
+  });
+
+  const isModerationStatus = (act) => {
+    const s = String(act?.status || "").trim().toLowerCase();
+
+    // cover your current values + legacy patterns
+    if (s === "pending") return true;
+    if (s === "live_changes_pending") return true;
+
+    // covers "Approved, changes pending" (any case)
+    if (s.includes("changes pending")) return true;
+
+    // covers legacy: approved + amendment flag
+    if (s === "approved" && act?.amendment?.isPending) return true;
+
+    return false;
   };
 
   const fetchPendingActs = async () => {
+    const token = getToken();
+
     try {
       setLoading(true);
 
-      // ✅ Use URLSearchParams so we can send repeated `status` params safely.
-      // This avoids breaking "Approved, changes pending" (comma in the value).
-      const qs = new URLSearchParams();
-      qs.set(
-        "fields",
-        "_id,name,tscName,images,profileImage,coverImage,createdAt,status,updatedAt"
-      );
-      qs.set("limit", "500");
-      qs.set("page", "1");
-      qs.set("_cb", String(Date.now())); // ✅ cache-buster
+      const params = {
+        fields:
+          "_id,name,tscName,images,profileImage,coverImage,createdAt,status,updatedAt,amendment",
+        sort: "-createdAt",
+        limit: 500,
+        legacy: "include",
+      };
 
-      // ✅ repeated status params (NOT CSV)
-      qs.append("status", "pending");
-      qs.append("status", "live_changes_pending");
-      qs.append("status", "Approved, changes pending");
-
-      const url = `${backendUrl}/api/act/list?${qs.toString()}`;
-
-      const response = await axios.get(url, {
-        headers: {
-          "Cache-Control": "no-cache",
-          Pragma: "no-cache",
-        },
+      // ✅ Use the SAME route as List (since it works)
+      const resp = await axios.get(`${backendUrl}/api/musician/act-v2/list`, {
+        params,
+        headers: buildHeaders(token),
+        withCredentials: false,
       });
 
-      if (!response.data?.success) {
-        toast(
-          <CustomToast
-            type="error"
-            message={response.data?.message || "Failed to load acts"}
-          />
-        );
-        setPendingActs([]);
-        return;
-      }
-
-      // ✅ Support both shapes (your API returns `items` and sometimes `acts`)
-      const actsRaw =
-        (Array.isArray(response.data.acts) && response.data.acts) ||
-        (Array.isArray(response.data.items) && response.data.items) ||
+      const ok = resp?.data?.success === true;
+      const rows =
+        (ok && Array.isArray(resp?.data?.acts) && resp.data.acts) ||
+        (ok && Array.isArray(resp?.data?.items) && resp.data.items) ||
         [];
 
-      // ✅ Normalize + filter locally (covers "Approved, changes pending")
-      const pending = actsRaw.filter((act) => {
-        const s = String(act?.status || "").toLowerCase().trim();
-        return (
-          s === "pending" ||
-          s === "live_changes_pending" ||
-          s.includes("changes pending") // matches "approved, changes pending"
-        );
-      });
+      // filter: remove trashed + only moderation statuses
+      const filtered = rows
+        .filter((a) => String(a?.status || "").toLowerCase() !== "trashed")
+        .filter(isModerationStatus);
 
-      setPendingActs(pending);
+      setPendingActs(filtered);
     } catch (error) {
       console.error("❌ fetchPendingActs error:", error?.response?.data || error);
       toast(<CustomToast type="error" message="Failed to load pending acts" />);
@@ -82,89 +85,40 @@ const Moderate = () => {
     }
   };
 
-  // Token refresh via HTTP-only cookie (optional)
-  const refreshToken = async () => {
-    try {
-      const res = await axios.post(
-        `${backendUrl}/api/auth/refresh`,
-        {},
-        { withCredentials: true }
-      );
-      if (res.data?.success && res.data?.token) {
-        localStorage.setItem("authToken", res.data.token);
-        return res.data.token;
-      }
-    } catch (err) {
-      console.error("❌ Token refresh failed:", err);
-    }
-    return null;
+  const handleEdit = (id) => {
+    navigate(`/moderate/edit/${id}`);
   };
 
   const updateStatus = async (id, status) => {
-    const makeRequest = async (token) =>
-      axios.post(
-        `${backendUrl}/api/musician/act-v2/update-status`,
-        { id, status },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+    const token = getToken();
 
     try {
-      const token = localStorage.getItem("authToken");
-      const response = await makeRequest(token);
+      const res = await axios.post(
+        `${backendUrl}/api/musician/act-v2/update-status`,
+        { id, status },
+        { headers: buildHeaders(token) }
+      );
 
-      if (response.data?.success) {
+      if (res.data?.success) {
         toast(<CustomToast type="success" message={`Act ${status}`} />);
         fetchPendingActs();
       } else {
         toast(
           <CustomToast
             type="error"
-            message={response.data?.message || "Update failed"}
+            message={res.data?.message || "Update failed"}
           />
         );
       }
     } catch (error) {
-      if (error.response?.status === 401) {
-        const newToken = await refreshToken();
-        if (newToken) {
-          try {
-            const retry = await makeRequest(newToken);
-            if (retry.data?.success) {
-              toast(<CustomToast type="success" message={`Act ${status}`} />);
-              fetchPendingActs();
-              return;
-            } else {
-              toast(
-                <CustomToast
-                  type="error"
-                  message={retry.data?.message || "Update failed"}
-                />
-              );
-            }
-          } catch {
-            toast(
-              <CustomToast
-                type="error"
-                message="Retry failed after token refresh"
-              />
-            );
-          }
-        } else {
-          toast(
-            <CustomToast
-              type="error"
-              message="Session expired. Please log in again."
-            />
-          );
-        }
-      } else {
-        toast(<CustomToast type="error" message="Error updating status" />);
-      }
+      console.error("❌ updateStatus error:", error?.response?.data || error);
+      toast(<CustomToast type="error" message="Error updating status" />);
     }
   };
 
   useEffect(() => {
     fetchPendingActs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -194,7 +148,6 @@ const Moderate = () => {
       ) : (
         <div className="flex flex-col gap-4">
           {pendingActs.map((act) => {
-            // prefer profileImage[0], fallback to images[0]
             const profileSrc =
               typeof act?.profileImage?.[0] === "string"
                 ? act.profileImage[0]
@@ -236,31 +189,28 @@ const Moderate = () => {
                   </p>
                 </div>
 
-                <div className="text-sm text-gray-600">
+                <div className="flex items-center gap-3">
                   <button
                     className="bg-blue-600 text-white px-4 py-2 rounded text-sm"
                     onClick={() => handleEdit(act._id)}
                   >
                     View/Edit
                   </button>
-                </div>
 
-                {act._id && (
-                  <div className="flex gap-2">
-                    <button
-                      className="bg-green-600 text-white px-4 py-2 rounded text-sm"
-                      onClick={() => updateStatus(act._id, "approved")}
-                    >
-                      Approve
-                    </button>
-                    <button
-                      className="bg-red-600 text-white px-4 py-2 rounded text-sm"
-                      onClick={() => updateStatus(act._id, "rejected")}
-                    >
-                      Reject
-                    </button>
-                  </div>
-                )}
+                  <button
+                    className="bg-green-600 text-white px-4 py-2 rounded text-sm"
+                    onClick={() => updateStatus(act._id, "approved")}
+                  >
+                    Approve
+                  </button>
+
+                  <button
+                    className="bg-red-600 text-white px-4 py-2 rounded text-sm"
+                    onClick={() => updateStatus(act._id, "rejected")}
+                  >
+                    Reject
+                  </button>
+                </div>
               </div>
             );
           })}
