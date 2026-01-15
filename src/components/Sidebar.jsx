@@ -368,7 +368,7 @@ useEffect(() => {
               <div className="flex items-center gap-3">
                 <img
                   className="w-5 h-5"
-                  src={assets.noticeboard_icon}
+                  src={assets.moderate_icon}
                   alt="Noticeboard"
                 />
                 <p className="hidden md:block text-white">Noticeboard</p>
@@ -388,7 +388,7 @@ useEffect(() => {
               <div>
                 <img
                   className="w-5 h-5"
-                  src={assets.feedback_icon}
+                  src={assets.moderate_icon}
                   alt="Feedback"
                 />
                 <p className="hidden md:block text-white">Feedback</p>
@@ -428,7 +428,7 @@ useEffect(() => {
               <div className="flex items-center gap-3">
                 <img
                   className="w-5 h-5"
-                  src={assets.agent_dashboard_icon}
+                  src={assets.moderate_icon}
                   alt="Agent Dashboard"
                 />
                 <p className="hidden md:block text-white">Agent Dashboard</p>
