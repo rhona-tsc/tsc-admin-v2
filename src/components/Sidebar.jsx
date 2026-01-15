@@ -106,19 +106,38 @@ const handleDeputyClick = (e, path) => {
     })();
   }, [musicianId, userRole]);
 
-  useEffect(() => {
-    if (normalize(userRole) !== "agent") return;
-    (async () => {
-      try {
-        const res = await axios.get(
-          `${backendUrl}/api/act-pre-submissions/pending-count`
-        );
-        setActPreSubmissions(res.data.count || 0);
-      } catch (err) {
-        console.error("Failed to fetch count:", err);
-      }
-    })();
-  }, [userRole]);
+useEffect(() => {
+  if (normalize(userRole) !== "agent") return;
+
+  let cancelled = false;
+
+  (async () => {
+    try {
+      const res = await axios.get(`${backendUrl}/api/act-pre-submissions/pending-count`);
+
+      // ✅ support both {count} and {success,count}
+      const count =
+        typeof res.data?.count === "number"
+          ? res.data.count
+          : typeof res.data?.data?.count === "number"
+          ? res.data.data.count
+          : 0;
+
+      if (!cancelled) setActPreSubmissions(count);
+    } catch (err) {
+      console.error("❌ Failed to fetch act pre-submissions count:", {
+        message: err?.message,
+        status: err?.response?.status,
+        data: err?.response?.data,
+        url: `${backendUrl}/api/act-pre-submissions/pending-count`,
+      });
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+  };
+}, [userRole]);
 
   const { label: deputyCtaLabel, path: deputyCtaPath } =
     getDeputyCTA(myDeputyStatus, musicianId);
