@@ -1,0 +1,6667 @@
+{
+  "inputCount": 3551,
+  "byArtistCount": 1571,
+  "clusters": [
+    {
+      "artist": "Ella Fitzgerald",
+      "canonical": {
+        "title": "Bewitched Bothered and Bewildered",
+        "year": 1956,
+        "genre": "Jazz"
+      },
+      "merged": [
+        {
+          "title": "Bewitched, Bothered and Bewildered",
+          "year": 1956,
+          "genre": "Jazz"
+        }
+      ]
+    },
+    {
+      "artist": "Ella Fitzgerald",
+      "canonical": {
+        "title": "Baby It's Cold Outside",
+        "year": 1959,
+        "genre": "Jazz/Traditional Pop"
+      },
+      "merged": [
+        {
+          "title": "Baby, It's Cold Outside",
+          "year": 1959,
+          "genre": "Jazz/Traditional Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Ella Fitzgerald",
+      "canonical": {
+        "title": "The Old Devil Called Love",
+        "year": 1957,
+        "genre": "Jazz"
+      },
+      "merged": [
+        {
+          "title": "The Ole Devil Called Love",
+          "year": 1960,
+          "genre": "Jazz"
+        }
+      ]
+    },
+    {
+      "artist": "Ella Fitzgerald",
+      "canonical": {
+        "title": "Puttin On The Ritz",
+        "year": 1958,
+        "genre": "Jazz"
+      },
+      "merged": [
+        {
+          "title": "Puttin' On the Ritz",
+          "year": 1958,
+          "genre": "Jazz Swing"
+        }
+      ]
+    },
+    {
+      "artist": "Chaka Khan",
+      "canonical": {
+        "title": "Ain’t Nobody",
+        "year": 1983,
+        "genre": "RnB/Soul"
+      },
+      "merged": [
+        {
+          "title": "Ain't Nobody",
+          "year": 1984,
+          "genre": "R&B/Funk"
+        }
+      ]
+    },
+    {
+      "artist": "Chaka Khan",
+      "canonical": {
+        "title": "I'm Every Woman",
+        "year": 1978,
+        "genre": "R&B/Funk"
+      },
+      "merged": [
+        {
+          "title": "I’m Every Woman",
+          "year": 1978,
+          "genre": "RnB/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "The Kooks",
+      "canonical": {
+        "title": "Naïve",
+        "year": 2006,
+        "genre": "Indie Rock"
+      },
+      "merged": [
+        {
+          "title": "Naive",
+          "year": 2006,
+          "genre": "Indie Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Tower of Power",
+      "canonical": {
+        "title": "What Is Hip",
+        "year": 1973,
+        "genre": "Funk"
+      },
+      "merged": [
+        {
+          "title": "What Is Hip?",
+          "year": 1973,
+          "genre": "Funk"
+        }
+      ]
+    },
+    {
+      "artist": "Beyoncé ft. Jay-Z",
+      "canonical": {
+        "title": "Déjà Vu",
+        "year": 2006,
+        "genre": "R&B/Pop"
+      },
+      "merged": [
+        {
+          "title": "Deja Vu",
+          "year": 2006,
+          "genre": "RnB/Soul"
+        },
+        {
+          "title": "Déjà Vu",
+          "year": 2006,
+          "genre": "R&B"
+        },
+        {
+          "title": "Déjà Vu",
+          "year": 2006,
+          "genre": "R&B / Hip Hop"
+        },
+        {
+          "title": "Deja Vu",
+          "year": 2006,
+          "genre": "R&B/Pop"
+        },
+        {
+          "title": "Deja Vu",
+          "year": 2006,
+          "genre": "R&B/Funk"
+        }
+      ]
+    },
+    {
+      "artist": "Beyoncé (ft. Jay-Z)",
+      "canonical": {
+        "title": "Crazy in Love",
+        "year": 2003,
+        "genre": "R&B / Pop"
+      },
+      "merged": [
+        {
+          "title": "Crazy In Love",
+          "year": 2003,
+          "genre": "R&B / Hip Hop"
+        },
+        {
+          "title": "Crazy in Love",
+          "year": 2003,
+          "genre": "R&B/Soul"
+        },
+        {
+          "title": "Crazy In Love",
+          "year": 2003,
+          "genre": "R&B/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Justin Timberlake",
+      "canonical": {
+        "title": "Señorita",
+        "year": 2003,
+        "genre": "R&B Pop"
+      },
+      "merged": [
+        {
+          "title": "Senorita",
+          "year": 2003,
+          "genre": "Pop / R&B"
+        }
+      ]
+    },
+    {
+      "artist": "Justin Timberlake",
+      "canonical": {
+        "title": "Can't Stop The Feeling",
+        "year": 2016,
+        "genre": "Pop/Funk"
+      },
+      "merged": [
+        {
+          "title": "Can't Stop The Feeling!",
+          "year": 2016,
+          "genre": "Pop"
+        },
+        {
+          "title": "Can’t Stop The Feeling",
+          "year": 2016,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Robin Thicke",
+      "canonical": {
+        "title": "I Don't Like It, I Love It",
+        "year": 2014,
+        "genre": "Pop (Unknown)"
+      },
+      "merged": [
+        {
+          "title": "I Don't Like It I Love It",
+          "year": null,
+          "genre": ""
+        }
+      ]
+    },
+    {
+      "artist": "Paul McCartney",
+      "canonical": {
+        "title": "Wonderful Christmastime",
+        "year": 1979,
+        "genre": "Pop/Holiday"
+      },
+      "merged": [
+        {
+          "title": "Wonderful Christmas Time",
+          "year": 1979,
+          "genre": "Pop/Christmas"
+        }
+      ]
+    },
+    {
+      "artist": "Paul McCartney",
+      "canonical": {
+        "title": "Maybe I’m Amazed",
+        "year": 1970,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Maybe I'm Amazed",
+          "year": 1970,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "The Beatles",
+      "canonical": {
+        "title": "I Want to Hold Your Hand",
+        "year": 1963,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "I Wanna Hold Your Hand",
+          "year": 1963,
+          "genre": "Rock/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "The Beatles",
+      "canonical": {
+        "title": "Twist & Shout",
+        "year": 1963,
+        "genre": "Rock and Roll"
+      },
+      "merged": [
+        {
+          "title": "Twist And Shout",
+          "year": 1963,
+          "genre": "Rock/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "The Beatles",
+      "canonical": {
+        "title": "Help!",
+        "year": 1965,
+        "genre": "Rock/Pop"
+      },
+      "merged": [
+        {
+          "title": "Help",
+          "year": 1965,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "The Beatles",
+      "canonical": {
+        "title": "Oh! Darling",
+        "year": 1969,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Oh Darling",
+          "year": 1969,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "The Beatles",
+      "canonical": {
+        "title": "I Saw Her Standing There",
+        "year": 1963,
+        "genre": "Rock/Pop"
+      },
+      "merged": [
+        {
+          "title": "Saw Her Standing There",
+          "year": 1963,
+          "genre": "Rock and Roll"
+        }
+      ]
+    },
+    {
+      "artist": "Lionel Richie",
+      "canonical": {
+        "title": "All Night Long (All Night) - Single Version",
+        "year": 1983,
+        "genre": "Pop/Soul"
+      },
+      "merged": [
+        {
+          "title": "All Night Long (All Night)",
+          "year": 1983,
+          "genre": "Pop/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Tina Turner",
+      "canonical": {
+        "title": "Simply The Best",
+        "year": 1989,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "(Simply) The Best",
+          "year": 1991,
+          "genre": "Rock/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Tina Turner",
+      "canonical": {
+        "title": "Nut Bush City Limits",
+        "year": 1973,
+        "genre": "Rock/Soul"
+      },
+      "merged": [
+        {
+          "title": "Nutbush City Limits",
+          "year": 1973,
+          "genre": "Rock/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Tina Turner",
+      "canonical": {
+        "title": "What's Love Got to Do With It",
+        "year": 1984,
+        "genre": "Pop/Rock"
+      },
+      "merged": [
+        {
+          "title": "What’s Love Got To Do With It",
+          "year": 1984,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Tina Turner",
+      "canonical": {
+        "title": "River Deep – Mountain High",
+        "year": 1970,
+        "genre": "Soul / Rock"
+      },
+      "merged": [
+        {
+          "title": "River Deep - Mountain High",
+          "year": 1966,
+          "genre": "Soul/Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Jimi Hendrix",
+      "canonical": {
+        "title": "Wind Cries Mary",
+        "year": 1967,
+        "genre": "Psychedelic Rock"
+      },
+      "merged": [
+        {
+          "title": "The Wind Cries Mary",
+          "year": 1967,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Jimi Hendrix",
+      "canonical": {
+        "title": "Foxey Lady",
+        "year": 1967,
+        "genre": "Psychedelic Rock"
+      },
+      "merged": [
+        {
+          "title": "Foxy Lady",
+          "year": 1967,
+          "genre": "Psychedelic Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Emeli Sande",
+      "canonical": {
+        "title": "Next To Me",
+        "year": 2012,
+        "genre": "Pop/Soul"
+      },
+      "merged": [
+        {
+          "title": "Next To Me",
+          "year": 2012,
+          "genre": "Soul/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Emeli Sandé",
+      "canonical": {
+        "title": "Read All About It, Pt. III",
+        "year": 2012,
+        "genre": "Soul/Pop"
+      },
+      "merged": [
+        {
+          "title": "Read All About It (Pt. III)",
+          "year": 2012,
+          "genre": "Pop/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Beyonce",
+      "canonical": {
+        "title": "Halo",
+        "year": 2008,
+        "genre": "Pop/R&B"
+      },
+      "merged": [
+        {
+          "title": "Halo",
+          "year": 2008,
+          "genre": "R&B / Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Beyoncé",
+      "canonical": {
+        "title": "Crazy in Love / Crazy (Live Version)",
+        "year": 2009,
+        "genre": "RnB/Soul"
+      },
+      "merged": [
+        {
+          "title": "Crazy in Love -> Crazy (Live Version)",
+          "year": 2011,
+          "genre": "R&B Soul (Live)"
+        }
+      ]
+    },
+    {
+      "artist": "Beyoncé",
+      "canonical": {
+        "title": "Crazy in Love (Live)",
+        "year": 2003,
+        "genre": "R&B/Pop"
+      },
+      "merged": [
+        {
+          "title": "Crazy in Love (feat. Jay-Z)",
+          "year": 2003,
+          "genre": "R&B / Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Beyoncé",
+      "canonical": {
+        "title": "Run the World (Girls)",
+        "year": 2011,
+        "genre": "Pop/R&B"
+      },
+      "merged": [
+        {
+          "title": "Run the World (Girls)",
+          "year": 2011,
+          "genre": "Pop/R&B"
+        }
+      ]
+    },
+    {
+      "artist": "Beyonce",
+      "canonical": {
+        "title": "Crazy In Love",
+        "year": 2003,
+        "genre": "R&B"
+      },
+      "merged": [
+        {
+          "title": "Crazy In Love",
+          "year": 2003,
+          "genre": "R&B/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Beyonce",
+      "canonical": {
+        "title": "Work It Out",
+        "year": 2002,
+        "genre": "R&B/Pop"
+      },
+      "merged": [
+        {
+          "title": "Work It Out",
+          "year": 2003,
+          "genre": "R&B/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Beyoncé",
+      "canonical": {
+        "title": "Until The End Of Time",
+        "year": 2006,
+        "genre": "R&B / Soul"
+      },
+      "merged": [
+        {
+          "title": "End Of Time",
+          "year": 2012,
+          "genre": "Pop/R&B"
+        },
+        {
+          "title": "End Of Time",
+          "year": 2012,
+          "genre": "RnB/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Beyoncé",
+      "canonical": {
+        "title": "Single Ladies (Put a Ring on It)",
+        "year": 2008,
+        "genre": "R&B/Pop"
+      },
+      "merged": [
+        {
+          "title": "Single Ladies",
+          "year": 2008,
+          "genre": "Pop/R&B"
+        }
+      ]
+    },
+    {
+      "artist": "Beyonce",
+      "canonical": {
+        "title": "Love On Top",
+        "year": 2011,
+        "genre": "R&B/Pop"
+      },
+      "merged": [
+        {
+          "title": "Love On Top",
+          "year": 2011,
+          "genre": "R&B/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Billy Joel",
+      "canonical": {
+        "title": "She´s Always A Woman",
+        "year": 1977,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "She's Always a Woman",
+          "year": 1977,
+          "genre": "Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Billy Joel",
+      "canonical": {
+        "title": "Vienna",
+        "year": 1977,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "Viena",
+          "year": 1977,
+          "genre": "Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "The Temptations",
+      "canonical": {
+        "title": "Papa Was A Rollin' Stone",
+        "year": 1972,
+        "genre": "Soul/Funk"
+      },
+      "merged": [
+        {
+          "title": "Papa Was A Rolling Stone",
+          "year": 1972,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Arctic Monkeys",
+      "canonical": {
+        "title": "Why Do You Only Call Me When You're High?",
+        "year": 2013,
+        "genre": "Indie Rock"
+      },
+      "merged": [
+        {
+          "title": "Why Do You Only Call Me When You’re High?",
+          "year": 2013,
+          "genre": "Indie Rock"
+        },
+        {
+          "title": "Why'd You Only Call Me When You're High?",
+          "year": 2013,
+          "genre": "Indie Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Arctic Monkeys",
+      "canonical": {
+        "title": "Do I Wanna Know",
+        "year": 2013,
+        "genre": "Indie Rock"
+      },
+      "merged": [
+        {
+          "title": "Do I Wanna Know?",
+          "year": 2013,
+          "genre": "Indie Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Arctic Monkeys",
+      "canonical": {
+        "title": "I Bet That You Look Good On The Dancefloor",
+        "year": 2005,
+        "genre": "Indie Rock"
+      },
+      "merged": [
+        {
+          "title": "Bet You Look Good On The Dancefloor",
+          "year": 2005,
+          "genre": "Indie Rock"
+        },
+        {
+          "title": "I Bet You Look Good on the Dancefloor",
+          "year": 2005,
+          "genre": "Indie Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Arctic Monkeys",
+      "canonical": {
+        "title": "Look Good On The Dance Floor",
+        "year": 2005,
+        "genre": "Indie Rock"
+      },
+      "merged": [
+        {
+          "title": "Look Good on the Dancefloor",
+          "year": 2005,
+          "genre": "Indie Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Arctic Monkeys",
+      "canonical": {
+        "title": "R U Mine?",
+        "year": 2013,
+        "genre": "Indie Rock"
+      },
+      "merged": [
+        {
+          "title": "RU Mine",
+          "year": 2012,
+          "genre": "Indie Rock"
+        }
+      ]
+    },
+    {
+      "artist": "U2",
+      "canonical": {
+        "title": "Pride (In the Name of Love)",
+        "year": 1984,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Pride",
+          "year": 1984,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "U2",
+      "canonical": {
+        "title": "Still Haven’t Found What I’m Looking For",
+        "year": 1987,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Still Haven't Found What I'm Looking For",
+          "year": 1987,
+          "genre": "Rock"
+        },
+        {
+          "title": "I Still Haven't Found What I'm Looking For",
+          "year": 1987,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Bruno Mars",
+      "canonical": {
+        "title": "Finesse",
+        "year": 2018,
+        "genre": "R&B/Pop"
+      },
+      "merged": [
+        {
+          "title": "Finesse",
+          "year": 2016,
+          "genre": "New jack swing, hip‑hop soul, funk"
+        }
+      ]
+    },
+    {
+      "artist": "The Pogues ft. Kirsty MacColl",
+      "canonical": {
+        "title": "Fairytale of New York",
+        "year": 1987,
+        "genre": "Folk Rock"
+      },
+      "merged": [
+        {
+          "title": "Fairytale of New York",
+          "year": 1987,
+          "genre": "Folk Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Jackie Wilson",
+      "canonical": {
+        "title": "Your Love Keeps Liftin' Me Higher and Higher",
+        "year": 1967,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "Your Love Keeps Lifting Me (Higher and Higher)",
+          "year": 1967,
+          "genre": "Soul"
+        },
+        {
+          "title": "(Your Love Keeps Lifting Me) Higher And Higher",
+          "year": 1969,
+          "genre": "Soul/R&B"
+        }
+      ]
+    },
+    {
+      "artist": "Sam Cooke",
+      "canonical": {
+        "title": "What a Wonderful World",
+        "year": 1960,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "Wonderful World",
+          "year": 1960,
+          "genre": "Soul/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Sam Cooke",
+      "canonical": {
+        "title": "Twisting The Night Away",
+        "year": 1962,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "Twistin' the Night Away",
+          "year": 1962,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Blackstreet ft. Dr. Dre & Queen Pen",
+      "canonical": {
+        "title": "No Diggity",
+        "year": 1996,
+        "genre": "R&B/New Jack Swing"
+      },
+      "merged": [
+        {
+          "title": "No Diggity",
+          "year": 1996,
+          "genre": "R&B/Hip Hop"
+        }
+      ]
+    },
+    {
+      "artist": "Amaia Montero",
+      "canonical": {
+        "title": "4´´",
+        "year": null,
+        "genre": "Pop (Unknown)"
+      },
+      "merged": [
+        {
+          "title": "4''",
+          "year": null,
+          "genre": "Pop Latino"
+        }
+      ]
+    },
+    {
+      "artist": "Fatboy Slim",
+      "canonical": {
+        "title": "Can You Dig It",
+        "year": 2001,
+        "genre": "Electronic"
+      },
+      "merged": [
+        {
+          "title": "Can U Dig It?",
+          "year": 2001,
+          "genre": "Big Beat"
+        }
+      ]
+    },
+    {
+      "artist": "Huey Lewis & The News",
+      "canonical": {
+        "title": "The Power of Love",
+        "year": 1985,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "The Power of Love",
+          "year": 1985,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "The Jackson 5",
+      "canonical": {
+        "title": "Who's Lovin You",
+        "year": 1969,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "Who's Lovin' You",
+          "year": 1969,
+          "genre": "Soul/Motown"
+        }
+      ]
+    },
+    {
+      "artist": "The Jackson 5",
+      "canonical": {
+        "title": "Stop The Love You Save",
+        "year": 1970,
+        "genre": "Soul/Pop"
+      },
+      "merged": [
+        {
+          "title": "The Love You Save",
+          "year": 1970,
+          "genre": "Soul/Motown"
+        }
+      ]
+    },
+    {
+      "artist": "Rudimental ft. Ella Eyre",
+      "canonical": {
+        "title": "Waiting All Night",
+        "year": 2013,
+        "genre": "Drum and Bass"
+      },
+      "merged": [
+        {
+          "title": "Waiting All Night",
+          "year": 2013,
+          "genre": "Drum & Bass/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Gloria Estefan",
+      "canonical": {
+        "title": "Conga!",
+        "year": 1985,
+        "genre": "Latin Pop"
+      },
+      "merged": [
+        {
+          "title": "Conga",
+          "year": 1985,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Lady Gaga ft. Beyoncé",
+      "canonical": {
+        "title": "Telephone",
+        "year": 2010,
+        "genre": "Dance Pop"
+      },
+      "merged": [
+        {
+          "title": "Telephone",
+          "year": 2010,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Santana ft The Product G&B",
+      "canonical": {
+        "title": "Maria Maria",
+        "year": 1999,
+        "genre": "Rock/Latin"
+      },
+      "merged": [
+        {
+          "title": "Maria Maria",
+          "year": 1999,
+          "genre": "Rock/Latin"
+        }
+      ]
+    },
+    {
+      "artist": "Michael Jackson",
+      "canonical": {
+        "title": "Wanna Be Startin’ Somethin’",
+        "year": 1983,
+        "genre": "Pop Funk"
+      },
+      "merged": [
+        {
+          "title": "Wanna Be Startin' Somethin'",
+          "year": 1983,
+          "genre": "Pop/Funk"
+        }
+      ]
+    },
+    {
+      "artist": "Michael Jackson",
+      "canonical": {
+        "title": "Don't Stop 'Til You Get Enough",
+        "year": 1979,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Don’t Stop 'Til You Get Enough",
+          "year": 1979,
+          "genre": "Disco Funk"
+        },
+        {
+          "title": "Don't Stop 'Till You Get Enough",
+          "year": 1979,
+          "genre": "Disco/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Lady Gaga & Bradley Cooper",
+      "canonical": {
+        "title": "Shallow",
+        "year": 2018,
+        "genre": "Soundtrack/Pop"
+      },
+      "merged": [
+        {
+          "title": "The Shallow",
+          "year": null,
+          "genre": ""
+        }
+      ]
+    },
+    {
+      "artist": "Whitney Houston",
+      "canonical": {
+        "title": "I Will Always Love You",
+        "year": 1992,
+        "genre": "Pop/Soul"
+      },
+      "merged": [
+        {
+          "title": "I Will Always Love You (The Bodyguard)",
+          "year": 1992,
+          "genre": "Pop/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Whitney Houston",
+      "canonical": {
+        "title": "I Wanna Dance with Somebody (Who Loves Me)",
+        "year": 1987,
+        "genre": "Pop/R&B"
+      },
+      "merged": [
+        {
+          "title": "I Wanna Dance With Somebody",
+          "year": 1987,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Aretha Franklin",
+      "canonical": {
+        "title": "(You Make Me Feel Like) A Natural Woman",
+        "year": 1968,
+        "genre": "Soul/R&B"
+      },
+      "merged": [
+        {
+          "title": "Natural Woman",
+          "year": 1968,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Aretha Franklin",
+      "canonical": {
+        "title": "Respect",
+        "year": 1967,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "R-E-S-P-E-C-T",
+          "year": 1964,
+          "genre": "Soul/R&B"
+        }
+      ]
+    },
+    {
+      "artist": "ABBA",
+      "canonical": {
+        "title": "Money Money Money",
+        "year": 1976,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Money, Money, Money",
+          "year": 1976,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "ABBA",
+      "canonical": {
+        "title": "Knowing Me Knowing You",
+        "year": 1976,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Knowing Me, Knowing You",
+          "year": 1977,
+          "genre": "Pop/Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Thin Lizzy",
+      "canonical": {
+        "title": "Dancing in the Moonlight (It's Caught Me in the Spotlight)",
+        "year": 1977,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Dancing in the Moonlight (It's Caught Me in Its Spotlight)",
+          "year": 1977,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Chic",
+      "canonical": {
+        "title": "Dance, Dance, Dance (Yowsah, Yowsah, Yowsah)",
+        "year": 1977,
+        "genre": "Disco"
+      },
+      "merged": [
+        {
+          "title": "Dance Dance Dance",
+          "year": 1977,
+          "genre": "Disco"
+        },
+        {
+          "title": "Dance, Dance, Dance",
+          "year": 1977,
+          "genre": "Disco Funk"
+        }
+      ]
+    },
+    {
+      "artist": "The Rolling Stones",
+      "canonical": {
+        "title": "Jumping Jack Flash",
+        "year": 1968,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Jumpin' Jack Flash",
+          "year": 1968,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "The Supremes",
+      "canonical": {
+        "title": "You Can't Hurry Love",
+        "year": 1966,
+        "genre": "Soul/Pop"
+      },
+      "merged": [
+        {
+          "title": "You Can’t Hurry Love",
+          "year": 1966,
+          "genre": "Soul/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "The Supremes",
+      "canonical": {
+        "title": "Where Did Our Love Go",
+        "year": 1964,
+        "genre": "Soul/Pop"
+      },
+      "merged": [
+        {
+          "title": "Where Did Our Love Go?",
+          "year": 1964,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "The Supremes",
+      "canonical": {
+        "title": "You Keep Me Hanging On",
+        "year": 1966,
+        "genre": "Soul (Motown)"
+      },
+      "merged": [
+        {
+          "title": "You Keep Me Hangin' On",
+          "year": 1966,
+          "genre": "Soul/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Mary J Blige",
+      "canonical": {
+        "title": "Good Love",
+        "year": 2017,
+        "genre": "R&B"
+      },
+      "merged": [
+        {
+          "title": "Good Love",
+          "year": 2023,
+          "genre": "R&B"
+        }
+      ]
+    },
+    {
+      "artist": "Stevie Wonder",
+      "canonical": {
+        "title": "Master Blaster (Jammin')",
+        "year": 1980,
+        "genre": "Soul/Reggae"
+      },
+      "merged": [
+        {
+          "title": "Master Blaster (Jammin’)",
+          "year": 1980,
+          "genre": "Reggae"
+        }
+      ]
+    },
+    {
+      "artist": "Stevie Wonder",
+      "canonical": {
+        "title": "Signed, Sealed, Delivered (I'm Yours)",
+        "year": 1970,
+        "genre": "Soul/Motown"
+      },
+      "merged": [
+        {
+          "title": "Signed, Sealed, Delivered I'm Yours",
+          "year": 1970,
+          "genre": "Soul/Motown"
+        },
+        {
+          "title": "Signed Sealed And Delivered (I'm Yours)",
+          "year": 1970,
+          "genre": "Soul/Funk"
+        }
+      ]
+    },
+    {
+      "artist": "Stevie Wonder",
+      "canonical": {
+        "title": "For Once In The Life",
+        "year": 1968,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "For Once In My Life",
+          "year": 1968,
+          "genre": "Soul/Motown"
+        }
+      ]
+    },
+    {
+      "artist": "Stevie Wonder",
+      "canonical": {
+        "title": "Uptight (Everything's Alright)",
+        "year": 1965,
+        "genre": "Soul/Motown"
+      },
+      "merged": [
+        {
+          "title": "Uptight (Everything’s Alright)",
+          "year": 1965,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "John Mayer",
+      "canonical": {
+        "title": "Free Fallin'",
+        "year": 2008,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Freefallin'",
+          "year": 2008,
+          "genre": "Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "John Mayer",
+      "canonical": {
+        "title": "Dreaming with a Broken Heart",
+        "year": 2006,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "Dreaming With A Broken Hear",
+          "year": null,
+          "genre": ""
+        }
+      ]
+    },
+    {
+      "artist": "Elvis Presley",
+      "canonical": {
+        "title": "Can't Help Falling In Love",
+        "year": 1962,
+        "genre": "Pop/Rock"
+      },
+      "merged": [
+        {
+          "title": "I Can't Help Falling in Love With You",
+          "year": 1961,
+          "genre": "Pop"
+        },
+        {
+          "title": "I Can’t Help Falling in Love With You",
+          "year": 1961,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Dusty Springfield",
+      "canonical": {
+        "title": "I Only Want To Be With You",
+        "year": 1963,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "I Only Wanna Be With You",
+          "year": 1963,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Celia Cruz",
+      "canonical": {
+        "title": "La Vida Es Un Carnival",
+        "year": 1998,
+        "genre": "Salsa"
+      },
+      "merged": [
+        {
+          "title": "La Vida Es Un Carnaval",
+          "year": 1998,
+          "genre": "Salsa"
+        }
+      ]
+    },
+    {
+      "artist": "Mark Ronson (feat. Bruno Mars)",
+      "canonical": {
+        "title": "Uptown Funk",
+        "year": 2014,
+        "genre": "Funk Pop"
+      },
+      "merged": [
+        {
+          "title": "Uptown Funk",
+          "year": 2014,
+          "genre": "Funk/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Shakira",
+      "canonical": {
+        "title": "Shewolf",
+        "year": 2009,
+        "genre": "Latin Pop"
+      },
+      "merged": [
+        {
+          "title": "She Wolf",
+          "year": 2009,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Taylor Swift",
+      "canonical": {
+        "title": "We Are Never Ever Getting Back Together",
+        "year": 2012,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "We Are Never Getting Back Together",
+          "year": null,
+          "genre": ""
+        }
+      ]
+    },
+    {
+      "artist": "Taylor Swift",
+      "canonical": {
+        "title": "I Knew You Were Trouble",
+        "year": 2012,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "Trouble",
+          "year": 2012,
+          "genre": "Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Marvin Gaye",
+      "canonical": {
+        "title": "Mercy Mercy Me (The Ecology)",
+        "year": 1971,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "Mercy Mercy Me",
+          "year": 1971,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Marvin Gaye",
+      "canonical": {
+        "title": "How Sweet It Is To Be Loved By You",
+        "year": 1965,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "How Sweet It Is (To Be Loved by You)",
+          "year": 1964,
+          "genre": "Soul/Motown"
+        }
+      ]
+    },
+    {
+      "artist": "Marvin Gaye",
+      "canonical": {
+        "title": "Heard It Through the Grapevine",
+        "year": 1968,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "I Heard It Through The Grapevine",
+          "year": 1968,
+          "genre": "Soul/Motown"
+        }
+      ]
+    },
+    {
+      "artist": "Sam Smith",
+      "canonical": {
+        "title": "I'm Not the Only One",
+        "year": 2014,
+        "genre": "RnB/Soul"
+      },
+      "merged": [
+        {
+          "title": "I’m Not the Only One",
+          "year": 2014,
+          "genre": "Soul / Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Bobby McFerrin",
+      "canonical": {
+        "title": "Don't Worry Be Happy",
+        "year": 1988,
+        "genre": "A Cappella/Reggae Fusion"
+      },
+      "merged": [
+        {
+          "title": "Don't Worry, Be Happy",
+          "year": 1988,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Meat Loaf",
+      "canonical": {
+        "title": "I'd Do Anything for Love (But I Won't Do That)",
+        "year": 1993,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "I Would Do Anything for Love (But I Won't Do That)",
+          "year": 1993,
+          "genre": "Rock"
+        },
+        {
+          "title": "I Would Do Anything for Love (But I Won’t Do That)",
+          "year": 1993,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Fall Out Boy",
+      "canonical": {
+        "title": "Sugar, We're Going Down",
+        "year": 2005,
+        "genre": "Pop Punk"
+      },
+      "merged": [
+        {
+          "title": "Sugar, We're Goin Down",
+          "year": 2005,
+          "genre": "Pop Punk"
+        }
+      ]
+    },
+    {
+      "artist": "Etta James",
+      "canonical": {
+        "title": "Rather Go Blind",
+        "year": 1968,
+        "genre": "Soul/Blues"
+      },
+      "merged": [
+        {
+          "title": "I'd Rather Go Blind",
+          "year": 1968,
+          "genre": "Soul/Blues"
+        }
+      ]
+    },
+    {
+      "artist": "Etta James",
+      "canonical": {
+        "title": "I Just Wanna Make Love To You",
+        "year": 1961,
+        "genre": "Blues/R&B"
+      },
+      "merged": [
+        {
+          "title": "I Just Want to Make Love to You",
+          "year": 1961,
+          "genre": "Blues"
+        }
+      ]
+    },
+    {
+      "artist": "Rihanna (feat. Calvin Harris)",
+      "canonical": {
+        "title": "We Found Love",
+        "year": 2011,
+        "genre": "Dance Pop / EDM"
+      },
+      "merged": [
+        {
+          "title": "We Found Love",
+          "year": 2011,
+          "genre": "Pop/Dance"
+        }
+      ]
+    },
+    {
+      "artist": "Françoise Hardy",
+      "canonical": {
+        "title": "Tous les garçons et les filles de mon âge",
+        "year": 1962,
+        "genre": "Yé-yé / Chanson Pop"
+      },
+      "merged": [
+        {
+          "title": "Tous les garçons et les filles",
+          "year": 1962,
+          "genre": "French Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Roberta Flack",
+      "canonical": {
+        "title": "Killing Me Softly with His Song",
+        "year": 1973,
+        "genre": "Soul/Pop"
+      },
+      "merged": [
+        {
+          "title": "Killing Me Softly",
+          "year": 1973,
+          "genre": "Soul/Jazz"
+        }
+      ]
+    },
+    {
+      "artist": "The Communards",
+      "canonical": {
+        "title": "Don't Leave Me This Way",
+        "year": 1986,
+        "genre": "Synth-pop"
+      },
+      "merged": [
+        {
+          "title": "Don’t Leave Me This Way",
+          "year": 1986,
+          "genre": "Hi-NRG"
+        }
+      ]
+    },
+    {
+      "artist": "The Isley Brothers",
+      "canonical": {
+        "title": "Shout!",
+        "year": 1959,
+        "genre": "R&B"
+      },
+      "merged": [
+        {
+          "title": "Shout",
+          "year": 1959,
+          "genre": "R&B"
+        }
+      ]
+    },
+    {
+      "artist": "The Isley Brothers",
+      "canonical": {
+        "title": "This Old Heart of Mine (Is Weak for You)",
+        "year": 1966,
+        "genre": "Soul/Motown"
+      },
+      "merged": [
+        {
+          "title": "This Old Heart Of Mine",
+          "year": 1966,
+          "genre": "Motown/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Thirty Seconds to Mars",
+      "canonical": {
+        "title": "The Kill",
+        "year": 2005,
+        "genre": "Alternative Rock"
+      },
+      "merged": [
+        {
+          "title": "The Kill (Bury Me)",
+          "year": 2005,
+          "genre": "Alternative Rock"
+        }
+      ]
+    },
+    {
+      "artist": "The Killers",
+      "canonical": {
+        "title": "Mr. Brightside",
+        "year": 2004,
+        "genre": "Indie Rock"
+      },
+      "merged": [
+        {
+          "title": "Mr Brightside",
+          "year": 2003,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Florence + The Machine",
+      "canonical": {
+        "title": "You’ve Got The Love",
+        "year": 2009,
+        "genre": "Indie Pop"
+      },
+      "merged": [
+        {
+          "title": "You've Got The Love",
+          "year": 2009,
+          "genre": "Indie Rock/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Edith Piaf",
+      "canonical": {
+        "title": "Milord",
+        "year": 1959,
+        "genre": "RnB/Soul"
+      },
+      "merged": [
+        {
+          "title": "Milord",
+          "year": 1959,
+          "genre": "Chanson"
+        }
+      ]
+    },
+    {
+      "artist": "Édith Piaf",
+      "canonical": {
+        "title": "Non, je ne regrette rien",
+        "year": 1960,
+        "genre": "Chanson"
+      },
+      "merged": [
+        {
+          "title": "Non, je ne regrette rien",
+          "year": 1960,
+          "genre": "RnB/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Édith Piaf",
+      "canonical": {
+        "title": "L’Hymne à l’amour",
+        "year": 1950,
+        "genre": "Chanson"
+      },
+      "merged": [
+        {
+          "title": "L'Hymne à l'amour",
+          "year": 1950,
+          "genre": "Chanson"
+        }
+      ]
+    },
+    {
+      "artist": "Édith Piaf",
+      "canonical": {
+        "title": "La Vie en rose",
+        "year": 1947,
+        "genre": "Chanson"
+      },
+      "merged": [
+        {
+          "title": "La vie en Rose",
+          "year": 1947,
+          "genre": "Chanson"
+        }
+      ]
+    },
+    {
+      "artist": "Frank Sinatra",
+      "canonical": {
+        "title": "Theme from New York, New York",
+        "year": 1980,
+        "genre": "Traditional Pop"
+      },
+      "merged": [
+        {
+          "title": "New York, New York",
+          "year": 1980,
+          "genre": "Traditional Pop"
+        },
+        {
+          "title": "New York New York",
+          "year": 1980,
+          "genre": "Traditional Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Frank Sinatra",
+      "canonical": {
+        "title": "Somethin' Stupid",
+        "year": 1967,
+        "genre": "Traditional Pop"
+      },
+      "merged": [
+        {
+          "title": "Something Stupid",
+          "year": 1967,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Frank Sinatra",
+      "canonical": {
+        "title": "Santa Claus Is Coming To Town",
+        "year": 1948,
+        "genre": "Jazz/Christmas"
+      },
+      "merged": [
+        {
+          "title": "Santa Claus Is Comin' to Town",
+          "year": 1957,
+          "genre": "Holiday"
+        }
+      ]
+    },
+    {
+      "artist": "Frank Sinatra",
+      "canonical": {
+        "title": "Bésame Mucho",
+        "year": 1962,
+        "genre": "Traditional Pop"
+      },
+      "merged": [
+        {
+          "title": "Besame Mucho",
+          "year": 1960,
+          "genre": "Traditional Pop/Latin"
+        }
+      ]
+    },
+    {
+      "artist": "blink-182",
+      "canonical": {
+        "title": "All the Small Things",
+        "year": 1999,
+        "genre": "Pop Punk"
+      },
+      "merged": [
+        {
+          "title": "All The Small Things",
+          "year": 1999,
+          "genre": "Pop Punk"
+        }
+      ]
+    },
+    {
+      "artist": "Destiny's Child",
+      "canonical": {
+        "title": "Bills Bills Bills",
+        "year": 1999,
+        "genre": "RnB/Soul"
+      },
+      "merged": [
+        {
+          "title": "Bills, Bills, Bills",
+          "year": 1999,
+          "genre": "R&B/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Destiny's Child",
+      "canonical": {
+        "title": "Independent Women Part I",
+        "year": 2000,
+        "genre": "R&B/Pop"
+      },
+      "merged": [
+        {
+          "title": "Independent Women, Part I",
+          "year": 2000,
+          "genre": "R&B"
+        },
+        {
+          "title": "Independent Woman (Part I)",
+          "year": 2000,
+          "genre": "R&B"
+        },
+        {
+          "title": "Independent Women, Pt. I",
+          "year": 2000,
+          "genre": "R&B"
+        },
+        {
+          "title": "Independent Woman, Pt. I",
+          "year": 2000,
+          "genre": "R&B/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Destiny’s Child",
+      "canonical": {
+        "title": "Say My Name",
+        "year": 1999,
+        "genre": "R&B"
+      },
+      "merged": [
+        {
+          "title": "Say My Name",
+          "year": 2003,
+          "genre": "R&B/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Destiny's Child",
+      "canonical": {
+        "title": "Independent Women",
+        "year": 2000,
+        "genre": "R&B/Pop"
+      },
+      "merged": [
+        {
+          "title": "Independent Woman",
+          "year": 2000,
+          "genre": "RnB/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Destiny's Child",
+      "canonical": {
+        "title": "Jumpin', Jumpin'",
+        "year": 2001,
+        "genre": "R&B/Pop"
+      },
+      "merged": [
+        {
+          "title": "Jumpin' Jumpin'",
+          "year": 2000,
+          "genre": "Contemporary R&B"
+        }
+      ]
+    },
+    {
+      "artist": "Destiny's Child",
+      "canonical": {
+        "title": "8 Days of Christmas",
+        "year": 2001,
+        "genre": "R&B/Holiday"
+      },
+      "merged": [
+        {
+          "title": "8 Days of Christmas",
+          "year": 2001,
+          "genre": "R&B/Christmas"
+        }
+      ]
+    },
+    {
+      "artist": "James Morrison ft Nelly Furtado",
+      "canonical": {
+        "title": "Broken Strings",
+        "year": 2008,
+        "genre": "Pop/Rock"
+      },
+      "merged": [
+        {
+          "title": "Broken Strings",
+          "year": 2008,
+          "genre": "Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Rag ‘N’ Bone Man",
+      "canonical": {
+        "title": "Skin",
+        "year": 2017,
+        "genre": "Blues Rock"
+      },
+      "merged": [
+        {
+          "title": "Skin",
+          "year": 2017,
+          "genre": "Soul / Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Rag ‘N’ Bone Man",
+      "canonical": {
+        "title": "Human",
+        "year": 2016,
+        "genre": "Blues Rock"
+      },
+      "merged": [
+        {
+          "title": "Human",
+          "year": 2016,
+          "genre": "Soul/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Bob Dylan",
+      "canonical": {
+        "title": "Knockin' on Heaven's Door",
+        "year": 1973,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Knocking on Heaven's Door",
+          "year": 1973,
+          "genre": "Folk Rock"
+        },
+        {
+          "title": "Knocking on Heaven’s Door",
+          "year": 1973,
+          "genre": "Folk Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Queen",
+      "canonical": {
+        "title": "Don't Stop Me Now",
+        "year": 1979,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Don’t Stop Me Now",
+          "year": 1979,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Naughty Boy ft. Sam Smith",
+      "canonical": {
+        "title": "La La La",
+        "year": 2013,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "La La La",
+          "year": 2013,
+          "genre": "Pop"
+        },
+        {
+          "title": "La La La",
+          "year": 2013,
+          "genre": "Pop"
+        },
+        {
+          "title": "La La La",
+          "year": 2013,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Diana Ross",
+      "canonical": {
+        "title": "I’m Coming Out",
+        "year": 1980,
+        "genre": "Disco / Funk"
+      },
+      "merged": [
+        {
+          "title": "I'm Coming Out",
+          "year": 1980,
+          "genre": "Post-disco, dance-pop, R&B"
+        }
+      ]
+    },
+    {
+      "artist": "Alicia Keys",
+      "canonical": {
+        "title": "If I Ain’t Got You",
+        "year": 2003,
+        "genre": "R&B"
+      },
+      "merged": [
+        {
+          "title": "If I Ain't Got You",
+          "year": 2004,
+          "genre": "R&B/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Alicia Keys",
+      "canonical": {
+        "title": "Fallin'",
+        "year": 2001,
+        "genre": "R&B/Soul"
+      },
+      "merged": [
+        {
+          "title": "Fallin’",
+          "year": 2001,
+          "genre": "RnB/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Dion & The Belmonts",
+      "canonical": {
+        "title": "A Teenager In Love",
+        "year": 1959,
+        "genre": "Doo-wop"
+      },
+      "merged": [
+        {
+          "title": "Teenager in Love",
+          "year": 1959,
+          "genre": "Doo-wop"
+        }
+      ]
+    },
+    {
+      "artist": "Neil Young",
+      "canonical": {
+        "title": "Rockin In The Free World",
+        "year": 1989,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Rockin' in the Free World",
+          "year": 1989,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Cameo",
+      "canonical": {
+        "title": "Word Up!",
+        "year": 1986,
+        "genre": "Funk, R&B"
+      },
+      "merged": [
+        {
+          "title": "Word Up",
+          "year": 1986,
+          "genre": "Funk / R&B"
+        }
+      ]
+    },
+    {
+      "artist": "Lady Gaga ft Colby O'Donis",
+      "canonical": {
+        "title": "Just Dance",
+        "year": 2008,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Just Dance",
+          "year": 2008,
+          "genre": "Dance Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Rihanna ft Drake",
+      "canonical": {
+        "title": "Work",
+        "year": 2016,
+        "genre": "R&B/Pop"
+      },
+      "merged": [
+        {
+          "title": "Work",
+          "year": 2016,
+          "genre": "R&B/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Rihanna ft Drake",
+      "canonical": {
+        "title": "What's My Name?",
+        "year": 2010,
+        "genre": "Pop/R&B"
+      },
+      "merged": [
+        {
+          "title": "What's My Name?",
+          "year": 2010,
+          "genre": "R&B Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Sade",
+      "canonical": {
+        "title": "Smooth Operater",
+        "year": 1984,
+        "genre": "Sophisti-pop / Smooth Jazz"
+      },
+      "merged": [
+        {
+          "title": "Smooth Operator",
+          "year": 1984,
+          "genre": "Soul/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "The Kinks",
+      "canonical": {
+        "title": "All Day and All of the Night",
+        "year": 1964,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "All of the Day and All of the Night",
+          "year": 1964,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "R. Kelly",
+      "canonical": {
+        "title": "Ignition",
+        "year": 2003,
+        "genre": "R&B"
+      },
+      "merged": [
+        {
+          "title": "Ignition",
+          "year": 2002,
+          "genre": "R&B"
+        },
+        {
+          "title": "Ignition (Remix)",
+          "year": 2004,
+          "genre": "R&B / Hip Hop Soul"
+        },
+        {
+          "title": "Ignition Remix",
+          "year": 2003,
+          "genre": "R&B"
+        }
+      ]
+    },
+    {
+      "artist": "Radiohead",
+      "canonical": {
+        "title": "High And Dry",
+        "year": 1995,
+        "genre": "Alternative Rock"
+      },
+      "merged": [
+        {
+          "title": "High & Dry",
+          "year": 1995,
+          "genre": "Alternative Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Backstreet Boys",
+      "canonical": {
+        "title": "Everybody (Backstreet’s Back)",
+        "year": 1997,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Everybody (Backstreet's Back)",
+          "year": 1997,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "The Mamas & the Papas",
+      "canonical": {
+        "title": "California Dreamin'",
+        "year": 1965,
+        "genre": "Folk Rock"
+      },
+      "merged": [
+        {
+          "title": "California Dreamin’",
+          "year": 1965,
+          "genre": "Folk Rock"
+        },
+        {
+          "title": "California Dreaming",
+          "year": 1965,
+          "genre": "Folk Rock"
+        }
+      ]
+    },
+    {
+      "artist": "The Mamas & The Papas",
+      "canonical": {
+        "title": "Dancing in the Street",
+        "year": 1966,
+        "genre": "Pop/Rock"
+      },
+      "merged": [
+        {
+          "title": "Dancing In The Street",
+          "year": 1966,
+          "genre": "Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Aitana",
+      "canonical": {
+        "title": "Los Ángeles",
+        "year": 2017,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Los Angeles",
+          "year": 2021,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "R.E.M.",
+      "canonical": {
+        "title": "Losing My Religion",
+        "year": 1991,
+        "genre": "Alternative Rock"
+      },
+      "merged": [
+        {
+          "title": "Losing My Religion",
+          "year": 1991,
+          "genre": "Alternative Rock"
+        }
+      ]
+    },
+    {
+      "artist": "David Bowie",
+      "canonical": {
+        "title": "Life On Mars",
+        "year": 1971,
+        "genre": "Glam Rock"
+      },
+      "merged": [
+        {
+          "title": "Life On Mars?",
+          "year": 1971,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Lynyrd Skynyrd",
+      "canonical": {
+        "title": "Freebird",
+        "year": 1973,
+        "genre": "Southern Rock"
+      },
+      "merged": [
+        {
+          "title": "Free Bird",
+          "year": 1973,
+          "genre": "Southern Rock"
+        }
+      ]
+    },
+    {
+      "artist": "The Carpenters",
+      "canonical": {
+        "title": "Mr Postman",
+        "year": 1975,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Mr. Postman",
+          "year": 1975,
+          "genre": "Pop"
+        },
+        {
+          "title": "Please Mr. Postman",
+          "year": 1975,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "The Carpenters",
+      "canonical": {
+        "title": "(They Long to Be) Close to You",
+        "year": 1970,
+        "genre": "Soft Rock/Pop"
+      },
+      "merged": [
+        {
+          "title": "Close To You",
+          "year": 1970,
+          "genre": "Soft Rock/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Steve Harley And Cockney Rebel",
+      "canonical": {
+        "title": "Make Me Smile (Come Up And See Me)",
+        "year": 1975,
+        "genre": "Glam Rock"
+      },
+      "merged": [
+        {
+          "title": "Make Me Smile (Come Up and See Me)",
+          "year": 1975,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Daft Punk ft. Pharrell Williams",
+      "canonical": {
+        "title": "Get Lucky",
+        "year": 2013,
+        "genre": "Funk/Disco"
+      },
+      "merged": [
+        {
+          "title": "Get Lucky",
+          "year": 2013,
+          "genre": "Disco / Funk"
+        },
+        {
+          "title": "Get Lucky",
+          "year": 2013,
+          "genre": "Disco/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Andy Williams",
+      "canonical": {
+        "title": "It’s The Most Wonderful Time of The Year",
+        "year": 1963,
+        "genre": "Traditional Pop / Christmas"
+      },
+      "merged": [
+        {
+          "title": "It's the Most Wonderful Time of the Year",
+          "year": 1963,
+          "genre": "Traditional Pop/Holiday"
+        }
+      ]
+    },
+    {
+      "artist": "Katy Perry",
+      "canonical": {
+        "title": "California Gurls (feat. Snoop Dogg)",
+        "year": 2010,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "California Gurls",
+          "year": 2010,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Bill Withers",
+      "canonical": {
+        "title": "Grandma’s Hands",
+        "year": 1971,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "Grandma's Hands",
+          "year": 1971,
+          "genre": "Soul / Gospel"
+        }
+      ]
+    },
+    {
+      "artist": "Bill Withers",
+      "canonical": {
+        "title": "Ain't No Sunshine",
+        "year": 1971,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "Ain’t No Sunshine",
+          "year": 1971,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Of Monsters & Men",
+      "canonical": {
+        "title": "Little Talks",
+        "year": 2011,
+        "genre": "Indie Pop"
+      },
+      "merged": [
+        {
+          "title": "Little Talks",
+          "year": 2011,
+          "genre": "Indie Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Freddie King",
+      "canonical": {
+        "title": "Goin Down",
+        "year": 1971,
+        "genre": "Blues Rock"
+      },
+      "merged": [
+        {
+          "title": "Goin' Down",
+          "year": 1971,
+          "genre": "Blues"
+        }
+      ]
+    },
+    {
+      "artist": "Mumford And Sons",
+      "canonical": {
+        "title": "Little Lion Man",
+        "year": 2009,
+        "genre": "Folk Rock"
+      },
+      "merged": [
+        {
+          "title": "Little Lion Man",
+          "year": 2009,
+          "genre": "Indie Folk"
+        }
+      ]
+    },
+    {
+      "artist": "Mumford And Sons",
+      "canonical": {
+        "title": "The Cave",
+        "year": 2009,
+        "genre": "Folk Rock"
+      },
+      "merged": [
+        {
+          "title": "The Cave",
+          "year": 2010,
+          "genre": "Indie Folk"
+        }
+      ]
+    },
+    {
+      "artist": "Mumford And Sons",
+      "canonical": {
+        "title": "I Will Wait",
+        "year": 2012,
+        "genre": "Folk Rock"
+      },
+      "merged": [
+        {
+          "title": "I Will Wait",
+          "year": 2012,
+          "genre": "Indie Folk"
+        }
+      ]
+    },
+    {
+      "artist": "Kool & The Gang",
+      "canonical": {
+        "title": "Ladies Night",
+        "year": 1979,
+        "genre": "Funk/Disco"
+      },
+      "merged": [
+        {
+          "title": "Ladies Night",
+          "year": 1979,
+          "genre": "Funk / Disco"
+        },
+        {
+          "title": "Ladies' Night",
+          "year": 1979,
+          "genre": "Disco/Funk"
+        }
+      ]
+    },
+    {
+      "artist": "Kool & The Gang",
+      "canonical": {
+        "title": "Get Down on It",
+        "year": 1981,
+        "genre": "Funk/R&B"
+      },
+      "merged": [
+        {
+          "title": "Get Down on It",
+          "year": 1981,
+          "genre": "Funk, R&B"
+        }
+      ]
+    },
+    {
+      "artist": "Kool & The Gang",
+      "canonical": {
+        "title": "Celebration",
+        "year": 1980,
+        "genre": "Funk/Disco"
+      },
+      "merged": [
+        {
+          "title": "Celebration",
+          "year": 1980,
+          "genre": "Pop/Funk"
+        }
+      ]
+    },
+    {
+      "artist": "T Bone Walker",
+      "canonical": {
+        "title": "Stormy Monday",
+        "year": 1947,
+        "genre": "Blues"
+      },
+      "merged": [
+        {
+          "title": "Stormy Monday",
+          "year": 1947,
+          "genre": "Blues"
+        }
+      ]
+    },
+    {
+      "artist": "The Weeknd",
+      "canonical": {
+        "title": "I Can’t Feel My Face",
+        "year": 2015,
+        "genre": "RnB/Soul"
+      },
+      "merged": [
+        {
+          "title": "I Can't Feel My Face",
+          "year": 2015,
+          "genre": "Pop"
+        },
+        {
+          "title": "Can’t Feel My Face",
+          "year": 2015,
+          "genre": "Pop / R&B"
+        },
+        {
+          "title": "Can't Feel My Face",
+          "year": 2015,
+          "genre": "Pop/R&B"
+        }
+      ]
+    },
+    {
+      "artist": "Bob Marley",
+      "canonical": {
+        "title": "Is This Love?",
+        "year": 1978,
+        "genre": "Reggae"
+      },
+      "merged": [
+        {
+          "title": "Is This Love",
+          "year": 1978,
+          "genre": "Reggae"
+        }
+      ]
+    },
+    {
+      "artist": "Bob Marley",
+      "canonical": {
+        "title": "Jammin'",
+        "year": 1977,
+        "genre": "Reggae"
+      },
+      "merged": [
+        {
+          "title": "Jammin",
+          "year": 1977,
+          "genre": "Reggae"
+        },
+        {
+          "title": "Jamming",
+          "year": 1977,
+          "genre": "Reggae"
+        }
+      ]
+    },
+    {
+      "artist": "Bob Marley",
+      "canonical": {
+        "title": "3 Little Birds",
+        "year": 1977,
+        "genre": "Reggae"
+      },
+      "merged": [
+        {
+          "title": "Three Little Birds",
+          "year": 1980,
+          "genre": "Reggae"
+        }
+      ]
+    },
+    {
+      "artist": "Bob Marley",
+      "canonical": {
+        "title": "Could You Be Loved?",
+        "year": 1980,
+        "genre": "Reggae"
+      },
+      "merged": [
+        {
+          "title": "Could You Be Loved",
+          "year": 1980,
+          "genre": "Reggae"
+        }
+      ]
+    },
+    {
+      "artist": "Bob Marley",
+      "canonical": {
+        "title": "No Woman No Cry",
+        "year": 1975,
+        "genre": "Reggae"
+      },
+      "merged": [
+        {
+          "title": "No Woman, No Cry",
+          "year": 1975,
+          "genre": "Reggae"
+        }
+      ]
+    },
+    {
+      "artist": "Daft Punk feat. Pharrell Williams",
+      "canonical": {
+        "title": "Get Lucky",
+        "year": 2013,
+        "genre": "Disco/Funk"
+      },
+      "merged": [
+        {
+          "title": "Get Lucky",
+          "year": 2013,
+          "genre": "Disco / Funk"
+        }
+      ]
+    },
+    {
+      "artist": "Boney M",
+      "canonical": {
+        "title": "Daddy Cool",
+        "year": 1976,
+        "genre": "Euro Disco"
+      },
+      "merged": [
+        {
+          "title": "Daddy Cool",
+          "year": 1976,
+          "genre": "Disco"
+        }
+      ]
+    },
+    {
+      "artist": "Boney M.",
+      "canonical": {
+        "title": "Sunny",
+        "year": 1976,
+        "genre": "Disco"
+      },
+      "merged": [
+        {
+          "title": "Sunny",
+          "year": 1976,
+          "genre": "Disco / Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Roy Orbison",
+      "canonical": {
+        "title": "Oh, Pretty Woman",
+        "year": 1964,
+        "genre": "Rock and Roll"
+      },
+      "merged": [
+        {
+          "title": "Pretty Woman",
+          "year": null,
+          "genre": ""
+        }
+      ]
+    },
+    {
+      "artist": "Ray Charles",
+      "canonical": {
+        "title": "(I Got a Woman) I Got a Woman",
+        "year": 1954,
+        "genre": "R&B"
+      },
+      "merged": [
+        {
+          "title": "I Gotta Woman",
+          "year": 1954,
+          "genre": "R&B"
+        },
+        {
+          "title": "I Got A Woman",
+          "year": 1954,
+          "genre": "Rhythm and Blues"
+        }
+      ]
+    },
+    {
+      "artist": "Ray Charles",
+      "canonical": {
+        "title": "I Don’t Need No Doctor",
+        "year": 1966,
+        "genre": "R&B"
+      },
+      "merged": [
+        {
+          "title": "I Don't Need No Doctor",
+          "year": 1966,
+          "genre": "R&B/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Years and Years",
+      "canonical": {
+        "title": "King",
+        "year": 2015,
+        "genre": "Synth Pop"
+      },
+      "merged": [
+        {
+          "title": "King",
+          "year": 2015,
+          "genre": "Synthpop"
+        }
+      ]
+    },
+    {
+      "artist": "Chuck Berry",
+      "canonical": {
+        "title": "Johnny B. Goode",
+        "year": 1958,
+        "genre": "Rock and Roll"
+      },
+      "merged": [
+        {
+          "title": "Johnny B Goode",
+          "year": 1958,
+          "genre": "Rock and Roll"
+        }
+      ]
+    },
+    {
+      "artist": "The Marvelettes",
+      "canonical": {
+        "title": "Please Mr. Postman",
+        "year": 1961,
+        "genre": "Soul/Pop"
+      },
+      "merged": [
+        {
+          "title": "Please Mr Postman",
+          "year": 1961,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Jessie J ft. Ariana Grande & Nicki Minaj",
+      "canonical": {
+        "title": "Bang Bang",
+        "year": 2014,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Bang Bang",
+          "year": 2014,
+          "genre": "Pop"
+        },
+        {
+          "title": "Bang Bang",
+          "year": 2014,
+          "genre": "Pop / Hip Hop"
+        },
+        {
+          "title": "Bang Bang",
+          "year": 2014,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Miley Cyrus",
+      "canonical": {
+        "title": "Party In The USA",
+        "year": 2009,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Party in the U.S.A.",
+          "year": 2009,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "(Tim Deluxe)",
+      "canonical": {
+        "title": "It Just Won't Do",
+        "year": 2002,
+        "genre": "House"
+      },
+      "merged": [
+        {
+          "title": "It Just Won't Do",
+          "year": 2002,
+          "genre": "House"
+        }
+      ]
+    },
+    {
+      "artist": "The Chainsmokers & Coldplay",
+      "canonical": {
+        "title": "Something Just Like This",
+        "year": 2017,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Something Just Like Us",
+          "year": 2017,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Dean Martin",
+      "canonical": {
+        "title": "Let It Snow, Let It Snow, Let It Snow",
+        "year": 1959,
+        "genre": "Festive"
+      },
+      "merged": [
+        {
+          "title": "Let It Snow! Let It Snow! Let It Snow!",
+          "year": 1959,
+          "genre": "Traditional Pop / Holiday"
+        }
+      ]
+    },
+    {
+      "artist": "John Denver",
+      "canonical": {
+        "title": "Take Me Home, Country Roads",
+        "year": 1971,
+        "genre": "Country/Folk"
+      },
+      "merged": [
+        {
+          "title": "Take Me Home Country Roads",
+          "year": 1971,
+          "genre": "Country/Folk"
+        }
+      ]
+    },
+    {
+      "artist": "Lauryn Hill",
+      "canonical": {
+        "title": "Can't Take My Eyes Off Of You",
+        "year": 1998,
+        "genre": "R&B/Soul"
+      },
+      "merged": [
+        {
+          "title": "Can't Take My Eyes Off You",
+          "year": 1998,
+          "genre": "Soul/R&B"
+        }
+      ]
+    },
+    {
+      "artist": "Lauryn Hill",
+      "canonical": {
+        "title": "Ex-Factor",
+        "year": 1998,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "Ex‑Factor",
+          "year": 1998,
+          "genre": "R&B / Neo‑Soul"
+        }
+      ]
+    },
+    {
+      "artist": "The Stylistics",
+      "canonical": {
+        "title": "Betcha by Golly, Wow",
+        "year": 1972,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "Betcha By Golly Wow",
+          "year": 1972,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Artful Dodger ft. Craig David",
+      "canonical": {
+        "title": "Re-Rewind (The Crowd Say Bo Selecta)",
+        "year": 2000,
+        "genre": "UK Garage"
+      },
+      "merged": [
+        {
+          "title": "Re-Rewind",
+          "year": 2000,
+          "genre": "UK Garage"
+        }
+      ]
+    },
+    {
+      "artist": "Bobby \"Boris\" Pickett",
+      "canonical": {
+        "title": "The Monster Mash",
+        "year": 1962,
+        "genre": "Novelty Pop"
+      },
+      "merged": [
+        {
+          "title": "The Monster Mash",
+          "year": 1962,
+          "genre": "Novelty"
+        }
+      ]
+    },
+    {
+      "artist": "McFadden & Whitehead",
+      "canonical": {
+        "title": "Ain’t No Stopping Us Now",
+        "year": 1979,
+        "genre": "Soul/Disco"
+      },
+      "merged": [
+        {
+          "title": "Ain't No Stopping Us Now",
+          "year": 1979,
+          "genre": "Soul"
+        },
+        {
+          "title": "Ain’t No Stoppin’ Us Now",
+          "year": 1979,
+          "genre": "R&B/Disco"
+        },
+        {
+          "title": "Ain't No Stoppin' Us Now",
+          "year": 1979,
+          "genre": "Soul/Disco"
+        },
+        {
+          "title": "Ain’t No Stoppin' Us Now",
+          "year": 1979,
+          "genre": "Disco Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Calvin Harris (ft. Ayah Marar)",
+      "canonical": {
+        "title": "Thinking About You",
+        "year": 2013,
+        "genre": "Dance / EDM"
+      },
+      "merged": [
+        {
+          "title": "Thinking About You",
+          "year": 2012,
+          "genre": "Dance / Electronic"
+        }
+      ]
+    },
+    {
+      "artist": "Sister Act (cast)",
+      "canonical": {
+        "title": "Oh Happy Day",
+        "year": 1992,
+        "genre": "Soundtrack"
+      },
+      "merged": [
+        {
+          "title": "Oh Happy Day",
+          "year": 1992,
+          "genre": "Soundtrack/Gospel"
+        }
+      ]
+    },
+    {
+      "artist": "Sister Act Cast",
+      "canonical": {
+        "title": "Joyful Joyful",
+        "year": 1993,
+        "genre": "Soundtrack/Gospel"
+      },
+      "merged": [
+        {
+          "title": "Joyful Joyful",
+          "year": 1992,
+          "genre": "Soundtrack"
+        },
+        {
+          "title": "Joyful, Joyful",
+          "year": 1992,
+          "genre": "Gospel/Soundtrack"
+        }
+      ]
+    },
+    {
+      "artist": "Guns N' Roses",
+      "canonical": {
+        "title": "Knocking On Heaven's Door",
+        "year": 1990,
+        "genre": "Hard Rock"
+      },
+      "merged": [
+        {
+          "title": "Knockin' on Heaven's Door",
+          "year": 1992,
+          "genre": "Rock Ballad"
+        }
+      ]
+    },
+    {
+      "artist": "Guns N Roses",
+      "canonical": {
+        "title": "Sweet Child O Mine",
+        "year": 1987,
+        "genre": "Hard Rock"
+      },
+      "merged": [
+        {
+          "title": "Sweet Child O' Mine",
+          "year": 1987,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Guns'N'Roses",
+      "canonical": {
+        "title": "Live And Let Die",
+        "year": 1991,
+        "genre": "Hard Rock"
+      },
+      "merged": [
+        {
+          "title": "Live and Let Die",
+          "year": 1991,
+          "genre": "Hard Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Four Tops",
+      "canonical": {
+        "title": "Can't Help Myself (Sugar Pie Honey Bunch)",
+        "year": 1965,
+        "genre": "Soul (Motown)"
+      },
+      "merged": [
+        {
+          "title": "Can't Help Myself (Sugar Pie, Honey Bunch)",
+          "year": 1965,
+          "genre": "Soul"
+        },
+        {
+          "title": "I Can't Help Myself (Sugar Pie, Honey Bunch)",
+          "year": 1965,
+          "genre": "Soul/Motown"
+        },
+        {
+          "title": "I Can't Help Myself (Sugar Pie Honey Bunch)",
+          "year": 1965,
+          "genre": "Motown"
+        }
+      ]
+    },
+    {
+      "artist": "Four Tops",
+      "canonical": {
+        "title": "Sugar Pie Honeybunch",
+        "year": 1965,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "Sugar Pie Honey Bunch",
+          "year": 1965,
+          "genre": "Soul (Motown)"
+        }
+      ]
+    },
+    {
+      "artist": "Four Tops",
+      "canonical": {
+        "title": "Reach Out I'll Be There",
+        "year": 1966,
+        "genre": "Soul/Motown"
+      },
+      "merged": [
+        {
+          "title": "Reach Out, I'll Be There",
+          "year": 1966,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "George Michael",
+      "canonical": {
+        "title": "Freedom",
+        "year": 1990,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Freedom! '90",
+          "year": 1990,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Cyndi Lauper",
+      "canonical": {
+        "title": "Girls Just Wanna Have Fun",
+        "year": 1983,
+        "genre": "Pop / New Wave"
+      },
+      "merged": [
+        {
+          "title": "Girls Just Wana Have Fun",
+          "year": 1983,
+          "genre": "Pop"
+        },
+        {
+          "title": "Girls Just Want to Have Fun",
+          "year": 1983,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Eurythmics",
+      "canonical": {
+        "title": "There Must Be an Angel (Playing with My Heart)",
+        "year": 1985,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "There Must Be An Angel",
+          "year": 1985,
+          "genre": "Synthpop"
+        }
+      ]
+    },
+    {
+      "artist": "T-Rex",
+      "canonical": {
+        "title": "20th Century Boy",
+        "year": 1973,
+        "genre": "Glam Rock"
+      },
+      "merged": [
+        {
+          "title": "20th Century Boy",
+          "year": 1973,
+          "genre": "Glam Rock"
+        }
+      ]
+    },
+    {
+      "artist": "The Andrews Sisters",
+      "canonical": {
+        "title": "Bei Mir Bist Du Schon",
+        "year": 1938,
+        "genre": "Swing / Jazz"
+      },
+      "merged": [
+        {
+          "title": "Bei Mir Bist Du Schön",
+          "year": 1938,
+          "genre": "Swing"
+        }
+      ]
+    },
+    {
+      "artist": "Angie Stone",
+      "canonical": {
+        "title": "I Wish I Didn’t Miss You Anymore",
+        "year": 2002,
+        "genre": "Neo Soul"
+      },
+      "merged": [
+        {
+          "title": "I Wish I Didn't Miss You Anymore",
+          "year": 2002,
+          "genre": "R&B/Soul"
+        },
+        {
+          "title": "Wish I Didn't Miss You Anymore",
+          "year": 2001,
+          "genre": "R&B/Soul"
+        },
+        {
+          "title": "Wish I Didn’t Miss You Anymore",
+          "year": 2002,
+          "genre": "Neo Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Angie Stone",
+      "canonical": {
+        "title": "Wish I Didn’t Miss You",
+        "year": 2002,
+        "genre": "R&B/Soul"
+      },
+      "merged": [
+        {
+          "title": "Wish I Didn't Miss You",
+          "year": 2002,
+          "genre": "R&B/Soul"
+        },
+        {
+          "title": "I Wish I Didn't Miss You",
+          "year": 2002,
+          "genre": "R&B/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Mariah Carey ft. Jay‑Z",
+      "canonical": {
+        "title": "Heartbreaker",
+        "year": 1999,
+        "genre": "Contemporary R&B / Pop"
+      },
+      "merged": [
+        {
+          "title": "Heartbreaker",
+          "year": 1999,
+          "genre": "R&B/Pop"
+        },
+        {
+          "title": "Heartbreaker",
+          "year": 1999,
+          "genre": "R&B/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Elton John",
+      "canonical": {
+        "title": "I'm Still Standing",
+        "year": 1983,
+        "genre": "Pop/Rock"
+      },
+      "merged": [
+        {
+          "title": "I’m Still Standing",
+          "year": 1983,
+          "genre": "Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Elton John",
+      "canonical": {
+        "title": "Rocket Man (I Think It's Going to Be a Long, Long Time)",
+        "year": 1972,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "Rocket Man",
+          "year": 1972,
+          "genre": "Soft Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Elton John",
+      "canonical": {
+        "title": "I Guess That’s Why They Call It the Blues",
+        "year": 1983,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "Guess That's Why They Call It the Blues",
+          "year": 1983,
+          "genre": "Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "The Bangles",
+      "canonical": {
+        "title": "Walk Like an Egyptian",
+        "year": 1986,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "Walk Like An Egypcian",
+          "year": null,
+          "genre": ""
+        }
+      ]
+    },
+    {
+      "artist": "Noah and the Whale",
+      "canonical": {
+        "title": "L.I.F.E.G.O.E.S.O.N.",
+        "year": 2010,
+        "genre": "Indie Folk"
+      },
+      "merged": [
+        {
+          "title": "Life Goes On",
+          "year": 2011,
+          "genre": "Indie Folk"
+        }
+      ]
+    },
+    {
+      "artist": "Noah and the Whale",
+      "canonical": {
+        "title": "5 Years Time",
+        "year": 2009,
+        "genre": "Indie Folk"
+      },
+      "merged": [
+        {
+          "title": "Five Years Time",
+          "year": 2008,
+          "genre": "Indie Folk"
+        }
+      ]
+    },
+    {
+      "artist": "Britney Spears",
+      "canonical": {
+        "title": "Oops!... I Did It Again",
+        "year": 2000,
+        "genre": "Teen Pop"
+      },
+      "merged": [
+        {
+          "title": "Oops!...I Did it Again",
+          "year": 2000,
+          "genre": "Teen Pop"
+        }
+      ]
+    },
+    {
+      "artist": "CNCO",
+      "canonical": {
+        "title": "Reggaetón Lento (Bailemos)",
+        "year": 2016,
+        "genre": "Reggaeton / Latin Pop"
+      },
+      "merged": [
+        {
+          "title": "Reggaeton Lento",
+          "year": 2016,
+          "genre": "Reggaeton / Latin Pop"
+        },
+        {
+          "title": "Reggaetón Lento",
+          "year": 2016,
+          "genre": "Reggaeton"
+        }
+      ]
+    },
+    {
+      "artist": "DJ Fresh ft. Rita Ora",
+      "canonical": {
+        "title": "Hot Right Now",
+        "year": 2012,
+        "genre": "Dance"
+      },
+      "merged": [
+        {
+          "title": "Hot Right Now",
+          "year": 2012,
+          "genre": "Dance"
+        }
+      ]
+    },
+    {
+      "artist": "Jeff Buckley Version",
+      "canonical": {
+        "title": "Hallelujah",
+        "year": 1994,
+        "genre": "Alternative/Folk Rock"
+      },
+      "merged": [
+        {
+          "title": "Hallelujah",
+          "year": 1994,
+          "genre": "Rock / Folk"
+        }
+      ]
+    },
+    {
+      "artist": "Bruce Springsteen",
+      "canonical": {
+        "title": "Born In The U.S.A.",
+        "year": 1984,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Born In The USA",
+          "year": 1984,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Bruce Springsteen",
+      "canonical": {
+        "title": "Santa Claus Is Comin' to Town",
+        "year": 1985,
+        "genre": "Holiday/Rock"
+      },
+      "merged": [
+        {
+          "title": "Santa Claus is Coming To Town",
+          "year": 1985,
+          "genre": "Rock/Christmas"
+        }
+      ]
+    },
+    {
+      "artist": "Tom Grennan",
+      "canonical": {
+        "title": "Little By A Little Love",
+        "year": 2020,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Little by Little",
+          "year": 2021,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Tom Grennan",
+      "canonical": {
+        "title": "Found What I've Been Looking For",
+        "year": 2017,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Found What Ive Been Looking For",
+          "year": null,
+          "genre": "Unknown"
+        }
+      ]
+    },
+    {
+      "artist": "Lenny Kravitz",
+      "canonical": {
+        "title": "Are You Gonna Go My Way",
+        "year": 1993,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Are You Gonna Go My Way?",
+          "year": 1993,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Disney",
+      "canonical": {
+        "title": "I Wan'na Be Like You (The Monkey Song)",
+        "year": 1967,
+        "genre": "Disney"
+      },
+      "merged": [
+        {
+          "title": "I Wanna Be Like You",
+          "year": 1967,
+          "genre": "Soundtrack"
+        }
+      ]
+    },
+    {
+      "artist": "Otis Redding",
+      "canonical": {
+        "title": "Sitting On The Dock Of The Bay",
+        "year": 1968,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "Dock of the Bay",
+          "year": 1968,
+          "genre": "Soul"
+        },
+        {
+          "title": "(Sittin' On) The Dock Of The Bay",
+          "year": 1968,
+          "genre": "Soul/R&B"
+        }
+      ]
+    },
+    {
+      "artist": "Israel Kamakawiwo'ole",
+      "canonical": {
+        "title": "Somewhere Over The Rainbow/What A Wonderful World",
+        "year": 1993,
+        "genre": "Hawaiian/Acoustic"
+      },
+      "merged": [
+        {
+          "title": "Somewhere Over the Rainbow / What a Wonderful World",
+          "year": 1993,
+          "genre": "Folk"
+        }
+      ]
+    },
+    {
+      "artist": "Smokey Robinson & The Miracles",
+      "canonical": {
+        "title": "The Tears of a Clown",
+        "year": 1970,
+        "genre": "Soul/Motown"
+      },
+      "merged": [
+        {
+          "title": "Tears of a Clown",
+          "year": 1970,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Rihanna",
+      "canonical": {
+        "title": "What's My Name",
+        "year": 2010,
+        "genre": "Pop/R&B"
+      },
+      "merged": [
+        {
+          "title": "What's My Name?",
+          "year": 2010,
+          "genre": "R&B/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Rihanna",
+      "canonical": {
+        "title": "California Kingbed",
+        "year": 2010,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "California King Bed",
+          "year": 2011,
+          "genre": "R&B"
+        }
+      ]
+    },
+    {
+      "artist": "Rihanna",
+      "canonical": {
+        "title": "Umbrella (feat. Jay-Z)",
+        "year": 2007,
+        "genre": "Pop / R&B"
+      },
+      "merged": [
+        {
+          "title": "Umbrella",
+          "year": 2007,
+          "genre": "R&B"
+        }
+      ]
+    },
+    {
+      "artist": "Pink Floyd",
+      "canonical": {
+        "title": "Another Brick in the Wall (Part 2)",
+        "year": 1979,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Another Brick in the Wall, Pt. 2",
+          "year": 1979,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "The La's",
+      "canonical": {
+        "title": "There She Goes",
+        "year": 1988,
+        "genre": "Alternative Rock"
+      },
+      "merged": [
+        {
+          "title": "There She Goes",
+          "year": 1988,
+          "genre": "Jangle Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Calvin Harris ft Rihanna",
+      "canonical": {
+        "title": "This Is What You Came For",
+        "year": 2016,
+        "genre": "Dance/Pop"
+      },
+      "merged": [
+        {
+          "title": "This Is What You Came For",
+          "year": 2016,
+          "genre": "Pop/EDM"
+        }
+      ]
+    },
+    {
+      "artist": "Eagle-Eye Cherry",
+      "canonical": {
+        "title": "Save Tonight",
+        "year": 1997,
+        "genre": "Pop/Rock"
+      },
+      "merged": [
+        {
+          "title": "Save Tonight",
+          "year": 1997,
+          "genre": "Alternative Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Robin Thicke ft. Pharrell Williams",
+      "canonical": {
+        "title": "Blurred Lines",
+        "year": 2013,
+        "genre": "RnB/Soul"
+      },
+      "merged": [
+        {
+          "title": "Blurred Lines",
+          "year": 2013,
+          "genre": "R&B / Pop"
+        },
+        {
+          "title": "Blurred Lines",
+          "year": 2013,
+          "genre": "Pop / R&B"
+        }
+      ]
+    },
+    {
+      "artist": "Sam & Dave",
+      "canonical": {
+        "title": "Soul Man",
+        "year": 1967,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "Soul Man",
+          "year": 1967,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Sam & Dave",
+      "canonical": {
+        "title": "Hold On",
+        "year": 1966,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "Hold On, I'm Comin'",
+          "year": 1966,
+          "genre": "Soul"
+        },
+        {
+          "title": "Hold On, I’m Comin'",
+          "year": 1966,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Bobby \"Boris\" Pickett & The Crypt-Kickers",
+      "canonical": {
+        "title": "Monster Mash",
+        "year": 1962,
+        "genre": "Novelty Pop"
+      },
+      "merged": [
+        {
+          "title": "Monster Mash",
+          "year": 1962,
+          "genre": "Novelty"
+        }
+      ]
+    },
+    {
+      "artist": "Damien Rice",
+      "canonical": {
+        "title": "The Blower's Daughter",
+        "year": 2002,
+        "genre": "Indie Folk"
+      },
+      "merged": [
+        {
+          "title": "Blower's Daughter",
+          "year": 2002,
+          "genre": "Indie Folk"
+        },
+        {
+          "title": "Blower’s Daughter",
+          "year": 2001,
+          "genre": "Folk Rock"
+        }
+      ]
+    },
+    {
+      "artist": "The Proclaimers",
+      "canonical": {
+        "title": "I'm Gonna Be (500 Miles)",
+        "year": 1988,
+        "genre": "Pop/Rock"
+      },
+      "merged": [
+        {
+          "title": "500 Miles",
+          "year": 1988,
+          "genre": "Pop/Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Joe Cocker",
+      "canonical": {
+        "title": "A Little Help from My Friends",
+        "year": 1969,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "With A Little Help From My Friends",
+          "year": 1969,
+          "genre": "Rock / Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Simon & Garfunkel",
+      "canonical": {
+        "title": "Mrs. Robinson",
+        "year": 1968,
+        "genre": "Folk Rock"
+      },
+      "merged": [
+        {
+          "title": "Mrs Robinson",
+          "year": 1968,
+          "genre": "Folk Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Jamie Lawson",
+      "canonical": {
+        "title": "I Wasn't Expecting That",
+        "year": 2015,
+        "genre": "Singer-Songwriter"
+      },
+      "merged": [
+        {
+          "title": "Wasn't Expecting That",
+          "year": 2015,
+          "genre": "Singer-Songwriter"
+        }
+      ]
+    },
+    {
+      "artist": "Sam Sparro",
+      "canonical": {
+        "title": "Black & Gold",
+        "year": 2008,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Black And Gold",
+          "year": 2008,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Madcon",
+      "canonical": {
+        "title": "Beggin",
+        "year": 2007,
+        "genre": "Pop/Rap"
+      },
+      "merged": [
+        {
+          "title": "Beggin",
+          "year": null,
+          "genre": ""
+        },
+        {
+          "title": "Beggin'",
+          "year": 2007,
+          "genre": "Pop/Hip Hop"
+        },
+        {
+          "title": "Beggin’",
+          "year": 2007,
+          "genre": "RnB/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Barry Manilow",
+      "canonical": {
+        "title": "Copacabana (At the Copa)",
+        "year": 1978,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Copacabana",
+          "year": 1978,
+          "genre": "Disco"
+        }
+      ]
+    },
+    {
+      "artist": "Joan Jett & the Blackhearts",
+      "canonical": {
+        "title": "I Love Rock 'n' Roll",
+        "year": 1981,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "I Love Rock N Roll",
+          "year": 1981,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Bon Jovi",
+      "canonical": {
+        "title": "Livin' on a Prayer",
+        "year": 1986,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Livin’ On A Prayer",
+          "year": 1986,
+          "genre": "Rock"
+        },
+        {
+          "title": "Living On A Prayer",
+          "year": 1986,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Kungs ft. Cookin' on 3 Burners",
+      "canonical": {
+        "title": "This Girl (Remix)",
+        "year": 2016,
+        "genre": "Tropical House"
+      },
+      "merged": [
+        {
+          "title": "This Girl (Remix)",
+          "year": 2016,
+          "genre": "House"
+        }
+      ]
+    },
+    {
+      "artist": "One Direction",
+      "canonical": {
+        "title": "What Makes You Beautiful",
+        "year": 2011,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "What Make you Beautiful",
+          "year": null,
+          "genre": ""
+        }
+      ]
+    },
+    {
+      "artist": "P!nk",
+      "canonical": {
+        "title": "Get This Party Started",
+        "year": 2001,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Get The Party Started",
+          "year": 2001,
+          "genre": "Pop/Rock"
+        }
+      ]
+    },
+    {
+      "artist": "P!nk",
+      "canonical": {
+        "title": "What About Us",
+        "year": 2017,
+        "genre": "Pop Ballad"
+      },
+      "merged": [
+        {
+          "title": "What About Us?",
+          "year": 2017,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Peggy Lee",
+      "canonical": {
+        "title": "Why Don't You Do Right?",
+        "year": 1948,
+        "genre": "Jazz"
+      },
+      "merged": [
+        {
+          "title": "Why Don't You Do Right",
+          "year": 1942,
+          "genre": "Jazz/Blues"
+        }
+      ]
+    },
+    {
+      "artist": "Robin S.",
+      "canonical": {
+        "title": "Show Me Love",
+        "year": 1993,
+        "genre": "House"
+      },
+      "merged": [
+        {
+          "title": "Show Me Love",
+          "year": 1993,
+          "genre": "House"
+        }
+      ]
+    },
+    {
+      "artist": "Rick James",
+      "canonical": {
+        "title": "Superfreak",
+        "year": 1981,
+        "genre": "Funk"
+      },
+      "merged": [
+        {
+          "title": "Super Freak",
+          "year": 1981,
+          "genre": "Funk"
+        }
+      ]
+    },
+    {
+      "artist": "Fountains of Wayne",
+      "canonical": {
+        "title": "Stacy’s Mom",
+        "year": 2003,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "Stacy's Mom",
+          "year": 2003,
+          "genre": "Power Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Europe",
+      "canonical": {
+        "title": "Final Countdown",
+        "year": 1986,
+        "genre": "Hard Rock"
+      },
+      "merged": [
+        {
+          "title": "The Final Countdown",
+          "year": 1986,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "The Four Tops",
+      "canonical": {
+        "title": "I Can't Help Myself (Sugar Pie, Honey Bunch)",
+        "year": 1965,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "Sugar Pie Honey Bunch",
+          "year": 1965,
+          "genre": "Motown"
+        }
+      ]
+    },
+    {
+      "artist": "Duran Duran",
+      "canonical": {
+        "title": "A View to a Kill",
+        "year": 1985,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "View To A Kill",
+          "year": 1985,
+          "genre": "Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Frankie Valli",
+      "canonical": {
+        "title": "Can't Take My Eyes Off You",
+        "year": 1967,
+        "genre": "Traditional Pop"
+      },
+      "merged": [
+        {
+          "title": "Can’t Take My Eyes Off You",
+          "year": 1967,
+          "genre": "Pop / Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Doris Day",
+      "canonical": {
+        "title": "Que Sera Sera",
+        "year": 1956,
+        "genre": "Traditional Pop"
+      },
+      "merged": [
+        {
+          "title": "Que Sera, Sera",
+          "year": 1956,
+          "genre": "Traditional Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Doris Day",
+      "canonical": {
+        "title": "Dream A Little Dream",
+        "year": 1957,
+        "genre": "Traditional Pop"
+      },
+      "merged": [
+        {
+          "title": "Dream a Little Dream of Me",
+          "year": 1957,
+          "genre": "Traditional Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Sly & The Family Stone",
+      "canonical": {
+        "title": "Everybody Is a Star",
+        "year": 1969,
+        "genre": "Soul/Funk"
+      },
+      "merged": [
+        {
+          "title": "Everybody Is A Star",
+          "year": 1970,
+          "genre": "Funk / Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Carnie And Wendy Wilson",
+      "canonical": {
+        "title": "Jingle Bell Rock",
+        "year": 1993,
+        "genre": "Pop/Christmas"
+      },
+      "merged": [
+        {
+          "title": "Jingle Bell Rock",
+          "year": null,
+          "genre": "Pop/Holiday"
+        }
+      ]
+    },
+    {
+      "artist": "Train",
+      "canonical": {
+        "title": "Drops of Jupiter (Tell Me)",
+        "year": 2001,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "Drops of Jupiter",
+          "year": 2001,
+          "genre": "Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Train",
+      "canonical": {
+        "title": "Hey, Soul Sister",
+        "year": 2009,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "Hey Soul Sister",
+          "year": 2009,
+          "genre": "Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "The Fugees",
+      "canonical": {
+        "title": "Killing Me Softly with His Song",
+        "year": 1996,
+        "genre": "Hip Hop Soul"
+      },
+      "merged": [
+        {
+          "title": "Killing Me Softly",
+          "year": 1996,
+          "genre": "Hip Hop / Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Jay-Z & Kanye West",
+      "canonical": {
+        "title": "Ni**as In Paris",
+        "year": 2011,
+        "genre": "Hip Hop"
+      },
+      "merged": [
+        {
+          "title": "N**as in Paris",
+          "year": 2011,
+          "genre": "Hip-Hop"
+        }
+      ]
+    },
+    {
+      "artist": "Björk and Tom Jones",
+      "canonical": {
+        "title": "Baby It’s Cold Outside",
+        "year": 1999,
+        "genre": "Pop/Christmas"
+      },
+      "merged": [
+        {
+          "title": "Baby, It's Cold Outside",
+          "year": null,
+          "genre": "Holiday"
+        }
+      ]
+    },
+    {
+      "artist": "Ed Sheeran",
+      "canonical": {
+        "title": "Galaway Girl",
+        "year": 2017,
+        "genre": "Pop / Folk-Pop"
+      },
+      "merged": [
+        {
+          "title": "Galway Girl",
+          "year": 2017,
+          "genre": "Pop/Folk"
+        }
+      ]
+    },
+    {
+      "artist": "Ed Sheeran",
+      "canonical": {
+        "title": "A-Team",
+        "year": 2011,
+        "genre": "Pop/Folk"
+      },
+      "merged": [
+        {
+          "title": "The A Team",
+          "year": 2011,
+          "genre": "Singer-Songwriter / Pop"
+        },
+        {
+          "title": "The A-Team",
+          "year": 2011,
+          "genre": "Folk Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Ed Sheeran",
+      "canonical": {
+        "title": "You Need Me, I Don't Need You",
+        "year": 2011,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Don't",
+          "year": 2014,
+          "genre": "R&B / Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Calvin Harris ft. Pharrell Williams, Katy Perry & Big Sean",
+      "canonical": {
+        "title": "Feels",
+        "year": 2017,
+        "genre": "Dance-Pop"
+      },
+      "merged": [
+        {
+          "title": "Feels",
+          "year": 2017,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Jet",
+      "canonical": {
+        "title": "Are You Gonna Be My Girl?",
+        "year": 2003,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Are You Gonna Be My Girl",
+          "year": 2003,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "UB40",
+      "canonical": {
+        "title": "Red Red Wine",
+        "year": 1983,
+        "genre": "Reggae/Pop"
+      },
+      "merged": [
+        {
+          "title": "Red, Red Wine",
+          "year": 1983,
+          "genre": "Reggae Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Oasis",
+      "canonical": {
+        "title": "She's Electric",
+        "year": 1995,
+        "genre": "Britpop"
+      },
+      "merged": [
+        {
+          "title": "She’s Electric",
+          "year": 1995,
+          "genre": "Britpop"
+        }
+      ]
+    },
+    {
+      "artist": "Oasis",
+      "canonical": {
+        "title": "Don't Look Back in Anger",
+        "year": 1996,
+        "genre": "Britpop/Rock"
+      },
+      "merged": [
+        {
+          "title": "Don’t Look Back In Anger",
+          "year": 1996,
+          "genre": "Britpop"
+        }
+      ]
+    },
+    {
+      "artist": "Rihanna ft Jay-Z",
+      "canonical": {
+        "title": "Umbrella",
+        "year": 2007,
+        "genre": "Pop/R&B"
+      },
+      "merged": [
+        {
+          "title": "Umbrella",
+          "year": 2007,
+          "genre": "R&B Pop"
+        }
+      ]
+    },
+    {
+      "artist": "George Ezra",
+      "canonical": {
+        "title": "Shotgun / You Can Call Me Al (mash-up)",
+        "year": 2018,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Shotgun",
+          "year": 2018,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "OneRepublic",
+      "canonical": {
+        "title": "Apologise",
+        "year": 2007,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "Apologise",
+          "year": null,
+          "genre": ""
+        },
+        {
+          "title": "Apologize",
+          "year": 2007,
+          "genre": "Pop/Rock"
+        }
+      ]
+    },
+    {
+      "artist": "OneRepublic",
+      "canonical": {
+        "title": "Counting Stars",
+        "year": 2013,
+        "genre": "Pop/Rock"
+      },
+      "merged": [
+        {
+          "title": "Counting Stars",
+          "year": null,
+          "genre": ""
+        }
+      ]
+    },
+    {
+      "artist": "Walk The Moon",
+      "canonical": {
+        "title": "Shut Up And Dance With Me",
+        "year": 2014,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "Shut Up And Dance",
+          "year": 2014,
+          "genre": "Pop/Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Rudimental ft. Anne-Marie & Will Heard",
+      "canonical": {
+        "title": "Rumour Mill",
+        "year": 2015,
+        "genre": "Drum and Bass / Pop"
+      },
+      "merged": [
+        {
+          "title": "Rumour Mill",
+          "year": 2015,
+          "genre": "Drum & Bass / Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Robin Thicke ft. T.I. & Pharrell Williams",
+      "canonical": {
+        "title": "Blurred Lines",
+        "year": 2013,
+        "genre": "Pop/R&B"
+      },
+      "merged": [
+        {
+          "title": "Blurred Lines",
+          "year": 2013,
+          "genre": "Pop/R&B"
+        }
+      ]
+    },
+    {
+      "artist": "The Chainsmokers (feat. Halsey)",
+      "canonical": {
+        "title": "Closer",
+        "year": 2016,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Closer",
+          "year": 2016,
+          "genre": "Pop/Dance"
+        }
+      ]
+    },
+    {
+      "artist": "Travie McCoy (ft. Bruno Mars)",
+      "canonical": {
+        "title": "Billionaire",
+        "year": 2010,
+        "genre": "Pop / Hip-Hop"
+      },
+      "merged": [
+        {
+          "title": "Billionaire",
+          "year": 2010,
+          "genre": "Pop"
+        },
+        {
+          "title": "Billionaire",
+          "year": 2010,
+          "genre": "Pop Rap"
+        }
+      ]
+    },
+    {
+      "artist": "Lil Nas X ft. Billy Ray Cyrus",
+      "canonical": {
+        "title": "Old Town Road",
+        "year": 2019,
+        "genre": "Country Rap"
+      },
+      "merged": [
+        {
+          "title": "Old Town Road",
+          "year": 2019,
+          "genre": "Country Rap"
+        }
+      ]
+    },
+    {
+      "artist": "Dua Lipa",
+      "canonical": {
+        "title": "Don't Start Now",
+        "year": 2019,
+        "genre": "Pop/Disco"
+      },
+      "merged": [
+        {
+          "title": "Don’t Start Now",
+          "year": 2019,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Maroon 5",
+      "canonical": {
+        "title": "Moves Like Jagger (feat. Christina Aguilera)",
+        "year": 2011,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Moves Like Jagger",
+          "year": 2011,
+          "genre": "Pop/Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Anne Marie",
+      "canonical": {
+        "title": "2002",
+        "year": 2018,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "2002",
+          "year": 2018,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Jessie J feat. B.o.B",
+      "canonical": {
+        "title": "Price Tag",
+        "year": 2011,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Price Tag",
+          "year": 2011,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Manu Chao",
+      "canonical": {
+        "title": "Me Gustas Tu",
+        "year": 2001,
+        "genre": "Latin Alternative"
+      },
+      "merged": [
+        {
+          "title": "Me Gustas Tú",
+          "year": 2000,
+          "genre": "Latin Alternative"
+        }
+      ]
+    },
+    {
+      "artist": "Bing Crosby",
+      "canonical": {
+        "title": "The Little Drummer Boy",
+        "year": 1958,
+        "genre": "Holiday"
+      },
+      "merged": [
+        {
+          "title": "Little Drummer Boy",
+          "year": 1958,
+          "genre": "Traditional Pop/Christmas"
+        }
+      ]
+    },
+    {
+      "artist": "Lauryn Hill ft Carlos Santana",
+      "canonical": {
+        "title": "To Zion",
+        "year": 1998,
+        "genre": "R&B/Hip Hop"
+      },
+      "merged": [
+        {
+          "title": "To Zion",
+          "year": 1998,
+          "genre": "Neo Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Greenday",
+      "canonical": {
+        "title": "Basket Case",
+        "year": 1994,
+        "genre": "Punk Rock"
+      },
+      "merged": [
+        {
+          "title": "Basket Case",
+          "year": 1994,
+          "genre": "Punk Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Bruno Mars and Cardi B",
+      "canonical": {
+        "title": "Finesse",
+        "year": 2018,
+        "genre": "Funk / Pop"
+      },
+      "merged": [
+        {
+          "title": "Finesse (Remix)",
+          "year": 2018,
+          "genre": "R&B/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Lady Gaga (feat. Beyoncé)",
+      "canonical": {
+        "title": "Telephone",
+        "year": 2010,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Telephone",
+          "year": 2010,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Mark Ronson (ft. Bruno Mars)",
+      "canonical": {
+        "title": "Uptown Funk",
+        "year": 2014,
+        "genre": "Funk Pop"
+      },
+      "merged": [
+        {
+          "title": "Uptown Funk",
+          "year": 2014,
+          "genre": "Pop/Funk"
+        },
+        {
+          "title": "Uptown Funk",
+          "year": 2014,
+          "genre": "Funk/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "P!nk / Christina Aguilera / Lil' Kim / Mýa",
+      "canonical": {
+        "title": "Lady Marmalade",
+        "year": 2001,
+        "genre": "Pop/R&B"
+      },
+      "merged": [
+        {
+          "title": "Lady Marmalade",
+          "year": 2001,
+          "genre": "Pop/R&B"
+        }
+      ]
+    },
+    {
+      "artist": "The Cure",
+      "canonical": {
+        "title": "Friday I’m In Love",
+        "year": 1992,
+        "genre": "Alternative Rock"
+      },
+      "merged": [
+        {
+          "title": "Friday I'm in Love",
+          "year": 1992,
+          "genre": "Alternative Rock"
+        }
+      ]
+    },
+    {
+      "artist": "The Specials",
+      "canonical": {
+        "title": "A Message to You, Rudy",
+        "year": 1979,
+        "genre": "Ska"
+      },
+      "merged": [
+        {
+          "title": "A Message To You Rudy",
+          "year": 1979,
+          "genre": "Ska"
+        }
+      ]
+    },
+    {
+      "artist": "Gotye (feat. Kimbra)",
+      "canonical": {
+        "title": "Somebody That I Used to Know",
+        "year": 2011,
+        "genre": "Indie Pop"
+      },
+      "merged": [
+        {
+          "title": "Somebody That I Used To Know",
+          "year": 2011,
+          "genre": "Indie Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Chris Isaak",
+      "canonical": {
+        "title": "Wicked Games",
+        "year": 1989,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Wicked Game",
+          "year": 1989,
+          "genre": "Soft Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Clean Bandit (ft. Jess Glynne)",
+      "canonical": {
+        "title": "Rather Be",
+        "year": 2014,
+        "genre": "Dance Pop"
+      },
+      "merged": [
+        {
+          "title": "Rather Be",
+          "year": 2014,
+          "genre": "Pop/Electronic"
+        },
+        {
+          "title": "Rather Be",
+          "year": 2014,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Katy Perry (feat. Snoop Dogg)",
+      "canonical": {
+        "title": "California Gurls",
+        "year": 2010,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "California Gurls",
+          "year": 2010,
+          "genre": "Electropop"
+        }
+      ]
+    },
+    {
+      "artist": "Maroon 5 ft. Cardi B",
+      "canonical": {
+        "title": "Girls Like You",
+        "year": 2018,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Girls Like You",
+          "year": 2017,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Bryan Adams",
+      "canonical": {
+        "title": "Summer of 69",
+        "year": 1984,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Summer Of '69",
+          "year": 1984,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Lady Gaga",
+      "canonical": {
+        "title": "Poker Face",
+        "year": 2008,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Polker Face",
+          "year": 2008,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Chase & Status",
+      "canonical": {
+        "title": "Blind Faith",
+        "year": 2011,
+        "genre": "Drum & Bass"
+      },
+      "merged": [
+        {
+          "title": "Blind Faith",
+          "year": 2011,
+          "genre": "Drum & Bass"
+        }
+      ]
+    },
+    {
+      "artist": "Julie London",
+      "canonical": {
+        "title": "Fy Me To The Moon",
+        "year": 1964,
+        "genre": "Vocal Jazz"
+      },
+      "merged": [
+        {
+          "title": "Fly Me to the Moon",
+          "year": 1964,
+          "genre": "Traditional Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Cee Lo Green",
+      "canonical": {
+        "title": "Forget You",
+        "year": 2010,
+        "genre": "Soul/Pop"
+      },
+      "merged": [
+        {
+          "title": "Forget You",
+          "year": 2010,
+          "genre": "Soul/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Genesis",
+      "canonical": {
+        "title": "Follow You Follow Me",
+        "year": 1978,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Follow You, Follow Me",
+          "year": 1978,
+          "genre": "Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Scissor Sisters",
+      "canonical": {
+        "title": "I Don't Feel Like Dancin'",
+        "year": 2006,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "I Don't feel Like Dancing",
+          "year": null,
+          "genre": ""
+        },
+        {
+          "title": "Don't Feel Like Dancing",
+          "year": 2006,
+          "genre": "Pop/Disco"
+        },
+        {
+          "title": "Don't Feel Like Dancin'",
+          "year": 2006,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "The Darkness",
+      "canonical": {
+        "title": "Christmas Time (Don't Let the Bells End)",
+        "year": 2003,
+        "genre": "Rock/Holiday"
+      },
+      "merged": [
+        {
+          "title": "Christmas Time (Don’t Let the Bells End)",
+          "year": 2003,
+          "genre": "Rock/Christmas"
+        }
+      ]
+    },
+    {
+      "artist": "Foreigner",
+      "canonical": {
+        "title": "I Want to Know What Love Is",
+        "year": 1984,
+        "genre": "Rock Ballad"
+      },
+      "merged": [
+        {
+          "title": "I Wanna Know What Love Is",
+          "year": 1984,
+          "genre": "Rock Ballad"
+        }
+      ]
+    },
+    {
+      "artist": "Major Lazer (ft. Justin Bieber & MØ)",
+      "canonical": {
+        "title": "Cold Water",
+        "year": 2016,
+        "genre": "Dance / Pop"
+      },
+      "merged": [
+        {
+          "title": "Cold Water",
+          "year": 2016,
+          "genre": "Pop / EDM"
+        }
+      ]
+    },
+    {
+      "artist": "Amy Winehouse",
+      "canonical": {
+        "title": "Will You Still Love Me Tomorrow",
+        "year": 2011,
+        "genre": "Soul/Jazz"
+      },
+      "merged": [
+        {
+          "title": "Will You Still Love Me Tomorrow?",
+          "year": 2004,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "OutKast",
+      "canonical": {
+        "title": "Hey Ya!",
+        "year": 2003,
+        "genre": "Pop/Rap"
+      },
+      "merged": [
+        {
+          "title": "Hey Ya",
+          "year": 2003,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Mark Ronson (feat. Amy Winehouse)",
+      "canonical": {
+        "title": "Valerie",
+        "year": 2007,
+        "genre": "Soul / Pop"
+      },
+      "merged": [
+        {
+          "title": "Valerie",
+          "year": 2007,
+          "genre": "Soul/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "KC & The Sunshine Band",
+      "canonical": {
+        "title": "Give It Up",
+        "year": 1983,
+        "genre": "RnB/Soul"
+      },
+      "merged": [
+        {
+          "title": "Baby Give It Up",
+          "year": 1979,
+          "genre": "Disco/Funk"
+        },
+        {
+          "title": "Baby Give It Up",
+          "year": 1983,
+          "genre": "Disco/Funk"
+        }
+      ]
+    },
+    {
+      "artist": "Randy Crawford",
+      "canonical": {
+        "title": "Street Life",
+        "year": 1979,
+        "genre": "Soul/Jazz"
+      },
+      "merged": [
+        {
+          "title": "Streetlife",
+          "year": 1979,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Al Green",
+      "canonical": {
+        "title": "Tired of Being Alone",
+        "year": 1971,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "I'm So Tired of Being Alone",
+          "year": 1971,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Paul Simon",
+      "canonical": {
+        "title": "50 Ways to Leave Your Lover",
+        "year": 1975,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "fifty ways to leave your lover",
+          "year": null,
+          "genre": ""
+        }
+      ]
+    },
+    {
+      "artist": "Paul Simon",
+      "canonical": {
+        "title": "Graceland",
+        "year": 1986,
+        "genre": "Worldbeat"
+      },
+      "merged": [
+        {
+          "title": "Gracelands",
+          "year": null,
+          "genre": ""
+        }
+      ]
+    },
+    {
+      "artist": "Paul Simon",
+      "canonical": {
+        "title": "Still Crazy After All These Years",
+        "year": 1975,
+        "genre": "Soft Rock"
+      },
+      "merged": [
+        {
+          "title": "Stil Crazy After All These Years",
+          "year": null,
+          "genre": ""
+        }
+      ]
+    },
+    {
+      "artist": "BB King",
+      "canonical": {
+        "title": "Everyday I Have The Blues",
+        "year": 1955,
+        "genre": "Blues"
+      },
+      "merged": [
+        {
+          "title": "Every Day I Have the Blues",
+          "year": null,
+          "genre": "Blues"
+        }
+      ]
+    },
+    {
+      "artist": "Disney (The Jungle Book)",
+      "canonical": {
+        "title": "I Wan'na Be Like You (The Monkey Song)",
+        "year": 1967,
+        "genre": "Soundtrack"
+      },
+      "merged": [
+        {
+          "title": "I Wanna Be Like You",
+          "year": 1967,
+          "genre": "Soundtrack/Disney"
+        }
+      ]
+    },
+    {
+      "artist": "Bill Withers ft Grover Washington Jr.",
+      "canonical": {
+        "title": "Just the Two of Us",
+        "year": 1981,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "Just the Two of Us",
+          "year": 1981,
+          "genre": "R&B/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Tom Petty",
+      "canonical": {
+        "title": "Won’t Back Down",
+        "year": 1989,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "I Won't Back Down",
+          "year": 1989,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Tom Petty",
+      "canonical": {
+        "title": "Free Fallin'",
+        "year": 1989,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Free Fallin’",
+          "year": 1989,
+          "genre": "Heartland Rock"
+        },
+        {
+          "title": "Free Falling",
+          "year": 1989,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Tom Petty",
+      "canonical": {
+        "title": "Runnin' Down a Dream",
+        "year": 1989,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Running Down A Dream",
+          "year": 1989,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "The Doobie Brothers",
+      "canonical": {
+        "title": "Long Train Runnin’",
+        "year": 1973,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Long Train Runnin'",
+          "year": 1973,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Bonnie Raitt",
+      "canonical": {
+        "title": "I Can't Make You Love Me",
+        "year": 1991,
+        "genre": "Soul/Pop"
+      },
+      "merged": [
+        {
+          "title": "I Can’t Make You Love Me",
+          "year": 1991,
+          "genre": "Soul/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Jennifer Lopez ft Pitbull",
+      "canonical": {
+        "title": "On the Floor",
+        "year": 2011,
+        "genre": "Dance/Pop"
+      },
+      "merged": [
+        {
+          "title": "On the Floor",
+          "year": 2011,
+          "genre": "Dance Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Eve ft Gwen Stefani",
+      "canonical": {
+        "title": "Let Me Blow Ya Mind",
+        "year": 2001,
+        "genre": "Hip Hop"
+      },
+      "merged": [
+        {
+          "title": "Let Me Blow Ya Mind",
+          "year": 2001,
+          "genre": "Hip-Hop/R&B"
+        }
+      ]
+    },
+    {
+      "artist": "The Libertines",
+      "canonical": {
+        "title": "Can’t Stand Me Now",
+        "year": 2004,
+        "genre": "Indie Rock"
+      },
+      "merged": [
+        {
+          "title": "Can't Stand Me Now",
+          "year": 2004,
+          "genre": "Indie Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Wham",
+      "canonical": {
+        "title": "Last Christmas",
+        "year": 1984,
+        "genre": "Pop/Christmas"
+      },
+      "merged": [
+        {
+          "title": "Last Christmas",
+          "year": 1984,
+          "genre": "Synthpop/Christmas"
+        }
+      ]
+    },
+    {
+      "artist": "Blu Cantrell ft. Sean Paul",
+      "canonical": {
+        "title": "Breathe",
+        "year": 2003,
+        "genre": "R&B / Dancehall"
+      },
+      "merged": [
+        {
+          "title": "Breathe",
+          "year": 2003,
+          "genre": "R&B"
+        }
+      ]
+    },
+    {
+      "artist": "Rihanna (feat. Drake)",
+      "canonical": {
+        "title": "Work",
+        "year": 2016,
+        "genre": "R&B / Dancehall"
+      },
+      "merged": [
+        {
+          "title": "Work",
+          "year": 2016,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Tom Jones",
+      "canonical": {
+        "title": "It's Not Unusual",
+        "year": 1965,
+        "genre": "Pop Soul"
+      },
+      "merged": [
+        {
+          "title": "It's not unusual to be loved by one",
+          "year": null,
+          "genre": ""
+        }
+      ]
+    },
+    {
+      "artist": "Ed Sheeran (feat. Pharrell Williams)",
+      "canonical": {
+        "title": "Sing",
+        "year": 2014,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Sing",
+          "year": 2014,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Grover Washington, Jr. ft Bill Withers",
+      "canonical": {
+        "title": "Just the Two of Us",
+        "year": 1981,
+        "genre": "Soul/Jazz"
+      },
+      "merged": [
+        {
+          "title": "Just the Two of Us",
+          "year": 1981,
+          "genre": "Soul/Jazz"
+        },
+        {
+          "title": "Just the Two of Us",
+          "year": 1981,
+          "genre": "Soul/Jazz"
+        }
+      ]
+    },
+    {
+      "artist": "John Farnham",
+      "canonical": {
+        "title": "You’re The Voice",
+        "year": 1986,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "You're the Voice",
+          "year": 1986,
+          "genre": "Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Crosby, Stills and Nash",
+      "canonical": {
+        "title": "Love The One You're With",
+        "year": 1970,
+        "genre": "Folk Rock"
+      },
+      "merged": [
+        {
+          "title": "Love the One You're With",
+          "year": 1970,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Status Quo",
+      "canonical": {
+        "title": "Rockin' All Over The World",
+        "year": 1977,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Rockin’ All Over the World",
+          "year": 1977,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Maroon 5 ft Christina Aguilera",
+      "canonical": {
+        "title": "Moves Like Jagger",
+        "year": 2011,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Moves Like Jagger",
+          "year": 2011,
+          "genre": "Pop"
+        },
+        {
+          "title": "Moves Like Jagger",
+          "year": 2011,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Calvin Harris (feat. Rihanna)",
+      "canonical": {
+        "title": "This Is What You Came For",
+        "year": 2016,
+        "genre": "Dance / EDM"
+      },
+      "merged": [
+        {
+          "title": "This Is What You Came For",
+          "year": 2016,
+          "genre": "EDM"
+        }
+      ]
+    },
+    {
+      "artist": "Khaled",
+      "canonical": {
+        "title": "Aicha",
+        "year": 1996,
+        "genre": "World/Pop"
+      },
+      "merged": [
+        {
+          "title": "Aïcha",
+          "year": 1996,
+          "genre": "Raï/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "The Jam",
+      "canonical": {
+        "title": "A Town Called Malice",
+        "year": 1982,
+        "genre": "New Wave"
+      },
+      "merged": [
+        {
+          "title": "Town Called Malice",
+          "year": 1982,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Marvin Gaye & Tammi Terrell",
+      "canonical": {
+        "title": "Ain't No Mountain High Enough",
+        "year": 1967,
+        "genre": "Soul/Motown"
+      },
+      "merged": [
+        {
+          "title": "Ain’t No Mountain High Enough",
+          "year": 1967,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Kanye West ft. Jamie Foxx",
+      "canonical": {
+        "title": "Gold Digger",
+        "year": 2005,
+        "genre": "Hip-Hop"
+      },
+      "merged": [
+        {
+          "title": "Gold Digger",
+          "year": 2005,
+          "genre": "Hip Hop"
+        }
+      ]
+    },
+    {
+      "artist": "The Monkees",
+      "canonical": {
+        "title": "I'm a Believer",
+        "year": 1966,
+        "genre": "Pop/Rock"
+      },
+      "merged": [
+        {
+          "title": "I’m a Believer",
+          "year": 1966,
+          "genre": "Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Luke Combs",
+      "canonical": {
+        "title": "Doin' This",
+        "year": 2021,
+        "genre": "Country"
+      },
+      "merged": [
+        {
+          "title": "Doin´This",
+          "year": 2021,
+          "genre": "Country"
+        }
+      ]
+    },
+    {
+      "artist": "Blackstreet (feat. Dr. Dre & Queen Pen)",
+      "canonical": {
+        "title": "No Diggity",
+        "year": 1996,
+        "genre": "R&B"
+      },
+      "merged": [
+        {
+          "title": "No Diggity",
+          "year": 1996,
+          "genre": "RnB/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Deniece Williams",
+      "canonical": {
+        "title": "Let's Hear It for the Boy",
+        "year": 1984,
+        "genre": "R&B/Pop"
+      },
+      "merged": [
+        {
+          "title": "Let's Hear It for the Boys",
+          "year": 1984,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Rihanna (ft. Calvin Harris)",
+      "canonical": {
+        "title": "We Found Love",
+        "year": 2011,
+        "genre": "Dance Pop"
+      },
+      "merged": [
+        {
+          "title": "We Found Love",
+          "year": 2011,
+          "genre": "Pop/EDM"
+        },
+        {
+          "title": "We Found Love",
+          "year": 2011,
+          "genre": "Pop/Dance"
+        }
+      ]
+    },
+    {
+      "artist": "Aerosmith",
+      "canonical": {
+        "title": "Don't Want To Miss A Thing",
+        "year": 1998,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Don’t Want To Miss A Thing",
+          "year": 1998,
+          "genre": "Rock Ballad"
+        },
+        {
+          "title": "I Don't Want To Miss A Thing",
+          "year": 1998,
+          "genre": "Rock Ballad"
+        }
+      ]
+    },
+    {
+      "artist": "Minnie Riperton",
+      "canonical": {
+        "title": "Lovin' You",
+        "year": 1974,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "Loving You",
+          "year": 1974,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Rihanna ft Mikky Ekko",
+      "canonical": {
+        "title": "Stay",
+        "year": 2012,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Stay",
+          "year": 2012,
+          "genre": "Pop Ballad"
+        }
+      ]
+    },
+    {
+      "artist": "Ben E. King",
+      "canonical": {
+        "title": "Stand By Me",
+        "year": 1961,
+        "genre": "Soul/R&B"
+      },
+      "merged": [
+        {
+          "title": "Stand By Me",
+          "year": 1961,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "American Authors",
+      "canonical": {
+        "title": "Best Days of My Life",
+        "year": 2013,
+        "genre": "Indie Pop"
+      },
+      "merged": [
+        {
+          "title": "Best Day of My Life",
+          "year": 2013,
+          "genre": "Indie Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Martha and The Vandellas",
+      "canonical": {
+        "title": "(Love Is Like A) Heat Wave",
+        "year": 1963,
+        "genre": "Soul/Motown"
+      },
+      "merged": [
+        {
+          "title": "Heat Wave",
+          "year": 1963,
+          "genre": "Soul/Motown"
+        },
+        {
+          "title": "Heatwave",
+          "year": 1964,
+          "genre": "Soul"
+        },
+        {
+          "title": "(Love Is Like A) Heat Wave",
+          "year": 1963,
+          "genre": "Soul/Motown"
+        }
+      ]
+    },
+    {
+      "artist": "Martha & The Vandellas",
+      "canonical": {
+        "title": "Dancing in the Street",
+        "year": 1964,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "Dancing In The Street",
+          "year": 1964,
+          "genre": "Soul/Motown"
+        }
+      ]
+    },
+    {
+      "artist": "Sigala ft Ella Eyre",
+      "canonical": {
+        "title": "Came Here For Love",
+        "year": 2017,
+        "genre": "Dance/Pop"
+      },
+      "merged": [
+        {
+          "title": "Came Here For Love",
+          "year": 2017,
+          "genre": "Dance/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Indeep",
+      "canonical": {
+        "title": "Last Night a D.J. Saved My Life",
+        "year": 1982,
+        "genre": "Dance/Funk"
+      },
+      "merged": [
+        {
+          "title": "Last Night a DJ Saved My Life",
+          "year": 1982,
+          "genre": "Post-disco, funk"
+        }
+      ]
+    },
+    {
+      "artist": "The Animals",
+      "canonical": {
+        "title": "The House Of The Rising Sun",
+        "year": 1964,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "House of the Rising Sun",
+          "year": 1964,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Snakehips ft. Tinashe & Chance the Rapper",
+      "canonical": {
+        "title": "All My Friends",
+        "year": 2015,
+        "genre": "Electronic R&B"
+      },
+      "merged": [
+        {
+          "title": "All My Friends",
+          "year": 2015,
+          "genre": "R&B/Pop"
+        },
+        {
+          "title": "All My Friends",
+          "year": 2015,
+          "genre": "Electronic / Dance"
+        }
+      ]
+    },
+    {
+      "artist": "Liza Minnelli",
+      "canonical": {
+        "title": "New York, New York",
+        "year": 1977,
+        "genre": "Traditional Pop"
+      },
+      "merged": [
+        {
+          "title": "New York New York",
+          "year": 1977,
+          "genre": "Musical Theatre"
+        }
+      ]
+    },
+    {
+      "artist": "John Holt",
+      "canonical": {
+        "title": "Baby I'm A Want You",
+        "year": 1976,
+        "genre": "Reggae"
+      },
+      "merged": [
+        {
+          "title": "Baby I'm-a Want You",
+          "year": null,
+          "genre": "Reggae"
+        }
+      ]
+    },
+    {
+      "artist": "David Guetta ft Kelly Rowland",
+      "canonical": {
+        "title": "When Love Takes Over",
+        "year": 2009,
+        "genre": "Dance/Pop"
+      },
+      "merged": [
+        {
+          "title": "When Love Takes Over",
+          "year": 2009,
+          "genre": "House"
+        }
+      ]
+    },
+    {
+      "artist": "Martha Reeves & The Vandellas",
+      "canonical": {
+        "title": "Heatwave",
+        "year": 1963,
+        "genre": "Motown"
+      },
+      "merged": [
+        {
+          "title": "Heat Wave",
+          "year": 1963,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Santana feat. Rob Thomas",
+      "canonical": {
+        "title": "Smooth",
+        "year": 1999,
+        "genre": "Latin Rock"
+      },
+      "merged": [
+        {
+          "title": "Smooth",
+          "year": 1999,
+          "genre": "Latin Rock / Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "The Raconteurs",
+      "canonical": {
+        "title": "Steady As She Goes",
+        "year": 2006,
+        "genre": "Garage Rock"
+      },
+      "merged": [
+        {
+          "title": "Steady, As She Goes",
+          "year": 2006,
+          "genre": "Garage Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Calvin Harris ft. Frank Ocean & Migos",
+      "canonical": {
+        "title": "Slide",
+        "year": 2017,
+        "genre": "Funk/Pop"
+      },
+      "merged": [
+        {
+          "title": "Slide",
+          "year": 2017,
+          "genre": "Electronic / Dance"
+        }
+      ]
+    },
+    {
+      "artist": "Perry Como & The Fontane Sisters",
+      "canonical": {
+        "title": "It's Beginning to Look a Lot Like Christmas",
+        "year": 1951,
+        "genre": "Traditional Pop/Holiday"
+      },
+      "merged": [
+        {
+          "title": "It’s Beginning To Look A Lot Like Christmas",
+          "year": 1951,
+          "genre": "Pop/Christmas"
+        }
+      ]
+    },
+    {
+      "artist": "Jessie J ft B.o.B",
+      "canonical": {
+        "title": "Price Tag",
+        "year": 2011,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Price Tag",
+          "year": 2011,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Billy Paul",
+      "canonical": {
+        "title": "Me & Mrs Jones",
+        "year": 1972,
+        "genre": "Soul"
+      },
+      "merged": [
+        {
+          "title": "Me and Mrs. Jones",
+          "year": 1972,
+          "genre": "Soul"
+        },
+        {
+          "title": "Me & Mrs. Jones",
+          "year": 1972,
+          "genre": "Soul"
+        }
+      ]
+    },
+    {
+      "artist": "The Script",
+      "canonical": {
+        "title": "The Man Who Can't Be Moved",
+        "year": 2008,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "The Man Who Can’t Be Moved",
+          "year": 2008,
+          "genre": "Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Cutting Crew",
+      "canonical": {
+        "title": "(I Just) Died in Your Arms",
+        "year": 1986,
+        "genre": "Pop/Rock"
+      },
+      "merged": [
+        {
+          "title": "I Just Died in Your Arms",
+          "year": 1986,
+          "genre": "Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Kygo ft Conrad Sewell",
+      "canonical": {
+        "title": "Firestone",
+        "year": 2014,
+        "genre": "Dance"
+      },
+      "merged": [
+        {
+          "title": "Firestone",
+          "year": 2014,
+          "genre": "Tropical House"
+        },
+        {
+          "title": "Firestone",
+          "year": 2014,
+          "genre": "Tropical House"
+        }
+      ]
+    },
+    {
+      "artist": "Wizzard",
+      "canonical": {
+        "title": "Wish It Could Be Christmas Everyday",
+        "year": 1973,
+        "genre": "Pop Rock/Holiday"
+      },
+      "merged": [
+        {
+          "title": "I Wish It Could Be Christmas Everyday",
+          "year": 1973,
+          "genre": "Pop Rock/Holiday"
+        }
+      ]
+    },
+    {
+      "artist": "Toni Braxton",
+      "canonical": {
+        "title": "Un-Break My Heart",
+        "year": 1996,
+        "genre": "R&B/Pop Ballad"
+      },
+      "merged": [
+        {
+          "title": "Un‑Break My Heart",
+          "year": 1996,
+          "genre": "R&B Ballad"
+        }
+      ]
+    },
+    {
+      "artist": "Daniel Bedingfield",
+      "canonical": {
+        "title": "Gotta Get Through This",
+        "year": 2002,
+        "genre": "UK Garage / Pop"
+      },
+      "merged": [
+        {
+          "title": "Gotta Get Thru This",
+          "year": 2001,
+          "genre": "UK Garage/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Rihanna (feat. JAY-Z)",
+      "canonical": {
+        "title": "Umbrella",
+        "year": 2007,
+        "genre": "Pop/R&B"
+      },
+      "merged": [
+        {
+          "title": "Umbrella",
+          "year": 2007,
+          "genre": "R&B Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Free",
+      "canonical": {
+        "title": "All Right Now",
+        "year": 1970,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Alright Now",
+          "year": 1970,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Frankie Valli & The Four Seasons",
+      "canonical": {
+        "title": "December 1963 (Oh What A Night)",
+        "year": 1975,
+        "genre": "Disco"
+      },
+      "merged": [
+        {
+          "title": "December, 1963 (Oh, What a Night)",
+          "year": 1975,
+          "genre": "Pop/Rock"
+        },
+        {
+          "title": "December '63 (Oh What A Night)",
+          "year": 1975,
+          "genre": "Pop/Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Irene Cara",
+      "canonical": {
+        "title": "Flashdance... What a Feeling",
+        "year": 1983,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Flashdance...What A Feeling",
+          "year": 1983,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "La Oreja de Van Gogh",
+      "canonical": {
+        "title": "Inmortal",
+        "year": 2003,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "Immortal",
+          "year": 2003,
+          "genre": "Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Journey",
+      "canonical": {
+        "title": "Don't Stop Believing",
+        "year": 1981,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Don’t Stop Believin’",
+          "year": 1981,
+          "genre": "Rock"
+        },
+        {
+          "title": "Don't Stop Believin'",
+          "year": 1981,
+          "genre": "Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Mr. Probz",
+      "canonical": {
+        "title": "Waves",
+        "year": 2014,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Waves",
+          "year": 2013,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Justin Bieber (ft. Daniel Caesar & Giveon)",
+      "canonical": {
+        "title": "Peaches",
+        "year": 2021,
+        "genre": "R&B / Pop"
+      },
+      "merged": [
+        {
+          "title": "Peaches",
+          "year": 2021,
+          "genre": "R&B / Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Mark Ronson (ft. Amy Winehouse)",
+      "canonical": {
+        "title": "Valerie",
+        "year": 2007,
+        "genre": "Soul Pop"
+      },
+      "merged": [
+        {
+          "title": "Valerie",
+          "year": 2007,
+          "genre": "Soul/Pop"
+        },
+        {
+          "title": "Valerie",
+          "year": 2007,
+          "genre": "Soul/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "The Platters",
+      "canonical": {
+        "title": "Only You (And You Alone)",
+        "year": 1955,
+        "genre": "Doo-wop/Pop"
+      },
+      "merged": [
+        {
+          "title": "Only You",
+          "year": 1955,
+          "genre": "RnB/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Katy Perry ft Snoop Dogg",
+      "canonical": {
+        "title": "California Gurls",
+        "year": 2010,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "California Gurls",
+          "year": 2010,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Disclosure ft Sam Smith",
+      "canonical": {
+        "title": "Latch",
+        "year": 2012,
+        "genre": "Electronic/Pop"
+      },
+      "merged": [
+        {
+          "title": "Latch",
+          "year": 2012,
+          "genre": "Electronic / UK Garage"
+        },
+        {
+          "title": "Latch",
+          "year": 2012,
+          "genre": "Electronic / Dance"
+        }
+      ]
+    },
+    {
+      "artist": "David Guetta ft Sia",
+      "canonical": {
+        "title": "Titanium",
+        "year": 2011,
+        "genre": "Dance/Pop"
+      },
+      "merged": [
+        {
+          "title": "Titanium",
+          "year": 2011,
+          "genre": "EDM/Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Eartha Kitt, Henri René & His Orchestra",
+      "canonical": {
+        "title": "Santa Baby",
+        "year": 1953,
+        "genre": "Traditional Pop/Holiday"
+      },
+      "merged": [
+        {
+          "title": "Santa Baby",
+          "year": 1953,
+          "genre": "Jazz/Christmas"
+        }
+      ]
+    },
+    {
+      "artist": "Earth, Wind & Fire (with The Emotions)",
+      "canonical": {
+        "title": "Boogie Wonderland",
+        "year": 1979,
+        "genre": "Disco"
+      },
+      "merged": [
+        {
+          "title": "Boogie Wonderland",
+          "year": 1979,
+          "genre": "Disco"
+        }
+      ]
+    },
+    {
+      "artist": "Ricky Martin",
+      "canonical": {
+        "title": "Livin La Vida Loca",
+        "year": 1999,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "Livin' La Vida Loca",
+          "year": 1999,
+          "genre": "Pop/Latin"
+        }
+      ]
+    },
+    {
+      "artist": "Modjo",
+      "canonical": {
+        "title": "Lady Hear Me Tonight",
+        "year": 2000,
+        "genre": "French House"
+      },
+      "merged": [
+        {
+          "title": "Lady (Hear Me Tonight)",
+          "year": 2000,
+          "genre": "House/French House"
+        }
+      ]
+    },
+    {
+      "artist": "Dionne Warwick",
+      "canonical": {
+        "title": "I Say A Little Prayer",
+        "year": 1967,
+        "genre": "Soul/Pop"
+      },
+      "merged": [
+        {
+          "title": "Say A Little Prayer",
+          "year": 1968,
+          "genre": "Soul / Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Kungs vs. Cookin' on 3 Burners",
+      "canonical": {
+        "title": "This Girl",
+        "year": 2016,
+        "genre": "House"
+      },
+      "merged": [
+        {
+          "title": "This Girl",
+          "year": 2016,
+          "genre": "House"
+        }
+      ]
+    },
+    {
+      "artist": "Estelle (ft. Kanye West)",
+      "canonical": {
+        "title": "American Boy",
+        "year": 2008,
+        "genre": "Pop / R&B"
+      },
+      "merged": [
+        {
+          "title": "American Boy",
+          "year": 2008,
+          "genre": "Pop/R&B"
+        },
+        {
+          "title": "American Boy",
+          "year": 2008,
+          "genre": "R&B/Soul"
+        }
+      ]
+    },
+    {
+      "artist": "Shakin’ Stevens",
+      "canonical": {
+        "title": "Merry Christmas Everyone",
+        "year": 1985,
+        "genre": "Pop/Christmas"
+      },
+      "merged": [
+        {
+          "title": "Merry Christmas Everyone",
+          "year": 1985,
+          "genre": "Pop/Holiday"
+        }
+      ]
+    },
+    {
+      "artist": "Jason Mraz",
+      "canonical": {
+        "title": "I'm Yours",
+        "year": 2008,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "I’m Yours",
+          "year": 2008,
+          "genre": "Reggae Pop"
+        }
+      ]
+    },
+    {
+      "artist": "4 Non Blondes",
+      "canonical": {
+        "title": "What's Up?",
+        "year": 1993,
+        "genre": "Alternative Rock"
+      },
+      "merged": [
+        {
+          "title": "What's Up",
+          "year": 1993,
+          "genre": "Alternative Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Charlie Puth (feat. Selena Gomez)",
+      "canonical": {
+        "title": "We Don't Talk Anymore",
+        "year": 2016,
+        "genre": "Pop"
+      },
+      "merged": [
+        {
+          "title": "We Don't Talk Anymore",
+          "year": 2016,
+          "genre": "Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Counting Crows",
+      "canonical": {
+        "title": "Mr. Jones",
+        "year": 1993,
+        "genre": "Alternative Rock"
+      },
+      "merged": [
+        {
+          "title": "Mr Jones",
+          "year": 1993,
+          "genre": "Alternative Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Gotye ft. Kimbra",
+      "canonical": {
+        "title": "Somebody That I Used to Know",
+        "year": 2011,
+        "genre": "Indie Pop"
+      },
+      "merged": [
+        {
+          "title": "Somebody That I Used to Know",
+          "year": 2011,
+          "genre": "Indie Pop"
+        }
+      ]
+    },
+    {
+      "artist": "Slade",
+      "canonical": {
+        "title": "Merry Xmas Everybody!",
+        "year": 1973,
+        "genre": "Rock"
+      },
+      "merged": [
+        {
+          "title": "Merry Xmas Everybody",
+          "year": 1973,
+          "genre": "Holiday Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Dani Martin",
+      "canonical": {
+        "title": "Que Bonita La Vida",
+        "year": 2013,
+        "genre": "Pop Rock"
+      },
+      "merged": [
+        {
+          "title": "Qué Bonita La Vida",
+          "year": 2009,
+          "genre": "Pop Rock"
+        }
+      ]
+    },
+    {
+      "artist": "KT Tunstall",
+      "canonical": {
+        "title": "Black Horse And A Cherry Tree",
+        "year": 2005,
+        "genre": "Pop/Rock"
+      },
+      "merged": [
+        {
+          "title": "Black Horse and the Cherry Tree",
+          "year": 2005,
+          "genre": "Pop/Rock"
+        }
+      ]
+    },
+    {
+      "artist": "Depeche Mode",
+      "canonical": {
+        "title": "Just Can't Get Enough",
+        "year": 1981,
+        "genre": "Synth-pop"
+      },
+      "merged": [
+        {
+          "title": "Just Can’t Get Enough",
+          "year": 1981,
+          "genre": "Synthpop"
+        }
+      ]
+    },
+    {
+      "artist": "Spiller feat. Sophie Ellis Bextor",
+      "canonical": {
+        "title": "Groovejet (If This Ain't Love)",
+        "year": 2000,
+        "genre": "House"
+      },
+      "merged": [
+        {
+          "title": "Groovejet (If This Ain't Love)",
+          "year": 2000,
+          "genre": "House"
+        }
+      ]
+    }
+  ],
+  "mergedAway": 496
+}
