@@ -269,6 +269,40 @@ const getMemberSelfId = (member) =>
       ""
   ).trim();
 
+// --------------------------------------------
+// Hide certain deputies from suggestions by email
+// --------------------------------------------
+const HIDDEN_DEPUTY_EMAILS = new Set(
+  [
+    "tscthevalentines@gmail.com",
+    "tscindigodelight@gmail.com",
+    "rya@thesupremecollective.co.uk",
+    "tscsoulallegiance@gmail.com",
+    "tscmagnoliasky@gmail.com",
+    "tscthehorizons@gmail.com",
+    "rowan@thesupremecollective.co.uk",
+    "tscthemonstars@gmail.com",
+    "test@gmail.com",
+    "tscbigband@gmail.com",
+    "bamboomusicmgmt@gmail.com",
+    "tscgottabegarage@gmail.com",
+  ].map((e) => String(e).trim().toLowerCase())
+);
+
+const getEmail = (m) =>
+  String(
+    m?.email ||
+      m?.userEmail ||
+      m?.contactEmail ||
+      m?.contact?.email ||
+      ""
+  ).trim();
+
+const isHiddenDeputy = (m) => {
+  const em = getEmail(m).toLowerCase();
+  return !!em && HIDDEN_DEPUTY_EMAILS.has(em);
+};
+
 const DeputiesInput = ({
   member,
   index,
@@ -705,6 +739,11 @@ useEffect(() => {
 
   // ---------- Handlers ----------
 const addDeputy = (m) => {
+  if (isHiddenDeputy(m)) {
+    dlog("⛔ blocked deputy (hidden email):", getEmail(m));
+    return;
+  }
+
   const newId = getDeputyId(m);
   dlog("➕ addDeputy:", newId, m?.firstName, m?.lastName);
 
@@ -793,6 +832,7 @@ const addDeputy = (m) => {
         ) : suggestions.length ? (
           suggestions
             .filter((m) => !excludeIds.includes(getDeputyId(m)))
+            .filter((m) => !isHiddenDeputy(m))
             .map((m) => {
               const mid = getDeputyId(m);
               return (
