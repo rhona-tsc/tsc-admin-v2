@@ -2426,7 +2426,6 @@ export const songsData = [
   { year: 2018, title: "Anywhere", artist: "Passenger", genre: "Indie Folk" },
   { year: 2018, title: "Call Out My Name", artist: "The Weeknd", genre: "R&B / Pop" },
   { year: 2018, title: "Finesse", artist: "Bruno Mars and Cardi B", genre: "Funk / Pop" },
-  { year: 2018, title: "Girls Like You", artist: "Cardi B & Maroon 5", genre: "Pop Rock / Rap" },
   { year: 2018, title: "Girls Like You", artist: "Maroon 5 ft. Cardi B", genre: "Pop" },
   { year: 2018, title: "High Hopes", artist: "Panic! at the Disco", genre: "Pop Rock" },
   { year: 2018, title: "Honesty", artist: "Pink Sweat$", genre: "R&B/Soul" },
