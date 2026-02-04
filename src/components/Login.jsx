@@ -1,12 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
-import axios from 'axios';
-import { backendUrl } from '../App'; // ✅ Make sure this path is correct
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import axios from "axios";
+import { backendUrl } from "../App";
 import CustomToast from "../components/CustomToast";
 import { assets } from "../assets/assets";
 
-const Login = ({ setToken, setUserEmail, setUserRole, setUserFirstName, setUserLastName, setUserPhone }) => {  const navigate = useNavigate();
+const Login = ({
+  setToken,
+  setUserEmail,
+  setUserRole,
+  setUserFirstName,
+  setUserLastName,
+  setUserPhone,
+  setUserPassword, // optional
+}) => {
+  const navigate = useNavigate();
 
   const [currentState, setCurrentState] = useState("Login");
   const [firstName, setFirstName] = useState("");
@@ -15,143 +24,190 @@ const Login = ({ setToken, setUserEmail, setUserRole, setUserFirstName, setUserL
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  const onSubmitHandler = async (event) => {
+    event.preventDefault();
 
-const onSubmitHandler = async (event) => {
-  event.preventDefault();
+    const normEmail = (email || "").trim().toLowerCase();
 
-  // normalize email before sending
-  const normEmail = (email || "").trim().toLowerCase();
+    const payload =
+      currentState === "Sign Up"
+        ? { firstName, lastName, email: normEmail, password, phone }
+        : { email: normEmail, password };
 
-  const payload =
-    currentState === "Sign Up"
-      ? { firstName, lastName, email: normEmail, password, phone }
-      : { email: normEmail, password };
-
-  if (!payload.email || !payload.password) {
-    toast(<CustomToast type="error" message="Email and password are required." />);
-    return;
-  }
-
-  try {
-const endpoint =
-  currentState === "Sign Up"
-    ? `${backendUrl}/api/musician-login/register`
-    : `${backendUrl}/api/musician-login/login`;
-
-    console.log("🔄 Submitting login/register form");
-    console.log("➡️ Endpoint:", endpoint);
-    console.log("📦 Payload:", payload);
-
-    const response = await axios.post(endpoint, payload, {
-      headers: { "Content-Type": "application/json" },
-      withCredentials: false,
-      timeout: 15000,
-    });
-
-    console.log("✅ Response received:", response.data);
-
-    // (redundant now because 4xx throws, but harmless)
-    if (!response.data.success) {
-      throw new Error(response.data.message || "Authentication failed");
+    if (!payload.email || !payload.password) {
+      toast(<CustomToast type="error" message="Email and password are required." />);
+      return;
     }
 
-    const {
-      token,
-      email: resEmail,
-      role,
-      firstName: resFirstName,
-      lastName: resLastName,
-      phone: resPhone,
-      userId,
-    } = response.data;
+    try {
+      const endpoint =
+        currentState === "Sign Up"
+          ? `${backendUrl}/api/musician-login/register`
+          : `${backendUrl}/api/musician-login/login`;
 
-    // 🔥 ADD THESE TWO LINES RIGHT HERE:
-localStorage.removeItem("myDeputyStatus");
-localStorage.removeItem("deputyStatus");
+      const response = await axios.post(endpoint, payload, {
+        headers: { "Content-Type": "application/json" },
+        withCredentials: false,
+        timeout: 15000,
+      });
 
-// 🔥 Store userId (THIS IS THE FIX)
-localStorage.setItem("userId", userId);
-sessionStorage.setItem("userId", userId);
+      if (!response?.data?.success) {
+        throw new Error(response?.data?.message || "Authentication failed");
+      }
 
-    // Persist token
-localStorage.setItem("token", token);
-setToken(token);
+      const {
+        token,
+        email: resEmail,
+        role,
+        firstName: resFirstName,
+        lastName: resLastName,
+        phone: resPhone,
+        userId,
+        mustChangePassword, // ✅ from backend
+      } = response.data;
 
-    // lift + persist …
-    // (unchanged)
-navigate("/musicians-dashboard");
-  } catch (err) {
-    // Prefer backend message if present
-    const status = err?.response?.status;
-    const apiMsg = err?.response?.data?.message;
+      // Clear old deputy status
+      localStorage.removeItem("myDeputyStatus");
+      localStorage.removeItem("deputyStatus");
 
-    // Optional: friendlier mapping
-    const pretty =
-      apiMsg ||
-      (status === 404 && "No account found for that email.") ||
-      (status === 422 && "This account has no password set.") ||
-      (status === 401 && "Incorrect password.") ||
-      err?.message ||
-      "Authentication failed";
+      // Store userId
+      localStorage.setItem("userId", userId);
+      sessionStorage.setItem("userId", userId);
 
-    console.error("❌ Auth error:", {
-      message: err?.message,
-      code: err?.code,
-      status,
-      data: err?.response?.data,
-    });
+      // ✅ Persist identity for Security page + Sidebar etc.
+      localStorage.setItem("userEmail", resEmail || "");
+      localStorage.setItem("userRole", role || "");
+      localStorage.setItem("userFirstName", resFirstName || "");
+      localStorage.setItem("userLastName", resLastName || "");
+      localStorage.setItem("userPhone", resPhone || "");
 
-    toast(<CustomToast type="error" message={pretty} />);
-  }
-};
+      // Persist token
+      localStorage.setItem("token", token);
+      setToken(token);
+
+      // Lift into App state (so Sidebar updates immediately)
+      setUserEmail?.(resEmail || "");
+      setUserRole?.(role || "");
+      setUserFirstName?.(resFirstName || "");
+      setUserLastName?.(resLastName || "");
+      setUserPhone?.(resPhone || "");
+
+      // ⚠️ Never store plaintext password
+      setUserPassword?.("");
+
+      // ✅ Redirect
+      if (mustChangePassword) {
+        navigate("/security");
+      } else {
+        navigate("/musicians-dashboard");
+      }
+    } catch (err) {
+      const status = err?.response?.status;
+      const apiMsg = err?.response?.data?.message;
+
+      const pretty =
+        apiMsg ||
+        (status === 404 && "No account found for that email.") ||
+        (status === 422 && "This account has no password set.") ||
+        (status === 401 && "Incorrect password.") ||
+        err?.message ||
+        "Authentication failed";
+
+      console.error("❌ Auth error:", {
+        message: err?.message,
+        code: err?.code,
+        status,
+        data: err?.response?.data,
+      });
+
+      toast(<CustomToast type="error" message={pretty} />);
+    }
+  };
 
   return (
     <>
-    <div className="flex flex-col items-center mb-4">
-<img
-    className="w-full"
-    src={assets.hero_w_TSC_logo}
-    alt="The Supreme Collective Logo"
-  />
-</div>
-
-    <form
-      onSubmit={onSubmitHandler}
-      className="flex flex-col items-center w-[90%] sm:max-w-96 m-auto gap-3 text-gray-800"
-    >
-      <div className="inline-flex items-center gap-2 mb-2 mt-10">
-        <p className="prata-regular text-3xl">{currentState}</p>
-        <hr className="border-none h-[1.5px] w-8 bg-gray-800" />
+      <div className="flex flex-col items-center mb-4">
+        <img className="w-full" src={assets.hero_w_TSC_logo} alt="The Supreme Collective Logo" />
       </div>
-      {currentState === "Sign Up" && (
-        <>
-          <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" required className="w-full px-3 py-2 border border-gray-800" />
-          <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last Name" required className="w-full px-3 py-2 border border-gray-800" />
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" required className="w-full px-3 py-2 border border-gray-800" />
-        </>
-      )}
 
-      <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="Email" required className="w-full px-3 py-2 border border-gray-800" />
-      <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Password" required className="w-full px-3 py-2 border border-gray-800" />
+      <form
+        onSubmit={onSubmitHandler}
+        className="flex flex-col items-center w-[90%] sm:max-w-96 m-auto gap-3 text-gray-800"
+      >
+        <div className="inline-flex items-center gap-2 mb-2 mt-10">
+          <p className="prata-regular text-3xl">{currentState}</p>
+          <hr className="border-none h-[1.5px] w-8 bg-gray-800" />
+        </div>
 
-      <div className="w-full flex justify-between text-sm mt-[-8px]">
-        <p className=" cursor-pointer">Forgot your password?</p>
-        {currentState === "Login" ? (
-          <p onClick={() => setCurrentState("Sign Up")} className=" cursor-pointer">Create account</p>
-        ) : (
-          <p onClick={() => setCurrentState("Login")} className=" cursor-pointer">Login Here</p>
+        {currentState === "Sign Up" && (
+          <>
+            <input
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="First name"
+              required
+              className="w-full px-3 py-2 border border-gray-800"
+            />
+            <input
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Last Name"
+              required
+              className="w-full px-3 py-2 border border-gray-800"
+            />
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="Phone number"
+              required
+              className="w-full px-3 py-2 border border-gray-800"
+            />
+          </>
         )}
-      </div>
 
-      <button className="bg-black text-white font-light px-8 py-2 mt-4">
-        {currentState === "Login" ? "Sign In" : "Sign Up"}
-      </button>
-    </form>
+        <input
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          type="email"
+          placeholder="Email"
+          required
+          className="w-full px-3 py-2 border border-gray-800"
+        />
+
+        <input
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          type="password"
+          placeholder="Password"
+          required
+          className="w-full px-3 py-2 border border-gray-800"
+        />
+
+        <div className="w-full flex justify-between text-sm mt-[-8px]">
+          <p
+            className="cursor-pointer"
+            onClick={() => navigate("/forgot-password")} // optional route if you add one
+          >
+            Forgot your password?
+          </p>
+
+          {currentState === "Login" ? (
+            <p onClick={() => setCurrentState("Sign Up")} className="cursor-pointer">
+              Create account
+            </p>
+          ) : (
+            <p onClick={() => setCurrentState("Login")} className="cursor-pointer">
+              Login Here
+            </p>
+          )}
+        </div>
+
+        <button className="bg-black text-white font-light px-8 py-2 mt-4">
+          {currentState === "Login" ? "Sign In" : "Sign Up"}
+        </button>
+      </form>
     </>
   );
 };
 
-
-
 export default Login;
-

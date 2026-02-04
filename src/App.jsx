@@ -27,6 +27,8 @@ import BookingBoard from "./pages/BookingBoard";
 import EnquiryBoard from "./pages/EnquiryBoard";
 import ActPreSubmissionsPage from "./pages/ActPreSubmissionsPage";
 import AgentDashboard from "./pages/AgentDashboard";
+import SetPassword from "./pages/SetPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -125,6 +127,10 @@ useEffect(() => {
       />
 
       {token === "" ? (
+  <Routes>
+    <Route
+      path="/login"
+      element={
         <Login
           setToken={setToken}
           setUserEmail={setEmail}
@@ -134,7 +140,17 @@ useEffect(() => {
           setUserPhone={setPhone}
           setUserPassword={setPassword}
         />
-      ) : (
+      }
+    />
+
+    {/* ✅ Public password setup/reset pages */}
+    <Route path="/set-password" element={<SetPassword />} />
+    <Route path="/reset-password" element={<ResetPassword />} />
+
+    {/* Default when logged out */}
+    <Route path="*" element={<Navigate to="/login" replace />} />
+  </Routes>
+) : (
         // 👇 optional: gate UI until hydrated to prevent flicker
         hydrated && (
           <>
