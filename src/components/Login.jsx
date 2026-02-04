@@ -24,49 +24,6 @@ const Login = ({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // ✅ Forgot password: call backend + toast
-  const handleForgotPassword = async () => {
-    const normEmail = (email || "").trim().toLowerCase();
-
-    if (!normEmail) {
-      toast(
-        <CustomToast
-          type="info"
-          message="Type your email above, then click ‘Forgot your password?’"
-        />
-      );
-      return;
-    }
-
-    try {
-      await axios.post(
-        `${backendUrl}/api/musician-login/forgot-password`,
-        { email: normEmail },
-        {
-          headers: { "Content-Type": "application/json" },
-          withCredentials: false,
-          timeout: 15000,
-        }
-      );
-
-      // Always show a generic success message (prevents account enumeration)
-      toast(
-        <CustomToast
-          type="success"
-          message="If that email exists, we’ve sent a reset link."
-        />
-      );
-    } catch (err) {
-      console.error("Forgot password error:", err?.response?.data || err?.message || err);
-      toast(
-        <CustomToast
-          type="error"
-          message="Couldn’t start password reset. Please try again."
-        />
-      );
-    }
-  };
-
   const onSubmitHandler = async (event) => {
     event.preventDefault();
 
@@ -78,7 +35,9 @@ const Login = ({
         : { email: normEmail, password };
 
     if (!payload.email || !payload.password) {
-      toast(<CustomToast type="error" message="Email and password are required." />);
+      toast(
+        <CustomToast type="error" message="Email and password are required." />
+      );
       return;
     }
 
@@ -109,41 +68,32 @@ const Login = ({
         mustChangePassword,
       } = response.data;
 
-      // Clear old deputy status
       localStorage.removeItem("myDeputyStatus");
       localStorage.removeItem("deputyStatus");
 
-      // Store userId
       localStorage.setItem("userId", userId);
       sessionStorage.setItem("userId", userId);
 
-      // Persist identity for Security page + Sidebar etc.
       localStorage.setItem("userEmail", resEmail || "");
       localStorage.setItem("userRole", role || "");
       localStorage.setItem("userFirstName", resFirstName || "");
       localStorage.setItem("userLastName", resLastName || "");
       localStorage.setItem("userPhone", resPhone || "");
 
-      // Persist token
       localStorage.setItem("token", token);
       setToken(token);
 
-      // Lift into App state
       setUserEmail?.(resEmail || "");
       setUserRole?.(role || "");
       setUserFirstName?.(resFirstName || "");
       setUserLastName?.(resLastName || "");
       setUserPhone?.(resPhone || "");
 
-      // Never store plaintext password
+      // never store plaintext password
       setUserPassword?.("");
 
-      // Redirect
-      if (mustChangePassword) {
-        navigate("/security");
-      } else {
-        navigate("/musicians-dashboard");
-      }
+      if (mustChangePassword) navigate("/security");
+      else navigate("/musicians-dashboard");
     } catch (err) {
       const status = err?.response?.status;
       const apiMsg = err?.response?.data?.message;
@@ -156,7 +106,7 @@ const Login = ({
         err?.message ||
         "Authentication failed";
 
-      console.error("Auth error:", {
+      console.error("❌ Auth error:", {
         message: err?.message,
         code: err?.code,
         status,
@@ -164,6 +114,43 @@ const Login = ({
       });
 
       toast(<CustomToast type="error" message={pretty} />);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    const normEmail = (email || "").trim().toLowerCase();
+    if (!normEmail) {
+      toast(
+        <CustomToast
+          type="info"
+          message="Enter your email above, then click ‘Forgot your password?’"
+        />
+      );
+      return;
+    }
+
+    try {
+      await axios.post(
+        `${backendUrl}/api/musician-login/forgot-password`,
+        { email: normEmail },
+        { headers: { "Content-Type": "application/json" }, timeout: 15000 }
+      );
+
+      // always show generic message (your backend is silent by design)
+      toast(
+        <CustomToast
+          type="success"
+          message="If that email exists, we’ve sent a reset link."
+        />
+      );
+    } catch (err) {
+      console.error("Forgot password error:", err?.response?.data || err);
+      toast(
+        <CustomToast
+          type="error"
+          message="Couldn’t start password reset. Please try again."
+        />
+      );
     }
   };
 
@@ -231,21 +218,22 @@ const Login = ({
         />
 
         <div className="w-full flex justify-between text-sm mt-[-8px]">
-          <button
-            type="button"
-            className="cursor-pointer underline"
-            onClick={handleForgotPassword}
-            title="We’ll email you a reset link"
-          >
+          <p className="cursor-pointer underline" onClick={handleForgotPassword}>
             Forgot your password?
-          </button>
+          </p>
 
           {currentState === "Login" ? (
-            <p onClick={() => setCurrentState("Sign Up")} className="cursor-pointer">
+            <p
+              onClick={() => setCurrentState("Sign Up")}
+              className="cursor-pointer"
+            >
               Create account
             </p>
           ) : (
-            <p onClick={() => setCurrentState("Login")} className="cursor-pointer">
+            <p
+              onClick={() => setCurrentState("Login")}
+              className="cursor-pointer"
+            >
               Login Here
             </p>
           )}
