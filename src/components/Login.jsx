@@ -24,6 +24,49 @@ const Login = ({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  // ✅ Forgot password: call backend + toast
+  const handleForgotPassword = async () => {
+    const normEmail = (email || "").trim().toLowerCase();
+
+    if (!normEmail) {
+      toast(
+        <CustomToast
+          type="info"
+          message="Type your email above, then click ‘Forgot your password?’"
+        />
+      );
+      return;
+    }
+
+    try {
+      await axios.post(
+        `${backendUrl}/api/musician-login/forgot-password`,
+        { email: normEmail },
+        {
+          headers: { "Content-Type": "application/json" },
+          withCredentials: false,
+          timeout: 15000,
+        }
+      );
+
+      // Always show a generic success message (prevents account enumeration)
+      toast(
+        <CustomToast
+          type="success"
+          message="If that email exists, we’ve sent a reset link."
+        />
+      );
+    } catch (err) {
+      console.error("Forgot password error:", err?.response?.data || err?.message || err);
+      toast(
+        <CustomToast
+          type="error"
+          message="Couldn’t start password reset. Please try again."
+        />
+      );
+    }
+  };
+
   const onSubmitHandler = async (event) => {
     event.preventDefault();
 
@@ -63,7 +106,7 @@ const Login = ({
         lastName: resLastName,
         phone: resPhone,
         userId,
-        mustChangePassword, // ✅ from backend
+        mustChangePassword,
       } = response.data;
 
       // Clear old deputy status
@@ -74,7 +117,7 @@ const Login = ({
       localStorage.setItem("userId", userId);
       sessionStorage.setItem("userId", userId);
 
-      // ✅ Persist identity for Security page + Sidebar etc.
+      // Persist identity for Security page + Sidebar etc.
       localStorage.setItem("userEmail", resEmail || "");
       localStorage.setItem("userRole", role || "");
       localStorage.setItem("userFirstName", resFirstName || "");
@@ -85,17 +128,17 @@ const Login = ({
       localStorage.setItem("token", token);
       setToken(token);
 
-      // Lift into App state (so Sidebar updates immediately)
+      // Lift into App state
       setUserEmail?.(resEmail || "");
       setUserRole?.(role || "");
       setUserFirstName?.(resFirstName || "");
       setUserLastName?.(resLastName || "");
       setUserPhone?.(resPhone || "");
 
-      // ⚠️ Never store plaintext password
+      // Never store plaintext password
       setUserPassword?.("");
 
-      // ✅ Redirect
+      // Redirect
       if (mustChangePassword) {
         navigate("/security");
       } else {
@@ -113,7 +156,7 @@ const Login = ({
         err?.message ||
         "Authentication failed";
 
-      console.error("❌ Auth error:", {
+      console.error("Auth error:", {
         message: err?.message,
         code: err?.code,
         status,
@@ -127,7 +170,11 @@ const Login = ({
   return (
     <>
       <div className="flex flex-col items-center mb-4">
-        <img className="w-full" src={assets.hero_w_TSC_logo} alt="The Supreme Collective Logo" />
+        <img
+          className="w-full"
+          src={assets.hero_w_TSC_logo}
+          alt="The Supreme Collective Logo"
+        />
       </div>
 
       <form
@@ -184,12 +231,14 @@ const Login = ({
         />
 
         <div className="w-full flex justify-between text-sm mt-[-8px]">
-          <p
-            className="cursor-pointer"
-            onClick={() => navigate("/forgot-password")} // optional route if you add one
+          <button
+            type="button"
+            className="cursor-pointer underline"
+            onClick={handleForgotPassword}
+            title="We’ll email you a reset link"
           >
             Forgot your password?
-          </p>
+          </button>
 
           {currentState === "Login" ? (
             <p onClick={() => setCurrentState("Sign Up")} className="cursor-pointer">
