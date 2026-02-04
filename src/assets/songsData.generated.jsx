@@ -3056,3 +3056,5 @@ export const songsData = [
   { year: null, title: "Villano Favorito", artist: "Noëlle Vanyi", genre: "Latin" },
   { year: null, title: "Who's the Fool", artist: "Singin' Sammy Ward", genre: "Soul" },
 ];
+
+export default songsData;
