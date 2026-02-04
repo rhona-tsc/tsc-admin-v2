@@ -2681,3 +2681,5 @@ export const songsData = [
   { year: 2024, title: "Taste", artist: "Sabrina Carpenter", genre: "Pop" }
 ]
 ];
+
+export default songsData;
