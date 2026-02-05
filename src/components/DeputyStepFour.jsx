@@ -75,7 +75,6 @@ console.log("[DeputyStepFour] initial formData snapshot:", {
   selectedSongs: formData.selectedSongs,
 });
 
-
   const updateArrayField = (field, value, index) => {
     console.log("[DeputyStepFour] updateArrayField:", { field, value, index });
     const updated = [...(formData[field] || [])];
@@ -226,111 +225,148 @@ setFormData(prev => ({
         <button className="text-blue-600 text-sm underline" onClick={() => addField("instrumentation", { instrument: "", skill_level: "", isOther: false })}>+ Add Instrument</button>
       </div>
 
-    {/* VOCALS SECTION */}
-    <div className="mb-6">
-   
-      <h3 className="font-semibold mb-2">Vocals</h3>
-<div className="flex flex-col md:flex-row gap-6">
-  {/* Column 1: Vocal Types */}
-  <div className="flex-1">
-    <label className="block font-medium mb-2">I'm a:</label>
-    <div className="flex flex-col gap-2">
-      {[
-        "Lead Vocalist",
-        "Lead Vocalist-Instrumentalist",
-        "Backing Vocalist",
-        "Backing Vocalist-Instrumentalist",
-        "I don't sing"
-      ].map((type) => (
-        <label key={type} className="flex items-center gap-2 text-sm">
-         <input
-  type="checkbox"
-  checked={vocals.type.includes(type)}
-  onChange={() => {
-    let selected = [...vocals.type]; // ✅ use normalized
-    const isSelected = selected.includes(type);
+  {/* VOCALS SECTION */}
+<div className="mb-6">
+  <h3 className="font-semibold mb-2">Vocals</h3>
 
-    if (type === "I don't sing") {
-      selected = isSelected ? [] : ["I don't sing"];
-    } else {
-      selected = selected.filter((t) => t !== "I don't sing");
-      selected = isSelected ? selected.filter((t) => t !== type) : [...selected, type];
-    }
+  {/*
+    ✅ Normalise vocals once for safety (no crashes on old/odd shapes)
+    - type: always array
+    - genres: always array
+    - gender/range/rap: always strings
+  */}
+  {(() => {
+    const vv = formData?.vocals && typeof formData.vocals === "object" ? formData.vocals : {};
 
-    setFormData((prev) => ({
-      ...prev,
-      vocals: {
-        ...(prev.vocals || {}),
-        type: selected,
-      },
-    }));
-  }}
-/>
-          {type}
-        </label>
-      ))}
-    </div>
-  </div>
+    const safeType = Array.isArray(vv.type)
+      ? vv.type.filter(Boolean)
+      : typeof vv.type === "string" && vv.type.trim()
+        ? [vv.type.trim()]
+        : [];
 
-  {/* Column 2: Gender, Rap, Range */}
-  <div className="flex-1 flex flex-col gap-4">
-    <div>
-      <label className="block text-sm font-medium mb-1">Gender</label>
-      <select
-  value={vocals.gender}
-  onChange={(e) =>
-    setFormData((prev) => ({
-      ...prev,
-      vocals: { ...(prev.vocals || {}), gender: e.target.value },
-    }))
-  }
-/>
-    </div>
+    const safeGenres = Array.isArray(vv.genres)
+      ? vv.genres.filter(Boolean)
+      : typeof vv.genres === "string" && vv.genres.trim()
+        ? vv.genres.split(",").map((g) => g.trim()).filter(Boolean)
+        : [];
 
-    <div>
-      <label className="block text-sm font-medium mb-1">Can you rap?</label>
-     <select
-  value={vocals.rap}
-  onChange={(e) =>
-    setFormData((prev) => ({
-      ...prev,
-      vocals: { ...(prev.vocals || {}), rap: e.target.value },
-    }))
-  }
-/>
-    </div>
+    const safeGender = typeof vv.gender === "string" ? vv.gender : "";
+    const safeRange = typeof vv.range === "string" ? vv.range : "";
+    const safeRap = typeof vv.rap === "string" ? vv.rap : "";
 
-    <div>
-      <label className="block text-sm font-medium mb-1">Vocal Range</label>
-    <select
-  value={vocals.range}
-  onChange={(e) =>
-    setFormData((prev) => ({
-      ...prev,
-      vocals: { ...(prev.vocals || {}), range: e.target.value },
-    }))
-  }
-/>
-    </div>
-  </div>
-</div>
-
-{/* Conditionally show genres */}
-{vocals.type.length > 0 && !vocals.type.includes("I don't sing") && (
-  <GenresSelector
-    selectedGenres={vocals.genres}
-    onChange={(updatedGenres) => {
+    const updateVocals = (patch) =>
       setFormData((prev) => ({
         ...prev,
-        vocals: { ...(prev.vocals || {}), genres: updatedGenres },
+        vocals: {
+          ...(prev.vocals && typeof prev.vocals === "object" ? prev.vocals : {}),
+          ...patch,
+        },
       }));
-    }}
-  />
-)}
- 
-      {/* Genre Tags */}
-    
-    </div>
+
+    return (
+      <>
+        <div className="flex flex-col md:flex-row gap-6">
+          {/* Column 1: Vocal Types */}
+          <div className="flex-1">
+            <label className="block font-medium mb-2">I'm a:</label>
+
+            <div className="flex flex-col gap-2">
+              {[
+                "Lead Vocalist",
+                "Lead Vocalist-Instrumentalist",
+                "Backing Vocalist",
+                "Backing Vocalist-Instrumentalist",
+                "I don't sing",
+              ].map((type) => (
+                <label key={type} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={safeType.includes(type)}
+                    onChange={() => {
+                      let selected = [...safeType];
+                      const isSelected = selected.includes(type);
+
+                      if (type === "I don't sing") {
+                        selected = isSelected ? [] : ["I don't sing"];
+                      } else {
+                        selected = selected.filter((t) => t !== "I don't sing");
+                        if (isSelected) {
+                          selected = selected.filter((t) => t !== type);
+                        } else {
+                          selected.push(type);
+                        }
+                      }
+
+                      updateVocals({ type: selected });
+                    }}
+                  />
+                  {type}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Column 2: Gender, Rap, Range */}
+          <div className="flex-1 flex flex-col gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Gender</label>
+              <select
+                value={safeGender}
+                onChange={(e) => updateVocals({ gender: e.target.value })}
+                className="border p-2 rounded w-full"
+              >
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Non-Binary">Non-Binary</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Can you rap?</label>
+              <select
+                value={safeRap}
+                onChange={(e) => updateVocals({ rap: e.target.value })}
+                className="border p-2 rounded w-full"
+              >
+                <option value="">Select</option>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Vocal Range</label>
+              <select
+                value={safeRange}
+                onChange={(e) => updateVocals({ range: e.target.value })}
+                className="border p-2 rounded w-full"
+              >
+                <option value="">Select Vocal Range</option>
+                <option value="Soprano">Soprano</option>
+                <option value="Mezzo-Soprano">Mezzo-Soprano</option>
+                <option value="Alto">Alto</option>
+                <option value="Tenor">Tenor</option>
+                <option value="Baritone">Baritone</option>
+                <option value="Bass">Bass</option>
+                <option value="Not sure">Not sure</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Conditionally show genres */}
+        {safeType.length > 0 && !safeType.includes("I don't sing") && (
+          <GenresSelector
+            selectedGenres={safeGenres}
+            onChange={(updatedGenres) => updateVocals({ genres: updatedGenres })}
+          />
+        )}
+      </>
+    );
+  })()}
+</div>
 
       {/* Repertoire Section */}
       <div>
@@ -338,12 +374,12 @@ setFormData(prev => ({
         <p className="text-sm">
           Please select the songs from the database and/or paste your repertoire on the right that you are comfortable performing. Please note, these must be 'gig ready' and require no rehearsals.</p>
           </div>
-      <DeputyRepertoire
-  customRepertoire={customRepertoire}
+         <DeputyRepertoire
+  customRepertoire={formData.customRepertoire || ""}
   setCustomRepertoire={(value) =>
     setFormData((prev) => ({ ...prev, customRepertoire: value }))
   }
-  selectedSongs={selectedSongs}
+  selectedSongs={formData.selectedSongs || []}
   setSelectedSongs={(value) =>
     setFormData((prev) => ({ ...prev, selectedSongs: value }))
   }
@@ -354,10 +390,8 @@ setFormData(prev => ({
 
 {userRole?.includes("agent") && (
   <DeputySongModeration
-    selectedSongs={selectedSongs}
-    setSelectedSongs={(value) =>
-      setFormData((prev) => ({ ...prev, selectedSongs: value }))
-    }
+    selectedSongs={formData.selectedSongs || []}
+    setSelectedSongs={(value) => setFormData({ ...formData, selectedSongs: value })}
     userRole={userRole}
     deputyId={deputyId}
   />
