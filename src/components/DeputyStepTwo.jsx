@@ -41,7 +41,7 @@ const DeputyStepTwo = ({ formData = {}, setFormData = () => {}, userRole, tscApp
     <div className="flex flex-col gap-6">
       <div>
         <label className="block font-semibold mb-1">Tag Line</label>
-        <p>A short and snappy decription of you and your performance style</p>
+        <p>A short and snappy description of you and your performance style</p>
         <textarea
           className="w-full p-2 border rounded"
           maxLength={160}

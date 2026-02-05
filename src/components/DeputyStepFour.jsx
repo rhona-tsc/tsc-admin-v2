@@ -7,6 +7,65 @@ import DeputySongModeration from "./DeputySongModeration";
 
 const DeputyStepFour = ({ formData = {}, setFormData = () => {}, userRole, deputyId }) => {
 
+  const safeArray = (v) => (Array.isArray(v) ? v.filter(Boolean) : []);
+
+const normalizeSelectedSongs = (v) => {
+  const arr = safeArray(v);
+
+  return arr.map((s) => {
+    // if older data ever stored strings, coerce it
+    if (typeof s === "string") {
+      return { title: s || "", artist: "", genre: "", year: "" };
+    }
+
+    return {
+      title: s?.title ?? "",
+      artist: s?.artist ?? "",
+      genre: s?.genre ?? "",
+      year: s?.year ?? "",
+    };
+  });
+};
+
+const normalizeVocals = (v) => {
+  const vv = v && typeof v === "object" ? v : {};
+
+  // type can be string or array depending on old saves
+  const type =
+    Array.isArray(vv.type) ? vv.type.filter(Boolean)
+    : typeof vv.type === "string" && vv.type.trim() ? [vv.type.trim()]
+    : [];
+
+  // genres can be string or array depending on old saves
+  const genres =
+    Array.isArray(vv.genres) ? vv.genres.filter(Boolean)
+    : typeof vv.genres === "string" && vv.genres.trim()
+      ? vv.genres.split(",").map((g) => g.trim()).filter(Boolean)
+      : [];
+
+  return {
+    type,
+    gender: vv.gender ?? "",
+    range: vv.range ?? "",
+    rap: vv.rap ?? "",
+    genres,
+  };
+};
+
+// ✅ Use these everywhere in StepFour
+const instrumentation = safeArray(formData.instrumentation).map((i) => ({
+  instrument: i?.instrument ?? "",
+  skill_level: i?.skill_level ?? "",
+  isOther: Boolean(i?.isOther),
+}));
+
+const other_skills = safeArray(formData.other_skills);
+const logistics = safeArray(formData.logistics);
+
+const vocals = normalizeVocals(formData.vocals);
+const selectedSongs = normalizeSelectedSongs(formData.selectedSongs);
+const customRepertoire = typeof formData.customRepertoire === "string" ? formData.customRepertoire : "";
+
 console.log("[DeputyStepFour] deputyId prop:", deputyId);
 console.log("[DeputyStepFour] initial formData snapshot:", {
   instrumentation: formData.instrumentation,
@@ -15,11 +74,7 @@ console.log("[DeputyStepFour] initial formData snapshot:", {
   vocals: formData.vocals,
   selectedSongs: formData.selectedSongs,
 });
-  const {
-    instrumentation = [],
-    other_skills = [],
-    logistics = []
-  } = formData;
+
 
   const updateArrayField = (field, value, index) => {
     console.log("[DeputyStepFour] updateArrayField:", { field, value, index });
@@ -188,33 +243,29 @@ setFormData(prev => ({
         "I don't sing"
       ].map((type) => (
         <label key={type} className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={Array.isArray(formData.vocals?.type) && formData.vocals.type.includes(type)}
-            onChange={() => {
-              let selected = Array.isArray(formData.vocals?.type) ? [...formData.vocals.type] : [];
-              const isSelected = selected.includes(type);
+         <input
+  type="checkbox"
+  checked={vocals.type.includes(type)}
+  onChange={() => {
+    let selected = [...vocals.type]; // ✅ use normalized
+    const isSelected = selected.includes(type);
 
-              if (type === "I don't sing") {
-                selected = isSelected ? [] : ["I don't sing"];
-              } else {
-                selected = selected.filter((t) => t !== "I don't sing");
-                if (isSelected) {
-                  selected = selected.filter((t) => t !== type);
-                } else {
-                  selected.push(type);
-                }
-              }
+    if (type === "I don't sing") {
+      selected = isSelected ? [] : ["I don't sing"];
+    } else {
+      selected = selected.filter((t) => t !== "I don't sing");
+      selected = isSelected ? selected.filter((t) => t !== type) : [...selected, type];
+    }
 
-              setFormData({
-                ...formData,
-                vocals: {
-                  ...formData.vocals,
-                  type: selected,
-                },
-              });
-            }}
-          />
+    setFormData((prev) => ({
+      ...prev,
+      vocals: {
+        ...(prev.vocals || {}),
+        type: selected,
+      },
+    }));
+  }}
+/>
           {type}
         </label>
       ))}
@@ -226,89 +277,55 @@ setFormData(prev => ({
     <div>
       <label className="block text-sm font-medium mb-1">Gender</label>
       <select
-        value={formData.vocals?.gender || ""}
-        onChange={(e) =>
-          setFormData({
-            ...formData,
-            vocals: {
-              ...formData.vocals,
-              gender: e.target.value,
-            },
-          })
-        }
-        className="border p-2 rounded w-full"
-      >
-        <option value="">Select Gender</option>
-        <option value="Male">Male</option>
-        <option value="Female">Female</option>
-        <option value="Non-Binary">Non-Binary</option>
-      </select>
+  value={vocals.gender}
+  onChange={(e) =>
+    setFormData((prev) => ({
+      ...prev,
+      vocals: { ...(prev.vocals || {}), gender: e.target.value },
+    }))
+  }
+/>
     </div>
 
     <div>
       <label className="block text-sm font-medium mb-1">Can you rap?</label>
-      <select
-        value={formData.vocals?.rap || ""}
-        onChange={(e) =>
-          setFormData({
-            ...formData,
-            vocals: {
-              ...formData.vocals,
-              rap: e.target.value,
-            },
-          })
-        }
-        className="border p-2 rounded w-full"
-      >
-        <option value="">Select</option>
-        <option value="true">Yes</option>
-        <option value="false">No</option>
-      </select>
+     <select
+  value={vocals.rap}
+  onChange={(e) =>
+    setFormData((prev) => ({
+      ...prev,
+      vocals: { ...(prev.vocals || {}), rap: e.target.value },
+    }))
+  }
+/>
     </div>
 
     <div>
       <label className="block text-sm font-medium mb-1">Vocal Range</label>
-      <select
-        value={formData.vocals?.range || ""}
-        onChange={(e) =>
-          setFormData({
-            ...formData,
-            vocals: {
-              ...formData.vocals,
-              range: e.target.value,
-            },
-          })
-        }
-        className="border p-2 rounded w-full"
-      >
-        <option value="">Select Vocal Range</option>
-        <option value="Soprano">Soprano</option>
-        <option value="Mezzo-Soprano">Mezzo-Soprano</option>
-        <option value="Alto">Alto</option>
-        <option value="Tenor">Tenor</option>
-        <option value="Baritone">Baritone</option>
-        <option value="Bass">Bass</option>
-        <option value="Not sure">Not sure</option>
-      </select>
+    <select
+  value={vocals.range}
+  onChange={(e) =>
+    setFormData((prev) => ({
+      ...prev,
+      vocals: { ...(prev.vocals || {}), range: e.target.value },
+    }))
+  }
+/>
     </div>
   </div>
 </div>
 
 {/* Conditionally show genres */}
-{Array.isArray(formData.vocals?.type) &&
-  formData.vocals.type.length > 0 &&
-  !formData.vocals.type.includes("I don't sing") && (
-
-   <GenresSelector
-  selectedGenres={formData.vocals?.genres || []}
-  onChange={(updatedGenres) => {
-    console.log("🎤[DeputyStepFour] vocals.genres onChange:", updatedGenres);
-    setFormData({
-      ...formData,
-      vocals: { ...formData.vocals, genres: updatedGenres },
-    });
-  }}
-/>
+{vocals.type.length > 0 && !vocals.type.includes("I don't sing") && (
+  <GenresSelector
+    selectedGenres={vocals.genres}
+    onChange={(updatedGenres) => {
+      setFormData((prev) => ({
+        ...prev,
+        vocals: { ...(prev.vocals || {}), genres: updatedGenres },
+      }));
+    }}
+  />
 )}
  
       {/* Genre Tags */}
@@ -321,12 +338,12 @@ setFormData(prev => ({
         <p className="text-sm">
           Please select the songs from the database and/or paste your repertoire on the right that you are comfortable performing. Please note, these must be 'gig ready' and require no rehearsals.</p>
           </div>
-         <DeputyRepertoire
-  customRepertoire={formData.customRepertoire || ""}
+      <DeputyRepertoire
+  customRepertoire={customRepertoire}
   setCustomRepertoire={(value) =>
     setFormData((prev) => ({ ...prev, customRepertoire: value }))
   }
-  selectedSongs={formData.selectedSongs || []}
+  selectedSongs={selectedSongs}
   setSelectedSongs={(value) =>
     setFormData((prev) => ({ ...prev, selectedSongs: value }))
   }
@@ -337,8 +354,10 @@ setFormData(prev => ({
 
 {userRole?.includes("agent") && (
   <DeputySongModeration
-    selectedSongs={formData.selectedSongs || []}
-    setSelectedSongs={(value) => setFormData({ ...formData, selectedSongs: value })}
+    selectedSongs={selectedSongs}
+    setSelectedSongs={(value) =>
+      setFormData((prev) => ({ ...prev, selectedSongs: value }))
+    }
     userRole={userRole}
     deputyId={deputyId}
   />

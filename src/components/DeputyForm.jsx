@@ -442,21 +442,14 @@ if (coverUrl) fd.append("coverHeroImage", coverUrl);        // matches mongoose 
       },
     ],
     vocals: {
-      type: "",
+      type: [],
       gender: "",
       range: "",
       rap: "",
       genres: [],
     },
     customRepertoire: "",
-    selectedSongs: [
-      {
-        title: "",
-        artist: "",
-        genre: "",
-        year: "",
-      },
-    ],
+    selectedSongs: [],
     other_skills: [],
     logistics: [],
     vocalMics: {
@@ -535,6 +528,40 @@ if (coverUrl) fd.append("coverHeroImage", coverUrl);        // matches mongoose 
         };
         const addressFromDb = deputy.address || {};
         const bankFromDb = deputy.bank_account || {};
+const safeArray = (v) => (Array.isArray(v) ? v.filter(Boolean) : []);
+
+const normalizeSelectedSongs = (v) =>
+  safeArray(v).map((s) =>
+    typeof s === "string"
+      ? { title: s || "", artist: "", genre: "", year: "" }
+      : {
+          title: s?.title ?? "",
+          artist: s?.artist ?? "",
+          genre: s?.genre ?? "",
+          year: s?.year ?? "",
+        }
+  );
+
+const normalizeVocals = (v) => {
+  const vv = v && typeof v === "object" ? v : {};
+  const type =
+    Array.isArray(vv.type) ? vv.type.filter(Boolean)
+    : typeof vv.type === "string" && vv.type.trim() ? [vv.type.trim()]
+    : [];
+  const genres =
+    Array.isArray(vv.genres) ? vv.genres.filter(Boolean)
+    : typeof vv.genres === "string" && vv.genres.trim()
+      ? vv.genres.split(",").map((g) => g.trim()).filter(Boolean)
+      : [];
+  return {
+    type,
+    gender: vv.gender ?? "",
+    range: vv.range ?? "",
+    rap: vv.rap ?? "",
+    genres,
+  };
+};
+
 
         setFormData((prev) => ({
           ...prev,
@@ -552,11 +579,17 @@ coverHeroImage: deputy.coverHeroImage || prev.coverHeroImage,
           original_bands_performed_with: deputy.original_bands_performed_with || prev.original_bands_performed_with,
           sessions: deputy.sessions || prev.sessions,
           social_media_links: deputy.social_media_links || prev.social_media_links,
-          instrumentation: deputy.instrumentation || prev.instrumentation,
-          customRepertoire: deputy.customRepertoire || prev.customRepertoire,
-          selectedSongs: deputy.selectedSongs || prev.selectedSongs,
-          other_skills: deputy.other_skills || prev.other_skills,
-          logistics: deputy.logistics || prev.logistics,
+instrumentation: safeArray(deputy.instrumentation || prev.instrumentation).map((i) => ({
+    instrument: i?.instrument ?? "",
+    skill_level: i?.skill_level ?? "",
+    isOther: Boolean(i?.isOther),
+  })),
+    vocals: normalizeVocals(deputy.vocals ?? prev.vocals),
+
+            customRepertoire: deputy.customRepertoire || prev.customRepertoire,
+  selectedSongs: normalizeSelectedSongs(deputy.selectedSongs ?? prev.selectedSongs),
+  other_skills: safeArray(deputy.other_skills ?? prev.other_skills),
+  logistics: safeArray(deputy.logistics ?? prev.logistics),
           digitalWardrobeBlackTie: deputy.digitalWardrobeBlackTie || prev.digitalWardrobeBlackTie,
           digitalWardrobeFormal: deputy.digitalWardrobeFormal || prev.digitalWardrobeFormal,
           digitalWardrobeSmartCasual: deputy.digitalWardrobeSmartCasual || prev.digitalWardrobeSmartCasual,
