@@ -1,8 +1,26 @@
 import React from "react";
+import { v4 as uuidv4 } from "uuid";
 
-const AddAnotherLineup = ({ lineups, setLineups, setOpenLineups }) => {
+const deepClone = (obj) => JSON.parse(JSON.stringify(obj));
+
+// remove mongo subdoc ids at any depth
+const stripMongoIds = (value) => {
+  if (Array.isArray(value)) return value.map(stripMongoIds);
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (k === "_id") continue; // ✅ critical
+      out[k] = stripMongoIds(v);
+    }
+    return out;
+  }
+  return value;
+};
+
+const AddAnotherLineup = ({ lineups = [], setLineups, setOpenLineups }) => {
   const addNewLineup = () => {
     const newLineup = {
+      lineupId: uuidv4(), // ✅ give new ones an id too
       actSize: "",
       spaceRequired: "",
       electricityReqs: "",
@@ -10,18 +28,27 @@ const AddAnotherLineup = ({ lineups, setLineups, setOpenLineups }) => {
       setupAndSoundCheck: "",
       bandMembers: [],
     };
-    setLineups((prev) => [...prev, newLineup]);
-    setOpenLineups((prev) => [...prev, true]);
+
+    setLineups((prev) => [...(prev || []), newLineup]);
+    setOpenLineups((prev) => [...(prev || []), true]);
   };
 
   const duplicateLineup = () => {
+    if (!Array.isArray(lineups) || lineups.length === 0) return;
+
     const last = lineups[lineups.length - 1];
-    const duplicated = {
-      ...JSON.parse(JSON.stringify(last)), // deep clone
-      actSize: `Copy of ${last.actSize || `Lineup ${lineups.length}`}`,
-    };
-    setLineups((prev) => [...prev, duplicated]);
-    setOpenLineups((prev) => [...prev, true]);
+
+    // deep clone + strip all nested _id values
+    const duplicated = stripMongoIds(deepClone(last));
+
+    // ✅ regenerate your custom id
+    duplicated.lineupId = uuidv4();
+
+    // keep your label tweak
+    duplicated.actSize = `Copy of ${last.actSize || `Lineup ${lineups.length}`}`;
+
+    setLineups((prev) => [...(prev || []), duplicated]);
+    setOpenLineups((prev) => [...(prev || []), true]);
   };
 
   return (
@@ -33,7 +60,8 @@ const AddAnotherLineup = ({ lineups, setLineups, setOpenLineups }) => {
       >
         + Add An New/Empty Lineup
       </button>
-      {lineups.length > 0 && (
+
+      {Array.isArray(lineups) && lineups.length > 0 && (
         <button
           type="button"
           onClick={duplicateLineup}
