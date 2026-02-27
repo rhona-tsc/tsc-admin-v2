@@ -431,7 +431,10 @@ const allSavedMembers = Array.from(
       return updated;
     });
   };
-
+console.log(
+  "hasDrums types:",
+  lineups.map(l => [l.actSize, l.hasDrums, Array.isArray(l.hasDrums)])
+);
   const handleAddBandMember = (lineupIndex, newMember) => {
     setLineups((prevLineups) => {
       const newLineups = prevLineups.map((lineup, i) => {
@@ -462,6 +465,7 @@ const allSavedMembers = Array.from(
 
   return (
     <div className="w-full grid grid-cols-1 gap-4 ">
+      
       {lineups.map((lineupItem, lineupIndex) => (
     <div
       key={lineupIndex}

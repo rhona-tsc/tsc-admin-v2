@@ -43,6 +43,8 @@ const FeeInput = ({
     member?.specialDatePricing?.nye?.overrideFee !== undefined &&
     String(member?.specialDatePricing?.nye?.overrideFee) !== "";
 
+    console.log("NYE member snapshot", member?.specialDatePricing);
+
   return (
     <div className="col-span-1">
       <FeeLabelWithToolTip />
