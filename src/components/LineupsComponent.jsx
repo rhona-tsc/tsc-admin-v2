@@ -694,7 +694,7 @@ const allSavedMembers = Array.from(
                   {lineupItem.bandMembers.map((member, memberIndex) => (
                     <div
                       key={memberIndex}
-                      className="flex grid grid-cols-8 items-start m-4"
+                      className=" grid grid-cols-8 items-start m-4"
                     >
                       <div className="col-span-8 flex justify-between items-center mb-2">
                         <div
@@ -739,176 +739,10 @@ const allSavedMembers = Array.from(
                       </div>
                       {openBandMembers[lineupIndex]?.[memberIndex] && (
                         <>
-                          {/* Left side: col-span-4, inputs col-span-2 */}
-                          <div className="col-span-4 grid grid-cols-2 gap-4">
-                            <div className="col-span-1">
-                              <FirstNameInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-1">
-                              <LastNameInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-1">
-                              <EmailInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-1">
-                              <MobileNumberInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-1">
-                              <CarRegistrationInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-1">
-                              <DietaryRequirementsInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-1">
-                              <AccountNameInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                        
-                              />
-                            </div>
-                            <div className="col-span-1">
-                              <SortCodeInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                                sortCodeError={sortCodeError}
-                                setSortCodeError={setSortCodeError}
-                                validateSortCode={validateSortCode}
-                              />
-                            </div>
-                            <div className="col-span-1">
-                              <AccountNumberInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                                accountError={accountError}
-                                setAccountError={setAccountError}
-                                validateAccountNumber={validateAccountNumber}
-                              />
-                            </div>
-                            <div className="col-span-1">
-                              <PostCodeInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                                postCodeError={postCodeError}
-                                setPostCodeError={setPostCodeError}
-                              />
-                            </div>
-                            <div className="col-span-1">
-                              <WirelessCheckbox
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-1">
-                              <InPromoCheckbox
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-1">
-                              <SoloPACheckbox
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-1">
-                              <DuoPACheckbox
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-1">
-                              <CanDJCheckbox
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            {/* Conditional DJ gear checkboxes (only if canDJ is true) */}
-                            {member.canDJ && (
-                              <>
-                                <div className="col-span-1">
-                                  <HaveMixingConsoleCheckbox
-                                    member={member}
-                                    index={lineupIndex}
-                                    memberIndex={memberIndex}
-                                    updateBandMember={updateBandMember}
-                                  />
-                                </div>
-                                <div className="col-span-1">
-                                  <HasDjTableCheckbox
-                                    member={member}
-                                    index={lineupIndex}
-                                    memberIndex={memberIndex}
-                                    updateBandMember={updateBandMember}
-                                  />
-                                </div>
-                                <div className="col-span-1">
-                                  <HasDJBoothCheckbox
-                                    member={member}
-                                    index={lineupIndex}
-                                    memberIndex={memberIndex}
-                                    updateBandMember={updateBandMember}
-                                  />
-                                </div>
-                              </>
-                            )}
-                          </div>
-
-                          {/* Right side: col-span-4, with input spans */}
-                          <div className="col-span-4 grid grid-cols-4 gap-4 ml-4 items-start">
-                          <div className="col-span-4 grid grid-cols-12 gap-4 items-center">
-  
-  <div className="col-span-6">
-
-  </div>
-  <div className="col-span-12">
+                          
+                          <div className="col-span-8 grid gap-4">
+                            
+                              <div className="col-span-4">
   <MusicianProfileImageUpload
     // Convert the stored string → array for the component
     profileImage={
@@ -937,15 +771,69 @@ const allSavedMembers = Array.from(
     additionalKeywords={[member?.firstName, member?.instrument].filter(Boolean)}
   />
 
-    <InstrumentInput
+ 
+  </div>
+
+
+                            <div className="col-span-2">
+                              <FirstNameInput
+                                member={member}
+                                index={lineupIndex}
+                                memberIndex={memberIndex}
+                                updateBandMember={updateBandMember}
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <LastNameInput
+                                member={member}
+                                index={lineupIndex}
+                                memberIndex={memberIndex}
+                                updateBandMember={updateBandMember}
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <EmailInput
+                                member={member}
+                                index={lineupIndex}
+                                memberIndex={memberIndex}
+                                updateBandMember={updateBandMember}
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <MobileNumberInput
+                                member={member}
+                                index={lineupIndex}
+                                memberIndex={memberIndex}
+                                updateBandMember={updateBandMember}
+                              />
+                            </div>
+                             <div className="col-span-2">
+                              <CarRegistrationInput
+                                member={member}
+                                index={lineupIndex}
+                                memberIndex={memberIndex}
+                                updateBandMember={updateBandMember}
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <DietaryRequirementsInput
+                                member={member}
+                                index={lineupIndex}
+                                memberIndex={memberIndex}
+                                updateBandMember={updateBandMember}
+                              />
+                            </div>
+                            <div className="col-span-2">
+                               <InstrumentInput
       member={member}
       index={lineupIndex}
       memberIndex={memberIndex}
       updateBandMember={updateBandMember}
       MU_RATES={MU_RATES}
     />
-  </div>
-  <div className="col-span-3">
+    </div>
+                           
+                            <div className="col-span-1">
     <FeeInput
       member={member}
       index={lineupIndex}
@@ -954,7 +842,8 @@ const allSavedMembers = Array.from(
       MU_RATES={MU_RATES}
     />
   </div>
-  <div className="col-span-3 text-sm text-center justify-center">    <MURatesToggle
+  <div className="col-span-1 text-sm text-center justify-center">    
+    <MURatesToggle
       member={member}
       index={lineupIndex}
       memberIndex={memberIndex}
@@ -962,8 +851,6 @@ const allSavedMembers = Array.from(
     />
   </div>
 
-
-</div>
     <div className="col-span-4">
       {(member.additionalRoles && member.additionalRoles.length > 0
         ? member.additionalRoles
@@ -1021,8 +908,119 @@ const allSavedMembers = Array.from(
         </button>
       )}
     </div>
-                         
+                            <div className="col-span-2">
+                              <AccountNameInput
+                                member={member}
+                                index={lineupIndex}
+                                memberIndex={memberIndex}
+                                updateBandMember={updateBandMember}
+                        
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <SortCodeInput
+                                member={member}
+                                index={lineupIndex}
+                                memberIndex={memberIndex}
+                                updateBandMember={updateBandMember}
+                                sortCodeError={sortCodeError}
+                                setSortCodeError={setSortCodeError}
+                                validateSortCode={validateSortCode}
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <AccountNumberInput
+                                member={member}
+                                index={lineupIndex}
+                                memberIndex={memberIndex}
+                                updateBandMember={updateBandMember}
+                                accountError={accountError}
+                                setAccountError={setAccountError}
+                                validateAccountNumber={validateAccountNumber}
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <PostCodeInput
+                                member={member}
+                                index={lineupIndex}
+                                memberIndex={memberIndex}
+                                updateBandMember={updateBandMember}
+                                postCodeError={postCodeError}
+                                setPostCodeError={setPostCodeError}
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <WirelessCheckbox
+                                member={member}
+                                index={lineupIndex}
+                                memberIndex={memberIndex}
+                                updateBandMember={updateBandMember}
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <InPromoCheckbox
+                                member={member}
+                                index={lineupIndex}
+                                memberIndex={memberIndex}
+                                updateBandMember={updateBandMember}
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <SoloPACheckbox
+                                member={member}
+                                index={lineupIndex}
+                                memberIndex={memberIndex}
+                                updateBandMember={updateBandMember}
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <DuoPACheckbox
+                                member={member}
+                                index={lineupIndex}
+                                memberIndex={memberIndex}
+                                updateBandMember={updateBandMember}
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <CanDJCheckbox
+                                member={member}
+                                index={lineupIndex}
+                                memberIndex={memberIndex}
+                                updateBandMember={updateBandMember}
+                              />
+                            </div>
+                            {/* Conditional DJ gear checkboxes (only if canDJ is true) */}
+                            {member.canDJ && (
+                              <>
+                                <div className="col-span-2">
+                                  <HaveMixingConsoleCheckbox
+                                    member={member}
+                                    index={lineupIndex}
+                                    memberIndex={memberIndex}
+                                    updateBandMember={updateBandMember}
+                                  />
+                                </div>
+                                <div className="col-span-2">
+                                  <HasDjTableCheckbox
+                                    member={member}
+                                    index={lineupIndex}
+                                    memberIndex={memberIndex}
+                                    updateBandMember={updateBandMember}
+                                  />
+                                </div>
+                                <div className="col-span-2">
+                                  <HasDJBoothCheckbox
+                                    member={member}
+                                    index={lineupIndex}
+                                    memberIndex={memberIndex}
+                                    updateBandMember={updateBandMember}
+                                  />
+                                </div>
+                              </>
+                            )}
                           </div>
+
+                        
                           
                       <div className="col-span-8">
           <DeputiesInput

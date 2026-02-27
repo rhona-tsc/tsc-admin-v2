@@ -30,7 +30,6 @@ const AddAct2StepperForm = ({  initialData = null, mode = "add", userEmail, user
   const location = useLocation();
 const token = localStorage.getItem("token") || sessionStorage.getItem("token");
 // naive validation (backend validation comes later)
-const hasValidCode = Boolean(actInviteCode);
 
   const [step, setStep] = useState(0);
   const totalSteps = steps.length;
@@ -104,6 +103,7 @@ const codeFromQuery = new URLSearchParams(location.search).get("code");
 const codeFromState = location.state?.actInviteCode;
 const codeFromStorage = localStorage.getItem("actInviteCode");
 const actInviteCode = codeFromQuery || codeFromState || codeFromStorage || "";
+const hasValidCode = Boolean(actInviteCode);
 
   const userId =
   localStorage.getItem("userId") ||
@@ -151,6 +151,28 @@ const authHeaders = token
         return {
           ...member,
           carRegistration: carRegToSave,
+          specialDatePricing: (() => {
+            const prev = member?.specialDatePricing || {};
+            const prevNye = prev?.nye || {};
+
+            const rawOverride = prevNye?.overrideFee;
+            const overrideFee =
+              rawOverride === "" || rawOverride === null || rawOverride === undefined
+                ? null
+                : Number(rawOverride);
+
+            return {
+              ...prev,
+              nye: {
+                ...prevNye,
+                extraFee:
+                  prevNye?.extraFee === "" || prevNye?.extraFee === null || prevNye?.extraFee === undefined
+                    ? 0
+                    : Number(prevNye.extraFee) || 0,
+                overrideFee: Number.isFinite(overrideFee) ? overrideFee : null,
+              },
+            };
+          })(),
           additionalRoles: (member.additionalRoles || [])
             .filter((role) => role && typeof role === "object" && role.role)
             .map((role) => ({
@@ -199,6 +221,24 @@ const normalizeLineup = (lineup) => ({
         ...member,
         carRegistration: "HAS_CAR",
         carRegistrationValue: raw.toUpperCase(),
+        specialDatePricing: (() => {
+          const prev = member?.specialDatePricing || {};
+          const prevNye = prev?.nye || {};
+          const rawOverride = prevNye?.overrideFee;
+          const overrideFee =
+            rawOverride === "" || rawOverride === null || rawOverride === undefined
+              ? null
+              : Number(rawOverride);
+
+          return {
+            ...prev,
+            nye: {
+              ...prevNye,
+              extraFee: Number(prevNye?.extraFee || 0) || 0,
+              overrideFee: Number.isFinite(overrideFee) ? overrideFee : null,
+            },
+          };
+        })(),
         additionalRoles: (member.additionalRoles || [])
           .filter((role) => role && typeof role === "object" && role.role)
           .map((role) => ({
@@ -231,6 +271,24 @@ const normalizeLineup = (lineup) => ({
         member.carRegistration === "HAS_CAR"
           ? (member.carRegistrationValue || "").toUpperCase()
           : member.carRegistrationValue || "",
+      specialDatePricing: (() => {
+        const prev = member?.specialDatePricing || {};
+        const prevNye = prev?.nye || {};
+        const rawOverride = prevNye?.overrideFee;
+        const overrideFee =
+          rawOverride === "" || rawOverride === null || rawOverride === undefined
+            ? null
+            : Number(rawOverride);
+
+        return {
+          ...prev,
+          nye: {
+            ...prevNye,
+            extraFee: Number(prevNye?.extraFee || 0) || 0,
+            overrideFee: Number.isFinite(overrideFee) ? overrideFee : null,
+          },
+        };
+      })(),
       additionalRoles: (member.additionalRoles || [])
         .filter((role) => role && typeof role === "object" && role.role)
         .map((role) => ({
@@ -430,6 +488,28 @@ const sanitizeLineups = (lineups) => {
       return {
         ...member,
         carRegistration: carRegToSave,
+        specialDatePricing: (() => {
+          const prev = member?.specialDatePricing || {};
+          const prevNye = prev?.nye || {};
+
+          const rawOverride = prevNye?.overrideFee;
+          const overrideFee =
+            rawOverride === "" || rawOverride === null || rawOverride === undefined
+              ? null
+              : Number(rawOverride);
+
+          return {
+            ...prev,
+            nye: {
+              ...prevNye,
+              extraFee:
+                prevNye?.extraFee === "" || prevNye?.extraFee === null || prevNye?.extraFee === undefined
+                  ? 0
+                  : Number(prevNye.extraFee) || 0,
+              overrideFee: Number.isFinite(overrideFee) ? overrideFee : null,
+            },
+          };
+        })(),
         additionalRoles: (member.additionalRoles || [])
           .filter((role) => role && typeof role === "object" && role.role)
           .map((role) => ({
