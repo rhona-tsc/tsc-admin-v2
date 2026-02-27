@@ -121,6 +121,21 @@ const authHeaders = token
     }
   : {};
 
+
+  const coerceBool = (v) => {
+  if (Array.isArray(v)) return Boolean(v[0]);  // ✅ [true] -> true
+  if (v === "true") return true;
+  if (v === "false") return false;
+  if (v === null || v === undefined) return v;
+  return Boolean(v);
+};
+
+const coerceNumberOrNull = (v) => {
+  if (v === null || v === undefined || String(v).trim() === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
   const sanitizeMediaArray = (media) => {
     return (media || [])
       .map((item) => {
@@ -138,6 +153,19 @@ const authHeaders = token
   const sanitizeLineups = (lineups) => {
     return lineups.map(lineup => {
       const newLineup = { ...lineup };
+      // ✅ Coerce lineup booleans that sometimes arrive as `[true]`
+newLineup.coverOverhead = coerceBool(newLineup.coverOverhead) ?? newLineup.coverOverhead;
+newLineup.dryAndLevel = coerceBool(newLineup.dryAndLevel) ?? newLineup.dryAndLevel;
+newLineup.changingRoom = coerceBool(newLineup.changingRoom) ?? newLineup.changingRoom;
+
+newLineup.hasDrums = coerceBool(newLineup.hasDrums) ?? newLineup.hasDrums;
+newLineup.iems = coerceBool(newLineup.iems) ?? newLineup.iems;
+newLineup.ampless = coerceBool(newLineup.ampless) ?? newLineup.ampless;
+newLineup.withoutDrums = coerceBool(newLineup.withoutDrums) ?? newLineup.withoutDrums;
+newLineup.acoustic = coerceBool(newLineup.acoustic) ?? newLineup.acoustic;
+newLineup.anotherVocalist = coerceBool(newLineup.anotherVocalist) ?? newLineup.anotherVocalist;
+newLineup.eDrums = coerceBool(newLineup.eDrums) ?? newLineup.eDrums;
+newLineup.roamingPercussion = coerceBool(newLineup.roamingPercussion) ?? newLineup.roamingPercussion;
       if (newLineup.ceremonySets instanceof Map) {
         newLineup.ceremonySets = Object.fromEntries(newLineup.ceremonySets);
       }
@@ -151,28 +179,20 @@ const authHeaders = token
         return {
           ...member,
           carRegistration: carRegToSave,
-          specialDatePricing: (() => {
-            const prev = member?.specialDatePricing || {};
-            const prevNye = prev?.nye || {};
+         specialDatePricing: (() => {
+  const prev = member?.specialDatePricing || {};
+  const prevNye = prev?.nye || {};
 
-            const rawOverride = prevNye?.overrideFee;
-            const overrideFee =
-              rawOverride === "" || rawOverride === null || rawOverride === undefined
-                ? null
-                : Number(rawOverride);
+  const extraFeeNum = Number(prevNye?.extraFee);
+  const extraFee = Number.isFinite(extraFeeNum) ? extraFeeNum : 0;
 
-            return {
-              ...prev,
-              nye: {
-                ...prevNye,
-                extraFee:
-                  prevNye?.extraFee === "" || prevNye?.extraFee === null || prevNye?.extraFee === undefined
-                    ? 0
-                    : Number(prevNye.extraFee) || 0,
-                overrideFee: Number.isFinite(overrideFee) ? overrideFee : null,
-              },
-            };
-          })(),
+  const overrideFee = coerceNumberOrNull(prevNye?.overrideFee);
+
+  return {
+    ...prev,
+    nye: { ...prevNye, extraFee, overrideFee },
+  };
+})(),
           additionalRoles: (member.additionalRoles || [])
             .filter((role) => role && typeof role === "object" && role.role)
             .map((role) => ({
@@ -198,6 +218,18 @@ const authHeaders = token
   // Utility to normalize each lineup's ceremonySets and acousticPerformanceOptions
 const normalizeLineup = (lineup) => ({
   ...lineup,
+  coverOverhead: coerceBool(lineup.coverOverhead) ?? lineup.coverOverhead,
+dryAndLevel: coerceBool(lineup.dryAndLevel) ?? lineup.dryAndLevel,
+changingRoom: coerceBool(lineup.changingRoom) ?? lineup.changingRoom,
+
+hasDrums: coerceBool(lineup.hasDrums) ?? lineup.hasDrums,
+iems: coerceBool(lineup.iems) ?? lineup.iems,
+ampless: coerceBool(lineup.ampless) ?? lineup.ampless,
+withoutDrums: coerceBool(lineup.withoutDrums) ?? lineup.withoutDrums,
+acoustic: coerceBool(lineup.acoustic) ?? lineup.acoustic,
+anotherVocalist: coerceBool(lineup.anotherVocalist) ?? lineup.anotherVocalist,
+eDrums: coerceBool(lineup.eDrums) ?? lineup.eDrums,
+roamingPercussion: coerceBool(lineup.roamingPercussion) ?? lineup.roamingPercussion,
   ceremonySets:
     lineup.ceremonySets && !(lineup.ceremonySets instanceof Map)
       ? new Map(
@@ -453,6 +485,19 @@ setProfileImage(Array.isArray(data.profileImage) ? data.profileImage : []);
 const sanitizeLineups = (lineups) => {
   return lineups.map((lineup) => ({
     ...lineup,
+    // ✅ Coerce lineup booleans that sometimes arrive as `[true]`
+coverOverhead: coerceBool(lineup.coverOverhead) ?? lineup.coverOverhead,
+dryAndLevel: coerceBool(lineup.dryAndLevel) ?? lineup.dryAndLevel,
+changingRoom: coerceBool(lineup.changingRoom) ?? lineup.changingRoom,
+
+hasDrums: coerceBool(lineup.hasDrums) ?? lineup.hasDrums,
+iems: coerceBool(lineup.iems) ?? lineup.iems,
+ampless: coerceBool(lineup.ampless) ?? lineup.ampless,
+withoutDrums: coerceBool(lineup.withoutDrums) ?? lineup.withoutDrums,
+acoustic: coerceBool(lineup.acoustic) ?? lineup.acoustic,
+anotherVocalist: coerceBool(lineup.anotherVocalist) ?? lineup.anotherVocalist,
+eDrums: coerceBool(lineup.eDrums) ?? lineup.eDrums,
+roamingPercussion: coerceBool(lineup.roamingPercussion) ?? lineup.roamingPercussion,
     acousticPerformanceOptions: lineup.acousticPerformanceOptions || {
       solo: {
         fullyAcoustic: [],
@@ -488,28 +533,20 @@ const sanitizeLineups = (lineups) => {
       return {
         ...member,
         carRegistration: carRegToSave,
-        specialDatePricing: (() => {
-          const prev = member?.specialDatePricing || {};
-          const prevNye = prev?.nye || {};
+      specialDatePricing: (() => {
+  const prev = member?.specialDatePricing || {};
+  const prevNye = prev?.nye || {};
 
-          const rawOverride = prevNye?.overrideFee;
-          const overrideFee =
-            rawOverride === "" || rawOverride === null || rawOverride === undefined
-              ? null
-              : Number(rawOverride);
+  const extraFeeNum = Number(prevNye?.extraFee);
+  const extraFee = Number.isFinite(extraFeeNum) ? extraFeeNum : 0;
 
-          return {
-            ...prev,
-            nye: {
-              ...prevNye,
-              extraFee:
-                prevNye?.extraFee === "" || prevNye?.extraFee === null || prevNye?.extraFee === undefined
-                  ? 0
-                  : Number(prevNye.extraFee) || 0,
-              overrideFee: Number.isFinite(overrideFee) ? overrideFee : null,
-            },
-          };
-        })(),
+  const overrideFee = coerceNumberOrNull(prevNye?.overrideFee);
+
+  return {
+    ...prev,
+    nye: { ...prevNye, extraFee, overrideFee },
+  };
+})(),
         additionalRoles: (member.additionalRoles || [])
           .filter((role) => role && typeof role === "object" && role.role)
           .map((role) => ({
