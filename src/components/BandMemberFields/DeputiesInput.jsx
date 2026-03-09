@@ -208,6 +208,17 @@ const dlog = (...a) => DEBUG && console.log("%c[DeputiesInput]", "color:#0ea5e9"
 const getDeputyId = (d) =>
   String(d?.id || d?._id || d?.musicianId || d?.musician_id || "").trim();
 
+const getDeputyProfilePath = (d) => {
+  const slug = String(d?.musicianSlug || "").trim();
+  if (slug) return `/musician/${slug}`;
+
+  const canonicalPath = String(d?.canonicalPath || "").trim();
+  if (canonicalPath) return canonicalPath;
+
+  const id = getDeputyId(d);
+  return id ? `/musician/${id}` : "";
+};
+
 // Suggested = has a DB id AND is not a manual (clientKey) row
 const isSuggestedDeputy = (d) => Boolean(getDeputyId(d)) && !d?.clientKey;
 
@@ -757,6 +768,8 @@ const addDeputy = (m) => {
     {
       id: newId,
       _id: newId,
+      musicianSlug: String(m?.musicianSlug || "").trim(),
+      canonicalPath: String(m?.canonicalPath || "").trim(),
       firstName: m?.firstName || "",
       lastName: m?.lastName || "",
       email: String(m?.email || "").trim(),
@@ -889,7 +902,7 @@ const addDeputy = (m) => {
                   {m.firstName} {(m.lastName || "").charAt(0)}
                 </p>
                  <a
-    href={`${publicSiteBase}/musician/${mid}`}
+                  href={`${publicSiteBase}${getDeputyProfilePath(m)}`}
                   className="text-[10px] text-blue-600 underline block mt-1"
                   target="_blank"
                   rel="noreferrer"
