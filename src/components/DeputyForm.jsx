@@ -965,7 +965,7 @@ localStorage.removeItem("deputyAutosave");
         </div>
       )}
 
-      <div className="bg-white shadow p-6 rounded w-full max-w-4xl mx-auto">
+      <div className="bg-white shadow p-6 pb-28 rounded w-full max-w-4xl mx-auto">
         <div className="text-sm text-gray-600 font-semibold mb-2 text-center">
           Step {step} of {totalSteps}
         </div>
@@ -976,10 +976,10 @@ localStorage.removeItem("deputyAutosave");
 
         {renderStep()}
 
-        <div className="flex flex-col min-h-[300px] justify-between mt-6">
+        <div className="sticky bottom-0 left-0 right-0 mt-6 -mx-6 px-6 py-4 border-t bg-white/95 backdrop-blur z-30">
           {step < totalSteps ? (
             // Steps 1–5: show Back/Next
-            <div className="flex justify-between mt-6">
+            <div className="flex justify-between gap-4">
               {step > 1 ? (
                 <button className="px-4 py-2 bg-black hover:bg-[#ff6667] text-white max-h-10" onClick={handleBack}>
                   Back
@@ -994,13 +994,13 @@ localStorage.removeItem("deputyAutosave");
             </div>
           ) : isModerationMode ? (
             // Step 6 (final): Moderation actions
-            <div className="flex justify-between mt-6">
+            <div className="flex justify-between gap-4">
               <button className="px-4 py-2 bg-black hover:bg-[#ff6667] text-white max-h-10" onClick={handleBack}>
                 Back
               </button>
 
               <div className="flex gap-2">
-                <button className="px-4 py-2 border border-gray-400 rounded max-h-10" onClick={handleSaveAndExitModeration}>
+                <button className="px-4 py-2 border border-gray-400 rounded max-h-10 bg-white" onClick={handleSaveAndExitModeration}>
                   Save &amp; Exit
                 </button>
                 <button className="px-4 py-2 bg-green-600 text-white rounded max-h-10" onClick={handleApproveDeputy}>
@@ -1010,7 +1010,7 @@ localStorage.removeItem("deputyAutosave");
             </div>
           ) : (
             // Step 6 (final): Submit
-            <div className="flex justify-between mt-6">
+            <div className="flex justify-between gap-4">
               <button className="px-4 py-2 bg-black hover:bg-[#ff6667] text-white max-h-10" onClick={handleBack}>
                 Back
               </button>

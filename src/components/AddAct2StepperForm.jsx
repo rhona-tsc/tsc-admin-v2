@@ -907,7 +907,7 @@ const handleSubmit = async () => {
   );
 
   return (
-    <div className="p-8">
+    <div className="p-8 pb-28">
       <h1 className="text-2xl font-bold mb-4">{modeToUse === "edit" ? "Edit Act" : "Add New Act"}</h1>
 
       {/* Step Indicator */}
@@ -1103,20 +1103,22 @@ const handleSubmit = async () => {
       </div>
 
       {/* Navigation Buttons */}
-      <div className="flex justify-between mt-6">
-        <button
-          disabled={step === 0}
-          onClick={goBack}
-          className="px-4 py-2 border border-gray-400 rounded disabled:opacity-50"
-        >
-          Back
-        </button>
-        <button
-          onClick={step === totalSteps - 1 ? handleSubmit : goNext}
-          className="px-4 py-2 bg-black text-white rounded hover:bg-[#ff6667] hover:text-black"
-        >
-          {step === totalSteps - 1 ? "Submit" : "Next"}
-        </button>
+      <div className="sticky bottom-0 left-0 right-0 mt-6 -mx-8 px-8 py-4 border-t bg-white/95 backdrop-blur z-30">
+        <div className="flex justify-between gap-4">
+          <button
+            disabled={step === 0}
+            onClick={goBack}
+            className="px-4 py-2 border border-gray-400 rounded disabled:opacity-50 bg-white"
+          >
+            Back
+          </button>
+          <button
+            onClick={step === totalSteps - 1 ? handleSubmit : goNext}
+            className="px-4 py-2 bg-black text-white rounded hover:bg-[#ff6667] hover:text-black"
+          >
+            {step === totalSteps - 1 ? "Submit" : "Next"}
+          </button>
+        </div>
       </div>
     </div>
   );
