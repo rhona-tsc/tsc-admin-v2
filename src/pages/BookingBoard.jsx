@@ -642,8 +642,7 @@ const summariseBookingDetails = (bd = {}, row) => {
               const depositFromBackend = getDisplayDeposit(r);
               const deposit = depositFromBackend != null ? depositFromBackend : calcDeposit(gross);
               const balance = gross ? Math.max(0, Math.round(gross - (deposit || 0))) : null;
-              const fallbackEventSheetUrl = `${EVENT_SHEET_FALLBACK}?ref=${encodeURIComponent(bookingRef || "")}`;
-              const contractUrl = r?.contractUrl || r?.pdfUrl || (r?.contract && (r.contract.url || r.contract.href)) || "";
+const fallbackEventSheetUrl = `${PUBLIC_SITE_BASE}/event-sheet/${encodeURIComponent(bookingRef || "")}`;              const contractUrl = r?.contractUrl || r?.pdfUrl || (r?.contract && (r.contract.url || r.contract.href)) || "";
               const normalizedContractUrl = normalizeUrl(contractUrl);
               const actName = getDisplayActName(r);
               const actTsc = getDisplayActTscName(r);
