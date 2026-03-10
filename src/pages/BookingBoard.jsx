@@ -1,5 +1,5 @@
   // admin/src/pages/BookingBoard.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 const API_BASE = (
   import.meta?.env?.VITE_ADMIN_API_BASE ||
@@ -183,6 +183,69 @@ const getDisplayClientEmails = (row) => {
   if (Array.isArray(row?.clientEmails) && row.clientEmails.length) return row.clientEmails;
   const email = getPrimaryEmail(row);
   return email ? [{ email }] : [];
+};
+
+const hasContractLink = (row) => {
+  const contractUrl = row?.contractUrl || row?.pdfUrl || (row?.contract && (row.contract.url || row.contract.href)) || "";
+  return Boolean(normalizeUrl(contractUrl));
+};
+
+const getPrimaryActKey = (row) => {
+  return String(getDisplayActTscName(row) || getDisplayActName(row) || "").trim().toLowerCase();
+};
+
+const getMergeKey = (row) => {
+  const bookingRef = String(getDisplayBookingRef(row) || "").trim().toLowerCase();
+  if (bookingRef) return `ref:${bookingRef}`;
+
+  const email = String(getPrimaryEmail(row) || "").trim().toLowerCase();
+  const eventDate = String(getDisplayEventDate(row) || "").slice(0, 10);
+  const actKey = getPrimaryActKey(row);
+  const names = String(getClientFirstNames(row) || "").trim().toLowerCase();
+
+  return `fallback:${email}|${eventDate}|${actKey}|${names}`;
+};
+
+const chooseBetterRow = (current, incoming) => {
+  if (!current) return incoming;
+  if (!incoming) return current;
+
+  const currentHasContract = hasContractLink(current);
+  const incomingHasContract = hasContractLink(incoming);
+
+  if (incomingHasContract && !currentHasContract) return { ...current, ...incoming };
+  if (currentHasContract && !incomingHasContract) return { ...incoming, ...current };
+
+  const currentScore = [
+    currentHasContract,
+    Boolean(getDisplayGross(current)),
+    Boolean(getDisplayDeposit(current)),
+    Boolean(getDisplayActName(current) || getDisplayActTscName(current)),
+    Boolean(getDisplayAddress(current)),
+    Boolean(getPrimaryEmail(current)),
+    Boolean(current?.eventType),
+    Boolean(current?.lineupSelected || current?.actsSummary?.[0]?.lineupLabel),
+  ].filter(Boolean).length;
+
+  const incomingScore = [
+    incomingHasContract,
+    Boolean(getDisplayGross(incoming)),
+    Boolean(getDisplayDeposit(incoming)),
+    Boolean(getDisplayActName(incoming) || getDisplayActTscName(incoming)),
+    Boolean(getDisplayAddress(incoming)),
+    Boolean(getPrimaryEmail(incoming)),
+    Boolean(incoming?.eventType),
+    Boolean(incoming?.lineupSelected || incoming?.actsSummary?.[0]?.lineupLabel),
+  ].filter(Boolean).length;
+
+  if (incomingScore > currentScore) return { ...current, ...incoming };
+  if (currentScore > incomingScore) return { ...incoming, ...current };
+
+  const currentUpdated = new Date(current?.updatedAt || current?.createdAt || 0).getTime() || 0;
+  const incomingUpdated = new Date(incoming?.updatedAt || incoming?.createdAt || 0).getTime() || 0;
+
+  if (incomingUpdated >= currentUpdated) return { ...current, ...incoming };
+  return { ...incoming, ...current };
 };
 
 const isInternalTestBooking = (row) => {
@@ -419,6 +482,18 @@ const [newRow, setNewRow] = useState({
   useEffect(() => { fetchRows(); /* eslint-disable-next-line */ }, []);
   useEffect(() => { fetchRows(); /* when sort changes */ }, [sortBy, sortDir]);
 
+  const mergedRows = useMemo(() => {
+  const map = new Map();
+
+  for (const row of rows) {
+    const key = getMergeKey(row);
+    const existing = map.get(key);
+    map.set(key, chooseBetterRow(existing, row));
+  }
+
+  return [...map.values()];
+}, [rows]);
+
   const onInlineEdit = async (id, patch) => {
     const url = `${API_BASE}/board/bookings/${id}`;
     try {
@@ -632,9 +707,9 @@ const summariseBookingDetails = (bd = {}, row) => {
           </thead>
 
           <tbody>
-            {rows
-              .filter((r) => (hideInternalTests ? !isInternalTestBooking(r) : true))
-              .map((r) => {
+           {mergedRows
+  .filter((r) => (hideInternalTests ? !isInternalTestBooking(r) : true))
+  .map((r) => {
               const clientFirstNames = getClientFirstNames(r);
               const bookingRef = getDisplayBookingRef(r);
               const eventDate = getDisplayEventDate(r);
@@ -955,8 +1030,7 @@ const fallbackEventSheetUrl = `${PUBLIC_SITE_BASE}/event-sheet/${encodeURICompon
   </td>
 </tr>
 
-            {rows.filter((r) => (hideInternalTests ? !isInternalTestBooking(r) : true)).length === 0 && (
-              <tr>
+{mergedRows.filter((r) => (hideInternalTests ? !isInternalTestBooking(r) : true)).length === 0 && (              <tr>
                 <td className="px-3 py-6 text-center text-gray-500" colSpan={26}>
                   No rows yet.
                   <div className="text-xs mt-2">
