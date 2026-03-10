@@ -28,9 +28,28 @@ const getPrimaryEmail = (row) => {
 
 const getClientFirstNames = (row) => {
   if (row?.clientFirstNames) return row.clientFirstNames;
-  if (row?.userAddress?.firstName) return row.userAddress.firstName;
-  const clientNames = row?.eventSheet?.complete?.client_names || "";
-  if (clientNames) return String(clientNames).split(/\s*&\s*|\s+and\s+/i)[0]?.trim() || clientNames;
+
+  const first = row?.userAddress?.firstName || "";
+  const last = row?.userAddress?.lastName || "";
+  const fullName = [first, last].filter(Boolean).join(" ").trim();
+  if (fullName) return fullName;
+
+  const clientNames =
+    row?.eventSheet?.complete?.client_names ||
+    row?.eventSheet?.answers?.client_names ||
+    "";
+  if (clientNames) return String(clientNames).trim();
+
+  const p1 = [row?.eventSheet?.answers?.partner1_first, row?.eventSheet?.answers?.partner1_last]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  const p2 = [row?.eventSheet?.answers?.partner2_first, row?.eventSheet?.answers?.partner2_last]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  if (p1 || p2) return [p1, p2].filter(Boolean).join(" & ");
+
   return row?.bookerName || "—";
 };
 
@@ -43,7 +62,15 @@ const getDisplayEventDate = (row) => {
 };
 
 const getDisplayGross = (row) => {
-  return Number(row?.grossValue || row?.totals?.fullAmount || row?.fee || 0);
+  return Number(
+    row?.grossValue ||
+    row?.totals?.fullAmount ||
+    row?.quote?.total ||
+    row?.pricing?.total ||
+    row?.amount ||
+    row?.fee ||
+    0
+  );
 };
 
 const getDisplayDeposit = (row) => {
@@ -51,6 +78,8 @@ const getDisplayDeposit = (row) => {
     row?.payments?.depositChargedAmount ??
     row?.payments?.depositAmount ??
     row?.totals?.depositAmount ??
+    row?.quote?.deposit ??
+    row?.pricing?.deposit ??
     row?.depositAmount ??
     0
   );
@@ -78,19 +107,53 @@ const getDisplayFinishTime = (row) => {
 };
 
 const getDisplayActName = (row) => {
-  return row?.actName || row?.actsSummary?.[0]?.actName || row?.act?.name || "";
+  return (
+    row?.actName ||
+    row?.actsSummary?.[0]?.actName ||
+    row?.actsSummary?.[0]?.name ||
+    row?.act?.name ||
+    row?.selectedAct?.name ||
+    ""
+  );
 };
 
 const getDisplayActTscName = (row) => {
-  return row?.actTscName || row?.tscName || row?.actsSummary?.[0]?.name || row?.act?.tscName || row?.act?.name || "";
+  return (
+    row?.actTscName ||
+    row?.tscName ||
+    row?.actsSummary?.[0]?.tscName ||
+    row?.actsSummary?.[0]?.name ||
+    row?.act?.tscName ||
+    row?.act?.name ||
+    row?.selectedAct?.tscName ||
+    row?.selectedAct?.name ||
+    ""
+  );
 };
 
 const getDisplayAddress = (row) => {
-  return row?.address || row?.venueAddress || row?.venue || row?.userAddress?.street || "";
+  if (row?.address) return row.address;
+  if (row?.venueAddress) return row.venueAddress;
+  if (row?.venue) return row.venue;
+
+  const addr = row?.userAddress || {};
+  const joined = [
+    addr?.address1,
+    addr?.address2,
+    addr?.city,
+    addr?.county,
+    addr?.postcode,
+  ]
+    .filter(Boolean)
+    .join(", ")
+    .trim();
+
+  if (joined) return joined;
+  return addr?.street || "";
 };
 
 const getDisplayCounty = (row) => {
-  return row?.county || row?.userAddress?.county || "";
+  return row?.county || row?.userAddress?.county || row?.eventSheet?.answers?.venue_county || "";
 };
 
 const getDisplayClientEmails = (row) => {
@@ -103,8 +166,17 @@ const isInternalTestBooking = (row) => {
   const email = getPrimaryEmail(row).toLowerCase();
   const actName = getDisplayActName(row).toLowerCase();
   const actTscName = getDisplayActTscName(row).toLowerCase();
+  const bookingRef = String(getDisplayBookingRef(row) || "").toLowerCase();
+  const clientName = String(getClientFirstNames(row) || "").toLowerCase();
+  const bookerName = String(row?.bookerName || "").toLowerCase();
+
   return (
     email.endsWith("@thesupremecollective.co.uk") ||
+    email.includes("rhona") ||
+    email.includes("downie") ||
+    bookingRef.includes("downie") ||
+    clientName.includes("downie") ||
+    bookerName.includes("downie") ||
     actName.startsWith("test ") ||
     actTscName.startsWith("test ")
   );
@@ -351,29 +423,51 @@ const [newRow, setNewRow] = useState({
     return n > 0 ? n : null;
   };
 
-  const extractBandSize = (row) => {
-    if (Number(row?.bandSize)) return Number(row.bandSize);
-    const s = String(row?.lineupSelected || "");
-    const m = s.match(/(\d+)\s*[- ]?\s*piece/i);
-    return m ? Number(m[1]) : 0;
-  };
+const extractBandSize = (row) => {
+  if (Number(row?.bandSize)) return Number(row.bandSize);
+  if (Number(row?.actsSummary?.[0]?.bandSize)) return Number(row.actsSummary[0].bandSize);
 
-  const summariseBookingDetails = (bd = {}, row) => {
-    const bits = [];
-    if (bd?.ceremony?.start || bd?.ceremony?.end)
-      bits.push(`Ceremony ${bd.ceremony.start || "?"}–${bd.ceremony.end || "?"}`);
-    if (bd?.afternoon?.start || bd?.afternoon?.end)
-      bits.push(`Afternoon ${bd.afternoon.start || "?"}–${bd.afternoon.end || "?"}`);
-    if (Array.isArray(bd?.evening?.sets) && bd.evening.sets.length) {
-      bits.push(`Evening ${bd.evening.sets.map(s => `${s.start || "?"}–${s.end || "?"}`).join(", ")}`);
-    }
-    if (bd?.djServicesBooked) bits.push("DJ booked");
+  const lineupLabel = String(
+    row?.lineupSelected ||
+    row?.actsSummary?.[0]?.lineupLabel ||
+    row?.actsSummary?.[0]?.lineup?.actSize ||
+    ""
+  );
 
-    const firstSec = summariseEventSheetFirstSection(row);
-    if (firstSec) bits.unshift(firstSec); // put names at the front
+  const m = lineupLabel.match(/(\d+)\s*[- ]?\s*piece/i);
+  return m ? Number(m[1]) : 0;
+};
 
-    return bits.join(" • ");
-  };
+const summariseBookingDetails = (bd = {}, row) => {
+  const bits = [];
+
+  if (bd?.ceremony?.start || bd?.ceremony?.end) {
+    bits.push(`Ceremony ${bd.ceremony.start || "?"}–${bd.ceremony.end || "?"}`);
+  }
+
+  if (bd?.afternoon?.start || bd?.afternoon?.end) {
+    bits.push(`Afternoon ${bd.afternoon.start || "?"}–${bd.afternoon.end || "?"}`);
+  }
+
+  if (Array.isArray(bd?.evening?.sets) && bd.evening.sets.length) {
+    bits.push(`Evening ${bd.evening.sets.map(s => `${s.start || "?"}–${s.end || "?"}`).join(", ")}`);
+  }
+
+  if (bd?.djServicesBooked) bits.push("DJ booked");
+
+  const perf = row?.performanceTimes || row?.actsSummary?.[0]?.performance || {};
+  if (perf?.startTime || perf?.finishTime) {
+    bits.push(`Performance ${perf.startTime || "?"}–${perf.finishTime || "?"}`);
+  }
+
+  const venueName = row?.eventSheet?.answers?.venue_name || row?.venue || "";
+  if (venueName) bits.push(venueName);
+
+  const firstSec = summariseEventSheetFirstSection(row);
+  if (firstSec) bits.unshift(firstSec);
+
+  return bits.join(" • ");
+};
 
   const postManualRow = async () => {
     try {
@@ -533,6 +627,7 @@ const [newRow, setNewRow] = useState({
               const address = getDisplayAddress(r);
               const county = getDisplayCounty(r);
               const arrivalTime = getDisplayArrivalTime(r);
+              const finishTime = getDisplayFinishTime(r);
               const clientEmails = getDisplayClientEmails(r);
               const balancePaid = Boolean(r?.payments?.balancePaymentReceived ?? r?.balancePaid);
               const bandPaid = Boolean(r?.payments?.bandPaymentsSent ?? r?.bandPaymentsSent);
@@ -584,7 +679,7 @@ const [newRow, setNewRow] = useState({
                   <td className="px-3 py-2">{county || "—"}</td>
                   <td className="px-3 py-2">{extractBandSize(r)}</td>
                   <td className="px-3 py-2">{buildFullLineup(r) || "—"}</td>
-                  <td className="px-3 py-2">{arrivalTime || "—"}</td>
+                  <td className="px-3 py-2">{arrivalTime || finishTime ? [arrivalTime, finishTime].filter(Boolean).join("–") : "—"}</td>
                   <td className="px-3 py-2">
                     <div className="text-xs leading-5">{summariseBookingDetails(r.bookingDetails, r)}</div>
                   </td>
