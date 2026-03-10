@@ -10,6 +10,9 @@ const API_BASE = (
 // Where to send someone if there’s no eventSheetLink on the row
 const PUBLIC_SITE_BASE = (import.meta?.env?.VITE_PUBLIC_SITE_URL || "http://localhost:5174").replace(/\/$/, "");
 const EVENT_SHEET_FALLBACK = `${PUBLIC_SITE_BASE}/event-sheet`;
+const ACT_TSC_NAME_OVERRIDES = {
+  "motown magic": "Dance Floor Magic",
+};
 
 const getAuthToken = () =>
   localStorage.getItem("token") ||
@@ -20,6 +23,7 @@ const getAuthToken = () =>
 const getPrimaryEmail = (row) => {
   return (
     row?.clientEmails?.find?.((e) => e?.email)?.email ||
+    row?.clientEmail ||
     row?.userAddress?.email ||
     row?.userEmail ||
     ""
@@ -54,11 +58,11 @@ const getClientFirstNames = (row) => {
 };
 
 const getDisplayBookingRef = (row) => {
-  return row?.bookingRef || row?.reference || row?._id || "—";
+  return row?.bookingRef || row?.bookingId || row?.reference || row?._id || "—";
 };
 
 const getDisplayEventDate = (row) => {
-  return row?.eventDateISO || row?.date || row?.eventDate || "";
+  return row?.eventDateISO || row?.date || row?.eventDate || row?.bookingDate || "";
 };
 
 const getDisplayGross = (row) => {
@@ -118,28 +122,32 @@ const getDisplayActName = (row) => {
 };
 
 const getDisplayActTscName = (row) => {
-  return (
+  const raw = (
     row?.actTscName ||
     row?.tscName ||
     row?.actsSummary?.[0]?.tscName ||
-    row?.actsSummary?.[0]?.name ||
     row?.act?.tscName ||
-    row?.act?.name ||
     row?.selectedAct?.tscName ||
+    row?.actsSummary?.[0]?.name ||
+    row?.act?.name ||
     row?.selectedAct?.name ||
     ""
   );
+
+  const override = ACT_TSC_NAME_OVERRIDES[String(raw || "").trim().toLowerCase()];
+  return override || raw;
 };
 
 const getDisplayAddress = (row) => {
-  if (row?.address) return row.address;
   if (row?.venueAddress) return row.venueAddress;
   if (row?.venue) return row.venue;
+  if (row?.address) return row.address;
 
   const addr = row?.userAddress || {};
   const joined = [
     addr?.address1,
     addr?.address2,
+    addr?.street,
     addr?.city,
     addr?.county,
     addr?.postcode,
@@ -148,12 +156,27 @@ const getDisplayAddress = (row) => {
     .join(", ")
     .trim();
 
-  if (joined) return joined;
-  return addr?.street || "";
+  return joined || "";
 };
 
 const getDisplayCounty = (row) => {
-  return row?.county || row?.userAddress?.county || row?.eventSheet?.answers?.venue_county || "";
+  if (row?.county) return row.county;
+  if (row?.userAddress?.county) return row.userAddress.county;
+  if (row?.eventSheet?.answers?.venue_county) return row.eventSheet.answers.venue_county;
+
+  const source = row?.venueAddress || row?.venue || row?.address || "";
+  const bits = String(source)
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .filter((s) => !/^uk$/i.test(s) && !/^united kingdom$/i.test(s));
+
+  if (bits.length >= 2) {
+    const guess = bits[bits.length - 2];
+    if (guess && !/^[A-Z]{1,2}\d/i.test(guess)) return guess;
+  }
+
+  return "";
 };
 
 const getDisplayClientEmails = (row) => {
@@ -600,7 +623,7 @@ const summariseBookingDetails = (bd = {}, row) => {
             <tr>
               {[
                 "First names","Ref","Event Sheet","Contract","Enquiry Date","Booking Date","Event Date","Gross","Deposit","Balance",
-                "Agent","Client Emails","Event Type","Act","Act tscName","Address","County","Band Size","Lineup","Arrival","Booking details","DJ",
+                "Agent","Client Emails","Event Type","Act","Act tscName","Address","County","Band Size","Lineup","Booking times","Booking details","DJ",
                 "Allocated","Review","Balance Paid","Band Paid"
               ].map((h) => (
                 <th key={h} className="px-3 py-2 border-b">{h}</th>
@@ -629,6 +652,7 @@ const summariseBookingDetails = (bd = {}, row) => {
               const arrivalTime = getDisplayArrivalTime(r);
               const finishTime = getDisplayFinishTime(r);
               const clientEmails = getDisplayClientEmails(r);
+              const performanceTimes = r?.performanceTimes || r?.actsSummary?.[0]?.performance || {};
               const balancePaid = Boolean(r?.payments?.balancePaymentReceived ?? r?.balancePaid);
               const bandPaid = Boolean(r?.payments?.bandPaymentsSent ?? r?.bandPaymentsSent);
 
@@ -642,8 +666,16 @@ const summariseBookingDetails = (bd = {}, row) => {
                     {r.eventSheetLink ? (
                       <a className="text-blue-600 underline" href={r.eventSheetLink} target="_blank" rel="noreferrer">Open</a>
                     ) : (
-                      <button className="px-2 py-1 border rounded hover:bg-gray-100"
-                              onClick={() => window.open(fallbackEventSheetUrl, "_blank", "noopener,noreferrer")}>
+                      <button
+                        className="px-2 py-1 border rounded hover:bg-gray-100"
+                        onClick={() => {
+                          if (!PUBLIC_SITE_BASE || PUBLIC_SITE_BASE.includes("localhost:5174")) {
+                            window.alert("Event sheet fallback URL is not configured yet. Please set VITE_PUBLIC_SITE_URL to the live public site URL.");
+                            return;
+                          }
+                          window.open(fallbackEventSheetUrl, "_blank", "noopener,noreferrer");
+                        }}
+                      >
                         Open
                       </button>
                     )}
@@ -679,7 +711,13 @@ const summariseBookingDetails = (bd = {}, row) => {
                   <td className="px-3 py-2">{county || "—"}</td>
                   <td className="px-3 py-2">{extractBandSize(r)}</td>
                   <td className="px-3 py-2">{buildFullLineup(r) || "—"}</td>
-                  <td className="px-3 py-2">{arrivalTime || finishTime ? [arrivalTime, finishTime].filter(Boolean).join("–") : "—"}</td>
+                  <td className="px-3 py-2">
+                    {performanceTimes?.startTime || performanceTimes?.finishTime
+                      ? [performanceTimes.startTime, performanceTimes.finishTime].filter(Boolean).join("–")
+                      : arrivalTime || finishTime
+                        ? [arrivalTime, finishTime].filter(Boolean).join("–")
+                        : "—"}
+                  </td>
                   <td className="px-3 py-2">
                     <div className="text-xs leading-5">{summariseBookingDetails(r.bookingDetails, r)}</div>
                   </td>
