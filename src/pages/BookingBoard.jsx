@@ -17,6 +17,99 @@ const getAuthToken = () =>
   sessionStorage.getItem("token") ||
   "";
 
+const getPrimaryEmail = (row) => {
+  return (
+    row?.clientEmails?.find?.((e) => e?.email)?.email ||
+    row?.userAddress?.email ||
+    row?.userEmail ||
+    ""
+  );
+};
+
+const getClientFirstNames = (row) => {
+  if (row?.clientFirstNames) return row.clientFirstNames;
+  if (row?.userAddress?.firstName) return row.userAddress.firstName;
+  const clientNames = row?.eventSheet?.complete?.client_names || "";
+  if (clientNames) return String(clientNames).split(/\s*&\s*|\s+and\s+/i)[0]?.trim() || clientNames;
+  return row?.bookerName || "—";
+};
+
+const getDisplayBookingRef = (row) => {
+  return row?.bookingRef || row?.reference || row?._id || "—";
+};
+
+const getDisplayEventDate = (row) => {
+  return row?.eventDateISO || row?.date || row?.eventDate || "";
+};
+
+const getDisplayGross = (row) => {
+  return Number(row?.grossValue || row?.totals?.fullAmount || row?.fee || 0);
+};
+
+const getDisplayDeposit = (row) => {
+  const backendDeposit = Number(
+    row?.payments?.depositChargedAmount ??
+    row?.payments?.depositAmount ??
+    row?.totals?.depositAmount ??
+    row?.depositAmount ??
+    0
+  );
+  return backendDeposit > 0 ? backendDeposit : null;
+};
+
+const getDisplayArrivalTime = (row) => {
+  return (
+    row?.arrivalTime ||
+    row?.performanceTimes?.arrivalTime ||
+    row?.actsSummary?.[0]?.performance?.arrivalTime ||
+    row?.eventSheet?.answers?.schedule_simple_arrival ||
+    ""
+  );
+};
+
+const getDisplayFinishTime = (row) => {
+  return (
+    row?.finishTime ||
+    row?.performanceTimes?.finishTime ||
+    row?.actsSummary?.[0]?.performance?.finishTime ||
+    row?.eventSheet?.answers?.schedule_simple_finish_time ||
+    ""
+  );
+};
+
+const getDisplayActName = (row) => {
+  return row?.actName || row?.actsSummary?.[0]?.actName || row?.act?.name || "";
+};
+
+const getDisplayActTscName = (row) => {
+  return row?.actTscName || row?.tscName || row?.actsSummary?.[0]?.name || row?.act?.tscName || row?.act?.name || "";
+};
+
+const getDisplayAddress = (row) => {
+  return row?.address || row?.venueAddress || row?.venue || row?.userAddress?.street || "";
+};
+
+const getDisplayCounty = (row) => {
+  return row?.county || row?.userAddress?.county || "";
+};
+
+const getDisplayClientEmails = (row) => {
+  if (Array.isArray(row?.clientEmails) && row.clientEmails.length) return row.clientEmails;
+  const email = getPrimaryEmail(row);
+  return email ? [{ email }] : [];
+};
+
+const isInternalTestBooking = (row) => {
+  const email = getPrimaryEmail(row).toLowerCase();
+  const actName = getDisplayActName(row).toLowerCase();
+  const actTscName = getDisplayActTscName(row).toLowerCase();
+  return (
+    email.endsWith("@thesupremecollective.co.uk") ||
+    actName.startsWith("test ") ||
+    actTscName.startsWith("test ")
+  );
+};
+
 const fmtOrdinal = (iso) => {
   if (!iso) return "";
   const d = new Date(iso);
@@ -45,21 +138,51 @@ const normalizeUrl = (u) => {
 };
 
 const buildFullLineup = (row) => {
-  const label = row?.lineupSelected || "";
-  const parts = Array.isArray(row?.lineupComposition) ? [...row.lineupComposition] : [];
+  const label =
+    row?.lineupSelected ||
+    row?.actsSummary?.[0]?.lineupLabel ||
+    row?.actsSummary?.[0]?.lineup?.actSize ||
+    "";
 
-  // Try to add services/extras if present on row
+  const parts = Array.isArray(row?.lineupComposition)
+    ? [...row.lineupComposition]
+    : Array.isArray(row?.actsSummary?.[0]?.lineup?.bandMembers)
+      ? row.actsSummary[0].lineup.bandMembers
+          .map((m) => m?.instrument)
+          .filter(Boolean)
+      : [];
+
   const serviceBits = [];
-  const extras = Array.isArray(row?.extras) ? row.extras : Array.isArray(row?.bookingDetails?.extras) ? row.bookingDetails.extras : [];
+  const extras = Array.isArray(row?.extras)
+    ? row.extras
+    : Array.isArray(row?.bookingDetails?.extras)
+      ? row.bookingDetails.extras
+      : Array.isArray(row?.actsSummary?.[0]?.selectedExtras)
+        ? row.actsSummary[0].selectedExtras
+        : [];
+
   const namesFromExtras = (extras || [])
-    .map((x) => (typeof x === 'string' ? x : (x?.name || x?.key || "")))
+    .map((x) => (typeof x === "string" ? x : (x?.name || x?.key || "")))
     .filter(Boolean)
     .map((s) => String(s).toLowerCase());
-  const hasSoundEng = /sound\s*eng/i.test((namesFromExtras.join(" ")));
-  if (hasSoundEng || row?.services?.soundEngineering || row?.bookingDetails?.soundEngineeringBooked) {
+
+  const hasSoundEng =
+    /sound\s*eng/i.test(namesFromExtras.join(" ")) ||
+    row?.services?.soundEngineering ||
+    row?.bookingDetails?.soundEngineeringBooked ||
+    row?.actsSummary?.[0]?.bandMembers?.some?.((m) =>
+      Array.isArray(m?.additionalRoles) &&
+      m.additionalRoles.some((r) => /sound\s*eng/i.test(String(r?.role || "")))
+    ) ||
+    row?.actsSummary?.[0]?.lineup?.bandMembers?.some?.((m) =>
+      Array.isArray(m?.additionalRoles) &&
+      m.additionalRoles.some((r) => /sound\s*eng/i.test(String(r?.role || "")))
+    );
+
+  if (hasSoundEng) {
     serviceBits.push("sound engineering");
   }
-  // Always append band management services as requested
+
   serviceBits.push("band management services");
 
   const lineupBits = [];
@@ -173,6 +296,7 @@ const [newRow, setNewRow] = useState({
   finishTime: "",        // already added earlier
 });
   const [adding, setAdding] = useState(false);
+  const [hideInternalTests, setHideInternalTests] = useState(true);
 
   const buildHeaders = () => {
     const token = getAuthToken();
@@ -255,12 +379,12 @@ const [newRow, setNewRow] = useState({
     try {
       const payload = {
         ...newRow,
-         clientEmails: newRow.clientEmail ? [{ email: newRow.clientEmail }] : [],
-  grossValue: Number(newRow.grossValue || 0) || 0,
-  bookingDetails: {},
-  allocation: { status: "in_progress" },
-  review: { requestedCount: 0, received: false },
-  source: "manual",
+        clientEmails: newRow.clientEmail ? [{ email: newRow.clientEmail }] : [],
+        grossValue: Number(newRow.grossValue || 0) || 0,
+        bookingDetails: {},
+        allocation: { status: "in_progress" },
+        review: { requestedCount: 0, received: false },
+        source: "manual",
         enquiryDateISO: newRow.enquiryDateISO || "",  // optional
         bookingDateISO: newRow.bookingDateISO || "",  // optional
         arrivalTime: newRow.arrivalTime || "",
@@ -279,6 +403,7 @@ const [newRow, setNewRow] = useState({
         setRows(r => [...r, json.row]);
         setAdding(false);
         setNewRow({
+          bookerName: "",
           clientFirstNames: "",
           bookingRef: "",
           eventDateISO: "",
@@ -335,6 +460,14 @@ const [newRow, setNewRow] = useState({
             <option value="asc">Asc</option>
             <option value="desc">Desc</option>
           </select>
+          <label className="flex items-center gap-2 text-sm text-gray-600 ml-2">
+            <input
+              type="checkbox"
+              checked={hideInternalTests}
+              onChange={(e) => setHideInternalTests(e.target.checked)}
+            />
+            Hide internal tests
+          </label>
         </div>
       </div>
 
@@ -382,32 +515,32 @@ const [newRow, setNewRow] = useState({
           </thead>
 
           <tbody>
-            {rows.map((r) => {
-              const gross = Number(r.grossValue || 0);
-              // Commission column removed
-
-              // Deposit (prefer backend if present)
-              const depositFromBackend = Number(
-                r?.payments?.depositChargedAmount ??
-                r?.payments?.depositAmount ??
-                0
-              ) || null;
-              const deposit = depositFromBackend != null && depositFromBackend > 0
-                ? depositFromBackend
-                : calcDeposit(gross);
-
-              const balance = (gross && deposit != null) ? Math.max(0, Math.round(gross - deposit)) : null;
-
-              const fallbackEventSheetUrl = `${EVENT_SHEET_FALLBACK}?ref=${encodeURIComponent(r.bookingRef || "")}`;
+            {rows
+              .filter((r) => (hideInternalTests ? !isInternalTestBooking(r) : true))
+              .map((r) => {
+              const clientFirstNames = getClientFirstNames(r);
+              const bookingRef = getDisplayBookingRef(r);
+              const eventDate = getDisplayEventDate(r);
+              const gross = getDisplayGross(r);
+              const depositFromBackend = getDisplayDeposit(r);
+              const deposit = depositFromBackend != null ? depositFromBackend : calcDeposit(gross);
+              const balance = gross ? Math.max(0, Math.round(gross - (deposit || 0))) : null;
+              const fallbackEventSheetUrl = `${EVENT_SHEET_FALLBACK}?ref=${encodeURIComponent(bookingRef || "")}`;
               const contractUrl = r?.contractUrl || r?.pdfUrl || (r?.contract && (r.contract.url || r.contract.href)) || "";
               const normalizedContractUrl = normalizeUrl(contractUrl);
-
-              const actTsc = r.actTscName || r.tscName || (r.act && (r.act.tscName || r.act.name)) || "";
+              const actName = getDisplayActName(r);
+              const actTsc = getDisplayActTscName(r);
+              const address = getDisplayAddress(r);
+              const county = getDisplayCounty(r);
+              const arrivalTime = getDisplayArrivalTime(r);
+              const clientEmails = getDisplayClientEmails(r);
+              const balancePaid = Boolean(r?.payments?.balancePaymentReceived ?? r?.balancePaid);
+              const bandPaid = Boolean(r?.payments?.bandPaymentsSent ?? r?.bandPaymentsSent);
 
               return (
                 <tr key={r._id} className="odd:bg-white even:bg-gray-50 align-top">
-                  <td className="px-3 py-2">{r.clientFirstNames}</td>
-                  <td className="px-3 py-2">{r.bookingRef}</td>
+                  <td className="px-3 py-2">{clientFirstNames}</td>
+                  <td className="px-3 py-2">{bookingRef}</td>
 
                   {/* Event Sheet */}
                   <td className="px-3 py-2">
@@ -428,49 +561,40 @@ const [newRow, setNewRow] = useState({
                     ) : "—"}
                   </td>
 
-                  <td className="px-3 py-2">{fmtShort(r.enquiryDateISO)}</td>
+                  <td className="px-3 py-2">{fmtShort(r.enquiryDateISO || r.createdAt)}</td>
                   <td className="px-3 py-2">{fmtShort(r.bookingDateISO || r.createdAt)}</td>
-
-                  <td className="px-3 py-2">{fmtOrdinal(r.eventDateISO)}</td>
+                  <td className="px-3 py-2">{fmtOrdinal(eventDate)}</td>
                   <td className="px-3 py-2">{gross ? money(gross) : "—"}</td>
                   <td className="px-3 py-2">{deposit != null ? money(deposit) : "—"}</td>
                   <td className="px-3 py-2">{balance != null ? money(balance) : "—"}</td>
-
                   <td className="px-3 py-2">
                     <AgentCell value={r.agent || "Direct"} onSave={(val) => onInlineEdit(r._id, { agent: val })}/>
                   </td>
-
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap gap-1">
-                      {(r.clientEmails || []).map((e, i) => (
+                      {clientEmails.map((e, i) => (
                         <Tag key={i}>{e.label ? `${e.label}: ` : ""}{e.email}</Tag>
                       ))}
                     </div>
                   </td>
-
                   <td className="px-3 py-2">{r.eventType || "—"}</td>
-                  <td className="px-3 py-2">{r.actName || "—"}</td>
+                  <td className="px-3 py-2">{actName || "—"}</td>
                   <td className="px-3 py-2">{actTsc || "—"}</td>
-                  <td className="px-3 py-2">{r.address || "—"}</td>
-                  <td className="px-3 py-2">{r.county || "—"}</td>
-
+                  <td className="px-3 py-2">{address || "—"}</td>
+                  <td className="px-3 py-2">{county || "—"}</td>
                   <td className="px-3 py-2">{extractBandSize(r)}</td>
                   <td className="px-3 py-2">{buildFullLineup(r) || "—"}</td>
-                  <td className="px-3 py-2">{r.arrivalTime || "—"}</td>
-
+                  <td className="px-3 py-2">{arrivalTime || "—"}</td>
                   <td className="px-3 py-2">
                     <div className="text-xs leading-5">{summariseBookingDetails(r.bookingDetails, r)}</div>
                   </td>
-
                   <td className="px-3 py-2">{r.bookingDetails?.djServicesBooked ? "Yes" : "No"}</td>
-
                   <td className="px-3 py-2">
                     {r.allocation?.status === "fully_allocated" ? <Tag>✅ Allocated</Tag> :
                      r.allocation?.status === "gap" ? <Tag>⚠️ Gap</Tag> :
                      r.allocation?.status === "in_progress" ? <Tag>⏳ In progress</Tag> :
                      <Tag>—</Tag>}
                   </td>
-
                   <td className="px-3 py-2">
                     {r.review?.received ? (
                       <Tag>⭐ Received</Tag>
@@ -491,17 +615,15 @@ const [newRow, setNewRow] = useState({
                       </button>
                     )}
                   </td>
-
                   <td className="px-3 py-2">
-                    {r.payments?.balancePaymentReceived ? (
+                    {balancePaid ? (
                       <span className="inline-block text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 border border-green-200">Paid</span>
                     ) : (
                       <span className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-800 border border-gray-200">—</span>
                     )}
                   </td>
-
                   <td className="px-3 py-2">
-                    {r.payments?.bandPaymentsSent ? (
+                    {bandPaid ? (
                       <span className="inline-block text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 border border-green-200">Paid</span>
                     ) : (
                       <span className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-800 border border-gray-200">—</span>
@@ -701,7 +823,7 @@ const [newRow, setNewRow] = useState({
   </td>
 </tr>
 
-            {rows.length === 0 && (
+            {rows.filter((r) => (hideInternalTests ? !isInternalTestBooking(r) : true)).length === 0 && (
               <tr>
                 <td className="px-3 py-6 text-center text-gray-500" colSpan={26}>
                   No rows yet.
