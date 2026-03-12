@@ -29,6 +29,7 @@ import ActPreSubmissionsPage from "./pages/ActPreSubmissionsPage";
 import AgentDashboard from "./pages/AgentDashboard";
 import SetPassword from "./pages/SetPassword";
 import ResetPassword from "./pages/ResetPassword";
+import Messages from "./pages/Messages";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -337,6 +338,11 @@ useEffect(() => {
                       element={<BookingBoard token={token} />}
                     />
                   )}
+
+                  <Route
+                      path="/messages"
+                      element={<Messages token={token} />}
+                    />
 
                   <Route
                     path="/trash"
