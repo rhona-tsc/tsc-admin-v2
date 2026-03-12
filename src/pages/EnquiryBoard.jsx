@@ -178,16 +178,91 @@ const normaliseAvailabilityReply = (value) => {
   return String(value || "—");
 };
 
+const normaliseAvailabilityReply = (value) => {
+  const v = String(value || "").trim().toLowerCase();
+  if (!v) return "—";
+  if (["yes", "available", "i am available", "accepted"].includes(v)) return "Available";
+  if (["no", "unavailable", "not available", "declined"].includes(v)) return "Unavailable";
+  if (["maybe", "tentative"].includes(v)) return "Maybe";
+  if (["needsaction", "needs_action", "pending", "sent", "requested"].includes(v)) return "Pending";
+  if (["read"].includes(v)) return "Read";
+  return String(value || "—");
+};
+
+const getAvailabilityGroupKey = (row) => {
+  const actKey = String(row?.actId || row?.actName || "").trim().toLowerCase();
+  const eventKey = String(row?.eventDateISO || row?.dateISO || "").trim().toLowerCase();
+  const emailKey = String(row?.clientEmail || row?.email || "").trim().toLowerCase();
+  const nameKey = String(row?.clientName || row?.name || "").trim().toLowerCase();
+  const addressKey = String(row?.address || row?.formattedAddress || "").trim().toLowerCase();
+  const enquiryKey = String(row?.enquiryDateISO || row?.createdAt || "").trim().toLowerCase();
+
+  return [actKey, eventKey, emailKey, nameKey, addressKey, enquiryKey].join("|");
+};
+
+const inferTotalAvailabilitySlots = (row) => {
+  const explicit = [
+    row?.availabilityTotalSlots,
+    row?.availabilitySummary?.totalSlots,
+    row?.totalVocalSlots,
+    row?.vocalSlots,
+    row?.vocalistSlots,
+    row?.expectedVocalSlots,
+    row?.lineupVocalSlots,
+    row?.slotCount,
+  ]
+    .map((v) => Number(v))
+    .find((v) => Number.isInteger(v) && v > 0);
+
+  if (explicit) return explicit;
+
+  const repliedIndexes = [];
+
+  if (Array.isArray(row?.availabilityReplies)) {
+    row.availabilityReplies.forEach((item) => {
+      const idx = Number(item?.slotIndex);
+      if (Number.isInteger(idx)) repliedIndexes.push(idx);
+    });
+  }
+
+  if (Array.isArray(row?.slotReplies)) {
+    row.slotReplies.forEach((item) => {
+      const idx = Number(item?.slotIndex);
+      if (Number.isInteger(idx)) repliedIndexes.push(idx);
+    });
+  }
+
+  if (Array.isArray(row?.availabilitySlots)) {
+    row.availabilitySlots.forEach((item) => {
+      const idx = Number(item?.slotIndex);
+      if (Number.isInteger(idx)) repliedIndexes.push(idx);
+    });
+  }
+
+  if (row?.slotIndex != null) {
+    const idx = Number(row.slotIndex);
+    if (Number.isInteger(idx)) repliedIndexes.push(idx);
+  }
+
+  if (repliedIndexes.length) {
+    return Math.max(...repliedIndexes) + 1;
+  }
+
+  return 3;
+};
+
 const getAvailabilitySlots = (row) => {
-  const slots = [
-    { slotIndex: 0, label: "Slot 1", reply: "—" },
-    { slotIndex: 1, label: "Slot 2", reply: "—" },
-    { slotIndex: 2, label: "Slot 3", reply: "—" },
-  ];
+  const totalSlots = inferTotalAvailabilitySlots(row);
+
+  const slots = Array.from({ length: totalSlots }, (_, index) => ({
+    slotIndex: index,
+    label: `Slot ${index + 1}`,
+    reply: "—",
+  }));
 
   const assignReply = (slotIndex, reply) => {
     const idx = Number(slotIndex);
-    if (!Number.isInteger(idx) || idx < 0 || idx > 2) return;
+    if (!Number.isInteger(idx) || idx < 0 || idx >= slots.length) return;
     slots[idx].reply = normaliseAvailabilityReply(reply);
   };
 
@@ -209,7 +284,11 @@ const getAvailabilitySlots = (row) => {
     });
   }
 
-  if (row?.availabilityReplies && !Array.isArray(row.availabilityReplies) && typeof row.availabilityReplies === "object") {
+  if (
+    row?.availabilityReplies &&
+    !Array.isArray(row.availabilityReplies) &&
+    typeof row.availabilityReplies === "object"
+  ) {
     Object.entries(row.availabilityReplies).forEach(([key, value]) => {
       const match = String(key).match(/(\d+)/);
       if (match) {
@@ -233,15 +312,90 @@ const getAvailabilitySlots = (row) => {
 };
 
 const getAvailabilityReceivedText = (row) => {
-  if (row?.availabilityReceivedText) return String(row.availabilityReceivedText);
-  if (row?.availabilitySummary?.receivedText) return String(row.availabilitySummary.receivedText);
-
   const slots = getAvailabilitySlots(row);
   const received = slots.filter(
     (slot) => slot.reply !== "—" && slot.reply !== "Pending" && slot.reply !== "Read"
   ).length;
   const total = slots.length;
   return `${received}/${total} slots replied`;
+};
+
+const mergeEnquiryRows = (rows) => {
+  const grouped = new Map();
+
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
+    const key = getAvailabilityGroupKey(row);
+    const existing = grouped.get(key);
+
+    if (!existing) {
+      grouped.set(key, {
+        ...row,
+        mergedRefs: [row?.enquiryRef || row?.requestId].filter(Boolean),
+        availabilityReplies: [
+          ...(Array.isArray(row?.availabilityReplies) ? row.availabilityReplies : []),
+        ],
+        slotReplies: [
+          ...(Array.isArray(row?.slotReplies) ? row.slotReplies : []),
+        ],
+        availabilitySlots: [
+          ...(Array.isArray(row?.availabilitySlots) ? row.availabilitySlots : []),
+        ],
+        availabilityTotalSlots: inferTotalAvailabilitySlots(row),
+      });
+      return;
+    }
+
+    const existingCreated = new Date(existing?.createdAt || existing?.enquiryDateISO || 0).getTime() || 0;
+    const nextCreated = new Date(row?.createdAt || row?.enquiryDateISO || 0).getTime() || 0;
+
+    grouped.set(key, {
+      ...existing,
+      ...row,
+      _id: existing._id,
+      createdAt:
+        existingCreated && nextCreated
+          ? new Date(Math.min(existingCreated, nextCreated)).toISOString()
+          : existing.createdAt || row.createdAt,
+      enquiryDateISO: existing.enquiryDateISO || row.enquiryDateISO,
+      agent: existing.agent || row.agent,
+      actName: existing.actName || row.actName,
+      actTscName: existing.actTscName || row.actTscName,
+      address: existing.address || row.address,
+      formattedAddress: existing.formattedAddress || row.formattedAddress,
+      county: existing.county || row.county,
+      clientName: existing.clientName || row.clientName,
+      clientEmail: existing.clientEmail || row.clientEmail,
+      notes: existing.notes || row.notes,
+      status:
+        existing.status === "closed_won" || row.status === "closed_won"
+          ? "closed_won"
+          : existing.status || row.status,
+      mergedRefs: Array.from(
+        new Set([...(existing.mergedRefs || []), row?.enquiryRef || row?.requestId].filter(Boolean))
+      ),
+      availabilityReplies: [
+        ...(Array.isArray(existing?.availabilityReplies) ? existing.availabilityReplies : []),
+        ...(Array.isArray(row?.availabilityReplies) ? row.availabilityReplies : []),
+      ],
+      slotReplies: [
+        ...(Array.isArray(existing?.slotReplies) ? existing.slotReplies : []),
+        ...(Array.isArray(row?.slotReplies) ? row.slotReplies : []),
+      ],
+      availabilitySlots: [
+        ...(Array.isArray(existing?.availabilitySlots) ? existing.availabilitySlots : []),
+        ...(Array.isArray(row?.availabilitySlots) ? row.availabilitySlots : []),
+      ],
+      availabilityTotalSlots: Math.max(
+        Number(existing?.availabilityTotalSlots || 0),
+        Number(inferTotalAvailabilitySlots(row) || 0)
+      ),
+    });
+  });
+
+  return Array.from(grouped.values()).map((row) => ({
+    ...row,
+    enquiryRef: (row.mergedRefs || []).join(", ") || row.enquiryRef || row.requestId || "",
+  }));
 };
 
 function InlineInput({ value, placeholder, className = "", onCommit, type = "text" }) {
@@ -394,14 +548,10 @@ export default function EnquiryBoard() {
 
       const incomingRows = Array.isArray(json.rows) ? json.rows : [];
       const filteredRows = incomingRows.filter((row) => !shouldHideRow(row));
+const mergedRows = mergeEnquiryRows(filteredRows);
 
-      setRows(filteredRows);
-      setTotal(
-        Number(json.total) ||
-          Number(json.pagination?.total) ||
-          Number(json.count) ||
-          filteredRows.length
-      );
+setRows(mergedRows);
+setTotal(mergedRows.length);
     } catch (e) {
       console.error("Enquiry board load failed", e);
       setRows([]);
@@ -503,8 +653,7 @@ export default function EnquiryBoard() {
       return;
     }
     if (!draft.actId) {
-      window.alert("Please select an Act from the search (so we store actId for availability).");
-      return;
+window.alert("Please select an Act from the search.");      return;
     }
 
     const address = (draft.address || "").trim();
@@ -826,41 +975,29 @@ export default function EnquiryBoard() {
                             </td>
                           );
                         case "address":
-                          return (
-                            <td key={col.key} className="px-3 py-2">
-                              <InlineInput
-                                value={r.address || r.formattedAddress || ""}
-                                placeholder="Venue / postcode / town…"
-                                onCommit={(val) => onInlineEdit(r._id, { address: val })}
-                              />
-                            </td>
-                          );
+  return (
+    <td key={col.key} className="px-3 py-2">
+      <span>{r.address || r.formattedAddress || "—"}</span>
+    </td>
+  );
                         case "county":
                           return (
                             <td key={col.key} className="px-3 py-2">
                               {r.county || "—"}
                             </td>
                           );
-                        case "clientName":
-                          return (
-                            <td key={col.key} className="px-3 py-2">
-                              <InlineInput
-                                value={r.clientName || ""}
-                                placeholder="Client name…"
-                                onCommit={(val) => onInlineEdit(r._id, { clientName: val })}
-                              />
-                            </td>
-                          );
-                        case "clientEmail":
-                          return (
-                            <td key={col.key} className="px-3 py-2">
-                              <InlineInput
-                                value={r.clientEmail || ""}
-                                placeholder="client@email.com"
-                                onCommit={(val) => onInlineEdit(r._id, { clientEmail: val.toLowerCase() })}
-                              />
-                            </td>
-                          );
+                       case "clientName":
+  return (
+    <td key={col.key} className="px-3 py-2">
+      <span>{r.clientName || "—"}</span>
+    </td>
+  );
+                       case "clientEmail":
+  return (
+    <td key={col.key} className="px-3 py-2">
+      <span>{r.clientEmail || "—"}</span>
+    </td>
+  );
                         case "availability": {
                           const slots = getAvailabilitySlots(r);
                           return (
@@ -876,12 +1013,28 @@ export default function EnquiryBoard() {
                             </td>
                           );
                         }
-                        case "availabilityReceived":
-                          return (
-                            <td key={col.key} className="px-3 py-2">
-                              <span className="whitespace-nowrap">{getAvailabilityReceivedText(r)}</span>
-                            </td>
-                          );
+                       case "availabilityReceived": {
+  const slots = getAvailabilitySlots(r);
+  const received = slots.filter(
+    (slot) => slot.reply !== "—" && slot.reply !== "Pending" && slot.reply !== "Read"
+  ).length;
+  const total = slots.length;
+  const isComplete = total > 0 && received >= total;
+
+  return (
+    <td key={col.key} className="px-3 py-2">
+      <span
+        className={`inline-block whitespace-nowrap rounded px-2 py-1 text-xs font-medium ${
+          isComplete
+            ? "bg-green-100 text-green-800 border border-green-200"
+            : "bg-gray-100 text-gray-700 border border-gray-200"
+        }`}
+      >
+        {`${received}/${total} slots replied`}
+      </span>
+    </td>
+  );
+}
                         case "notes":
                           return (
                             <td key={col.key} className="px-3 py-2">
