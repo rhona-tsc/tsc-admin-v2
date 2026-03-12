@@ -139,28 +139,33 @@ const SORTABLE_COLUMNS = {
 };
 
 const columns = [
-  { key: "agent", label: "Source", width: 120 },
-  { key: "enquiryDateISO", label: "Enquiry Date", width: 140 },
-  { key: "enquiryDOW", label: "Enquiry DOW", width: 110 },
-  { key: "eventDateISO", label: "Event Date", width: 140 },
-  { key: "eventDOW", label: "Event DOW", width: 110 },
-  { key: "daysToEvent", label: "Days to Event", width: 120 },
-  { key: "actName", label: "Act", width: 180 },
-  { key: "actTscName", label: "Act tscName", width: 160 },
-  { key: "address", label: "Location", width: 280 },
-  { key: "county", label: "County", width: 120 },
-  { key: "clientName", label: "Client Name", width: 170 },
-  { key: "clientEmail", label: "Client Email", width: 220 },
-  { key: "availability", label: "Availability", width: 140, sortable: false },
-  { key: "send", label: "Send", width: 140, sortable: false },
-  { key: "notes", label: "Notes", width: 260 },
-  { key: "status", label: "Status", width: 120 },
-  { key: "enquiryRef", label: "Ref", width: 140 },
-  { key: "grossValue", label: "Potential Gross", width: 130 },
-  { key: "netCommission", label: "Potential Commission", width: 160 },
-  { key: "bandSize", label: "Band Size Quoted", width: 150 },
-  { key: "maxBudget", label: "Max Budget", width: 130 },
+  { key: "agent", label: "Source", width: 150, agentOnly: true },
+  { key: "enquiryDateISO", label: "Enquiry Date", width: 165 },
+  { key: "enquiryDOW", label: "Enquiry DOW", width: 125 },
+  { key: "eventDateISO", label: "Event Date", width: 165 },
+  { key: "eventDOW", label: "Event DOW", width: 125 },
+  { key: "daysToEvent", label: "Days to Event", width: 140 },
+  { key: "actName", label: "Act", width: 220 },
+  { key: "actTscName", label: "Original Name", width: 220 },
+  { key: "address", label: "Location", width: 340 },
+  { key: "county", label: "County", width: 160 },
+  { key: "clientName", label: "Client Name", width: 200 },
+  { key: "clientEmail", label: "Client Email", width: 260 },
+  { key: "availability", label: "Availability", width: 170, sortable: false },
+  { key: "send", label: "Send", width: 150, sortable: false },
+  { key: "notes", label: "Notes", width: 320 },
+  { key: "status", label: "Status", width: 150 },
+  { key: "enquiryRef", label: "Ref", width: 160 },
+  { key: "grossValue", label: "Potential Gross", width: 150 },
+  { key: "netCommission", label: "Potential Commission", width: 180 },
+  { key: "bandSize", label: "Band Size Quoted", width: 170 },
+  { key: "maxBudget", label: "Max Budget", width: 150 },
 ];
+
+const SourceCell = ({ value }) => {
+  const display = String(value || "").trim() || "—";
+  return <span className="whitespace-nowrap">{display}</span>;
+};
 
 function AgentCell({ value, onSave }) {
   const [mode, setMode] = useState(() =>
@@ -285,6 +290,10 @@ export default function EnquiryBoard() {
     lineupId: "",
     enquiryRef: "",
   });
+
+  const visibleColumns = useMemo(() => {
+    return columns.filter((col) => !(col.agentOnly && !canManualAdd));
+  }, [canManualAdd]);
 
   const lineupOptions = useMemo(() => {
     const l = selectedAct?.lineups;
@@ -789,7 +798,7 @@ export default function EnquiryBoard() {
         <div>
           {loading ? "Loading…" : `Showing ${rows.length} row${rows.length === 1 ? "" : "s"}`}
           {total ? ` of ${total}` : ""}
-          {canManualAdd ? " • admin/all acts" : " • own acts only"}
+          {canManualAdd ? " • agent/admin view" : " • own acts only"}
         </div>
 
         <div>
@@ -797,17 +806,17 @@ export default function EnquiryBoard() {
         </div>
       </div>
 
-      <div className="overflow-auto border rounded">
-        <table className="min-w-[2000px] w-full text-sm">
+      <div className="overflow-x-auto overflow-y-visible border rounded max-h-[70vh] overflow-auto">
+        <table className="min-w-[2600px] w-full text-sm">
           <colgroup>
-            {columns.map((col) => (
+            {visibleColumns.map((col) => (
               <col key={col.key} style={{ width: col.width }} />
             ))}
           </colgroup>
 
           <thead className="bg-gray-50 text-left sticky top-0 z-10">
             <tr>
-              {columns.map((col) => {
+              {visibleColumns.map((col) => {
                 const sortable = col.sortable !== false && !!SORTABLE_COLUMNS[col.key];
                 return (
                   <th key={col.key} className="px-3 py-2 border-b">
@@ -844,107 +853,202 @@ export default function EnquiryBoard() {
 
               return (
                 <tr key={r._id} className="odd:bg-white even:bg-gray-50 align-top">
-                  <td className="px-3 py-2">
-                    <AgentCell value={r.agent || ""} onSave={(val) => onInlineEdit(r._id, { agent: val })} />
-                  </td>
-
-                  <td className="px-3 py-2">{fmtShort(r.enquiryDateISO || r.createdAt)}</td>
-                  <td className="px-3 py-2">{dow(r.enquiryDateISO || r.createdAt)}</td>
-                  <td className="px-3 py-2">{fmtShort(r.eventDateISO || r.dateISO)}</td>
-                  <td className="px-3 py-2">{dow(r.eventDateISO || r.dateISO)}</td>
-                  <td className="px-3 py-2">
-                    {daysBetween(r.enquiryDateISO || r.createdAt, r.eventDateISO || r.dateISO)}
-                  </td>
-
-                  <td className="px-3 py-2">{r.actName || "—"}</td>
-                  <td className="px-3 py-2">{r.actTscName || "—"}</td>
-
-                  <td className="px-3 py-2">
-                    <InlineInput
-                      value={r.address || r.formattedAddress || ""}
-                      placeholder="Venue / postcode / town…"
-                      onCommit={(val) => onInlineEdit(r._id, { address: val })}
-                    />
-                  </td>
-
-                  <td className="px-3 py-2">{r.county || "—"}</td>
-
-                  <td className="px-3 py-2">
-                    <InlineInput
-                      value={r.clientName || ""}
-                      placeholder="Client name…"
-                      onCommit={(val) => onInlineEdit(r._id, { clientName: val })}
-                    />
-                  </td>
-
-                  <td className="px-3 py-2">
-                    <InlineInput
-                      value={r.clientEmail || ""}
-                      placeholder="client@email.com"
-                      onCommit={(val) => onInlineEdit(r._id, { clientEmail: val.toLowerCase() })}
-                    />
-                  </td>
-
-                  <td className="px-3 py-2">
-                    <select
-                      className="border rounded px-2 py-1 w-full"
-                      value={slotPick[r._id] ?? "all"}
-                      onChange={(e) => setSlotPick((p) => ({ ...p, [r._id]: e.target.value }))}
-                    >
-                      <option value="all">All vocal slots</option>
-                      <option value="0">Slot 1</option>
-                      <option value="1">Slot 2</option>
-                      <option value="2">Slot 3</option>
-                    </select>
-                    <div className="mt-1">
-                      <Tag>{isBusy ? "Sending…" : "Ready"}</Tag>
-                    </div>
-                  </td>
-
-                  <td className="px-3 py-2">
-                    <button
-                      className={`px-3 py-2 rounded w-full ${
-                        isBusy ? "bg-gray-300 text-gray-700" : "bg-[#ff6667] text-white"
-                      }`}
-                      disabled={isBusy}
-                      onClick={() => triggerAvailability(r)}
-                      title="Runs availability requests on behalf of the client using the email/address/date in this row."
-                    >
-                      {isBusy ? "Sending…" : "Send"}
-                    </button>
-                  </td>
-
-                  <td className="px-3 py-2">
-                    <textarea
-                      rows={1}
-                      className="border rounded px-2 py-1 w-full"
-                      defaultValue={r.notes || ""}
-                      onBlur={(e) => {
-                        const val = e.target.value || "";
-                        if (val !== (r.notes || "")) onInlineEdit(r._id, { notes: val.trim() });
-                      }}
-                    />
-                  </td>
-
-                  <td className="px-3 py-2">
-                    <select
-                      className="border rounded px-2 py-1"
-                      value={r.status || "open"}
-                      onChange={(e) => onInlineEdit(r._id, { status: e.target.value })}
-                    >
-                      {["open", "contacted", "qualified", "closed_won", "closed_lost"].map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-
-                  <td className="px-3 py-2">{r.enquiryRef || r.requestId || "—"}</td>
-                  <td className="px-3 py-2">{r.grossValue ? money(r.grossValue) : "—"}</td>
-                  <td className="px-3 py-2">{r.netCommission != null ? money(r.netCommission) : "—"}</td>
-                  <td className="px-3 py-2">{bandSizeQuoted || "—"}</td>
-                  <td className="px-3 py-2">{r.maxBudget != null ? money(r.maxBudget) : "—"}</td>
+                  {/* Source cell - only render if canManualAdd */}
+                  {canManualAdd && (
+                    <td className="px-3 py-2">
+                      <SourceCell value={r.agent || ""} />
+                    </td>
+                  )}
+                  {/* The rest of the columns, skipping agent if agentOnly and !canManualAdd */}
+                  {visibleColumns
+                    .filter((col) => !(col.key === "agent" && canManualAdd))
+                    .map((col) => {
+                      switch (col.key) {
+                        case "enquiryDateISO":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              {fmtShort(r.enquiryDateISO || r.createdAt)}
+                            </td>
+                          );
+                        case "enquiryDOW":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              {dow(r.enquiryDateISO || r.createdAt)}
+                            </td>
+                          );
+                        case "eventDateISO":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              {fmtShort(r.eventDateISO || r.dateISO)}
+                            </td>
+                          );
+                        case "eventDOW":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              {dow(r.eventDateISO || r.dateISO)}
+                            </td>
+                          );
+                        case "daysToEvent":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              {daysBetween(r.enquiryDateISO || r.createdAt, r.eventDateISO || r.dateISO)}
+                            </td>
+                          );
+                        case "actName":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              {r.actName || "—"}
+                            </td>
+                          );
+                        case "actTscName":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              {r.actTscName || "—"}
+                            </td>
+                          );
+                        case "address":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              <InlineInput
+                                value={r.address || r.formattedAddress || ""}
+                                placeholder="Venue / postcode / town…"
+                                onCommit={(val) => onInlineEdit(r._id, { address: val })}
+                              />
+                            </td>
+                          );
+                        case "county":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              {r.county || "—"}
+                            </td>
+                          );
+                        case "clientName":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              <InlineInput
+                                value={r.clientName || ""}
+                                placeholder="Client name…"
+                                onCommit={(val) => onInlineEdit(r._id, { clientName: val })}
+                              />
+                            </td>
+                          );
+                        case "clientEmail":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              <InlineInput
+                                value={r.clientEmail || ""}
+                                placeholder="client@email.com"
+                                onCommit={(val) => onInlineEdit(r._id, { clientEmail: val.toLowerCase() })}
+                              />
+                            </td>
+                          );
+                        case "availability":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              <select
+                                className="border rounded px-2 py-1 w-full"
+                                value={slotPick[r._id] ?? "all"}
+                                onChange={(e) => setSlotPick((p) => ({ ...p, [r._id]: e.target.value }))}
+                              >
+                                <option value="all">All vocal slots</option>
+                                <option value="0">Slot 1</option>
+                                <option value="1">Slot 2</option>
+                                <option value="2">Slot 3</option>
+                              </select>
+                              <div className="mt-1">
+                                <Tag>{isBusy ? "Sending…" : "Ready"}</Tag>
+                              </div>
+                            </td>
+                          );
+                        case "send":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              <button
+                                className={`px-3 py-2 rounded w-full ${
+                                  isBusy ? "bg-gray-300 text-gray-700" : "bg-[#ff6667] text-white"
+                                }`}
+                                disabled={isBusy}
+                                onClick={() => triggerAvailability(r)}
+                                title="Runs availability requests on behalf of the client using the email/address/date in this row."
+                              >
+                                {isBusy ? "Sending…" : "Send"}
+                              </button>
+                            </td>
+                          );
+                        case "notes":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              <textarea
+                                rows={1}
+                                className="border rounded px-2 py-1 w-full"
+                                defaultValue={r.notes || ""}
+                                onBlur={(e) => {
+                                  const val = e.target.value || "";
+                                  if (val !== (r.notes || "")) onInlineEdit(r._id, { notes: val.trim() });
+                                }}
+                              />
+                            </td>
+                          );
+                        case "status":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              <select
+                                className="border rounded px-2 py-1"
+                                value={r.status || "open"}
+                                onChange={(e) => onInlineEdit(r._id, { status: e.target.value })}
+                              >
+                                {[
+                                  { value: "open", label: "Open" },
+                                  { value: "contacted", label: "Contacted" },
+                                  { value: "qualified", label: "Qualified" },
+                                  { value: "closed_won", label: "Booked" },
+                                  { value: "closed_lost", label: "Closed Lost" },
+                                ].map((s) => (
+                                  <option key={s.value} value={s.value}>
+                                    {s.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                          );
+                        case "enquiryRef":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              {r.enquiryRef || r.requestId || "—"}
+                            </td>
+                          );
+                        case "grossValue":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              {r.grossValue ? money(r.grossValue) : "—"}
+                            </td>
+                          );
+                        case "netCommission":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              {r.netCommission != null ? money(r.netCommission) : "—"}
+                            </td>
+                          );
+                        case "bandSize":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              {bandSizeQuoted || "—"}
+                            </td>
+                          );
+                        case "maxBudget":
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              {r.maxBudget != null ? money(r.maxBudget) : "—"}
+                            </td>
+                          );
+                        default:
+                          return (
+                            <td key={col.key} className="px-3 py-2">
+                              {r[col.key] || "—"}
+                            </td>
+                          );
+                      }
+                    })}
                 </tr>
               );
             })}
@@ -1081,7 +1185,7 @@ export default function EnquiryBoard() {
               </label>
 
               <label className="text-xs">
-                Source / Agent
+                Source
                 <select
                   className="border rounded px-2 py-2 w-full"
                   value={draft.agent}
