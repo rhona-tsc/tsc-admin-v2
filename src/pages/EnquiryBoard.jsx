@@ -151,8 +151,8 @@ const columns = [
   { key: "county", label: "County", width: 160 },
   { key: "clientName", label: "Client Name", width: 200 },
   { key: "clientEmail", label: "Client Email", width: 260 },
-  { key: "availability", label: "Availability", width: 170, sortable: false },
-  { key: "send", label: "Send", width: 150, sortable: false },
+  { key: "availability", label: "Availability Replies", width: 260, sortable: false },
+  { key: "availabilityReceived", label: "Availability Received", width: 190, sortable: false },
   { key: "notes", label: "Notes", width: 320 },
   { key: "status", label: "Status", width: 150 },
   { key: "enquiryRef", label: "Ref", width: 160 },
@@ -167,54 +167,82 @@ const SourceCell = ({ value }) => {
   return <span className="whitespace-nowrap">{display}</span>;
 };
 
-function AgentCell({ value, onSave }) {
-  const [mode, setMode] = useState(() =>
-    value && !AGENTS.includes(value) ? "Other" : value || ""
-  );
-  const [text, setText] = useState(() => (value && !AGENTS.includes(value) ? value : ""));
+const normaliseAvailabilityReply = (value) => {
+  const v = String(value || "").trim().toLowerCase();
+  if (!v) return "—";
+  if (["yes", "available", "i am available", "accepted"].includes(v)) return "Available";
+  if (["no", "unavailable", "not available", "declined"].includes(v)) return "Unavailable";
+  if (["maybe", "tentative"].includes(v)) return "Maybe";
+  if (["needsaction", "needs_action", "pending", "sent", "requested"].includes(v)) return "Pending";
+  if (["read"].includes(v)) return "Read";
+  return String(value || "—");
+};
 
-  useEffect(() => {
-    const isOther = value && !AGENTS.includes(value);
-    setMode(isOther ? "Other" : value || "");
-    setText(isOther ? value : "");
-  }, [value]);
+const getAvailabilitySlots = (row) => {
+  const slots = [
+    { slotIndex: 0, label: "Slot 1", reply: "—" },
+    { slotIndex: 1, label: "Slot 2", reply: "—" },
+    { slotIndex: 2, label: "Slot 3", reply: "—" },
+  ];
 
-  const commit = (nextVal) => {
-    if (!nextVal) return;
-    onSave(nextVal);
+  const assignReply = (slotIndex, reply) => {
+    const idx = Number(slotIndex);
+    if (!Number.isInteger(idx) || idx < 0 || idx > 2) return;
+    slots[idx].reply = normaliseAvailabilityReply(reply);
   };
 
-  return (
-    <div className="flex items-center gap-2">
-      <select
-        className="border rounded px-2 py-1 w-44"
-        value={mode}
-        onChange={(e) => {
-          const v = e.target.value;
-          setMode(v);
-          if (v !== "Other") commit(v);
-        }}
-      >
-        <option value="">—</option>
-        {AGENTS.map((a) => (
-          <option key={a} value={a}>
-            {a}
-          </option>
-        ))}
-      </select>
+  if (Array.isArray(row?.availabilitySlots)) {
+    row.availabilitySlots.forEach((item) => {
+      assignReply(item?.slotIndex, item?.reply || item?.status || item?.availability);
+    });
+  }
 
-      {mode === "Other" && (
-        <input
-          className="border rounded px-2 py-1 w-48"
-          placeholder="Type agent name…"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={() => text && commit(text.trim())}
-        />
-      )}
-    </div>
-  );
-}
+  if (Array.isArray(row?.slotReplies)) {
+    row.slotReplies.forEach((item) => {
+      assignReply(item?.slotIndex, item?.reply || item?.status || item?.availability);
+    });
+  }
+
+  if (Array.isArray(row?.availabilityReplies)) {
+    row.availabilityReplies.forEach((item) => {
+      assignReply(item?.slotIndex, item?.reply || item?.status || item?.availability);
+    });
+  }
+
+  if (row?.availabilityReplies && !Array.isArray(row.availabilityReplies) && typeof row.availabilityReplies === "object") {
+    Object.entries(row.availabilityReplies).forEach(([key, value]) => {
+      const match = String(key).match(/(\d+)/);
+      if (match) {
+        const idx = Number(match[1]) - 1;
+        assignReply(idx, value?.reply || value?.status || value?.availability || value);
+      }
+    });
+  }
+
+  if (Array.isArray(row?.availabilitySummary?.slots)) {
+    row.availabilitySummary.slots.forEach((item) => {
+      assignReply(item?.slotIndex, item?.reply || item?.status || item?.availability);
+    });
+  }
+
+  if (row?.slotIndex != null && (row?.reply || row?.calendarStatus || row?.status)) {
+    assignReply(row.slotIndex, row.reply || row.calendarStatus || row.status);
+  }
+
+  return slots;
+};
+
+const getAvailabilityReceivedText = (row) => {
+  if (row?.availabilityReceivedText) return String(row.availabilityReceivedText);
+  if (row?.availabilitySummary?.receivedText) return String(row.availabilitySummary.receivedText);
+
+  const slots = getAvailabilitySlots(row);
+  const received = slots.filter(
+    (slot) => slot.reply !== "—" && slot.reply !== "Pending" && slot.reply !== "Read"
+  ).length;
+  const total = slots.length;
+  return `${received}/${total} slots replied`;
+};
 
 function InlineInput({ value, placeholder, className = "", onCommit, type = "text" }) {
   const [v, setV] = useState(value || "");
@@ -254,8 +282,6 @@ export default function EnquiryBoard() {
   const [limit, setLimit] = useState(25);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState({});
-  const [slotPick, setSlotPick] = useState({});
   const [showAdd, setShowAdd] = useState(false);
   const [addBusy, setAddBusy] = useState(false);
 
@@ -444,103 +470,6 @@ export default function EnquiryBoard() {
 
   const money = (n) => `£${Number(n).toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
 
-  const triggerAvailability = async (r, options = {}) => {
-    const enquiryId = r?._id;
-    if (!enquiryId) {
-      return { ok: false, message: "Missing enquiry id." };
-    }
-
-    const actId = r.actId || r.act_id || r.act?.id || r.act?._id || null;
-    const lineupId = r.lineupId || r.lineup_id || r.lineup?.id || r.lineup?._id || null;
-    const dateISO = toISODateOnly(r.eventDateISO || r.dateISO);
-    const formattedAddress = (r.address || r.formattedAddress || "").trim();
-    const clientEmail = (r.clientEmail || r.email || "").trim();
-    const clientName = (r.clientName || r.name || "").trim();
-    const slotIndexRaw = slotPick[enquiryId] ?? "all";
-    const slotIndex = slotIndexRaw === "all" ? null : Number(slotIndexRaw);
-    const notify = options.notify !== false;
-
-    if (!actId) {
-      if (notify) window.alert("Missing actId on this enquiry row (backend needs to include it).");
-      return { ok: false, message: "Missing actId." };
-    }
-    if (!dateISO) {
-      if (notify) window.alert("Missing / invalid event date.");
-      return { ok: false, message: "Missing / invalid event date." };
-    }
-    if (!formattedAddress) {
-      if (notify) window.alert("Missing venue / location.");
-      return { ok: false, message: "Missing venue / location." };
-    }
-    if (!clientEmail || !/\S+@\S+\.\S+/.test(clientEmail)) {
-      if (notify) window.alert("Missing / invalid client email.");
-      return { ok: false, message: "Missing / invalid client email." };
-    }
-
-    const payload = {
-      actId,
-      lineupId,
-      dateISO,
-      formattedAddress,
-      clientName: clientName || "there",
-      clientEmail,
-      slotIndex,
-      enquiryId,
-      enquiryRef: r.enquiryRef || r.requestId || null,
-      source: "enquiry_board_on_behalf",
-    };
-
-    const url = `${API_BASE}/availability/request-on-behalf`;
-
-    setSending((p) => ({ ...p, [enquiryId]: true }));
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: buildHeaders(),
-        credentials: "include",
-        body: JSON.stringify(payload),
-      });
-      const raw = await res.text();
-      let json = null;
-      try {
-        json = JSON.parse(raw);
-      } catch {
-        json = null;
-      }
-
-      if (!res.ok || !json?.success) {
-        console.error("Availability request failed", { status: res.status, raw, json });
-        if (notify) {
-          window.alert(json?.message || "Availability request failed (see console).");
-        }
-        return { ok: false, message: json?.message || "Availability request failed." };
-      }
-
-      try {
-        await onInlineEdit(enquiryId, {
-          lastAvailabilityRequestAt: new Date().toISOString(),
-          lastAvailabilityRequestMeta: {
-            dateISO,
-            formattedAddress,
-            clientEmail,
-            slotIndex: slotIndex ?? "all",
-          },
-        });
-      } catch {
-        // no-op
-      }
-
-      if (notify) window.alert("✅ Availability request triggered.");
-      fetchRows();
-      return { ok: true, message: "Availability request triggered." };
-    } catch (e) {
-      console.error("Availability request crashed", e);
-      if (notify) window.alert("Availability request crashed (see console).");
-      return { ok: false, message: "Availability request crashed." };
-    } finally {
-      setSending((p) => ({ ...p, [enquiryId]: false }));
-    }
-  };
 
   const openManualAdd = () => {
     setActSearch("");
@@ -640,15 +569,7 @@ export default function EnquiryBoard() {
       closeManualAdd();
       await fetchRows({ page: 1, limit });
 
-      const out = await triggerAvailability(createdRow, { notify: false });
-
-      if (out?.ok) {
-        window.alert("✅ Enquiry added + availability request sent.");
-      } else {
-        window.alert(
-          `✅ Enquiry added, but availability was NOT sent: ${out?.message || "Unknown error"}`
-        );
-      }
+      window.alert("✅ Enquiry added.");
     } catch (e) {
       console.error("Manual add crashed:", e);
       window.alert("Manual add crashed (see console).");
@@ -849,8 +770,6 @@ export default function EnquiryBoard() {
                   return m ? Number(m[1]) : 0;
                 })();
 
-              const isBusy = !!sending[r._id];
-
               return (
                 <tr key={r._id} className="odd:bg-white even:bg-gray-50 align-top">
                   {/* Source cell - only render if canManualAdd */}
@@ -942,37 +861,25 @@ export default function EnquiryBoard() {
                               />
                             </td>
                           );
-                        case "availability":
+                        case "availability": {
+                          const slots = getAvailabilitySlots(r);
                           return (
                             <td key={col.key} className="px-3 py-2">
-                              <select
-                                className="border rounded px-2 py-1 w-full"
-                                value={slotPick[r._id] ?? "all"}
-                                onChange={(e) => setSlotPick((p) => ({ ...p, [r._id]: e.target.value }))}
-                              >
-                                <option value="all">All vocal slots</option>
-                                <option value="0">Slot 1</option>
-                                <option value="1">Slot 2</option>
-                                <option value="2">Slot 3</option>
-                              </select>
-                              <div className="mt-1">
-                                <Tag>{isBusy ? "Sending…" : "Ready"}</Tag>
+                              <div className="space-y-1 min-w-[220px]">
+                                {slots.map((slot) => (
+                                  <div key={slot.slotIndex} className="flex items-center justify-between gap-3 text-xs">
+                                    <span className="text-gray-600 whitespace-nowrap">{slot.label}</span>
+                                    <span className="font-medium text-right">{slot.reply}</span>
+                                  </div>
+                                ))}
                               </div>
                             </td>
                           );
-                        case "send":
+                        }
+                        case "availabilityReceived":
                           return (
                             <td key={col.key} className="px-3 py-2">
-                              <button
-                                className={`px-3 py-2 rounded w-full ${
-                                  isBusy ? "bg-gray-300 text-gray-700" : "bg-[#ff6667] text-white"
-                                }`}
-                                disabled={isBusy}
-                                onClick={() => triggerAvailability(r)}
-                                title="Runs availability requests on behalf of the client using the email/address/date in this row."
-                              >
-                                {isBusy ? "Sending…" : "Send"}
-                              </button>
+                              <span className="whitespace-nowrap">{getAvailabilityReceivedText(r)}</span>
                             </td>
                           );
                         case "notes":
@@ -1137,7 +1044,7 @@ export default function EnquiryBoard() {
                   {draft.actId ? (
                     <span className="text-[11px] text-gray-500">actId: {draft.actId}</span>
                   ) : (
-                    <span className="text-[11px] text-gray-500">Pick an act to enable availability</span>
+                    <span className="text-[11px] text-gray-500">Pick an act to link this enquiry</span>
                   )}
                 </div>
 
@@ -1240,7 +1147,7 @@ export default function EnquiryBoard() {
               </label>
 
               <label className="text-xs col-span-1">
-                Act tscName
+                Original Name
                 <input
                   className="border rounded px-2 py-2 w-full"
                   value={draft.actTscName}
