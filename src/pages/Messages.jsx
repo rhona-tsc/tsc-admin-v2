@@ -254,8 +254,10 @@ const Messages = ({ userRole, userId, firstName }) => {
                           {thread.recipientName || thread.recipientPhone || "Unknown recipient"}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
-                          {thread.actName || "No act linked"}
-                        </p>
+{(thread.actName || "No act linked") +
+  (thread.messageCount
+    ? ` • ${thread.messageCount} message${thread.messageCount === 1 ? "" : "s"}`
+    : "")}                        </p>
                       </div>
 
                       <span
