@@ -167,16 +167,7 @@ const SourceCell = ({ value }) => {
   return <span className="whitespace-nowrap">{display}</span>;
 };
 
-const normaliseAvailabilityReply = (value) => {
-  const v = String(value || "").trim().toLowerCase();
-  if (!v) return "—";
-  if (["yes", "available", "i am available", "accepted"].includes(v)) return "Available";
-  if (["no", "unavailable", "not available", "declined"].includes(v)) return "Unavailable";
-  if (["maybe", "tentative"].includes(v)) return "Maybe";
-  if (["needsaction", "needs_action", "pending", "sent", "requested"].includes(v)) return "Pending";
-  if (["read"].includes(v)) return "Read";
-  return String(value || "—");
-};
+
 
 const normaliseAvailabilityReply = (value) => {
   const v = String(value || "").trim().toLowerCase();
