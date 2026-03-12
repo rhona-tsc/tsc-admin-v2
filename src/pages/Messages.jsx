@@ -5,6 +5,15 @@ import { backendUrl } from "../App";
 const normalize = (s) => (s || "").toLowerCase().trim();
 const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
 
+const getRoleFromStorage = () => {
+  return (
+    localStorage.getItem("userRole") ||
+    localStorage.getItem("role") ||
+    localStorage.getItem("musicianRole") ||
+    ""
+  );
+};
+
 const formatDateTime = (value) => {
   if (!value) return "—";
   const d = new Date(value);
@@ -42,6 +51,7 @@ const Messages = ({ userRole, userId, firstName }) => {
   const [sendingReply, setSendingReply] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
+  const [debugError, setDebugError] = useState("");
 
   const musicianId = useMemo(() => {
     const fromProps = userId;
@@ -52,16 +62,24 @@ const Messages = ({ userRole, userId, firstName }) => {
     return null;
   }, [userId]);
 
-  const isAgent = normalize(userRole) === "agent";
+  const resolvedUserRole = normalize(userRole || getRoleFromStorage());
+  const isAgent = resolvedUserRole === "agent" || resolvedUserRole === "admin";
 
   const fetchThreads = async () => {
     try {
       setLoading(true);
+      setDebugError("");
       const token = localStorage.getItem("token");
 
       const url = isAgent
         ? `${backendUrl}/api/messages`
         : `${backendUrl}/api/messages/mine`;
+
+      console.log("[Messages] backendUrl:", backendUrl);
+      console.log("[Messages] userRole prop:", userRole);
+      console.log("[Messages] resolvedUserRole:", resolvedUserRole);
+      console.log("[Messages] isAgent:", isAgent);
+      console.log("[Messages] fetching url:", url);
 
       const res = await axios.get(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -69,6 +87,7 @@ const Messages = ({ userRole, userId, firstName }) => {
       });
 
       const items = Array.isArray(res.data?.threads) ? res.data.threads : [];
+      console.log("[Messages] fetched thread count:", items.length, items);
       setThreads(items);
 
       if (!activeThreadId && items.length > 0) {
@@ -76,6 +95,11 @@ const Messages = ({ userRole, userId, firstName }) => {
       }
     } catch (err) {
       console.error("Failed to fetch messages:", err);
+      setDebugError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to fetch messages"
+      );
       setThreads([]);
     } finally {
       setLoading(false);
@@ -84,7 +108,7 @@ const Messages = ({ userRole, userId, firstName }) => {
 
   useEffect(() => {
     fetchThreads();
-  }, [userRole]);
+  }, [userRole, userId]);
 
   const filteredThreads = useMemo(() => {
     const q = normalize(search);
@@ -111,6 +135,7 @@ const Messages = ({ userRole, userId, firstName }) => {
     });
   }, [threads, search, filter]);
 
+  console.log("[Messages] filteredThreads:", filteredThreads);
   const activeThread =
     filteredThreads.find((t) => t._id === activeThreadId) ||
     filteredThreads[0] ||
@@ -164,6 +189,9 @@ const Messages = ({ userRole, userId, firstName }) => {
               ? "Monitor outbound messages and incoming replies across all vocalists."
               : "View and reply to messages sent to you."}
           </p>
+          <p className="text-xs text-gray-400 mt-1">
+            Role: {resolvedUserRole || "unknown"} • API: {backendUrl}
+          </p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -200,8 +228,14 @@ const Messages = ({ userRole, userId, firstName }) => {
           <div className="max-h-[70vh] overflow-y-auto">
             {loading ? (
               <div className="p-4 text-sm text-gray-500">Loading messages…</div>
+            ) : debugError ? (
+              <div className="p-4 text-sm text-red-600">
+                Failed to load messages: {debugError}
+              </div>
             ) : filteredThreads.length === 0 ? (
-              <div className="p-4 text-sm text-gray-500">No messages found.</div>
+              <div className="p-4 text-sm text-gray-500">
+                No messages found. Raw threads: {threads.length}
+              </div>
             ) : (
               filteredThreads.map((thread) => {
                 const isActive = thread._id === activeThread?._id;
@@ -217,7 +251,7 @@ const Messages = ({ userRole, userId, firstName }) => {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-semibold text-sm text-gray-900">
-                          {thread.recipientName || "Unknown recipient"}
+                          {thread.recipientName || thread.recipientPhone || "Unknown recipient"}
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
                           {thread.actName || "No act linked"}
@@ -274,7 +308,7 @@ const Messages = ({ userRole, userId, firstName }) => {
                 <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                   <div>
                     <h2 className="text-lg font-semibold">
-                      {activeThread.recipientName || "Recipient"}
+                      {activeThread.recipientName || activeThread.recipientPhone || "Recipient"}
                     </h2>
                     <p className="text-sm text-gray-500">
                       {activeThread.recipientPhone || activeThread.recipientEmail || "No contact details"}
