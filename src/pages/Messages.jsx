@@ -43,15 +43,34 @@ const channelPillClass = (channel) => {
   return "bg-gray-100 text-gray-700 border-gray-200";
 };
 
+const quickReplyConfig = [
+  {
+    key: "yes",
+    buttonText: "I am available",
+    buttonPayloadPrefix: "YES",
+  },
+  {
+    key: "no",
+    buttonText: "Not for this place",
+    buttonPayloadPrefix: "NOLOC",
+  },
+  {
+    key: "unavailable",
+    buttonText: "Unavailable this day",
+    buttonPayloadPrefix: "UNAVAILABLE",
+  },
+];
+
 const Messages = ({ userRole, userId, firstName }) => {
   const [threads, setThreads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeThreadId, setActiveThreadId] = useState(null);
-  const [replyText, setReplyText] = useState("");
-  const [sendingReply, setSendingReply] = useState(false);
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("all");
-  const [debugError, setDebugError] = useState("");
+ const [sendingReply, setSendingReply] = useState(false);
+const [search, setSearch] = useState("");
+const [filter, setFilter] = useState("all");
+const [debugError, setDebugError] = useState("");
+const [messageSearch, setMessageSearch] = useState("");
+const [replyingMessageId, setReplyingMessageId] = useState("");
 
   const musicianId = useMemo(() => {
     const fromProps = userId;
@@ -147,37 +166,61 @@ const Messages = ({ userRole, userId, firstName }) => {
     }
   }, [filteredThreads, activeThreadId]);
 
-  const handleReply = async () => {
-    if (!activeThread?._id || !replyText.trim()) return;
+const handleQuickReply = async (message, replyKey) => {
+  if (!message?.rowId || !replyKey) return;
 
-    try {
-      setSendingReply(true);
-      const token = localStorage.getItem("token");
+  const selected = quickReplyConfig.find((item) => item.key === replyKey);
+  if (!selected) return;
 
-      await axios.post(
-        `${backendUrl}/api/messages/${activeThread._id}/reply`,
-        {
-          body: replyText.trim(),
-          channel: "website",
-          senderRole: isAgent ? "agent" : "musician",
-          senderName: firstName || "User",
-          senderMusicianId: !isAgent ? musicianId : null,
-        },
-        {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          withCredentials: true,
-        }
-      );
+  try {
+    setSendingReply(true);
+    setReplyingMessageId(message._id);
+    const token = localStorage.getItem("token");
 
-      setReplyText("");
-      await fetchThreads();
-    } catch (err) {
-      console.error("Failed to send reply:", err);
-      alert("Sorry, reply failed to send.");
-    } finally {
-      setSendingReply(false);
-    }
-  };
+    await axios.post(
+      `${backendUrl}/api/messages/message-reply`,
+      {
+        rowId: message.rowId,
+        requestId: message.requestId || "",
+        reply: selected.key,
+        buttonText: selected.buttonText,
+        buttonPayload: `${selected.buttonPayloadPrefix}${message.requestId || ""}`,
+        senderName: firstName || "User",
+      },
+      {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        withCredentials: true,
+      }
+    );
+
+    await fetchThreads();
+  } catch (err) {
+    console.error("Failed to send quick reply:", err);
+    alert("Sorry, quick reply failed to send.");
+  } finally {
+    setSendingReply(false);
+    setReplyingMessageId("");
+  }
+};
+
+const visibleMessages = (activeThread?.messages || []).filter((message) => {
+  const q = normalize(messageSearch);
+  if (!q) return true;
+
+  const haystack = [
+    message?.body,
+    message?.senderName,
+    message?.channel,
+    message?.requestId,
+    message?.buttonText,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(q);
+});
+
 
   return (
     <div className="w-full p-6">
@@ -343,8 +386,18 @@ const Messages = ({ userRole, userId, firstName }) => {
                 </div>
               </div>
 
-              <div className="max-h-[52vh] overflow-y-auto px-5 py-5 space-y-4 bg-gray-50">
-                {(activeThread.messages || []).map((message) => {
+             <div className="border-b border-gray-200 bg-white px-5 py-3">
+  <input
+    type="text"
+    placeholder="Search within this message history…"
+    value={messageSearch}
+    onChange={(e) => setMessageSearch(e.target.value)}
+    className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm outline-none focus:border-black"
+  />
+</div>
+
+<div className="max-h-[52vh] overflow-y-auto px-5 py-5 space-y-4 bg-gray-50">
+  {visibleMessages.map((message) => {
                   const mine =
                     (isAgent && message.senderRole === "agent") ||
                     (!isAgent && message.senderRole === "musician");
@@ -373,40 +426,49 @@ const Messages = ({ userRole, userId, firstName }) => {
                           )}
                         </div>
 
-                        <p className="whitespace-pre-wrap text-sm leading-6">
-                          {message.body}
-                        </p>
+                       <p className="whitespace-pre-wrap text-sm leading-6">
+  {message.body}
+</p>
+
+{message.requestId && (
+  <p className="mt-2 text-[11px] opacity-70">
+    Ref: {message.requestId}
+  </p>
+)}
+
+{!isAgent &&
+  message.senderRole === "agent" &&
+  message.rowId &&
+  !message.reply && (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {quickReplyConfig.map((option) => (
+        <button
+          key={`${message._id}-${option.key}`}
+          onClick={() => handleQuickReply(message, option.key)}
+          disabled={sendingReply && replyingMessageId === message._id}
+          className="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-800 hover:border-black disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {sendingReply && replyingMessageId === message._id
+            ? "Sending..."
+            : option.buttonText}
+        </button>
+      ))}
+    </div>
+  )}
+                        
                       </div>
                     </div>
                   );
                 })}
               </div>
 
-              <div className="border-t border-gray-200 p-4">
-                <div className="rounded-2xl border border-gray-200 bg-white p-3">
-                  <textarea
-                    rows={4}
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    placeholder="Type your reply here..."
-                    className="w-full resize-none border-0 outline-none text-sm"
-                  />
-
-                  <div className="mt-3 flex items-center justify-between">
-                    <p className="text-xs text-gray-400">
-                      This reply will be saved to the thread as a website reply.
-                    </p>
-
-                    <button
-                      onClick={handleReply}
-                      disabled={sendingReply || !replyText.trim()}
-                      className="rounded-lg bg-[#ff6667] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {sendingReply ? "Sending..." : "Send Reply"}
-                    </button>
-                  </div>
-                </div>
-              </div>
+           <div className="border-t border-gray-200 p-4 bg-white">
+  <p className="text-xs text-gray-500">
+    {!isAgent
+      ? "Use the quick reply buttons on each enquiry message so replies stay linked to the correct request."
+      : "Admin view shows the full history for this person. Quick reply buttons are available for musicians on each enquiry message."}
+  </p>
+</div>
             </>
           )}
         </div>
