@@ -5,6 +5,12 @@ import { toast } from "react-toastify";
 import CustomToast from "../components/CustomToast";
 import { assets } from "../assets/assets";
 
+// 🧪 Debug helpers (toggleable)
+const DBG = true;
+const dlog = (...args) => DBG && console.log("🧩[ActPreSubmissionsPage]", ...args);
+const dwarn = (...args) => DBG && console.warn("🧩[ActPreSubmissionsPage]", ...args);
+const derr = (...args) => DBG && console.error("🧩[ActPreSubmissionsPage]", ...args);
+
 const ActPreSubmissionPage = () => {
   const [pendingActs, setPendingActs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +26,7 @@ const ActPreSubmissionPage = () => {
 
   const authHeaders = () => {
     const token = getToken();
+    dlog("authHeaders", { hasToken: !!token, tokenPrefix: token ? String(token).slice(0, 12) + "…" : "" });
     return {
       "Cache-Control": "no-cache",
       Pragma: "no-cache",
@@ -32,10 +39,16 @@ const ActPreSubmissionPage = () => {
       setLoading(true);
 
       const url = `${backendUrl}/api/act-pre-submissions/pending?_cb=${Date.now()}`;
+      dlog("fetchPendingActs ->", url);
 
       const response = await axios.get(url, {
         withCredentials: true,
         headers: authHeaders(),
+      });
+      dlog("fetchPendingActs <-", {
+        status: response?.status,
+        success: response?.data?.success,
+        subsLen: Array.isArray(response?.data?.subs) ? response.data.subs.length : null,
       });
 
       if (!response.data?.success) {
@@ -56,6 +69,10 @@ const ActPreSubmissionPage = () => {
       );
 
       setPendingActs(pending);
+      dlog("fetchPendingActs setPendingActs", {
+        pendingLen: pending.length,
+        sample: pending[0]?._id,
+      });
     } catch (error) {
       console.error("❌ fetchPendingActs error:", error?.response?.data || error);
       toast(
@@ -77,25 +94,33 @@ const ActPreSubmissionPage = () => {
 
       // 🔧 Change this if your route differs
       const fetchOneUrl = `${backendUrl}/api/act-pre-submissions/${id}?_cb=${Date.now()}`;
+      dlog("openModal ->", { id, url: fetchOneUrl });
 
       const res = await axios.get(fetchOneUrl, {
         withCredentials: true,
         headers: authHeaders(),
       });
-
-      if (!res.data?.success) {
-        toast(
-          <CustomToast
-            type="error"
-            message={res.data?.message || "Failed to load submission"}
-          />
-        );
-        return;
-      }
+      dlog("openModal <-", {
+        status: res?.status,
+        success: res?.data?.success,
+        keys: res?.data ? Object.keys(res.data) : null,
+      });
 
       // depending on your API shape:
-      const doc = res.data?.sub || res.data?.data || res.data?.presubmission || res.data;
+      const doc =
+        res.data?.submission ||
+        res.data?.sub ||
+        res.data?.data ||
+        res.data?.presubmission ||
+        res.data;
       setSelectedAct(doc);
+      dlog("openModal setSelectedAct", {
+        id: doc?._id,
+        status: doc?.status,
+        actName: doc?.actName,
+        bandLeaderEmail: doc?.bandLeaderEmail,
+        musicianEmail: doc?.musicianEmail,
+      });
     } catch (e) {
       console.error("❌ openModal error:", e?.response?.data || e);
       toast(<CustomToast type="error" message="Failed to load submission" />);
@@ -105,6 +130,7 @@ const ActPreSubmissionPage = () => {
   };
 
   const closeModal = () => {
+    dlog("closeModal");
     setIsModalOpen(false);
     setSelectedId(null);
     setSelectedAct(null);
@@ -117,6 +143,7 @@ const ActPreSubmissionPage = () => {
         action === "approved"
           ? `${backendUrl}/api/act-pre-submissions/approve/${id}`
           : `${backendUrl}/api/act-pre-submissions/reject/${id}`;
+      dlog("updateStatus ->", { id, action, endpoint });
 
       const res = await axios.post(
         endpoint,
@@ -126,8 +153,22 @@ const ActPreSubmissionPage = () => {
           headers: authHeaders(),
         }
       );
+      dlog("updateStatus <-", {
+        status: res?.status,
+        success: res?.data?.success,
+        message: res?.data?.message,
+        subStatus: res?.data?.sub?.status || res?.data?.submission?.status,
+        recipientEmail: res?.data?.recipientEmail,
+        emailSent: res?.data?.emailSent,
+      });
 
       if (res.data?.success) {
+        // If backend returned the updated sub, reflect it in the modal immediately
+        const updated = res.data?.sub || res.data?.submission || null;
+        if (updated && String(updated._id) === String(selectedId)) {
+          setSelectedAct(updated);
+          dlog("updateStatus setSelectedAct(updated)", { id: updated._id, status: updated.status });
+        }
         toast(<CustomToast type="success" message={`Pre Submission ${action}`} />);
         await fetchPendingActs();
         closeModal();
@@ -146,6 +187,20 @@ const ActPreSubmissionPage = () => {
       );
     }
   };
+
+  // state-change visibility debug
+  useEffect(() => {
+    if (!DBG) return;
+    dlog("state", {
+      isModalOpen,
+      selectedId,
+      selectedActId: selectedAct?._id,
+      selectedActStatus: selectedAct?.status,
+      pendingActsLen: pendingActs.length,
+      loading,
+      modalLoading,
+    });
+  }, [isModalOpen, selectedId, selectedAct, pendingActs.length, loading, modalLoading]);
 
   // ✅ ESC closes modal
   useEffect(() => {
