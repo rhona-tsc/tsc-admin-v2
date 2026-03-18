@@ -375,6 +375,17 @@ const getExtrasFromRow = (row) => {
       price: Number(extra?.price || 0) || 0,
       finishTime: extra?.finishTime || "",
       arrivalTime: extra?.arrivalTime || "",
+      category: extra?.category || "",
+      pricingMode: extra?.pricingMode || "flat",
+      appliedMinutes: Number(extra?.appliedMinutes || 0) || 0,
+      billableMemberCount: Number(extra?.billableMemberCount || 0) || 0,
+      payoutMemberIds: Array.isArray(extra?.payoutMemberIds)
+        ? extra.payoutMemberIds.map((id) => String(id))
+        : [],
+      payoutMemberNames: Array.isArray(extra?.payoutMemberNames)
+        ? extra.payoutMemberNames
+        : [],
+      paLateStay: extra?.paLateStay || null,
     }));
   }
 
@@ -387,6 +398,17 @@ const getExtrasFromRow = (row) => {
       price: Number(extra?.price || 0) || 0,
       finishTime: extra?.finishTime || "",
       arrivalTime: extra?.arrivalTime || "",
+      category: extra?.category || "",
+      pricingMode: extra?.pricingMode || "flat",
+      appliedMinutes: Number(extra?.appliedMinutes || 0) || 0,
+      billableMemberCount: Number(extra?.billableMemberCount || 0) || 0,
+      payoutMemberIds: Array.isArray(extra?.payoutMemberIds)
+        ? extra.payoutMemberIds.map((id) => String(id))
+        : [],
+      payoutMemberNames: Array.isArray(extra?.payoutMemberNames)
+        ? extra.payoutMemberNames
+        : [],
+      paLateStay: extra?.paLateStay || null,
     }));
   }
 
@@ -422,6 +444,7 @@ const getActExtrasCatalog = (row) => {
   );
 };
 
+
 const getPerformerCountForLateFees = (row) => {
   const members =
     row?.actsSummary?.[0]?.lineup?.bandMembers ||
@@ -438,6 +461,32 @@ const getPerformerCountForLateFees = (row) => {
   });
 
   return nonManagers.length || members.length || 0;
+};
+
+const getLineupMemberOptions = (row) => {
+  const members =
+    row?.actsSummary?.[0]?.lineup?.bandMembers ||
+    row?.actsSummary?.[0]?.bandMembers ||
+    [];
+
+  return members.map((member, index) => {
+    const id = String(
+      member?.musicianId ||
+      member?._id ||
+      member?.id ||
+      `${member?.firstName || "member"}-${member?.lastName || ""}-${index}`
+    );
+
+    const name = [member?.firstName, member?.lastName].filter(Boolean).join(" ").trim() || member?.name || `Member ${index + 1}`;
+    const role = member?.instrument || member?.role || "";
+
+    return {
+      id,
+      name,
+      role,
+      label: role ? `${name} — ${role}` : name,
+    };
+  });
 };
 
 const getBandExtraOptions = (row) => {
@@ -541,6 +590,8 @@ const buildEditStateFromRow = (row) => {
     paLightsFinishTime: performance?.paLightsFinishTime || "",
     paLightsFinishDayOffset: Number(performance?.paLightsFinishDayOffset || 0) || 0,
     extras: getExtrasFromRow(row),
+    lateStayAppliesTo: "whole_band",
+    selectedLateStayMembers: [],
     manualAdjustmentLabel: "",
     manualAdjustmentAmount: "",
     notes: row?.notes || "",
@@ -556,7 +607,11 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
   const manualAdjustmentAmount = Number(value.manualAdjustmentAmount || 0) || 0;
   const recalculatedGross = Number(value.baseGross || 0) + extrasTotal + manualAdjustmentAmount;
   const recalculatedBalance = Math.max(0, recalculatedGross - Number(value.depositAmount || 0));
-const bandExtraOptions = getBandExtraOptions(row);
+  const bandExtraOptions = getBandExtraOptions(row);
+  const lineupMemberOptions = getLineupMemberOptions(row);
+  const selectedLateStayMembers = Array.isArray(value.selectedLateStayMembers)
+    ? value.selectedLateStayMembers
+    : [];
 
   const updateExtra = (id, patch) => {
     onChange({
@@ -574,6 +629,13 @@ const bandExtraOptions = getBandExtraOptions(row);
       price: Number(seed.price || 0) || 0,
       finishTime: seed.finishTime || "",
       arrivalTime: seed.arrivalTime || value.arrivalTime || "",
+      category: seed.category || "",
+      pricingMode: seed.pricingMode || "flat",
+      appliedMinutes: Number(seed.appliedMinutes || 0) || 0,
+      billableMemberCount: Number(seed.billableMemberCount || 0) || 0,
+      payoutMemberIds: Array.isArray(seed.payoutMemberIds) ? seed.payoutMemberIds : [],
+      payoutMemberNames: Array.isArray(seed.payoutMemberNames) ? seed.payoutMemberNames : [],
+      paLateStay: seed.paLateStay || null,
     };
 
     onChange({
@@ -590,99 +652,124 @@ const bandExtraOptions = getBandExtraOptions(row);
   };
 
   const upsertNamedExtra = (seed = {}) => {
-  const targetKey = String(seed.key || "").trim().toLowerCase();
-  const targetName = String(seed.name || "").trim().toLowerCase();
+    const targetKey = String(seed.key || "").trim().toLowerCase();
+    const targetName = String(seed.name || "").trim().toLowerCase();
 
-  const existing = (value.extras || []).find((extra) => {
-    const extraKey = String(extra?.key || "").trim().toLowerCase();
-    const extraName = String(extra?.name || "").trim().toLowerCase();
-    return (targetKey && extraKey === targetKey) || (targetName && extraName === targetName);
-  });
+    const existing = (value.extras || []).find((extra) => {
+      const extraKey = String(extra?.key || "").trim().toLowerCase();
+      const extraName = String(extra?.name || "").trim().toLowerCase();
+      return (targetKey && extraKey === targetKey) || (targetName && extraName === targetName);
+    });
 
-  if (existing) {
+    if (existing) {
+      onChange({
+        ...value,
+        extras: (value.extras || []).map((extra) =>
+          extra.id === existing.id
+            ? {
+                ...extra,
+                ...seed,
+                id: existing.id,
+              }
+            : extra
+        ),
+      });
+      return;
+    }
+
+    addExtra(seed);
+  };
+
+  const applyLateStayFee = (minutes) => {
+    const lateStayOption = bandExtraOptions.find(
+      (option) => option.key === "late_stay_60min_per_band_member"
+    );
+    if (!lateStayOption) return;
+
+    const mins = Number(minutes || 0) || 0;
+    if (mins <= 0) return;
+
+    const netPerBandMember = Number(lateStayOption?.meta?.netPerBandMember || 0) || 0;
+    const wholeBandCount = Number(lateStayOption?.meta?.performerCount || 0) || 0;
+
+    const chosenMembers = value.lateStayAppliesTo === "selected_members"
+      ? lineupMemberOptions.filter((member) => selectedLateStayMembers.includes(member.id)).slice(0, 2)
+      : [];
+
+    const billableMemberCount = value.lateStayAppliesTo === "selected_members"
+      ? chosenMembers.length
+      : wholeBandCount;
+
+    const gross =
+      netPerBandMember > 0 && billableMemberCount > 0
+        ? Math.ceil(((netPerBandMember * billableMemberCount) * (mins / 60)) * 1.33)
+        : Number(lateStayOption.price || 0) || 0;
+
+    upsertNamedExtra({
+      key: "late_stay_60min_per_band_member",
+      name: `Late Stay Fee (${mins} mins)`,
+      quantity: 1,
+      price: gross,
+      finishTime: value.paLightsFinishTime || value.finishTime || "",
+      arrivalTime: "",
+      category: "late_stay",
+      pricingMode: value.lateStayAppliesTo === "selected_members" ? "per_specific_members" : "per_band_member",
+      appliedMinutes: mins,
+      billableMemberCount,
+      payoutMemberIds: chosenMembers.map((member) => member.id),
+      payoutMemberNames: chosenMembers.map((member) => member.name),
+      paLateStay: {
+        enabled: true,
+        onlySpecificMembers: value.lateStayAppliesTo === "selected_members",
+        memberCount: billableMemberCount,
+        memberIds: chosenMembers.map((member) => member.id),
+        memberNames: chosenMembers.map((member) => member.name),
+        additionalMinutesBeyondBand: mins,
+        basedOnExtraKey: "late_stay_60min_per_band_member",
+      },
+    });
+  };
+
+  const applyPaLightsUntil1am = () => {
+    const nextFinish = "01:00";
+    const nextOffset = 1;
+
     onChange({
       ...value,
-      extras: (value.extras || []).map((extra) =>
-        extra.id === existing.id
-          ? {
-              ...extra,
-              ...seed,
-              id: existing.id,
-            }
-          : extra
-      ),
+      paLightsFinishTime: nextFinish,
+      paLightsFinishDayOffset: nextOffset,
     });
-    return;
-  }
 
-  addExtra(seed);
-};
+    upsertNamedExtra({
+      key: "pa_and_lights_hire",
+      name: "PA & Lights Hire",
+      quantity: 1,
+      price: 0,
+      finishTime: nextFinish,
+      arrivalTime: value.arrivalTime || "",
+      category: "pa_hire",
+      pricingMode: "flat",
+    });
 
-const applyLateStayFee = (minutes) => {
-  const lateStayOption = bandExtraOptions.find(
-    (option) => option.key === "late_stay_60min_per_band_member"
-  );
-  if (!lateStayOption) return;
+    const bandFinish = value.finishTime || "00:00";
+    const [bandHours, bandMins] = String(bandFinish).split(":").map(Number);
+    const [paHours, paMins] = nextFinish.split(":").map(Number);
 
-  const mins = Number(minutes || 0) || 0;
-  if (mins <= 0) return;
+    const bandTotal =
+      ((Number.isNaN(bandHours) ? 0 : bandHours) * 60) +
+      (Number.isNaN(bandMins) ? 0 : bandMins);
 
-  const netPerBandMember = Number(lateStayOption?.meta?.netPerBandMember || 0) || 0;
-  const performerCount = Number(lateStayOption?.meta?.performerCount || 0) || 0;
+    const paTotal =
+      ((Number.isNaN(paHours) ? 0 : paHours) * 60) +
+      (Number.isNaN(paMins) ? 0 : paMins) +
+      1440;
 
-  const gross =
-    netPerBandMember > 0 && performerCount > 0
-      ? Math.ceil(((netPerBandMember * performerCount) * (mins / 60)) * 1.33)
-      : Number(lateStayOption.price || 0) || 0;
+    const diff = Math.max(0, paTotal - bandTotal);
 
-  upsertNamedExtra({
-    key: "late_stay_60min_per_band_member",
-    name: `Late Stay Fee (${mins} mins)`,
-    quantity: 1,
-    price: gross,
-    finishTime: value.paLightsFinishTime || value.finishTime || "",
-    arrivalTime: "",
-  });
-};
-
- const applyPaLightsUntil1am = () => {
-  const nextFinish = "01:00";
-  const nextOffset = 1;
-
-  onChange({
-    ...value,
-    paLightsFinishTime: nextFinish,
-    paLightsFinishDayOffset: nextOffset,
-  });
-
-  upsertNamedExtra({
-    key: "pa_and_lights_hire",
-    name: "PA & Lights Hire",
-    quantity: 1,
-    price: 0,
-    finishTime: nextFinish,
-    arrivalTime: value.arrivalTime || "",
-  });
-
-  const bandFinish = value.finishTime || "00:00";
-  const [bandHours, bandMins] = String(bandFinish).split(":").map(Number);
-  const [paHours, paMins] = nextFinish.split(":").map(Number);
-
-  const bandTotal =
-    ((Number.isNaN(bandHours) ? 0 : bandHours) * 60) +
-    (Number.isNaN(bandMins) ? 0 : bandMins);
-
-  const paTotal =
-    ((Number.isNaN(paHours) ? 0 : paHours) * 60) +
-    (Number.isNaN(paMins) ? 0 : paMins) +
-    1440;
-
-  const diff = Math.max(0, paTotal - bandTotal);
-
-  if (diff > 0) {
-    applyLateStayFee(diff);
-  }
-};
+    if (diff > 0) {
+      applyLateStayFee(diff);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 overflow-y-auto">
@@ -849,6 +936,76 @@ const applyLateStayFee = (minutes) => {
   </div>
 )}
 
+          <div className="mb-4 border rounded-lg bg-white p-3">
+            <div className="text-sm font-medium mb-2">Late stay applies to</div>
+            <div className="flex flex-wrap gap-4 mb-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="lateStayAppliesTo"
+                  checked={(value.lateStayAppliesTo || "whole_band") === "whole_band"}
+                  onChange={() =>
+                    onChange({
+                      ...value,
+                      lateStayAppliesTo: "whole_band",
+                      selectedLateStayMembers: [],
+                    })
+                  }
+                />
+                Whole band
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="lateStayAppliesTo"
+                  checked={value.lateStayAppliesTo === "selected_members"}
+                  onChange={() =>
+                    onChange({
+                      ...value,
+                      lateStayAppliesTo: "selected_members",
+                      selectedLateStayMembers: Array.isArray(value.selectedLateStayMembers)
+                        ? value.selectedLateStayMembers.slice(0, 2)
+                        : [],
+                    })
+                  }
+                />
+                Selected members
+              </label>
+            </div>
+
+            {value.lateStayAppliesTo === "selected_members" && (
+              <div>
+                <div className="text-xs text-gray-600 mb-2">Choose up to 2 names from the lineup</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {lineupMemberOptions.map((member) => {
+                    const checked = selectedLateStayMembers.includes(member.id);
+                    const disableUnchecked = !checked && selectedLateStayMembers.length >= 2;
+
+                    return (
+                      <label key={member.id} className={`flex items-center gap-2 border rounded px-3 py-2 text-sm ${disableUnchecked ? "opacity-50" : ""}`}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={disableUnchecked}
+                          onChange={(e) => {
+                            const next = e.target.checked
+                              ? [...selectedLateStayMembers, member.id].slice(0, 2)
+                              : selectedLateStayMembers.filter((id) => id !== member.id);
+
+                            onChange({
+                              ...value,
+                              selectedLateStayMembers: next,
+                            });
+                          }}
+                        />
+                        <span>{member.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
           <div className="space-y-3">
             {(value.extras || []).length === 0 && (
               <div className="text-sm text-gray-500">No extras added yet.</div>
@@ -913,8 +1070,15 @@ const applyLateStayFee = (minutes) => {
                     onChange={(e) => updateExtra(extra.id, { finishTime: e.target.value })}
                   />
                 </div>
-                <div className="md:col-span-12 flex justify-end">
-                  <button type="button" className="text-sm underline text-red-600" onClick={() => removeExtra(extra.id)}>Remove</button>
+                <div className="md:col-span-12">
+                  {Array.isArray(extra.payoutMemberNames) && extra.payoutMemberNames.length > 0 && (
+                    <div className="text-xs text-gray-600 mb-2">
+                      Applies to: {extra.payoutMemberNames.join(", ")}
+                    </div>
+                  )}
+                  <div className="flex justify-end">
+                    <button type="button" className="text-sm underline text-red-600" onClick={() => removeExtra(extra.id)}>Remove</button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -1138,6 +1302,13 @@ const [newRow, setNewRow] = useState({
         price: Number(extra?.price || 0) || 0,
         finishTime: extra?.finishTime || "",
         arrivalTime: extra?.arrivalTime || "",
+        category: extra?.category || "",
+        pricingMode: extra?.pricingMode || "flat",
+        appliedMinutes: Number(extra?.appliedMinutes || 0) || 0,
+        billableMemberCount: Number(extra?.billableMemberCount || 0) || 0,
+        payoutMemberIds: Array.isArray(extra?.payoutMemberIds) ? extra.payoutMemberIds : [],
+        payoutMemberNames: Array.isArray(extra?.payoutMemberNames) ? extra.payoutMemberNames : [],
+        paLateStay: extra?.paLateStay || null,
       }))
       .filter((extra) => extra.name || extra.key || extra.price || extra.finishTime || extra.arrivalTime);
 
@@ -1172,6 +1343,10 @@ const [newRow, setNewRow] = useState({
       bookingDetails: {
         ...(editingRow?.bookingDetails || {}),
         extras: cleanedExtras,
+        lateStayAppliesTo: editForm.lateStayAppliesTo || "whole_band",
+        selectedLateStayMembers: Array.isArray(editForm.selectedLateStayMembers)
+          ? editForm.selectedLateStayMembers
+          : [],
       },
       notes: [
         editingRow?.notes || "",
