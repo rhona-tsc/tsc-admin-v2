@@ -365,6 +365,400 @@ const Tag = ({ children }) => (
   <span className="inline-block px-2 py-1 text-xs rounded border">{children}</span>
 );
 
+const getExtrasFromRow = (row) => {
+  if (Array.isArray(row?.actsSummary?.[0]?.selectedExtras)) {
+    return row.actsSummary[0].selectedExtras.map((extra, index) => ({
+      id: `${extra?.key || extra?.name || "extra"}-${index}`,
+      key: extra?.key || "",
+      name: extra?.name || extra?.key || "Extra",
+      quantity: Number(extra?.quantity || 1) || 1,
+      price: Number(extra?.price || 0) || 0,
+      finishTime: extra?.finishTime || "",
+      arrivalTime: extra?.arrivalTime || "",
+    }));
+  }
+
+  if (Array.isArray(row?.bookingDetails?.extras)) {
+    return row.bookingDetails.extras.map((extra, index) => ({
+      id: `${extra?.key || extra?.name || "extra"}-${index}`,
+      key: extra?.key || "",
+      name: extra?.name || extra?.key || "Extra",
+      quantity: Number(extra?.quantity || 1) || 1,
+      price: Number(extra?.price || 0) || 0,
+      finishTime: extra?.finishTime || "",
+      arrivalTime: extra?.arrivalTime || "",
+    }));
+  }
+
+  return [];
+};
+
+const getLikelyBandExtras = (row) => {
+  const roles = [];
+  const members = row?.actsSummary?.[0]?.lineup?.bandMembers || row?.actsSummary?.[0]?.bandMembers || [];
+
+  members.forEach((member) => {
+    if (!Array.isArray(member?.additionalRoles)) return;
+    member.additionalRoles.forEach((role) => {
+      const roleName = String(role?.role || "").trim();
+      if (!roleName) return;
+      if (!roles.some((r) => r.toLowerCase() === roleName.toLowerCase())) {
+        roles.push(roleName);
+      }
+    });
+  });
+
+  const suggestions = [];
+
+  if (roles.some((r) => /sound engineering/i.test(r))) {
+    suggestions.push({
+      key: "pa_and_lights_hire",
+      name: "PA & Lights Hire",
+      quantity: 1,
+      price: 0,
+      finishTime: row?.actsSummary?.[0]?.performance?.paLightsFinishTime || row?.performanceTimes?.paLightsFinishTime || "",
+      arrivalTime: row?.actsSummary?.[0]?.performance?.arrivalTime || row?.performanceTimes?.arrivalTime || "",
+    });
+  }
+
+  if (roles.some((r) => /dj/i.test(r))) {
+    suggestions.push({
+      key: "dj_service",
+      name: "DJ Service",
+      quantity: 1,
+      price: 0,
+      finishTime: row?.actsSummary?.[0]?.performance?.finishTime || row?.performanceTimes?.finishTime || "",
+      arrivalTime: row?.actsSummary?.[0]?.performance?.arrivalTime || row?.performanceTimes?.arrivalTime || "",
+    });
+  }
+
+  return suggestions;
+};
+
+const buildEditStateFromRow = (row) => {
+  const gross = getDisplayGross(row);
+  const depositFromBackend = getDisplayDeposit(row);
+  const deposit = depositFromBackend != null ? depositFromBackend : (gross ? Math.ceil((Number(gross) - 50) * 0.2) + 50 : 0);
+  const performance = row?.actsSummary?.[0]?.performance || row?.performanceTimes || {};
+
+  return {
+    _id: row?._id,
+    bookingRef: getDisplayBookingRef(row),
+    clientFirstNames: getClientFirstNames(row),
+    actName: getDisplayActName(row),
+    actTscName: getDisplayActTscName(row),
+    eventDate: getDisplayEventDate(row),
+    baseGross: Number(gross || 0),
+    depositAmount: Number(deposit || 0),
+    eventType: row?.eventType || "",
+    venueAddress: getDisplayAddress(row),
+    arrivalTime: performance?.arrivalTime || getDisplayArrivalTime(row) || "",
+    startTime: performance?.startTime || "",
+    finishTime: performance?.finishTime || getDisplayFinishTime(row) || "",
+    paLightsFinishTime: performance?.paLightsFinishTime || "",
+    paLightsFinishDayOffset: Number(performance?.paLightsFinishDayOffset || 0) || 0,
+    extras: getExtrasFromRow(row),
+    manualAdjustmentLabel: "",
+    manualAdjustmentAmount: "",
+    notes: row?.notes || "",
+  };
+};
+
+function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
+  if (!row || !value) return null;
+
+  const extrasTotal = (value.extras || []).reduce((sum, extra) => {
+    return sum + (Number(extra?.price || 0) * Number(extra?.quantity || 1));
+  }, 0);
+  const manualAdjustmentAmount = Number(value.manualAdjustmentAmount || 0) || 0;
+  const recalculatedGross = Number(value.baseGross || 0) + extrasTotal + manualAdjustmentAmount;
+  const recalculatedBalance = Math.max(0, recalculatedGross - Number(value.depositAmount || 0));
+  const likelyExtras = getLikelyBandExtras(row);
+
+  const updateExtra = (id, patch) => {
+    onChange({
+      ...value,
+      extras: (value.extras || []).map((extra) => (extra.id === id ? { ...extra, ...patch } : extra)),
+    });
+  };
+
+  const addExtra = (seed = {}) => {
+    const next = {
+      id: `extra-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      key: seed.key || "",
+      name: seed.name || "",
+      quantity: Number(seed.quantity || 1) || 1,
+      price: Number(seed.price || 0) || 0,
+      finishTime: seed.finishTime || "",
+      arrivalTime: seed.arrivalTime || value.arrivalTime || "",
+    };
+
+    onChange({
+      ...value,
+      extras: [...(value.extras || []), next],
+    });
+  };
+
+  const removeExtra = (id) => {
+    onChange({
+      ...value,
+      extras: (value.extras || []).filter((extra) => extra.id !== id),
+    });
+  };
+
+  const applyPaLightsUntil1am = () => {
+    const existing = (value.extras || []).find((extra) => /pa\s*&?\s*lights/i.test(String(extra?.name || extra?.key || "")));
+    const nextFinish = "01:00";
+    const nextOffset = 1;
+
+    if (existing) {
+      onChange({
+        ...value,
+        paLightsFinishTime: nextFinish,
+        paLightsFinishDayOffset: nextOffset,
+        extras: (value.extras || []).map((extra) =>
+          extra.id === existing.id
+            ? { ...extra, finishTime: nextFinish }
+            : extra
+        ),
+      });
+      return;
+    }
+
+    onChange({
+      ...value,
+      paLightsFinishTime: nextFinish,
+      paLightsFinishDayOffset: nextOffset,
+      extras: [
+        ...(value.extras || []),
+        {
+          id: `extra-${Date.now()}-palights`,
+          key: "pa_and_lights_hire",
+          name: "PA & Lights Hire",
+          quantity: 1,
+          price: 0,
+          finishTime: nextFinish,
+          arrivalTime: value.arrivalTime || "",
+        },
+      ],
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl p-5">
+        <div className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-xl font-semibold">Update booking</h2>
+            <div className="text-sm text-gray-600 mt-1">
+              {value.clientFirstNames || "—"} • {value.bookingRef || "—"} • {value.actTscName || value.actName || "—"}
+            </div>
+          </div>
+          <button className="px-3 py-2 border rounded" onClick={onClose}>Close</button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Client</label>
+            <input className="border rounded px-3 py-2 w-full" value={value.clientFirstNames || ""} readOnly />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Booking ref</label>
+            <input className="border rounded px-3 py-2 w-full" value={value.bookingRef || ""} readOnly />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Arrival</label>
+            <input
+              type="time"
+              step="300"
+              className="border rounded px-3 py-2 w-full"
+              value={value.arrivalTime || ""}
+              onChange={(e) => onChange({ ...value, arrivalTime: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Band finish</label>
+            <input
+              type="time"
+              step="300"
+              className="border rounded px-3 py-2 w-full"
+              value={value.finishTime || ""}
+              onChange={(e) => onChange({ ...value, finishTime: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">PA/lights finish</label>
+            <input
+              type="time"
+              step="300"
+              className="border rounded px-3 py-2 w-full"
+              value={value.paLightsFinishTime || ""}
+              onChange={(e) => onChange({ ...value, paLightsFinishTime: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">PA/lights next day offset</label>
+            <select
+              className="border rounded px-3 py-2 w-full"
+              value={value.paLightsFinishDayOffset || 0}
+              onChange={(e) => onChange({ ...value, paLightsFinishDayOffset: Number(e.target.value || 0) })}
+            >
+              <option value={0}>Same day</option>
+              <option value={1}>Next day</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="mb-5 p-4 border rounded-lg bg-gray-50">
+          <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+            <h3 className="font-medium">Extras</h3>
+            <div className="flex gap-2 flex-wrap">
+              <button type="button" className="px-3 py-2 border rounded bg-white" onClick={() => addExtra()}>+ Add manual extra</button>
+              <button type="button" className="px-3 py-2 border rounded bg-white" onClick={applyPaLightsUntil1am}>+ Add PA & lights until 1am</button>
+            </div>
+          </div>
+
+          {likelyExtras.length > 0 && (
+            <div className="mb-4">
+              <div className="text-xs font-medium text-gray-600 mb-2">Likely extras from this band's roles</div>
+              <div className="flex gap-2 flex-wrap">
+                {likelyExtras.map((extra, idx) => (
+                  <button
+                    key={`${extra.key}-${idx}`}
+                    type="button"
+                    className="px-3 py-2 border rounded bg-white text-sm"
+                    onClick={() => addExtra(extra)}
+                  >
+                    Add {extra.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {(value.extras || []).length === 0 && (
+              <div className="text-sm text-gray-500">No extras added yet.</div>
+            )}
+
+            {(value.extras || []).map((extra) => (
+              <div key={extra.id} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end border rounded-lg p-3 bg-white">
+                <div className="md:col-span-3">
+                  <label className="block text-xs text-gray-600 mb-1">Extra name</label>
+                  <input
+                    className="border rounded px-3 py-2 w-full"
+                    value={extra.name || ""}
+                    onChange={(e) => updateExtra(extra.id, { name: e.target.value })}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-gray-600 mb-1">Key</label>
+                  <input
+                    className="border rounded px-3 py-2 w-full"
+                    value={extra.key || ""}
+                    onChange={(e) => updateExtra(extra.id, { key: e.target.value })}
+                  />
+                </div>
+                <div className="md:col-span-1">
+                  <label className="block text-xs text-gray-600 mb-1">Qty</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="border rounded px-3 py-2 w-full"
+                    value={extra.quantity ?? 1}
+                    onChange={(e) => updateExtra(extra.id, { quantity: Number(e.target.value || 1) })}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-gray-600 mb-1">Price (£)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="border rounded px-3 py-2 w-full"
+                    value={extra.price ?? 0}
+                    onChange={(e) => updateExtra(extra.id, { price: Number(e.target.value || 0) })}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-gray-600 mb-1">Arrival</label>
+                  <input
+                    type="time"
+                    step="300"
+                    className="border rounded px-3 py-2 w-full"
+                    value={extra.arrivalTime || ""}
+                    onChange={(e) => updateExtra(extra.id, { arrivalTime: e.target.value })}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-gray-600 mb-1">Finish</label>
+                  <input
+                    type="time"
+                    step="300"
+                    className="border rounded px-3 py-2 w-full"
+                    value={extra.finishTime || ""}
+                    onChange={(e) => updateExtra(extra.id, { finishTime: e.target.value })}
+                  />
+                </div>
+                <div className="md:col-span-12 flex justify-end">
+                  <button type="button" className="text-sm underline text-red-600" onClick={() => removeExtra(extra.id)}>Remove</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="border rounded-lg p-4">
+            <div className="font-medium mb-3">Optional manual adjustment</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Label</label>
+                <input
+                  className="border rounded px-3 py-2 w-full"
+                  value={value.manualAdjustmentLabel || ""}
+                  onChange={(e) => onChange({ ...value, manualAdjustmentLabel: e.target.value })}
+                  placeholder="e.g. goodwill discount or manual hire fee"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">Amount (£)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  className="border rounded px-3 py-2 w-full"
+                  value={value.manualAdjustmentAmount || ""}
+                  onChange={(e) => onChange({ ...value, manualAdjustmentAmount: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="border rounded-lg p-4 bg-gray-50">
+            <div className="font-medium mb-3">Updated totals preview</div>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center justify-between"><span>Current/base gross</span><strong>£{Number(value.baseGross || 0).toLocaleString("en-GB", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</strong></div>
+              <div className="flex items-center justify-between"><span>Extras total</span><strong>£{Number(extrasTotal || 0).toLocaleString("en-GB", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</strong></div>
+              <div className="flex items-center justify-between"><span>Manual adjustment</span><strong>£{Number(manualAdjustmentAmount || 0).toLocaleString("en-GB", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</strong></div>
+              <div className="flex items-center justify-between border-t pt-2"><span>New gross total</span><strong>£{Number(recalculatedGross || 0).toLocaleString("en-GB", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</strong></div>
+              <div className="flex items-center justify-between"><span>Deposit already paid</span><strong>£{Number(value.depositAmount || 0).toLocaleString("en-GB", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</strong></div>
+              <div className="flex items-center justify-between"><span>Estimated new balance</span><strong>£{Number(recalculatedBalance || 0).toLocaleString("en-GB", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <button type="button" className="px-4 py-2 border rounded" onClick={onClose}>Cancel</button>
+          <button type="button" className="px-4 py-2 rounded bg-black text-white disabled:opacity-50" disabled={saving} onClick={onSave}>
+            {saving ? "Saving…" : "Save booking update"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- Agent selector (dropdown + "Other...")
 const AGENTS = [
   "Alive Network",
@@ -455,6 +849,9 @@ const [newRow, setNewRow] = useState({
 });
   const [adding, setAdding] = useState(false);
   const [hideInternalTests, setHideInternalTests] = useState(true);
+  const [editingRow, setEditingRow] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const buildHeaders = () => {
     const token = getAuthToken();
@@ -512,6 +909,104 @@ const [newRow, setNewRow] = useState({
     }
   };
 
+  const openEditModal = (row) => {
+    setEditingRow(row);
+    setEditForm(buildEditStateFromRow(row));
+  };
+
+  const saveBookingUpdate = async () => {
+    if (!editingRow || !editForm?._id) return;
+
+    const cleanedExtras = (editForm.extras || [])
+      .map((extra) => ({
+        key: String(extra?.key || "").trim(),
+        name: String(extra?.name || extra?.key || "Extra").trim(),
+        quantity: Number(extra?.quantity || 1) || 1,
+        price: Number(extra?.price || 0) || 0,
+        finishTime: extra?.finishTime || "",
+        arrivalTime: extra?.arrivalTime || "",
+      }))
+      .filter((extra) => extra.name || extra.key || extra.price || extra.finishTime || extra.arrivalTime);
+
+    const extrasTotal = cleanedExtras.reduce((sum, extra) => sum + (extra.price * extra.quantity), 0);
+    const manualAdjustmentAmount = Number(editForm.manualAdjustmentAmount || 0) || 0;
+    const newGross = Math.max(0, Number(editForm.baseGross || 0) + extrasTotal + manualAdjustmentAmount);
+    const depositAmount = Number(editForm.depositAmount || 0) || 0;
+    const newBalance = Math.max(0, newGross - depositAmount);
+
+    const currentActsSummary = Array.isArray(editingRow?.actsSummary) ? editingRow.actsSummary : [];
+    const firstAct = currentActsSummary[0] || {};
+    const nextPerformance = {
+      ...(editingRow?.performanceTimes || {}),
+      ...(firstAct?.performance || {}),
+      arrivalTime: editForm.arrivalTime || "",
+      startTime: editForm.startTime || firstAct?.performance?.startTime || editingRow?.performanceTimes?.startTime || "",
+      finishTime: editForm.finishTime || "",
+      paLightsFinishTime: editForm.paLightsFinishTime || "",
+      paLightsFinishDayOffset: Number(editForm.paLightsFinishDayOffset || 0) || 0,
+    };
+
+    const patch = {
+      totals: {
+        ...(editingRow?.totals || {}),
+        fullAmount: Number(newGross.toFixed(2)),
+        depositAmount: Number(depositAmount.toFixed(2)),
+      },
+      amount: Number((editingRow?.amount || editingRow?.totals?.chargedAmount || 0)),
+      fee: Number(newGross.toFixed(2)),
+      balanceAmountPence: Math.round(newBalance * 100),
+      performanceTimes: nextPerformance,
+      bookingDetails: {
+        ...(editingRow?.bookingDetails || {}),
+        extras: cleanedExtras,
+      },
+      notes: [
+        editingRow?.notes || "",
+        editForm.manualAdjustmentLabel && manualAdjustmentAmount
+          ? `Manual adjustment: ${editForm.manualAdjustmentLabel} (£${manualAdjustmentAmount.toFixed(2)})`
+          : "",
+      ].filter(Boolean).join("\n"),
+      actsSummary: currentActsSummary.length
+        ? currentActsSummary.map((act, index) => {
+            if (index !== 0) return act;
+            return {
+              ...act,
+              selectedExtras: cleanedExtras,
+              performance: {
+                ...(act?.performance || {}),
+                ...nextPerformance,
+              },
+            };
+          })
+        : currentActsSummary,
+    };
+
+    try {
+      setSavingEdit(true);
+      const res = await fetch(`${API_BASE}/board/bookings/${editForm._id}`, {
+        method: "PATCH",
+        headers: buildHeaders(),
+        credentials: "include",
+        body: JSON.stringify(patch),
+      });
+      const raw = await res.text();
+      let json = null;
+      try { json = JSON.parse(raw); } catch {}
+      if (json?.success && json?.row) {
+        setRows((prev) => prev.map((row) => (row._id === json.row._id ? json.row : row)));
+        setEditingRow(null);
+        setEditForm(null);
+      } else {
+        window.alert("Booking update could not be saved.");
+      }
+    } catch (error) {
+      console.error("save booking update failed", error);
+      window.alert("Booking update failed.");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const money = (n) => `£${Number(n).toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
 
   // --- Helpers for deposit, band size, booking details summary ---
@@ -552,6 +1047,25 @@ const summariseBookingDetails = (bd = {}, row) => {
   }
 
   if (bd?.djServicesBooked) bits.push("DJ booked");
+
+  const extras = Array.isArray(bd?.extras)
+    ? bd.extras
+    : Array.isArray(row?.actsSummary?.[0]?.selectedExtras)
+      ? row.actsSummary[0].selectedExtras
+      : [];
+
+  if (extras.length) {
+    const extrasLabel = extras
+      .map((extra) => {
+        const qty = Number(extra?.quantity || 1) || 1;
+        const price = Number(extra?.price || 0) || 0;
+        const finish = extra?.finishTime ? ` until ${extra.finishTime}` : "";
+        return `${qty > 1 ? `${qty}x ` : ""}${extra?.name || extra?.key || "Extra"}${finish}${price ? ` (£${price})` : ""}`;
+      })
+      .join(", ");
+
+    if (extrasLabel) bits.push(`Extras: ${extrasLabel}`);
+  }
 
   const perf = row?.performanceTimes || row?.actsSummary?.[0]?.performance || {};
   if (perf?.startTime || perf?.finishTime) {
@@ -621,7 +1135,7 @@ const summariseBookingDetails = (bd = {}, row) => {
   return (
     <div className="p-4">
       {/* Search + Sort */}
-      <div className="flex gap-3 items-center mb-4 flex-wrap">
+      <div className="flex gap-3 items-center mb-4 flex-wrap sticky top-0 z-20 bg-white pb-3">
         <input
           className="border rounded px-3 py-2 w-full max-w-xl"
           placeholder="Search name, ref, act, county…"
@@ -660,10 +1174,16 @@ const summariseBookingDetails = (bd = {}, row) => {
             />
             Hide internal tests
           </label>
+          <button
+            className="px-4 py-2 rounded border hover:bg-gray-100"
+            onClick={() => setAdding((prev) => !prev)}
+          >
+            {adding ? "Close manual entry" : "+ Add manual entry"}
+          </button>
         </div>
       </div>
 
-      <div className="overflow-auto border rounded">
+      <div className="overflow-auto border rounded max-h-[calc(100vh-170px)]">
         <table className="min-w-[2100px] w-full text-sm">
           <colgroup>
             <col style={{ width: 140 }} />  {/* First names */}
@@ -692,14 +1212,15 @@ const summariseBookingDetails = (bd = {}, row) => {
             <col style={{ width: 140 }} />  {/* Review */}
             <col style={{ width: 120 }} />  {/* Balance Paid */}
             <col style={{ width: 120 }} />  {/* Band Paid */}
+            <col style={{ width: 130 }} />  {/* Actions */}
           </colgroup>
 
-          <thead className="bg-gray-50 text-left">
+          <thead className="bg-gray-50 text-left sticky top-0 z-10">
             <tr>
               {[
                 "First names","Ref","Event Sheet","Contract","Enquiry Date","Booking Date","Event Date","Gross","Deposit","Balance",
                 "Agent","Client Emails","Event Type","Act","Act tscName","Address","County","Band Size","Lineup","Booking times","Booking details","DJ",
-                "Allocated","Review","Balance Paid","Band Paid"
+                "Allocated","Review","Balance Paid","Band Paid","Actions"
               ].map((h) => (
                 <th key={h} className="px-3 py-2 border-b">{h}</th>
               ))}
@@ -786,8 +1307,12 @@ const fallbackEventSheetUrl = `${PUBLIC_SITE_BASE}/event-sheet/${encodeURICompon
                   <td className="px-3 py-2">{extractBandSize(r)}</td>
                   <td className="px-3 py-2">{buildFullLineup(r) || "—"}</td>
                   <td className="px-3 py-2">
-                    {performanceTimes?.startTime || performanceTimes?.finishTime
-                      ? [performanceTimes.startTime, performanceTimes.finishTime].filter(Boolean).join("–")
+                    {performanceTimes?.startTime || performanceTimes?.finishTime || performanceTimes?.paLightsFinishTime
+                      ? [
+                          performanceTimes.startTime,
+                          performanceTimes.finishTime,
+                          performanceTimes.paLightsFinishTime ? `PA/lights until ${performanceTimes.paLightsFinishTime}${performanceTimes?.paLightsFinishDayOffset ? " (+1)" : ""}` : "",
+                        ].filter(Boolean).join(" • ")
                       : arrivalTime || finishTime
                         ? [arrivalTime, finishTime].filter(Boolean).join("–")
                         : "—"}
@@ -836,31 +1361,37 @@ const fallbackEventSheetUrl = `${PUBLIC_SITE_BASE}/event-sheet/${encodeURICompon
                       <span className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-800 border border-gray-200">—</span>
                     )}
                   </td>
+                  <td className="px-3 py-2">
+                    <button
+                      className="px-3 py-1.5 border rounded hover:bg-gray-100"
+                      onClick={() => openEditModal(r)}
+                    >
+                      Update
+                    </button>
+                  </td>
                 </tr>
               );
             })}
 
-{/* Manual add row (multi-row) */}
-<tr className="bg-yellow-50">
-  <td colSpan={999} className="px-3 py-3">
-    {!adding ? (
-      <button
-        className="px-3 py-2 border rounded hover:bg-yellow-100"
-        onClick={() => setAdding(true)}
-      >
-        + Add manual entry
-      </button>
-    ) : (
+{adding && (
+  <tr className="bg-yellow-50 sticky top-[49px] z-[5]">
+    <td colSpan={999} className="px-3 py-3 border-b border-yellow-200">
       <div className="flex flex-col gap-3">
         {/* Row 1: core id + dates */}
         <div className="flex flex-wrap gap-2 items-end">
-         <input className="border rounded px-2 py-1 w-56" placeholder="Booker full name"
-    value={newRow.bookerName}
-    onChange={e => setNewRow(v => ({ ...v, bookerName: e.target.value }))} />
-  
-  <input className="border rounded px-2 py-1 w-56" placeholder="Client first names"
-    value={newRow.clientFirstNames}
-    onChange={e => setNewRow(v => ({ ...v, clientFirstNames: e.target.value }))} />
+          <input
+            className="border rounded px-2 py-1 w-56"
+            placeholder="Booker full name"
+            value={newRow.bookerName}
+            onChange={e => setNewRow(v => ({ ...v, bookerName: e.target.value }))}
+          />
+
+          <input
+            className="border rounded px-2 py-1 w-56"
+            placeholder="Client first names"
+            value={newRow.clientFirstNames}
+            onChange={e => setNewRow(v => ({ ...v, clientFirstNames: e.target.value }))}
+          />
           <input
             className="border rounded px-2 py-1 w-40"
             placeholder="Ref"
@@ -1026,12 +1557,12 @@ const fallbackEventSheetUrl = `${PUBLIC_SITE_BASE}/event-sheet/${encodeURICompon
           </button>
         </div>
       </div>
-    )}
-  </td>
-</tr>
+    </td>
+  </tr>
+)}
 
 {mergedRows.filter((r) => (hideInternalTests ? !isInternalTestBooking(r) : true)).length === 0 && (              <tr>
-                <td className="px-3 py-6 text-center text-gray-500" colSpan={26}>
+                <td className="px-3 py-6 text-center text-gray-500" colSpan={27}>
                   No rows yet.
                   <div className="text-xs mt-2">
                     API: {API_BASE}/board/bookings • token: {getAuthToken() ? "found" : "missing"}
@@ -1042,6 +1573,20 @@ const fallbackEventSheetUrl = `${PUBLIC_SITE_BASE}/event-sheet/${encodeURICompon
           </tbody>
         </table>
       </div>
+
+      {editingRow && editForm && (
+        <BookingUpdateModal
+          row={editingRow}
+          value={editForm}
+          onChange={setEditForm}
+          onClose={() => {
+            setEditingRow(null);
+            setEditForm(null);
+          }}
+          onSave={saveBookingUpdate}
+          saving={savingEdit}
+        />
+      )}
     </div>
   );
 }
