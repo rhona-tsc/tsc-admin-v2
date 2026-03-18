@@ -753,32 +753,33 @@ const applyLateStayFee = (minutes) => {
           <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
             <h3 className="font-medium">Extras</h3>
             <div className="flex gap-2 flex-wrap">
-           <button type="button" className="px-3 py-2 border rounded bg-white" onClick={() => addExtra()}>
-  + Add manual extra
-</button>
-<button
-  type="button"
-  className="px-3 py-2 border rounded bg-white"
-  onClick={() =>
-    upsertNamedExtra({
-      key: "pa_and_lights_hire",
-      name: "PA & Lights Hire",
-      quantity: 1,
-      price: 0,
-      finishTime: value.paLightsFinishTime || "",
-      arrivalTime: value.arrivalTime || "",
-    })
-  }
->
-  + Add PA & lights hire
-</button>
-<button
-  type="button"
-  className="px-3 py-2 border rounded bg-white"
-  onClick={applyPaLightsUntil1am}
->
-  + Add PA hire + late stay until 1am
-</button>
+              <button type="button" className="px-3 py-2 border rounded bg-white" onClick={() => addExtra()}>
+                + Add manual extra
+              </button>
+              <button
+                type="button"
+                className="px-3 py-2 border rounded bg-white"
+                onClick={() =>
+                  upsertNamedExtra({
+                    key: "pa_and_lights_hire",
+                    name: "PA & Lights Hire",
+                    quantity: 1,
+                    price: 0,
+                    finishTime: value.paLightsFinishTime || "",
+                    arrivalTime: value.arrivalTime || "",
+                  })
+                }
+              >
+                + Add PA & lights hire
+              </button>
+              <button
+                type="button"
+                className="px-3 py-2 border rounded bg-white"
+                onClick={applyPaLightsUntil1am}
+              >
+                + Add PA hire + late stay until 1am
+              </button>
+            </div>
           </div>
 
           {bandExtraOptions.length > 0 && (
