@@ -393,46 +393,129 @@ const getExtrasFromRow = (row) => {
   return [];
 };
 
-const getLikelyBandExtras = (row) => {
-  const roles = [];
-  const members = row?.actsSummary?.[0]?.lineup?.bandMembers || row?.actsSummary?.[0]?.bandMembers || [];
+const getExtraConfigFromAnyShape = (extrasSource, key) => {
+  if (!extrasSource || !key) return null;
 
-  members.forEach((member) => {
-    if (!Array.isArray(member?.additionalRoles)) return;
-    member.additionalRoles.forEach((role) => {
-      const roleName = String(role?.role || "").trim();
-      if (!roleName) return;
-      if (!roles.some((r) => r.toLowerCase() === roleName.toLowerCase())) {
-        roles.push(roleName);
-      }
+  if (typeof extrasSource?.get === "function") {
+    const value = extrasSource.get(key);
+    if (value == null) return null;
+    return typeof value === "number" ? { price: value, complimentary: false } : value;
+  }
+
+  if (typeof extrasSource === "object" && !Array.isArray(extrasSource)) {
+    const value = extrasSource[key];
+    if (value == null) return null;
+    return typeof value === "number" ? { price: value, complimentary: false } : value;
+  }
+
+  return null;
+};
+
+const getActExtrasCatalog = (row) => {
+  return (
+    row?.actData?.extras ||
+    row?.act?.extras ||
+    row?.selectedAct?.extras ||
+    row?.actsSummary?.[0]?.actData?.extras ||
+    row?.actsSummary?.[0]?.act?.extras ||
+    null
+  );
+};
+
+const getPerformerCountForLateFees = (row) => {
+  const members =
+    row?.actsSummary?.[0]?.lineup?.bandMembers ||
+    row?.actsSummary?.[0]?.bandMembers ||
+    [];
+
+  const nonManagers = members.filter((member) => {
+    const instrument = String(member?.instrument || "");
+    const roles = Array.isArray(member?.additionalRoles) ? member.additionalRoles : [];
+    const looksManager =
+      /manager|management/i.test(instrument) ||
+      roles.some((r) => /manager|management/i.test(String(r?.role || "")));
+    return !looksManager;
+  });
+
+  return nonManagers.length || members.length || 0;
+};
+
+const getBandExtraOptions = (row) => {
+  const extrasCatalog = getActExtrasCatalog(row);
+  const performerCount = getPerformerCountForLateFees(row);
+  const basePerformance = row?.actsSummary?.[0]?.performance || row?.performanceTimes || {};
+
+  const paOption = {
+    key: "pa_and_lights_hire",
+    name: "PA & Lights Hire",
+    quantity: 1,
+    price: 0,
+    finishTime: basePerformance?.paLightsFinishTime || "",
+    arrivalTime: basePerformance?.arrivalTime || "",
+    type: "flat",
+  };
+
+  const lateStayConfig = getExtraConfigFromAnyShape(extrasCatalog, "late_stay_60min_per_band_member");
+  const lateStayPricePerHour = Number(lateStayConfig?.price || 0) || 0;
+  const lateStayFeeGross =
+    lateStayPricePerHour > 0 && performerCount > 0
+      ? Math.ceil(lateStayPricePerHour * performerCount * 1.33)
+      : 0;
+
+  const options = [
+    paOption,
+    {
+      key: "late_stay_60min_per_band_member",
+      name: "Late Stay Fee",
+      quantity: 1,
+      price: lateStayFeeGross,
+      finishTime: "",
+      arrivalTime: "",
+      type: "late_stay",
+      meta: {
+        performerCount,
+        netPerBandMember: lateStayPricePerHour,
+      },
+    },
+  ];
+
+  const otherKeys = [
+    "sound_engineering_for_another_act with your acts PA",
+    "wired_mic for speeches",
+    "wireless_mic for speeches",
+    "background_music_playlist",
+    "up_to_3_hours_manned_playlist",
+    "up_to_3_hours_band_member_DJ",
+    "extra_30min_performance_per_band_member",
+    "extra_40min_performance_per_band_member",
+    "extra_60min_performance_per_band_member",
+    "early_arrival_60min_per_band_member",
+    "extra_song_request_per_band_member",
+    "speedy_setup (60mins) - roadie and engineer duties only (travel added on top later for additional team member)",
+  ];
+
+  otherKeys.forEach((key) => {
+    const config = getExtraConfigFromAnyShape(extrasCatalog, key);
+    if (!config) return;
+
+    const basePrice = Number(config?.price || 0) || 0;
+    const complimentary = Boolean(config?.complimentary);
+    const grossPrice = complimentary ? 0 : Math.ceil(basePrice * 1.33);
+
+    options.push({
+      key,
+      name: key
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
+      quantity: 1,
+      price: grossPrice,
+      finishTime: "",
+      arrivalTime: "",
+      type: "flat",
     });
   });
 
-  const suggestions = [];
-
-  if (roles.some((r) => /sound engineering/i.test(r))) {
-    suggestions.push({
-      key: "pa_and_lights_hire",
-      name: "PA & Lights Hire",
-      quantity: 1,
-      price: 0,
-      finishTime: row?.actsSummary?.[0]?.performance?.paLightsFinishTime || row?.performanceTimes?.paLightsFinishTime || "",
-      arrivalTime: row?.actsSummary?.[0]?.performance?.arrivalTime || row?.performanceTimes?.arrivalTime || "",
-    });
-  }
-
-  if (roles.some((r) => /dj/i.test(r))) {
-    suggestions.push({
-      key: "dj_service",
-      name: "DJ Service",
-      quantity: 1,
-      price: 0,
-      finishTime: row?.actsSummary?.[0]?.performance?.finishTime || row?.performanceTimes?.finishTime || "",
-      arrivalTime: row?.actsSummary?.[0]?.performance?.arrivalTime || row?.performanceTimes?.arrivalTime || "",
-    });
-  }
-
-  return suggestions;
+  return options;
 };
 
 const buildEditStateFromRow = (row) => {
@@ -473,7 +556,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
   const manualAdjustmentAmount = Number(value.manualAdjustmentAmount || 0) || 0;
   const recalculatedGross = Number(value.baseGross || 0) + extrasTotal + manualAdjustmentAmount;
   const recalculatedBalance = Math.max(0, recalculatedGross - Number(value.depositAmount || 0));
-  const likelyExtras = getLikelyBandExtras(row);
+const bandExtraOptions = getBandExtraOptions(row);
 
   const updateExtra = (id, patch) => {
     onChange({
@@ -506,43 +589,100 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
     });
   };
 
-  const applyPaLightsUntil1am = () => {
-    const existing = (value.extras || []).find((extra) => /pa\s*&?\s*lights/i.test(String(extra?.name || extra?.key || "")));
-    const nextFinish = "01:00";
-    const nextOffset = 1;
+  const upsertNamedExtra = (seed = {}) => {
+  const targetKey = String(seed.key || "").trim().toLowerCase();
+  const targetName = String(seed.name || "").trim().toLowerCase();
 
-    if (existing) {
-      onChange({
-        ...value,
-        paLightsFinishTime: nextFinish,
-        paLightsFinishDayOffset: nextOffset,
-        extras: (value.extras || []).map((extra) =>
-          extra.id === existing.id
-            ? { ...extra, finishTime: nextFinish }
-            : extra
-        ),
-      });
-      return;
-    }
+  const existing = (value.extras || []).find((extra) => {
+    const extraKey = String(extra?.key || "").trim().toLowerCase();
+    const extraName = String(extra?.name || "").trim().toLowerCase();
+    return (targetKey && extraKey === targetKey) || (targetName && extraName === targetName);
+  });
 
+  if (existing) {
     onChange({
       ...value,
-      paLightsFinishTime: nextFinish,
-      paLightsFinishDayOffset: nextOffset,
-      extras: [
-        ...(value.extras || []),
-        {
-          id: `extra-${Date.now()}-palights`,
-          key: "pa_and_lights_hire",
-          name: "PA & Lights Hire",
-          quantity: 1,
-          price: 0,
-          finishTime: nextFinish,
-          arrivalTime: value.arrivalTime || "",
-        },
-      ],
+      extras: (value.extras || []).map((extra) =>
+        extra.id === existing.id
+          ? {
+              ...extra,
+              ...seed,
+              id: existing.id,
+            }
+          : extra
+      ),
     });
-  };
+    return;
+  }
+
+  addExtra(seed);
+};
+
+const applyLateStayFee = (minutes) => {
+  const lateStayOption = bandExtraOptions.find(
+    (option) => option.key === "late_stay_60min_per_band_member"
+  );
+  if (!lateStayOption) return;
+
+  const mins = Number(minutes || 0) || 0;
+  if (mins <= 0) return;
+
+  const netPerBandMember = Number(lateStayOption?.meta?.netPerBandMember || 0) || 0;
+  const performerCount = Number(lateStayOption?.meta?.performerCount || 0) || 0;
+
+  const gross =
+    netPerBandMember > 0 && performerCount > 0
+      ? Math.ceil(((netPerBandMember * performerCount) * (mins / 60)) * 1.33)
+      : Number(lateStayOption.price || 0) || 0;
+
+  upsertNamedExtra({
+    key: "late_stay_60min_per_band_member",
+    name: `Late Stay Fee (${mins} mins)`,
+    quantity: 1,
+    price: gross,
+    finishTime: value.paLightsFinishTime || value.finishTime || "",
+    arrivalTime: "",
+  });
+};
+
+ const applyPaLightsUntil1am = () => {
+  const nextFinish = "01:00";
+  const nextOffset = 1;
+
+  onChange({
+    ...value,
+    paLightsFinishTime: nextFinish,
+    paLightsFinishDayOffset: nextOffset,
+  });
+
+  upsertNamedExtra({
+    key: "pa_and_lights_hire",
+    name: "PA & Lights Hire",
+    quantity: 1,
+    price: 0,
+    finishTime: nextFinish,
+    arrivalTime: value.arrivalTime || "",
+  });
+
+  const bandFinish = value.finishTime || "00:00";
+  const [bandHours, bandMins] = String(bandFinish).split(":").map(Number);
+  const [paHours, paMins] = nextFinish.split(":").map(Number);
+
+  const bandTotal =
+    ((Number.isNaN(bandHours) ? 0 : bandHours) * 60) +
+    (Number.isNaN(bandMins) ? 0 : bandMins);
+
+  const paTotal =
+    ((Number.isNaN(paHours) ? 0 : paHours) * 60) +
+    (Number.isNaN(paMins) ? 0 : paMins) +
+    1440;
+
+  const diff = Math.max(0, paTotal - bandTotal);
+
+  if (diff > 0) {
+    applyLateStayFee(diff);
+  }
+};
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 overflow-y-auto">
@@ -613,28 +753,100 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
           <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
             <h3 className="font-medium">Extras</h3>
             <div className="flex gap-2 flex-wrap">
-              <button type="button" className="px-3 py-2 border rounded bg-white" onClick={() => addExtra()}>+ Add manual extra</button>
-              <button type="button" className="px-3 py-2 border rounded bg-white" onClick={applyPaLightsUntil1am}>+ Add PA & lights until 1am</button>
-            </div>
+           <button type="button" className="px-3 py-2 border rounded bg-white" onClick={() => addExtra()}>
+  + Add manual extra
+</button>
+<button
+  type="button"
+  className="px-3 py-2 border rounded bg-white"
+  onClick={() =>
+    upsertNamedExtra({
+      key: "pa_and_lights_hire",
+      name: "PA & Lights Hire",
+      quantity: 1,
+      price: 0,
+      finishTime: value.paLightsFinishTime || "",
+      arrivalTime: value.arrivalTime || "",
+    })
+  }
+>
+  + Add PA & lights hire
+</button>
+<button
+  type="button"
+  className="px-3 py-2 border rounded bg-white"
+  onClick={applyPaLightsUntil1am}
+>
+  + Add PA hire + late stay until 1am
+</button>
           </div>
 
-          {likelyExtras.length > 0 && (
-            <div className="mb-4">
-              <div className="text-xs font-medium text-gray-600 mb-2">Likely extras from this band's roles</div>
-              <div className="flex gap-2 flex-wrap">
-                {likelyExtras.map((extra, idx) => (
-                  <button
-                    key={`${extra.key}-${idx}`}
-                    type="button"
-                    className="px-3 py-2 border rounded bg-white text-sm"
-                    onClick={() => addExtra(extra)}
-                  >
-                    Add {extra.name}
-                  </button>
+          {bandExtraOptions.length > 0 && (
+  <div className="mb-4">
+    <div className="text-xs font-medium text-gray-600 mb-2">Band-provided extras</div>
+    <div className="flex gap-2 flex-wrap">
+      {bandExtraOptions.map((extra, idx) => {
+        if (extra.key === "late_stay_60min_per_band_member") {
+          const lateStayChoices = [30, 60, 90, 120, 150, 180];
+          return (
+            <div key={`${extra.key}-${idx}`} className="flex items-center gap-2 border rounded bg-white px-3 py-2">
+              <span className="text-sm">Late Stay Fee</span>
+              <select
+                className="border rounded px-2 py-1 text-sm"
+                defaultValue="60"
+                onChange={(e) => applyLateStayFee(Number(e.target.value || 0))}
+              >
+                {lateStayChoices.map((mins) => (
+                  <option key={mins} value={mins}>{mins} mins</option>
                 ))}
-              </div>
+              </select>
+              <button
+                type="button"
+                className="px-3 py-1 border rounded text-sm"
+                onClick={() => applyLateStayFee(60)}
+              >
+                Add
+              </button>
             </div>
-          )}
+          );
+        }
+
+        if (extra.key === "pa_and_lights_hire") {
+          return (
+            <div key={`${extra.key}-${idx}`} className="flex items-center gap-2 border rounded bg-white px-3 py-2">
+              <span className="text-sm">PA & Lights Hire</span>
+              <button
+                type="button"
+                className="px-3 py-1 border rounded text-sm"
+                onClick={() => upsertNamedExtra(extra)}
+              >
+                Add
+              </button>
+              <button
+                type="button"
+                className="px-3 py-1 border rounded text-sm"
+                onClick={applyPaLightsUntil1am}
+              >
+                Add + late stay to 1am
+              </button>
+            </div>
+          );
+        }
+
+        return (
+          <button
+            key={`${extra.key}-${idx}`}
+            type="button"
+            className="px-3 py-2 border rounded bg-white text-sm"
+            onClick={() => upsertNamedExtra(extra)}
+          >
+            Add {extra.name}{typeof extra.price === "number" ? ` (£${extra.price})` : ""}
+          </button>
+        );
+      })}
+    </div>
+  </div>
+)}
 
           <div className="space-y-3">
             {(value.extras || []).length === 0 && (
