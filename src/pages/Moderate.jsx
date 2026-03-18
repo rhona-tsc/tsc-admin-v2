@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { backendUrl } from "../App";
 import { toast } from "react-toastify";
@@ -10,6 +10,7 @@ const Moderate = ({ token: tokenProp }) => {
   const navigate = useNavigate();
   const [pendingActs, setPendingActs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState("");
 
   // Pull token from prop OR storage (matches your working List page pattern)
   const getToken = () =>
@@ -26,6 +27,23 @@ const Moderate = ({ token: tokenProp }) => {
     "Cache-Control": "no-cache",
     Pragma: "no-cache",
   });
+
+  const updateStatusEndpoint = useMemo(() => {
+    const base = `${backendUrl}`.replace(/\/$/, "");
+    return [
+      `${base}/api/act/update-status`,
+      `${base}/api/musician/act-v2/update-status`,
+    ];
+  }, []);
+
+  const extractErrorMessage = (error) => {
+    return (
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      error?.message ||
+      "Error updating status"
+    );
+  };
 
   const isModerationStatus = (act) => {
     const s = String(act?.status || "").trim().toLowerCase();
@@ -91,28 +109,43 @@ const Moderate = ({ token: tokenProp }) => {
 
   const updateStatus = async (id, status) => {
     const token = getToken();
+    setUpdatingId(id);
 
     try {
-      const res = await axios.post(
-        `${backendUrl}/api/musician/act-v2/update-status`,
-        { id, status },
-        { headers: buildHeaders(token) }
-      );
+      let lastError = null;
 
-      if (res.data?.success) {
-        toast(<CustomToast type="success" message={`Act ${status}`} />);
-        fetchPendingActs();
-      } else {
-        toast(
-          <CustomToast
-            type="error"
-            message={res.data?.message || "Update failed"}
-          />
-        );
+      for (const endpoint of updateStatusEndpoint) {
+        try {
+          const res = await axios.post(
+            endpoint,
+            { id, status },
+            {
+              headers: buildHeaders(token),
+              withCredentials: false,
+            }
+          );
+
+          if (res.data?.success) {
+            toast(<CustomToast type="success" message={`Act ${status}`} />);
+            await fetchPendingActs();
+            return;
+          }
+
+          lastError = new Error(res.data?.message || "Update failed");
+        } catch (error) {
+          lastError = error;
+          console.error(
+            `❌ updateStatus error via ${endpoint}:`,
+            error?.response?.data || error
+          );
+        }
       }
-    } catch (error) {
-      console.error("❌ updateStatus error:", error?.response?.data || error);
-      toast(<CustomToast type="error" message="Error updating status" />);
+
+      toast(
+        <CustomToast type="error" message={extractErrorMessage(lastError)} />
+      );
+    } finally {
+      setUpdatingId("");
     }
   };
 
@@ -191,24 +224,27 @@ const Moderate = ({ token: tokenProp }) => {
 
                 <div className="flex items-center gap-3">
                   <button
-                    className="bg-blue-600 text-white px-4 py-2 rounded text-sm"
+                    className="bg-blue-600 text-white px-4 py-2 rounded text-sm disabled:opacity-60"
                     onClick={() => handleEdit(act._id)}
+                    disabled={updatingId === act._id}
                   >
                     View/Edit
                   </button>
 
                   <button
-                    className="bg-green-600 text-white px-4 py-2 rounded text-sm"
+                    className="bg-green-600 text-white px-4 py-2 rounded text-sm disabled:opacity-60"
                     onClick={() => updateStatus(act._id, "approved")}
+                    disabled={updatingId === act._id}
                   >
-                    Approve
+                    {updatingId === act._id ? "Updating..." : "Approve"}
                   </button>
 
                   <button
-                    className="bg-red-600 text-white px-4 py-2 rounded text-sm"
+                    className="bg-red-600 text-white px-4 py-2 rounded text-sm disabled:opacity-60"
                     onClick={() => updateStatus(act._id, "rejected")}
+                    disabled={updatingId === act._id}
                   >
-                    Reject
+                    {updatingId === act._id ? "Updating..." : "Reject"}
                   </button>
                 </div>
               </div>

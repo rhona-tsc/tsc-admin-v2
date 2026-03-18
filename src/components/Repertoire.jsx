@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import songsData from "../assets/songsData";
 
@@ -232,8 +232,19 @@ const Repertoire = ({
   });
 
   const [filteredSongs, setFilteredSongs] = useState([]);
+  const [recentlyAddedKey, setRecentlyAddedKey] = useState(null);
+  const selectedSongsContainerRef = useRef(null);
+  const highlightTimeoutRef = useRef(null);
 
   const genreCategories = Object.keys(genreMap).filter((cat) => cat !== "Other");
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let result = [...songsData];
@@ -280,15 +291,35 @@ const Repertoire = ({
   }, [filter]);
 
   const addSong = (song) => {
-    if (
-      !selectedSongs.some(
-        (s) =>
-          String(s.title) === String(song.title) &&
-          String(s.artist) === String(song.artist)
-      )
-    ) {
-      setSelectedSongs([...selectedSongs, song]);
+    const alreadySelected = selectedSongs.some(
+      (s) =>
+        String(s.title) === String(song.title) &&
+        String(s.artist) === String(song.artist)
+    );
+
+    if (alreadySelected) return;
+
+    const songKey = `${song.title}-${song.artist}`;
+
+    setSelectedSongs((prev) => [song, ...prev]);
+    setRecentlyAddedKey(songKey);
+
+    if (highlightTimeoutRef.current) {
+      clearTimeout(highlightTimeoutRef.current);
     }
+
+    highlightTimeoutRef.current = setTimeout(() => {
+      setRecentlyAddedKey(null);
+    }, 1800);
+
+    requestAnimationFrame(() => {
+      if (selectedSongsContainerRef.current) {
+        selectedSongsContainerRef.current.scrollTo({
+          top: 0,
+          behavior: "smooth",
+        });
+      }
+    });
   };
 
   const removeSong = (index) => {
@@ -362,23 +393,27 @@ const Repertoire = ({
       </div>
 
       <div className="max-h-60 overflow-y-scroll border rounded p-3 bg-white">
-        {filteredSongs.slice(0, 100).map((song, idx) => (
-          <div
-            key={`${song.title}-${song.artist}-${idx}`}
-            className="flex justify-between items-center border-b py-1"
-          >
-            <span>
-              {song.title} – {song.artist}
-            </span>
-            <button
-              type="button"
-              className="text-sm text-blue-600 hover:underline"
-              onClick={() => addSong(song)}
+        {filteredSongs.length === 0 ? (
+          <p className="text-gray-500 italic">No songs match those filters</p>
+        ) : (
+          filteredSongs.slice(0, 100).map((song, idx) => (
+            <div
+              key={`${song.title}-${song.artist}-${idx}`}
+              className="flex justify-between items-center border-b py-1"
             >
-              Add
-            </button>
-          </div>
-        ))}
+              <span>
+                {song.title} – {song.artist}
+              </span>
+              <button
+                type="button"
+                className="text-sm text-blue-600 hover:underline"
+                onClick={() => addSong(song)}
+              >
+                Add
+              </button>
+            </div>
+          ))
+        )}
       </div>
 
       <h3 className="text-m font-semibold mt-4 mb-2">Selected Songs</h3>
@@ -386,15 +421,27 @@ const Repertoire = ({
       {selectedSongs.length === 0 ? (
         <p className="text-gray-500 italic">No songs selected</p>
       ) : (
-        <div className="max-h-[500px] overflow-y-auto border rounded p-3 bg-white">
+        <div
+          ref={selectedSongsContainerRef}
+          className="max-h-[500px] overflow-y-auto border rounded p-3 bg-white scroll-smooth"
+        >
           <ul>
             {selectedSongs.map((song, index) => (
               <li
                 key={`${song.title}-${song.artist}-${index}`}
-                className="flex justify-between items-center border p-2 rounded"
+                className={`flex justify-between items-center border p-2 rounded transition-all duration-500 ${
+                  recentlyAddedKey === `${song.title}-${song.artist}`
+                    ? "bg-green-50 border-green-400 shadow-md scale-[1.01]"
+                    : "bg-white"
+                }`}
               >
                 <span>
                   {song.title} – {song.artist}
+                  {recentlyAddedKey === `${song.title}-${song.artist}` && (
+                    <span className="ml-2 text-xs font-medium text-green-600">
+                      Added
+                    </span>
+                  )}
                 </span>
                 <button
                   type="button"

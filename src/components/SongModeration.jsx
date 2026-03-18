@@ -105,10 +105,10 @@ const SongModeration = ({
     group("handleParse()");
     try {
       const parsed = safeParseInput(rawInput);
-      log("Parsed OK, appending to deputy selection. Count:", parsed.length);
+      log("Parsed OK, appending to repertoire. Count:", parsed.length);
       setParsedSongs(parsed);
       setSelectedSongs([...(selectedSongs || []), ...parsed]);
-      setResultMsg(`Parsed ${parsed.length} songs and added to deputy selection.`);
+      setResultMsg(`Parsed ${parsed.length} songs and added to repertoire.`);
     } catch (err) {
       log("Parse error:", err);
       alert(err.message);
