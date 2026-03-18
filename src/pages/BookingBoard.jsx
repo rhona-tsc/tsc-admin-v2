@@ -365,6 +365,9 @@ const Tag = ({ children }) => (
   <span className="inline-block px-2 py-1 text-xs rounded border">{children}</span>
 );
 
+const isValidObjectIdString = (value) => /^[a-f\d]{24}$/i.test(String(value || "").trim());
+
+
 const getExtrasFromRow = (row) => {
   if (Array.isArray(row?.actsSummary?.[0]?.selectedExtras)) {
     return row.actsSummary[0].selectedExtras.map((extra, index) => ({
@@ -470,18 +473,26 @@ const getLineupMemberOptions = (row) => {
     [];
 
   return members.map((member, index) => {
-    const id = String(
+    const rawId =
       member?.musicianId ||
       member?._id ||
       member?.id ||
-      `${member?.firstName || "member"}-${member?.lastName || ""}-${index}`
-    );
+      "";
 
-    const name = [member?.firstName, member?.lastName].filter(Boolean).join(" ").trim() || member?.name || `Member ${index + 1}`;
+    const persistableId = isValidObjectIdString(rawId) ? String(rawId) : "";
+    const fallbackId = `${member?.firstName || "member"}-${member?.lastName || ""}-${index}`;
+    const id = persistableId || fallbackId;
+
+    const name =
+      [member?.firstName, member?.lastName].filter(Boolean).join(" ").trim() ||
+      member?.name ||
+      `Member ${index + 1}`;
+
     const role = member?.instrument || member?.role || "";
 
     return {
       id,
+      persistableId,
       name,
       role,
       label: role ? `${name} — ${role}` : name,
@@ -598,543 +609,64 @@ const buildEditStateFromRow = (row) => {
   };
 };
 
-function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
-  if (!row || !value) return null;
+const applyLateStayFee = (minutes) => {
+  const lateStayOption = bandExtraOptions.find(
+    (option) => option.key === "late_stay_60min_per_band_member"
+  );
+  if (!lateStayOption) return;
 
-  const extrasTotal = (value.extras || []).reduce((sum, extra) => {
-    return sum + (Number(extra?.price || 0) * Number(extra?.quantity || 1));
-  }, 0);
-  const manualAdjustmentAmount = Number(value.manualAdjustmentAmount || 0) || 0;
-  const recalculatedGross = Number(value.baseGross || 0) + extrasTotal + manualAdjustmentAmount;
-  const recalculatedBalance = Math.max(0, recalculatedGross - Number(value.depositAmount || 0));
-  const bandExtraOptions = getBandExtraOptions(row);
-  const lineupMemberOptions = getLineupMemberOptions(row);
-  const selectedLateStayMembers = Array.isArray(value.selectedLateStayMembers)
-    ? value.selectedLateStayMembers
+  const mins = Number(minutes || 0) || 0;
+  if (mins <= 0) return;
+
+  const netPerBandMember = Number(lateStayOption?.meta?.netPerBandMember || 0) || 0;
+  const wholeBandCount = Number(lateStayOption?.meta?.performerCount || 0) || 0;
+
+  const chosenMembers = value.lateStayAppliesTo === "selected_members"
+    ? lineupMemberOptions
+        .filter((member) => selectedLateStayMembers.includes(member.id))
+        .slice(0, 2)
     : [];
 
-  const updateExtra = (id, patch) => {
-    onChange({
-      ...value,
-      extras: (value.extras || []).map((extra) => (extra.id === id ? { ...extra, ...patch } : extra)),
-    });
-  };
+  const chosenPersistableIds = chosenMembers
+    .map((member) => member.persistableId)
+    .filter(Boolean);
 
-  const addExtra = (seed = {}) => {
-    const next = {
-      id: `extra-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      key: seed.key || "",
-      name: seed.name || "",
-      quantity: Number(seed.quantity || 1) || 1,
-      price: Number(seed.price || 0) || 0,
-      finishTime: seed.finishTime || "",
-      arrivalTime: seed.arrivalTime || value.arrivalTime || "",
-      category: seed.category || "",
-      pricingMode: seed.pricingMode || "flat",
-      appliedMinutes: Number(seed.appliedMinutes || 0) || 0,
-      billableMemberCount: Number(seed.billableMemberCount || 0) || 0,
-      payoutMemberIds: Array.isArray(seed.payoutMemberIds) ? seed.payoutMemberIds : [],
-      payoutMemberNames: Array.isArray(seed.payoutMemberNames) ? seed.payoutMemberNames : [],
-      paLateStay: seed.paLateStay || null,
-    };
+  const billableMemberCount = value.lateStayAppliesTo === "selected_members"
+    ? chosenMembers.length
+    : wholeBandCount;
 
-    onChange({
-      ...value,
-      extras: [...(value.extras || []), next],
-    });
-  };
+  const gross =
+    netPerBandMember > 0 && billableMemberCount > 0
+      ? Math.ceil(((netPerBandMember * billableMemberCount) * (mins / 60)) * 1.33)
+      : Number(lateStayOption.price || 0) || 0;
 
-  const removeExtra = (id) => {
-    onChange({
-      ...value,
-      extras: (value.extras || []).filter((extra) => extra.id !== id),
-    });
-  };
-
-  const upsertNamedExtra = (seed = {}) => {
-    const targetKey = String(seed.key || "").trim().toLowerCase();
-    const targetName = String(seed.name || "").trim().toLowerCase();
-
-    const existing = (value.extras || []).find((extra) => {
-      const extraKey = String(extra?.key || "").trim().toLowerCase();
-      const extraName = String(extra?.name || "").trim().toLowerCase();
-      return (targetKey && extraKey === targetKey) || (targetName && extraName === targetName);
-    });
-
-    if (existing) {
-      onChange({
-        ...value,
-        extras: (value.extras || []).map((extra) =>
-          extra.id === existing.id
-            ? {
-                ...extra,
-                ...seed,
-                id: existing.id,
-              }
-            : extra
-        ),
-      });
-      return;
-    }
-
-    addExtra(seed);
-  };
-
-  const applyLateStayFee = (minutes) => {
-    const lateStayOption = bandExtraOptions.find(
-      (option) => option.key === "late_stay_60min_per_band_member"
-    );
-    if (!lateStayOption) return;
-
-    const mins = Number(minutes || 0) || 0;
-    if (mins <= 0) return;
-
-    const netPerBandMember = Number(lateStayOption?.meta?.netPerBandMember || 0) || 0;
-    const wholeBandCount = Number(lateStayOption?.meta?.performerCount || 0) || 0;
-
-    const chosenMembers = value.lateStayAppliesTo === "selected_members"
-      ? lineupMemberOptions.filter((member) => selectedLateStayMembers.includes(member.id)).slice(0, 2)
-      : [];
-
-    const billableMemberCount = value.lateStayAppliesTo === "selected_members"
-      ? chosenMembers.length
-      : wholeBandCount;
-
-    const gross =
-      netPerBandMember > 0 && billableMemberCount > 0
-        ? Math.ceil(((netPerBandMember * billableMemberCount) * (mins / 60)) * 1.33)
-        : Number(lateStayOption.price || 0) || 0;
-
-    upsertNamedExtra({
-      key: "late_stay_60min_per_band_member",
-      name: `Late Stay Fee (${mins} mins)`,
-      quantity: 1,
-      price: gross,
-      finishTime: value.paLightsFinishTime || value.finishTime || "",
-      arrivalTime: "",
-      category: "late_stay",
-      pricingMode: value.lateStayAppliesTo === "selected_members" ? "per_specific_members" : "per_band_member",
-      appliedMinutes: mins,
-      billableMemberCount,
-      payoutMemberIds: chosenMembers.map((member) => member.id),
-      payoutMemberNames: chosenMembers.map((member) => member.name),
-      paLateStay: {
-        enabled: true,
-        onlySpecificMembers: value.lateStayAppliesTo === "selected_members",
-        memberCount: billableMemberCount,
-        memberIds: chosenMembers.map((member) => member.id),
-        memberNames: chosenMembers.map((member) => member.name),
-        additionalMinutesBeyondBand: mins,
-        basedOnExtraKey: "late_stay_60min_per_band_member",
-      },
-    });
-  };
-
-  const applyPaLightsUntil1am = () => {
-    const nextFinish = "01:00";
-    const nextOffset = 1;
-
-    onChange({
-      ...value,
-      paLightsFinishTime: nextFinish,
-      paLightsFinishDayOffset: nextOffset,
-    });
-
-    upsertNamedExtra({
-      key: "pa_and_lights_hire",
-      name: "PA & Lights Hire",
-      quantity: 1,
-      price: 0,
-      finishTime: nextFinish,
-      arrivalTime: value.arrivalTime || "",
-      category: "pa_hire",
-      pricingMode: "flat",
-    });
-
-    const bandFinish = value.finishTime || "00:00";
-    const [bandHours, bandMins] = String(bandFinish).split(":").map(Number);
-    const [paHours, paMins] = nextFinish.split(":").map(Number);
-
-    const bandTotal =
-      ((Number.isNaN(bandHours) ? 0 : bandHours) * 60) +
-      (Number.isNaN(bandMins) ? 0 : bandMins);
-
-    const paTotal =
-      ((Number.isNaN(paHours) ? 0 : paHours) * 60) +
-      (Number.isNaN(paMins) ? 0 : paMins) +
-      1440;
-
-    const diff = Math.max(0, paTotal - bandTotal);
-
-    if (diff > 0) {
-      applyLateStayFee(diff);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl p-5">
-        <div className="flex items-start justify-between gap-4 mb-4">
-          <div>
-            <h2 className="text-xl font-semibold">Update booking</h2>
-            <div className="text-sm text-gray-600 mt-1">
-              {value.clientFirstNames || "—"} • {value.bookingRef || "—"} • {value.actTscName || value.actName || "—"}
-            </div>
-          </div>
-          <button className="px-3 py-2 border rounded" onClick={onClose}>Close</button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-          <div>
-            <label className="block text-xs text-gray-600 mb-1">Client</label>
-            <input className="border rounded px-3 py-2 w-full" value={value.clientFirstNames || ""} readOnly />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 mb-1">Booking ref</label>
-            <input className="border rounded px-3 py-2 w-full" value={value.bookingRef || ""} readOnly />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 mb-1">Arrival</label>
-            <input
-              type="time"
-              step="300"
-              className="border rounded px-3 py-2 w-full"
-              value={value.arrivalTime || ""}
-              onChange={(e) => onChange({ ...value, arrivalTime: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 mb-1">Band finish</label>
-            <input
-              type="time"
-              step="300"
-              className="border rounded px-3 py-2 w-full"
-              value={value.finishTime || ""}
-              onChange={(e) => onChange({ ...value, finishTime: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 mb-1">PA/lights finish</label>
-            <input
-              type="time"
-              step="300"
-              className="border rounded px-3 py-2 w-full"
-              value={value.paLightsFinishTime || ""}
-              onChange={(e) => onChange({ ...value, paLightsFinishTime: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 mb-1">PA/lights next day offset</label>
-            <select
-              className="border rounded px-3 py-2 w-full"
-              value={value.paLightsFinishDayOffset || 0}
-              onChange={(e) => onChange({ ...value, paLightsFinishDayOffset: Number(e.target.value || 0) })}
-            >
-              <option value={0}>Same day</option>
-              <option value={1}>Next day</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="mb-5 p-4 border rounded-lg bg-gray-50">
-          <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-            <h3 className="font-medium">Extras</h3>
-            <div className="flex gap-2 flex-wrap">
-              <button type="button" className="px-3 py-2 border rounded bg-white" onClick={() => addExtra()}>
-                + Add manual extra
-              </button>
-              <button
-                type="button"
-                className="px-3 py-2 border rounded bg-white"
-                onClick={() =>
-                  upsertNamedExtra({
-                    key: "pa_and_lights_hire",
-                    name: "PA & Lights Hire",
-                    quantity: 1,
-                    price: 0,
-                    finishTime: value.paLightsFinishTime || "",
-                    arrivalTime: value.arrivalTime || "",
-                  })
-                }
-              >
-                + Add PA & lights hire
-              </button>
-              <button
-                type="button"
-                className="px-3 py-2 border rounded bg-white"
-                onClick={applyPaLightsUntil1am}
-              >
-                + Add PA hire + late stay until 1am
-              </button>
-            </div>
-          </div>
-
-          {bandExtraOptions.length > 0 && (
-  <div className="mb-4">
-    <div className="text-xs font-medium text-gray-600 mb-2">Band-provided extras</div>
-    <div className="flex gap-2 flex-wrap">
-      {bandExtraOptions.map((extra, idx) => {
-        if (extra.key === "late_stay_60min_per_band_member") {
-          const lateStayChoices = [30, 60, 90, 120, 150, 180];
-          return (
-            <div key={`${extra.key}-${idx}`} className="flex items-center gap-2 border rounded bg-white px-3 py-2">
-              <span className="text-sm">Late Stay Fee</span>
-              <select
-                className="border rounded px-2 py-1 text-sm"
-                defaultValue="60"
-                onChange={(e) => applyLateStayFee(Number(e.target.value || 0))}
-              >
-                {lateStayChoices.map((mins) => (
-                  <option key={mins} value={mins}>{mins} mins</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="px-3 py-1 border rounded text-sm"
-                onClick={() => applyLateStayFee(60)}
-              >
-                Add
-              </button>
-            </div>
-          );
-        }
-
-        if (extra.key === "pa_and_lights_hire") {
-          return (
-            <div key={`${extra.key}-${idx}`} className="flex items-center gap-2 border rounded bg-white px-3 py-2">
-              <span className="text-sm">PA & Lights Hire</span>
-              <button
-                type="button"
-                className="px-3 py-1 border rounded text-sm"
-                onClick={() => upsertNamedExtra(extra)}
-              >
-                Add
-              </button>
-              <button
-                type="button"
-                className="px-3 py-1 border rounded text-sm"
-                onClick={applyPaLightsUntil1am}
-              >
-                Add + late stay to 1am
-              </button>
-            </div>
-          );
-        }
-
-        return (
-          <button
-            key={`${extra.key}-${idx}`}
-            type="button"
-            className="px-3 py-2 border rounded bg-white text-sm"
-            onClick={() => upsertNamedExtra(extra)}
-          >
-            Add {extra.name}{typeof extra.price === "number" ? ` (£${extra.price})` : ""}
-          </button>
-        );
-      })}
-    </div>
-  </div>
-)}
-
-          <div className="mb-4 border rounded-lg bg-white p-3">
-            <div className="text-sm font-medium mb-2">Late stay applies to</div>
-            <div className="flex flex-wrap gap-4 mb-3">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="lateStayAppliesTo"
-                  checked={(value.lateStayAppliesTo || "whole_band") === "whole_band"}
-                  onChange={() =>
-                    onChange({
-                      ...value,
-                      lateStayAppliesTo: "whole_band",
-                      selectedLateStayMembers: [],
-                    })
-                  }
-                />
-                Whole band
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="radio"
-                  name="lateStayAppliesTo"
-                  checked={value.lateStayAppliesTo === "selected_members"}
-                  onChange={() =>
-                    onChange({
-                      ...value,
-                      lateStayAppliesTo: "selected_members",
-                      selectedLateStayMembers: Array.isArray(value.selectedLateStayMembers)
-                        ? value.selectedLateStayMembers.slice(0, 2)
-                        : [],
-                    })
-                  }
-                />
-                Selected members
-              </label>
-            </div>
-
-            {value.lateStayAppliesTo === "selected_members" && (
-              <div>
-                <div className="text-xs text-gray-600 mb-2">Choose up to 2 names from the lineup</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {lineupMemberOptions.map((member) => {
-                    const checked = selectedLateStayMembers.includes(member.id);
-                    const disableUnchecked = !checked && selectedLateStayMembers.length >= 2;
-
-                    return (
-                      <label key={member.id} className={`flex items-center gap-2 border rounded px-3 py-2 text-sm ${disableUnchecked ? "opacity-50" : ""}`}>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          disabled={disableUnchecked}
-                          onChange={(e) => {
-                            const next = e.target.checked
-                              ? [...selectedLateStayMembers, member.id].slice(0, 2)
-                              : selectedLateStayMembers.filter((id) => id !== member.id);
-
-                            onChange({
-                              ...value,
-                              selectedLateStayMembers: next,
-                            });
-                          }}
-                        />
-                        <span>{member.label}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="space-y-3">
-            {(value.extras || []).length === 0 && (
-              <div className="text-sm text-gray-500">No extras added yet.</div>
-            )}
-
-            {(value.extras || []).map((extra) => (
-              <div key={extra.id} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end border rounded-lg p-3 bg-white">
-                <div className="md:col-span-3">
-                  <label className="block text-xs text-gray-600 mb-1">Extra name</label>
-                  <input
-                    className="border rounded px-3 py-2 w-full"
-                    value={extra.name || ""}
-                    onChange={(e) => updateExtra(extra.id, { name: e.target.value })}
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1">Key</label>
-                  <input
-                    className="border rounded px-3 py-2 w-full"
-                    value={extra.key || ""}
-                    onChange={(e) => updateExtra(extra.id, { key: e.target.value })}
-                  />
-                </div>
-                <div className="md:col-span-1">
-                  <label className="block text-xs text-gray-600 mb-1">Qty</label>
-                  <input
-                    type="number"
-                    min="1"
-                    className="border rounded px-3 py-2 w-full"
-                    value={extra.quantity ?? 1}
-                    onChange={(e) => updateExtra(extra.id, { quantity: Number(e.target.value || 1) })}
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1">Price (£)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    className="border rounded px-3 py-2 w-full"
-                    value={extra.price ?? 0}
-                    onChange={(e) => updateExtra(extra.id, { price: Number(e.target.value || 0) })}
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1">Arrival</label>
-                  <input
-                    type="time"
-                    step="300"
-                    className="border rounded px-3 py-2 w-full"
-                    value={extra.arrivalTime || ""}
-                    onChange={(e) => updateExtra(extra.id, { arrivalTime: e.target.value })}
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-xs text-gray-600 mb-1">Finish</label>
-                  <input
-                    type="time"
-                    step="300"
-                    className="border rounded px-3 py-2 w-full"
-                    value={extra.finishTime || ""}
-                    onChange={(e) => updateExtra(extra.id, { finishTime: e.target.value })}
-                  />
-                </div>
-                <div className="md:col-span-12">
-                  {Array.isArray(extra.payoutMemberNames) && extra.payoutMemberNames.length > 0 && (
-                    <div className="text-xs text-gray-600 mb-2">
-                      Applies to: {extra.payoutMemberNames.join(", ")}
-                    </div>
-                  )}
-                  <div className="flex justify-end">
-                    <button type="button" className="text-sm underline text-red-600" onClick={() => removeExtra(extra.id)}>Remove</button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="mb-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="border rounded-lg p-4">
-            <div className="font-medium mb-3">Optional manual adjustment</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Label</label>
-                <input
-                  className="border rounded px-3 py-2 w-full"
-                  value={value.manualAdjustmentLabel || ""}
-                  onChange={(e) => onChange({ ...value, manualAdjustmentLabel: e.target.value })}
-                  placeholder="e.g. goodwill discount or manual hire fee"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-gray-600 mb-1">Amount (£)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  className="border rounded px-3 py-2 w-full"
-                  value={value.manualAdjustmentAmount || ""}
-                  onChange={(e) => onChange({ ...value, manualAdjustmentAmount: e.target.value })}
-                  placeholder="0.00"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="border rounded-lg p-4 bg-gray-50">
-            <div className="font-medium mb-3">Updated totals preview</div>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center justify-between"><span>Current/base gross</span><strong>£{Number(value.baseGross || 0).toLocaleString("en-GB", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</strong></div>
-              <div className="flex items-center justify-between"><span>Extras total</span><strong>£{Number(extrasTotal || 0).toLocaleString("en-GB", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</strong></div>
-              <div className="flex items-center justify-between"><span>Manual adjustment</span><strong>£{Number(manualAdjustmentAmount || 0).toLocaleString("en-GB", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</strong></div>
-              <div className="flex items-center justify-between border-t pt-2"><span>New gross total</span><strong>£{Number(recalculatedGross || 0).toLocaleString("en-GB", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</strong></div>
-              <div className="flex items-center justify-between"><span>Deposit already paid</span><strong>£{Number(value.depositAmount || 0).toLocaleString("en-GB", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</strong></div>
-              <div className="flex items-center justify-between"><span>Estimated new balance</span><strong>£{Number(recalculatedBalance || 0).toLocaleString("en-GB", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</strong></div>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2">
-          <button type="button" className="px-4 py-2 border rounded" onClick={onClose}>Cancel</button>
-          <button type="button" className="px-4 py-2 rounded bg-black text-white disabled:opacity-50" disabled={saving} onClick={onSave}>
-            {saving ? "Saving…" : "Save booking update"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+  upsertNamedExtra({
+    key: "late_stay_60min_per_band_member",
+    name: `Late Stay Fee (${mins} mins)`,
+    quantity: 1,
+    price: gross,
+    finishTime: value.paLightsFinishTime || value.finishTime || "",
+    arrivalTime: "",
+    category: "late_stay",
+    pricingMode:
+      value.lateStayAppliesTo === "selected_members"
+        ? "per_specific_members"
+        : "per_band_member",
+    appliedMinutes: mins,
+    billableMemberCount,
+    payoutMemberIds: chosenPersistableIds,
+    payoutMemberNames: chosenMembers.map((member) => member.name),
+    paLateStay: {
+      enabled: true,
+      onlySpecificMembers: value.lateStayAppliesTo === "selected_members",
+      memberCount: billableMemberCount,
+      memberIds: chosenPersistableIds,
+      memberNames: chosenMembers.map((member) => member.name),
+      additionalMinutesBeyondBand: mins,
+      basedOnExtraKey: "late_stay_60min_per_band_member",
+    },
+  });
+};
 
 // --- Agent selector (dropdown + "Other...")
 const AGENTS = [
@@ -1294,24 +826,37 @@ const [newRow, setNewRow] = useState({
   const saveBookingUpdate = async () => {
     if (!editingRow || !editForm?._id) return;
 
-    const cleanedExtras = (editForm.extras || [])
-      .map((extra) => ({
-        key: String(extra?.key || "").trim(),
-        name: String(extra?.name || extra?.key || "Extra").trim(),
-        quantity: Number(extra?.quantity || 1) || 1,
-        price: Number(extra?.price || 0) || 0,
-        finishTime: extra?.finishTime || "",
-        arrivalTime: extra?.arrivalTime || "",
-        category: extra?.category || "",
-        pricingMode: extra?.pricingMode || "flat",
-        appliedMinutes: Number(extra?.appliedMinutes || 0) || 0,
-        billableMemberCount: Number(extra?.billableMemberCount || 0) || 0,
-        payoutMemberIds: Array.isArray(extra?.payoutMemberIds) ? extra.payoutMemberIds : [],
-        payoutMemberNames: Array.isArray(extra?.payoutMemberNames) ? extra.payoutMemberNames : [],
-        paLateStay: extra?.paLateStay || null,
-      }))
-      .filter((extra) => extra.name || extra.key || extra.price || extra.finishTime || extra.arrivalTime);
-
+const cleanedExtras = (editForm.extras || [])
+  .map((extra) => ({
+    key: String(extra?.key || "").trim(),
+    name: String(extra?.name || extra?.key || "Extra").trim(),
+    quantity: Number(extra?.quantity || 1) || 1,
+    price: Number(extra?.price || 0) || 0,
+    finishTime: extra?.finishTime || "",
+    arrivalTime: extra?.arrivalTime || "",
+    category: extra?.category || "",
+    pricingMode: extra?.pricingMode || "flat",
+    appliedMinutes: Number(extra?.appliedMinutes || 0) || 0,
+    billableMemberCount: Number(extra?.billableMemberCount || 0) || 0,
+    payoutMemberIds: Array.isArray(extra?.payoutMemberIds)
+      ? extra.payoutMemberIds.filter((id) => isValidObjectIdString(id))
+      : [],
+    payoutMemberNames: Array.isArray(extra?.payoutMemberNames)
+      ? extra.payoutMemberNames
+      : [],
+    paLateStay: extra?.paLateStay
+      ? {
+          ...extra.paLateStay,
+          memberIds: Array.isArray(extra?.paLateStay?.memberIds)
+            ? extra.paLateStay.memberIds.filter((id) => isValidObjectIdString(id))
+            : [],
+          memberNames: Array.isArray(extra?.paLateStay?.memberNames)
+            ? extra.paLateStay.memberNames
+            : [],
+        }
+      : null,
+  }))
+  .filter((extra) => extra.name || extra.key || extra.price || extra.finishTime || extra.arrivalTime);
     const extrasTotal = cleanedExtras.reduce((sum, extra) => sum + (extra.price * extra.quantity), 0);
     const manualAdjustmentAmount = Number(editForm.manualAdjustmentAmount || 0) || 0;
     const newGross = Math.max(0, Number(editForm.baseGross || 0) + extrasTotal + manualAdjustmentAmount);
@@ -1384,13 +929,13 @@ const [newRow, setNewRow] = useState({
         setRows((prev) => prev.map((row) => (row._id === json.row._id ? json.row : row)));
         setEditingRow(null);
         setEditForm(null);
-      } else {
-        window.alert("Booking update could not be saved.");
+           } else {
+        console.error("Booking update save response:", json || raw);
+        window.alert(json?.message || "Booking update could not be saved.");
       }
     } catch (error) {
       console.error("save booking update failed", error);
-      window.alert("Booking update failed.");
-    } finally {
+      window.alert(error?.message || "Booking update failed.");    } finally {
       setSavingEdit(false);
     }
   };
@@ -1684,6 +1229,7 @@ const fallbackEventSheetUrl = `${PUBLIC_SITE_BASE}/event-sheet/${encodeURICompon
                     <div className="flex flex-wrap gap-1">
                       {clientEmails.map((e, i) => (
                         <Tag key={i}>{e.label ? `${e.label}: ` : ""}{e.email}</Tag>
+                        
                       ))}
                     </div>
                   </td>
