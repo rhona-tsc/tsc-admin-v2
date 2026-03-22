@@ -10,8 +10,44 @@ import { toast } from "react-toastify";
 import CustomToast from "./CustomToast";
 import axios from "axios";
 import { backendUrl } from "../App";
-import imageCompression from "browser-image-compression";
-import renameAndCompressImage from "../pages/utils/renameAndCompressDeputyImage";
+
+
+const normalizeVocalsForSubmit = (v) => {
+  const vv = v && typeof v === "object" ? v : {};
+
+  const type = Array.isArray(vv.type)
+    ? vv.type.map((item) => String(item || "").trim()).filter(Boolean)
+    : typeof vv.type === "string" && vv.type.trim()
+    ? [vv.type.trim()]
+    : [];
+
+  const genres = Array.isArray(vv.genres)
+    ? vv.genres.map((item) => String(item || "").trim()).filter(Boolean)
+    : typeof vv.genres === "string" && vv.genres.trim()
+    ? vv.genres.split(",").map((g) => g.trim()).filter(Boolean)
+    : [];
+
+  const gender = typeof vv.gender === "string" ? vv.gender : "";
+  const range = typeof vv.range === "string" ? vv.range : "";
+
+  let rap = "";
+  if (typeof vv.rap === "boolean") {
+    rap = vv.rap ? "true" : "false";
+  } else if (typeof vv.rap === "string") {
+    const normalizedRap = vv.rap.trim().toLowerCase();
+    if (normalizedRap === "true" || normalizedRap === "yes") rap = "true";
+    else if (normalizedRap === "false" || normalizedRap === "no") rap = "false";
+    else rap = vv.rap.trim();
+  }
+
+  return {
+    type,
+    gender,
+    range,
+    rap,
+    genres,
+  };
+};
 
 const DeputyForm = ({ token, userRole, firstName, lastName, email, phone, userId }) => {
 const location = useLocation();
@@ -113,7 +149,12 @@ appendJSON(
     appendJSON("djGearRequired", formData.djGearRequired);
     appendJSON("instrumentSpecs", formData.instrumentSpecs);
 appendJSON("additionalEquipment", formData.additionalEquipment);
-    appendJSON("vocals", formData.vocals);
+    const sanitizedVocals = normalizeVocalsForSubmit(formData.vocals);
+console.log("[DeputyForm] sanitized vocals before submit:", {
+  raw: formData.vocals,
+  sanitized: sanitizedVocals,
+});
+appendJSON("vocals", sanitizedVocals);
 
     // simple string fields
     fd.append("role", formData.role || "");
@@ -167,8 +208,7 @@ if (coverUrl) fd.append("coverHeroImage", coverUrl);        // matches mongoose 
     const res = await axios.post(
       `${backendUrl}/api/musician/moderation/register-deputy`,
       fd,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+{ headers: { Authorization: `Bearer ${authToken}` } }    );
 
     if (res.data?.success) {
       // Decide which message to show
@@ -542,25 +582,7 @@ const normalizeSelectedSongs = (v) =>
         }
   );
 
-const normalizeVocals = (v) => {
-  const vv = v && typeof v === "object" ? v : {};
-  const type =
-    Array.isArray(vv.type) ? vv.type.filter(Boolean)
-    : typeof vv.type === "string" && vv.type.trim() ? [vv.type.trim()]
-    : [];
-  const genres =
-    Array.isArray(vv.genres) ? vv.genres.filter(Boolean)
-    : typeof vv.genres === "string" && vv.genres.trim()
-      ? vv.genres.split(",").map((g) => g.trim()).filter(Boolean)
-      : [];
-  return {
-    type,
-    gender: vv.gender ?? "",
-    range: vv.range ?? "",
-    rap: vv.rap ?? "",
-    genres,
-  };
-};
+const normalizeVocals = (v) => normalizeVocalsForSubmit(v);
 
 
         setFormData((prev) => ({
@@ -937,8 +959,7 @@ localStorage.removeItem("deputyAutosave");
       const res = await axios.post(
   `${backendUrl}/api/musician/approve-deputy`,
   { id: deputyId },
-  { headers: { Authorization: `Bearer ${token}` } }
-);
+{ headers: { Authorization: `Bearer ${authToken}` } });
       if (res.data?.success) {
         toast(<CustomToast type="success" message={res.data.message || "Deputy approved"} />);
         navigate("/moderate-deputies");

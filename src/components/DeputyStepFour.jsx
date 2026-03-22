@@ -3,7 +3,13 @@ import DeputyRepertoire from './DeputyRepertoire';
 import GenresSelector from "./GenresSelector";
 import DeputySongModeration from "./DeputySongModeration";
 
-
+const ALLOWED_VOCAL_TYPES = [
+  "Lead Vocalist",
+  "Lead Vocalist-Instrumentalist",
+  "Backing Vocalist",
+  "Backing Vocalist-Instrumentalist",
+  "I don't sing",
+];
 
 const DeputyStepFour = ({ formData = {}, setFormData = () => {}, userRole, deputyId }) => {
 
@@ -30,13 +36,15 @@ const normalizeSelectedSongs = (v) => {
 const normalizeVocals = (v) => {
   const vv = v && typeof v === "object" ? v : {};
 
-  // type can be string or array depending on old saves
-  const type =
-    Array.isArray(vv.type) ? vv.type.filter(Boolean)
+  const rawType =
+    Array.isArray(vv.type) ? vv.type
     : typeof vv.type === "string" && vv.type.trim() ? [vv.type.trim()]
     : [];
 
-  // genres can be string or array depending on old saves
+  const type = rawType
+    .map((t) => String(t || "").trim())
+    .filter((t) => ALLOWED_VOCAL_TYPES.includes(t));
+
   const genres =
     Array.isArray(vv.genres) ? vv.genres.filter(Boolean)
     : typeof vv.genres === "string" && vv.genres.trim()
