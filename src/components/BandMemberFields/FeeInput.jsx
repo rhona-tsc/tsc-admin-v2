@@ -2,6 +2,7 @@ import React from "react";
 import FeeLabelWithToolTip from "../FeeLabelWithToolTip";
 
 const PERFORMANCE_LENGTH_OPTIONS = ["30", "40", "45", "60", "custom"];
+const ADDITIONAL_PERFORMANCE_FIELD = "additionalPerformanceRates";
 
 const FeeInput = ({
   member,
@@ -42,16 +43,17 @@ const FeeInput = ({
   };
 
   const getAdditionalPerformanceRates = () => {
-    const rates = member?.specialDatePricing?.additionalPerformanceRates;
+    const rates = member?.[ADDITIONAL_PERFORMANCE_FIELD];
     return Array.isArray(rates) ? rates : [];
   };
 
   const setAdditionalPerformanceRates = (nextRates) => {
-    const prev = member?.specialDatePricing || {};
-    updateBandMember(index, memberIndex, "specialDatePricing", {
-      ...prev,
-      additionalPerformanceRates: nextRates,
-    });
+    updateBandMember(
+      index,
+      memberIndex,
+      ADDITIONAL_PERFORMANCE_FIELD,
+      nextRates
+    );
   };
 
   const sanitizeNumericInput = (value) => {
@@ -72,10 +74,7 @@ const FeeInput = ({
     const currentRates = getAdditionalPerformanceRates();
 
     const nextRate = {
-      duration:
-        selectedLength === "custom"
-          ? ""
-          : selectedLength,
+      duration: selectedLength === "custom" ? "" : selectedLength,
       fee: "",
       isCustom: selectedLength === "custom",
     };
@@ -138,14 +137,12 @@ const FeeInput = ({
       {feeError && <p className="text-red-500 text-sm">{feeError}</p>}
 
       {/* ➕ Additional performance rates */}
-      <div className="mt-4 rounded-md border border-gray-200 bg-gray-50 p-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-medium text-gray-800">Additional performance fees</p>
-            <p className="text-[11px] text-gray-500 mt-1">
-              Add optional rates for extra set lengths without cluttering the main fee.
-            </p>
-          </div>
+      <div className="mt-4 rounded-md border border-gray-200 bg-white p-3">
+        <div>
+          <p className="text-xs font-medium text-gray-800">Additional performance fees</p>
+          <p className="text-[11px] text-gray-500 mt-1">
+            Add optional fees for longer performance times.
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-2 mt-3">
@@ -156,7 +153,7 @@ const FeeInput = ({
                 key={option}
                 type="button"
                 onClick={() => addAdditionalPerformanceRate(option)}
-                className="px-2.5 py-1 text-[11px] rounded-full border border-gray-300 bg-white text-gray-700 hover:border-[#ff6667] hover:text-[#ff6667] transition"
+                className="px-2.5 py-1 text-[11px] rounded-full border border-gray-300 bg-gray-50 text-gray-700 hover:border-[#ff6667] hover:text-[#ff6667] transition"
               >
                 {label}
               </button>
@@ -169,44 +166,46 @@ const FeeInput = ({
             {additionalPerformanceRates.map((rate, rateIndex) => (
               <div
                 key={`${rate.duration || "custom"}-${rateIndex}`}
-                className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-center"
+                className="rounded-md border border-gray-200 bg-gray-50 p-2.5"
               >
-                <input
-                  type="text"
-                  value={String(rate?.duration ?? "")}
-                  onChange={(e) => {
-                    updateAdditionalPerformanceRate(
-                      rateIndex,
-                      "duration",
-                      sanitizeNumericInput(e.target.value)
-                    );
-                  }}
-                  className="w-full px-3 py-2 border bg-white text-sm"
-                  placeholder="Minutes"
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-[120px_minmax(0,1fr)_auto] gap-2 items-center">
+                  <input
+                    type="text"
+                    value={String(rate?.duration ?? "")}
+                    onChange={(e) => {
+                      updateAdditionalPerformanceRate(
+                        rateIndex,
+                        "duration",
+                        sanitizeNumericInput(e.target.value)
+                      );
+                    }}
+                    className="w-full px-3 py-2 border bg-white text-sm"
+                    placeholder="Minutes"
+                  />
 
-                <input
-                  type="text"
-                  value={String(rate?.fee ?? "")}
-                  onChange={(e) => {
-                    updateAdditionalPerformanceRate(
-                      rateIndex,
-                      "fee",
-                      sanitizeNumericInput(e.target.value)
-                    );
-                  }}
-                  className="w-full px-3 py-2 border bg-white text-sm"
-                  placeholder="Fee"
-                />
+                  <input
+                    type="text"
+                    value={String(rate?.fee ?? "")}
+                    onChange={(e) => {
+                      updateAdditionalPerformanceRate(
+                        rateIndex,
+                        "fee",
+                        sanitizeNumericInput(e.target.value)
+                      );
+                    }}
+                    className="w-full px-3 py-2 border bg-white text-sm"
+                    placeholder="Fee"
+                  />
 
-                <button
-                  type="button"
-                  onClick={() => removeAdditionalPerformanceRate(rateIndex)}
-                  className="text-xs text-gray-500 hover:text-red-500 transition px-1"
-                  aria-label="Remove additional performance rate"
-                >
-                  Remove
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => removeAdditionalPerformanceRate(rateIndex)}
+                    className="text-xs text-gray-500 hover:text-red-500 transition px-1 justify-self-start sm:justify-self-end"
+                    aria-label="Remove additional performance rate"
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
             ))}
           </div>
