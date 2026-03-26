@@ -160,7 +160,7 @@ appendJSON("vocals", sanitizedVocals);
     fd.append("role", formData.role || "");
     fd.append("status", formData.status || "pending");
     fd.append("bio", formData.bio || "");
-    fd.append("tscApprovedBio", formData.tscApprovedBio || "");
+fd.append("tscApprovedBio", tscApprovedBio || formData.tscApprovedBio || "");
     fd.append("tagLine", formData.tagLine || "");
     fd.append("customRepertoire", formData.customRepertoire || "");
 
@@ -588,12 +588,15 @@ const normalizeVocals = (v) => normalizeVocalsForSubmit(v);
         setFormData((prev) => ({
           ...prev,
           ...deputy,
-profilePicture: deputy.profilePhoto || prev.profilePicture,
-profilePhoto: deputy.profilePhoto || prev.profilePhoto,
-coverHeroImage: deputy.coverHeroImage || prev.coverHeroImage,
-          basicInfo: { ...prev.basicInfo, ...basicInfoFromDb },
-          address: { ...prev.address, ...addressFromDb },
-          bank_account: { ...prev.bank_account, ...bankFromDb },
+ profilePicture: deputy.profilePhoto || prev.profilePicture,
+  profilePhoto: deputy.profilePhoto || prev.profilePhoto,
+  coverHeroImage: deputy.coverHeroImage || prev.coverHeroImage,
+  bio: deputy.bio ?? prev.bio,
+  tscApprovedBio: deputy.tscApprovedBio ?? prev.tscApprovedBio,
+  tagLine: deputy.tagLine ?? prev.tagLine,
+  basicInfo: { ...prev.basicInfo, ...basicInfoFromDb },
+  address: { ...prev.address, ...addressFromDb },
+  bank_account: { ...prev.bank_account, ...bankFromDb },
           
           dateRegistered: deputy.dateRegistered || prev.dateRegistered || new Date(),
           academic_credentials: deputy.academic_credentials || prev.academic_credentials,
@@ -621,7 +624,7 @@ instrumentation: safeArray(deputy.instrumentation || prev.instrumentation).map((
           deputy_contract_agreed: deputy.deputy_contract_agreed ?? prev.deputy_contract_agreed,
         }));
 
-        setTscApprovedBio(deputy.tscApprovedBio || deputy.bio || "");
+        setTscApprovedBio(deputy.tscApprovedBio || "");
         if (deputy.deputy_contract_signed) setHasDrawnSignature(true);
         if (deputy._id) localStorage.setItem("musicianId", deputy._id);
         setHasHydratedFromBackend(true);
@@ -729,13 +732,16 @@ instrumentation: safeArray(deputy.instrumentation || prev.instrumentation).map((
         );
       case 2:
         return (
-          <DeputyStepTwo
-            formData={formData}
-            setFormData={setFormData}
-            userRole={userRole}
-            tscApprovedBio={tscApprovedBio}
-            setTscApprovedBio={setTscApprovedBio}
-          />
+         <DeputyStepTwo
+  formData={formData}
+  setFormData={setFormData}
+  userRole={userRole}
+  tscApprovedBio={tscApprovedBio}
+  setTscApprovedBio={(value) => {
+    setTscApprovedBio(value);
+    setFormData((prev) => ({ ...prev, tscApprovedBio: value }));
+  }}
+/>
         );
       case 3:
         return <DeputyStepThree formData={formData} setFormData={setFormData} userRole={userRole} {...stepProps} />;
@@ -837,6 +843,8 @@ instrumentation: safeArray(deputy.instrumentation || prev.instrumentation).map((
         })
       );
 
+      safe.tscApprovedBio = tscApprovedBio || safe.tscApprovedBio || "";
+
       // strip any blobs that might sneak into wardrobes/images
       safe.digitalWardrobeBlackTie =
         safe.digitalWardrobeBlackTie?.filter((x) => typeof x === "string") || [];
@@ -894,7 +902,7 @@ instrumentation: safeArray(deputy.instrumentation || prev.instrumentation).map((
   }, 800);
 
   return () => clearTimeout(handler);
-}, [formData, deputyId, token, backendUrl]);
+}, [formData, tscApprovedBio, deputyId, token, backendUrl]);
 
   /* ---------------------------- DEBUG: track changes -------------------------- */
   useEffect(() => {
@@ -924,6 +932,7 @@ instrumentation: safeArray(deputy.instrumentation || prev.instrumentation).map((
           return v;
         })
       );
+      safe.tscApprovedBio = tscApprovedBio || safe.tscApprovedBio || "";
 
     const res = await axios.patch(
   `${backendUrl}/api/musician/moderation/deputy/${deputyId}/save`,
