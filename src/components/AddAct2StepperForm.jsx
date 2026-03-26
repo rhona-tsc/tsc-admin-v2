@@ -136,6 +136,35 @@ const coerceNumberOrNull = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 
+const normalizeAdditionalPerformanceFees = (fees) => {
+  if (!Array.isArray(fees)) return [];
+
+  return fees
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+
+      const durationRaw = item.duration;
+      const feeRaw = item.fee;
+
+      const duration =
+        durationRaw === "" || durationRaw === null || durationRaw === undefined
+          ? ""
+          : String(durationRaw);
+
+      const fee =
+        feeRaw === "" || feeRaw === null || feeRaw === undefined
+          ? ""
+          : String(feeRaw);
+
+      return {
+        duration,
+        fee,
+        isCustom: Boolean(item.isCustom),
+      };
+    })
+    .filter(Boolean);
+};
+
   const sanitizeMediaArray = (media) => {
     return (media || [])
       .map((item) => {
@@ -179,20 +208,23 @@ newLineup.roamingPercussion = coerceBool(newLineup.roamingPercussion) ?? newLine
         return {
           ...member,
           carRegistration: carRegToSave,
-         specialDatePricing: (() => {
-  const prev = member?.specialDatePricing || {};
-  const prevNye = prev?.nye || {};
+          specialDatePricing: (() => {
+            const prev = member?.specialDatePricing || {};
+            const prevNye = prev?.nye || {};
 
-  const extraFeeNum = Number(prevNye?.extraFee);
-  const extraFee = Number.isFinite(extraFeeNum) ? extraFeeNum : 0;
+            const extraFeeNum = Number(prevNye?.extraFee);
+            const extraFee = Number.isFinite(extraFeeNum) ? extraFeeNum : 0;
 
-  const overrideFee = coerceNumberOrNull(prevNye?.overrideFee);
+            const overrideFee = coerceNumberOrNull(prevNye?.overrideFee);
 
-  return {
-    ...prev,
-    nye: { ...prevNye, extraFee, overrideFee },
-  };
-})(),
+            return {
+              ...prev,
+              nye: { ...prevNye, extraFee, overrideFee },
+            };
+          })(),
+          additionalPerformanceFees: normalizeAdditionalPerformanceFees(
+            member?.additionalPerformanceFees
+          ),
           additionalRoles: (member.additionalRoles || [])
             .filter((role) => role && typeof role === "object" && role.role)
             .map((role) => ({
@@ -201,14 +233,14 @@ newLineup.roamingPercussion = coerceBool(newLineup.roamingPercussion) ?? newLine
               additionalFee: parseFloat(role.additionalFee || 0),
             })),
           deputies: (member.deputies || []).filter((d) => {
-  if (!d || typeof d !== "object") return false;
+            if (!d || typeof d !== "object") return false;
 
-  // keep suggested rows (has id/_id) OR manual rows (has clientKey)
-  if (d.id || d._id || d.musicianId || d.clientKey) return true;
+            // keep suggested rows (has id/_id) OR manual rows (has clientKey)
+            if (d.id || d._id || d.musicianId || d.clientKey) return true;
 
-  // otherwise keep if user has typed anything
-  return Boolean(d.email || d.firstName || d.lastName || d.phoneNumber);
-}),
+            // otherwise keep if user has typed anything
+            return Boolean(d.email || d.firstName || d.lastName || d.phoneNumber);
+          }),
         };
       });
       return newLineup;
@@ -271,6 +303,9 @@ roamingPercussion: coerceBool(lineup.roamingPercussion) ?? lineup.roamingPercuss
             },
           };
         })(),
+        additionalPerformanceFees: normalizeAdditionalPerformanceFees(
+          member?.additionalPerformanceFees
+        ),
         additionalRoles: (member.additionalRoles || [])
           .filter((role) => role && typeof role === "object" && role.role)
           .map((role) => ({
@@ -279,14 +314,14 @@ roamingPercussion: coerceBool(lineup.roamingPercussion) ?? lineup.roamingPercuss
             additionalFee: parseFloat(role.additionalFee || 0),
           })),
         deputies: (member.deputies || []).filter((d) => {
-  if (!d || typeof d !== "object") return false;
+          if (!d || typeof d !== "object") return false;
 
-  // keep suggested rows (has id/_id) OR manual rows (has clientKey)
-  if (d.id || d._id || d.musicianId || d.clientKey) return true;
+          // keep suggested rows (has id/_id) OR manual rows (has clientKey)
+          if (d.id || d._id || d.musicianId || d.clientKey) return true;
 
-  // otherwise keep if user has typed anything
-  return Boolean(d.email || d.firstName || d.lastName || d.phoneNumber);
-}),
+          // otherwise keep if user has typed anything
+          return Boolean(d.email || d.firstName || d.lastName || d.phoneNumber);
+        }),
       };
     }
 
@@ -321,6 +356,9 @@ roamingPercussion: coerceBool(lineup.roamingPercussion) ?? lineup.roamingPercuss
           },
         };
       })(),
+      additionalPerformanceFees: normalizeAdditionalPerformanceFees(
+        member?.additionalPerformanceFees
+      ),
       additionalRoles: (member.additionalRoles || [])
         .filter((role) => role && typeof role === "object" && role.role)
         .map((role) => ({
@@ -329,14 +367,14 @@ roamingPercussion: coerceBool(lineup.roamingPercussion) ?? lineup.roamingPercuss
           additionalFee: parseFloat(role.additionalFee || 0),
         })),
       deputies: (member.deputies || []).filter((d) => {
-  if (!d || typeof d !== "object") return false;
+        if (!d || typeof d !== "object") return false;
 
-  // keep suggested rows (has id/_id) OR manual rows (has clientKey)
-  if (d.id || d._id || d.musicianId || d.clientKey) return true;
+        // keep suggested rows (has id/_id) OR manual rows (has clientKey)
+        if (d.id || d._id || d.musicianId || d.clientKey) return true;
 
-  // otherwise keep if user has typed anything
-  return Boolean(d.email || d.firstName || d.lastName || d.phoneNumber);
-}),
+        // otherwise keep if user has typed anything
+        return Boolean(d.email || d.firstName || d.lastName || d.phoneNumber);
+      }),
     };
   }),
 
@@ -486,18 +524,18 @@ const sanitizeLineups = (lineups) => {
   return lineups.map((lineup) => ({
     ...lineup,
     // ✅ Coerce lineup booleans that sometimes arrive as `[true]`
-coverOverhead: coerceBool(lineup.coverOverhead) ?? lineup.coverOverhead,
-dryAndLevel: coerceBool(lineup.dryAndLevel) ?? lineup.dryAndLevel,
-changingRoom: coerceBool(lineup.changingRoom) ?? lineup.changingRoom,
+    coverOverhead: coerceBool(lineup.coverOverhead) ?? lineup.coverOverhead,
+    dryAndLevel: coerceBool(lineup.dryAndLevel) ?? lineup.dryAndLevel,
+    changingRoom: coerceBool(lineup.changingRoom) ?? lineup.changingRoom,
 
-hasDrums: coerceBool(lineup.hasDrums) ?? lineup.hasDrums,
-iems: coerceBool(lineup.iems) ?? lineup.iems,
-ampless: coerceBool(lineup.ampless) ?? lineup.ampless,
-withoutDrums: coerceBool(lineup.withoutDrums) ?? lineup.withoutDrums,
-acoustic: coerceBool(lineup.acoustic) ?? lineup.acoustic,
-anotherVocalist: coerceBool(lineup.anotherVocalist) ?? lineup.anotherVocalist,
-eDrums: coerceBool(lineup.eDrums) ?? lineup.eDrums,
-roamingPercussion: coerceBool(lineup.roamingPercussion) ?? lineup.roamingPercussion,
+    hasDrums: coerceBool(lineup.hasDrums) ?? lineup.hasDrums,
+    iems: coerceBool(lineup.iems) ?? lineup.iems,
+    ampless: coerceBool(lineup.ampless) ?? lineup.ampless,
+    withoutDrums: coerceBool(lineup.withoutDrums) ?? lineup.withoutDrums,
+    acoustic: coerceBool(lineup.acoustic) ?? lineup.acoustic,
+    anotherVocalist: coerceBool(lineup.anotherVocalist) ?? lineup.anotherVocalist,
+    eDrums: coerceBool(lineup.eDrums) ?? lineup.eDrums,
+    roamingPercussion: coerceBool(lineup.roamingPercussion) ?? lineup.roamingPercussion,
     acousticPerformanceOptions: lineup.acousticPerformanceOptions || {
       solo: {
         fullyAcoustic: [],
@@ -533,20 +571,23 @@ roamingPercussion: coerceBool(lineup.roamingPercussion) ?? lineup.roamingPercuss
       return {
         ...member,
         carRegistration: carRegToSave,
-      specialDatePricing: (() => {
-  const prev = member?.specialDatePricing || {};
-  const prevNye = prev?.nye || {};
+        specialDatePricing: (() => {
+          const prev = member?.specialDatePricing || {};
+          const prevNye = prev?.nye || {};
 
-  const extraFeeNum = Number(prevNye?.extraFee);
-  const extraFee = Number.isFinite(extraFeeNum) ? extraFeeNum : 0;
+          const extraFeeNum = Number(prevNye?.extraFee);
+          const extraFee = Number.isFinite(extraFeeNum) ? extraFeeNum : 0;
 
-  const overrideFee = coerceNumberOrNull(prevNye?.overrideFee);
+          const overrideFee = coerceNumberOrNull(prevNye?.overrideFee);
 
-  return {
-    ...prev,
-    nye: { ...prevNye, extraFee, overrideFee },
-  };
-})(),
+          return {
+            ...prev,
+            nye: { ...prevNye, extraFee, overrideFee },
+          };
+        })(),
+        additionalPerformanceFees: normalizeAdditionalPerformanceFees(
+          member?.additionalPerformanceFees
+        ),
         additionalRoles: (member.additionalRoles || [])
           .filter((role) => role && typeof role === "object" && role.role)
           .map((role) => ({
@@ -555,14 +596,14 @@ roamingPercussion: coerceBool(lineup.roamingPercussion) ?? lineup.roamingPercuss
             additionalFee: parseFloat(role.additionalFee || 0),
           })),
         deputies: (member.deputies || []).filter((d) => {
-  if (!d || typeof d !== "object") return false;
+          if (!d || typeof d !== "object") return false;
 
-  // keep suggested rows (has id/_id) OR manual rows (has clientKey)
-  if (d.id || d._id || d.musicianId || d.clientKey) return true;
+          // keep suggested rows (has id/_id) OR manual rows (has clientKey)
+          if (d.id || d._id || d.musicianId || d.clientKey) return true;
 
-  // otherwise keep if user has typed anything
-  return Boolean(d.email || d.firstName || d.lastName || d.phoneNumber);
-}),
+          // otherwise keep if user has typed anything
+          return Boolean(d.email || d.firstName || d.lastName || d.phoneNumber);
+        }),
       };
     }),
   }));

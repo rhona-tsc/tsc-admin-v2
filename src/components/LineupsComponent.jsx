@@ -50,7 +50,13 @@ import MusicianProfileImageUpload from "./MusicianProfileImageUpload";
 
 // Note: This component is NOT responsible for rendering step control buttons (Next/Approve/Reject).
 // Those should be handled in the parent component (e.g., ActForm or Stepper).
-const LineupsComponent = ({ lineups = [], setLineups, setExtrasPricing, selectedSongs, actGenres = [] }) => {
+const LineupsComponent = ({
+  lineups = [],
+  setLineups,
+  setExtrasPricing,
+  selectedSongs,
+  actGenres = [],
+}) => {
   useEffect(() => {
     // Open the first lineup by default if only one lineup exists
     if (lineups.length === 1) {
@@ -61,23 +67,26 @@ const LineupsComponent = ({ lineups = [], setLineups, setExtrasPricing, selected
   }, [lineups.length]);
 
   const getMemberKey = (m) => {
-  const email = (m?.email || "").trim().toLowerCase();
-  const musicianId = String(m?.musicianId || m?.musician_id || m?.id || m?._id || "").trim();
-  if (musicianId) return `id:${musicianId}`;
-  if (email) return `email:${email}`;
+    const email = (m?.email || "").trim().toLowerCase();
+    const musicianId = String(
+      m?.musicianId || m?.musician_id || m?.id || m?._id || ""
+    ).trim();
 
-  const fn = (m?.firstName || "").trim().toLowerCase();
-  const ln = (m?.lastName || "").trim().toLowerCase();
-  return `name:${fn}_${ln}`; // last resort
-};
-  
-const allSavedMembers = Array.from(
-  new Map(
-    lineups
-      .flatMap((l) => l.bandMembers || [])
-      .map((m) => [getMemberKey(m), m])
-  ).values()
-);
+    if (musicianId) return `id:${musicianId}`;
+    if (email) return `email:${email}`;
+
+    const fn = (m?.firstName || "").trim().toLowerCase();
+    const ln = (m?.lastName || "").trim().toLowerCase();
+    return `name:${fn}_${ln}`; // last resort
+  };
+
+  const allSavedMembers = Array.from(
+    new Map(
+      lineups
+        .flatMap((l) => l.bandMembers || [])
+        .map((m) => [getMemberKey(m), m])
+    ).values()
+  );
 
   const [openLineups, setOpenLineups] = useState([true]);
 
@@ -93,63 +102,71 @@ const allSavedMembers = Array.from(
     setOpenLineups((prev) => prev.filter((_, i) => i !== indexToRemove));
   };
 
- const updateBandMember = (lineupIndex, memberIndex, field, value) => {
-  setLineups((prev) => {
-    const updated = [...prev];
+  const updateBandMember = (lineupIndex, memberIndex, field, value) => {
+    setLineups((prev) => {
+      const updated = [...prev];
 
-    const targetMember = updated?.[lineupIndex]?.bandMembers?.[memberIndex];
-    if (!targetMember) return prev;
+      const targetMember = updated?.[lineupIndex]?.bandMembers?.[memberIndex];
+      if (!targetMember) return prev;
 
-    // apply to the specific member first
-    updated[lineupIndex].bandMembers[memberIndex] = {
-      ...targetMember,
-      [field]: value,
-    };
+      // apply to the specific member first
+      updated[lineupIndex].bandMembers[memberIndex] = {
+        ...targetMember,
+        [field]: value,
+      };
 
-    // 🔁 If deputies updated, sync to ALL bandMembers that represent same person
-    if (field === "deputies") {
-      const key = getMemberKey(targetMember);
+      // normalize additionalPerformanceFees
+      if (field === "additionalPerformanceFees") {
+        updated[lineupIndex].bandMembers[memberIndex] = {
+          ...updated[lineupIndex].bandMembers[memberIndex],
+          additionalPerformanceFees: Array.isArray(value) ? value : [],
+        };
+      }
 
-      updated.forEach((lineup, li) => {
-        (lineup.bandMembers || []).forEach((m, mi) => {
-          if (li === lineupIndex && mi === memberIndex) return;
-          if (getMemberKey(m) === key) {
-            updated[li].bandMembers[mi] = {
-              ...m,
-              deputies: value,
-            };
-          }
-        });
-      });
-    }
+      // 🔁 If deputies updated, sync to ALL bandMembers that represent same person
+      if (field === "deputies") {
+        const key = getMemberKey(targetMember);
 
-    // existing isEssential logic (unchanged)
-    if (field === "isEssential") {
-      const member = updated[lineupIndex].bandMembers[memberIndex];
-      const roleKey = member.instrument?.toLowerCase().replace(/\s+/g, "_");
-
-      if (roleKey) {
-        const fee = parseFloat(member.fee) || 0;
-
-        setExtrasPricing((prevExtras) => {
-          const newPricing = { ...prevExtras };
-          if (!value) {
-            newPricing[roleKey] = fee;
-            toast.info(`"${member.instrument}" has been added as an extra.`);
-          } else {
-            delete newPricing[roleKey];
-            toast.info(`"${member.instrument}" has been removed from the extras list.`);
-          }
-          return newPricing;
+        updated.forEach((lineup, li) => {
+          (lineup.bandMembers || []).forEach((m, mi) => {
+            if (li === lineupIndex && mi === memberIndex) return;
+            if (getMemberKey(m) === key) {
+              updated[li].bandMembers[mi] = {
+                ...m,
+                deputies: value,
+              };
+            }
+          });
         });
       }
-    }
 
-    return updated;
-  });
-};
-  
-  
+      // existing isEssential logic
+      if (field === "isEssential") {
+        const member = updated[lineupIndex].bandMembers[memberIndex];
+        const roleKey = member.instrument?.toLowerCase().replace(/\s+/g, "_");
+
+        if (roleKey) {
+          const fee = parseFloat(member.fee) || 0;
+
+          setExtrasPricing((prevExtras) => {
+            const newPricing = { ...prevExtras };
+            if (!value) {
+              newPricing[roleKey] = fee;
+              toast.info(`"${member.instrument}" has been added as an extra.`);
+            } else {
+              delete newPricing[roleKey];
+              toast.info(
+                `"${member.instrument}" has been removed from the extras list.`
+              );
+            }
+            return newPricing;
+          });
+        }
+      }
+
+      return updated;
+    });
+  };
 
   const [sortCodeError, setSortCodeError] = useState("");
   const [accountError, setAccountError] = useState("");
@@ -237,22 +254,29 @@ const allSavedMembers = Array.from(
     field,
     value
   ) => {
-    console.log("🛠️ updateAdditionalRole", { lineupIndex, memberIndex, roleIndex, field, value });
-  
+    console.log("🛠️ updateAdditionalRole", {
+      lineupIndex,
+      memberIndex,
+      roleIndex,
+      field,
+      value,
+    });
+
     setLineups((prevLineups) => {
       const newLineups = [...prevLineups];
       const member = newLineups[lineupIndex].bandMembers[memberIndex];
-  
+
       const newRoles = [...(member.additionalRoles || [])];
       const updatedRole = {
         ...newRoles[roleIndex],
         [field]: value,
       };
       console.log("Updated role object:", updatedRole);
-  
+
       newRoles[roleIndex] = updatedRole;
-      newLineups[lineupIndex].bandMembers[memberIndex].additionalRoles = newRoles;
-  
+      newLineups[lineupIndex].bandMembers[memberIndex].additionalRoles =
+        newRoles;
+
       return newLineups;
     });
   };
@@ -308,7 +332,6 @@ const allSavedMembers = Array.from(
     );
   };
 
-
   // Helper: define auto-added DJ-related roles
   const getAutoDJRoles = (member) => {
     const roles = [];
@@ -340,9 +363,9 @@ const allSavedMembers = Array.from(
       prevLineups.map((lineup) => {
         const updatedMembers = (lineup.bandMembers || []).map((member) => {
           const autoRoles = getAutoDJRoles(member);
-          
+
           let currentRoles = member.additionalRoles || [];
-          
+
           // ✅ Capture preserved DJ role fees from the member
           const preservedFees = {};
           currentRoles.forEach((r) => {
@@ -354,9 +377,10 @@ const allSavedMembers = Array.from(
                 "DJ Booth Porterage",
               ].includes(r.role)
             ) {
-              preservedFees[r.role] = r.additionalFee ?? r.fee ?? "";            }
+              preservedFees[r.role] = r.additionalFee ?? r.fee ?? "";
+            }
           });
-          
+
           // ✅ Filter out old DJ auto roles
           currentRoles = currentRoles.filter(
             (r) =>
@@ -367,7 +391,7 @@ const allSavedMembers = Array.from(
                 "DJ Booth Porterage",
               ].includes(r.role)
           );
-          
+
           // ✅ Re-add them with preserved fees
           autoRoles.forEach((roleText) => {
             if (!currentRoles.some((r) => r.role === roleText)) {
@@ -431,10 +455,12 @@ const allSavedMembers = Array.from(
       return updated;
     });
   };
-console.log(
-  "hasDrums types:",
-  lineups.map(l => [l.actSize, l.hasDrums, Array.isArray(l.hasDrums)])
-);
+
+  console.log(
+    "hasDrums types:",
+    lineups.map((l) => [l.actSize, l.hasDrums, Array.isArray(l.hasDrums)])
+  );
+
   const handleAddBandMember = (lineupIndex, newMember) => {
     setLineups((prevLineups) => {
       const newLineups = prevLineups.map((lineup, i) => {
@@ -461,682 +487,741 @@ console.log(
     });
   };
 
-
-
   return (
     <div className="w-full grid grid-cols-1 gap-4 ">
-      
       {lineups.map((lineupItem, lineupIndex) => (
-    <div
-      key={lineupIndex}
-      className={`border p-4 rounded mb-6 w-full bg-gray-100 transition-all duration-300 shadow-sm ${
-        openLineups[lineupIndex] ? "col-span-8 " : "col-span-8"
-      }`}
-    >
-      <div className="flex  items-center justify-between cursor-pointer mb-2 w-full">
-       <div
-          className="flex items-center gap-4 w-full"
-          onClick={() => toggleLineup(lineupIndex)}
+        <div
+          key={lineupIndex}
+          className={`border p-4 rounded mb-6 w-full bg-gray-100 transition-all duration-300 shadow-sm ${
+            openLineups[lineupIndex] ? "col-span-8 " : "col-span-8"
+          }`}
         >
-          <img
-            src={assets.dropdown_icon}
-            alt="Toggle"
-            className={`transition-transform duration-200 ${
-              openLineups[lineupIndex] ? "rotate-90" : ""
-            }`}
-          />
-          <h2 className="text-xl font-semibold">
-            {lineupItem.actSize || `Lineup ${lineupIndex + 1}`}
-            {(() => {
-              const memberOrder = [
-                'lead vocal',
-                'female lead vocal',
-                'male lead vocal',
-                'vocalist-guitarist',
-                'vocalist',
-                'keys',
-                'keyboard',
-                'guitar',
-                'bass',
-                'bass guitar',
-                'electric guitar',
-                'drums' // Drums intentionally last
-              ];
-              const bandMembers = lineupItem.bandMembers || [];
+          <div className="flex  items-center justify-between cursor-pointer mb-2 w-full">
+            <div
+              className="flex items-center gap-4 w-full"
+              onClick={() => toggleLineup(lineupIndex)}
+            >
+              <img
+                src={assets.dropdown_icon}
+                alt="Toggle"
+                className={`transition-transform duration-200 ${
+                  openLineups[lineupIndex] ? "rotate-90" : ""
+                }`}
+              />
+              <h2 className="text-xl font-semibold">
+                {lineupItem.actSize || `Lineup ${lineupIndex + 1}`}
+                {(() => {
+                  const memberOrder = [
+                    "lead vocal",
+                    "female lead vocal",
+                    "male lead vocal",
+                    "vocalist-guitarist",
+                    "vocalist",
+                    "keys",
+                    "keyboard",
+                    "guitar",
+                    "bass",
+                    "bass guitar",
+                    "electric guitar",
+                    "drums",
+                  ];
+                  const bandMembers = lineupItem.bandMembers || [];
 
-              const essentialInstruments = bandMembers
-                .filter(m => m.isEssential)
-                .map(m => ({
-                  name: m.instrument === 'Other' ? m.customInstrument || 'Other' : m.instrument,
-                  role: (m.instrument || '').toLowerCase(),
-                }));
+                  const essentialInstruments = bandMembers
+                    .filter((m) => m.isEssential)
+                    .map((m) => ({
+                      name:
+                        m.instrument === "Other"
+                          ? m.customInstrument || "Other"
+                          : m.instrument,
+                      role: (m.instrument || "").toLowerCase(),
+                    }));
 
-              const essentialRoles = Array.from(new Set(
-                bandMembers
-                  .flatMap(m => (m.additionalRoles || []).filter(r => r.isEssential).map(r => r.role))
-                  .filter(Boolean)
-              ));
+                  const essentialRoles = Array.from(
+                    new Set(
+                      bandMembers
+                        .flatMap((m) =>
+                          (m.additionalRoles || [])
+                            .filter((r) => r.isEssential)
+                            .map((r) => r.role)
+                        )
+                        .filter(Boolean)
+                    )
+                  );
 
-              // Sort so that all "Vocal" instruments appear first, drums last, others by memberOrder
-              const sortedMembers = [...essentialInstruments].sort((a, b) => {
-                const isAVocal = a.name?.toLowerCase().includes("vocal");
-                const isBVocal = b.name?.toLowerCase().includes("vocal");
+                  const sortedMembers = [...essentialInstruments].sort(
+                    (a, b) => {
+                      const isAVocal = a.name?.toLowerCase().includes("vocal");
+                      const isBVocal = b.name?.toLowerCase().includes("vocal");
 
-                if (isAVocal && !isBVocal) return -1;
-                if (!isAVocal && isBVocal) return 1;
+                      if (isAVocal && !isBVocal) return -1;
+                      if (!isAVocal && isBVocal) return 1;
 
-                const aIsDrums = a.role === "drums";
-                const bIsDrums = b.role === "drums";
-                if (aIsDrums && !bIsDrums) return 1;
-                if (!aIsDrums && bIsDrums) return -1;
+                      const aIsDrums = a.role === "drums";
+                      const bIsDrums = b.role === "drums";
+                      if (aIsDrums && !bIsDrums) return 1;
+                      if (!aIsDrums && bIsDrums) return -1;
 
-                const aIndex = memberOrder.indexOf(a.role.toLowerCase());
-                const bIndex = memberOrder.indexOf(b.role.toLowerCase());
-                return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
-              });
+                      const aIndex = memberOrder.indexOf(a.role.toLowerCase());
+                      const bIndex = memberOrder.indexOf(b.role.toLowerCase());
+                      return (
+                        (aIndex === -1 ? 999 : aIndex) -
+                        (bIndex === -1 ? 999 : bIndex)
+                      );
+                    }
+                  );
 
-              const instrumentsList = sortedMembers.map(m => m.name).join(', ').replace(/, ([^,]*)$/, ' & $1');
-              const rolesText = essentialRoles.length > 0 ? ` (with ${essentialRoles.join(' and ')})` : '';
+                  const instrumentsList = sortedMembers
+                    .map((m) => m.name)
+                    .join(", ")
+                    .replace(/, ([^,]*)$/, " & $1");
 
-              // Prepend "with " after the opening parenthesis of rolesText if present
-              const rolesTextWithWith = essentialRoles.length > 0
-                ? ` (with ${essentialRoles.join(' and ')})`
-                : '';
+                  const rolesTextWithWith =
+                    essentialRoles.length > 0
+                      ? ` (with ${essentialRoles.join(" and ")})`
+                      : "";
 
-              return instrumentsList ? (
-                <span className="text-base font-normal"> – {instrumentsList}{rolesTextWithWith}</span>
-              ) : '';
-            })()}
-          </h2>
-        </div>
-        {lineups.length > 1 && (
-          <button
-          type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              removeLineup(lineupIndex);
-            }}
-            className="text-gray-400 hover:text-red-500 text-lg font-bold ml-4"
-            title="Remove lineup"
-          >
-            <img src={assets.cross_icon} alt="Remove" className="w-5 h-5 items-end" />
-          </button>
-        )}
-      </div>
+                  return instrumentsList ? (
+                    <span className="text-base font-normal">
+                      {" "}
+                      – {instrumentsList}
+                      {rolesTextWithWith}
+                    </span>
+                  ) : (
+                    ""
+                  );
+                })()}
+              </h2>
+            </div>
 
-            {openLineups[lineupIndex] && (
-              <>
-                <div className="flex gap-4 items-end mt-4 ">
-                  <div className="flex-1">
-                    <LineupsLineupSize
-                      lineupItem={lineupItem}
-                      lineupIndex={lineupIndex}
-                      setLineups={setLineups}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <SpaceRequired
-                      lineup={lineupItem}
-                      index={lineupIndex}
-                      setLineups={setLineups}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <ElectricityReqs
-                      lineup={lineupItem}
-                      index={lineupIndex}
-                      setLineups={setLineups}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <SoundLimitations
-                      lineup={lineupItem}
-                      index={lineupIndex}
-                      setLineups={setLineups}
-                    />
-                  </div>
+            {lineups.length > 1 && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeLineup(lineupIndex);
+                }}
+                className="text-gray-400 hover:text-red-500 text-lg font-bold ml-4"
+                title="Remove lineup"
+              >
+                <img
+                  src={assets.cross_icon}
+                  alt="Remove"
+                  className="w-5 h-5 items-end"
+                />
+              </button>
+            )}
+          </div>
+
+          {openLineups[lineupIndex] && (
+            <>
+              <div className="flex gap-4 items-end mt-4 ">
+                <div className="flex-1">
+                  <LineupsLineupSize
+                    lineupItem={lineupItem}
+                    lineupIndex={lineupIndex}
+                    setLineups={setLineups}
+                  />
+                </div>
+                <div className="flex-1">
+                  <SpaceRequired
+                    lineup={lineupItem}
+                    index={lineupIndex}
+                    setLineups={setLineups}
+                  />
+                </div>
+                <div className="flex-1">
+                  <ElectricityReqs
+                    lineup={lineupItem}
+                    index={lineupIndex}
+                    setLineups={setLineups}
+                  />
+                </div>
+                <div className="flex-1">
+                  <SoundLimitations
+                    lineup={lineupItem}
+                    index={lineupIndex}
+                    setLineups={setLineups}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-4 items-end mt-4">
+                <div className="flex-1">
+                  <SetupAndSoundCheckTimes
+                    lineup={lineupItem}
+                    index={lineupIndex}
+                    setLineups={setLineups}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-12 gap-6 items-start mt-4">
+                <div className="space-y-5 col-span-5">
+                  <DryAndLevel
+                    lineup={lineupItem}
+                    index={lineupIndex}
+                    setLineups={setLineups}
+                  />
+                  <CoverOverhead
+                    lineup={lineupItem}
+                    index={lineupIndex}
+                    setLineups={setLineups}
+                  />
+                  <ChangingRoom
+                    lineup={lineupItem}
+                    index={lineupIndex}
+                    setLineups={setLineups}
+                  />
+                </div>
+                <div className="space-y-5 col-span-7">
+                  <HotMeal
+                    lineup={lineupItem}
+                    index={lineupIndex}
+                    setLineups={setLineups}
+                  />
+                  <Parking
+                    lineup={lineupItem}
+                    index={lineupIndex}
+                    setLineups={setLineups}
+                  />
+                  <OtherRequests
+                    lineup={lineupItem}
+                    index={lineupIndex}
+                    setLineups={setLineups}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-12 gap-6 items-start mt-4">
+                <div className="space-y-5 col-span-5">
+                  <IemsToggle
+                    lineup={lineupItem}
+                    lineupIndex={lineupIndex}
+                    setLineups={setLineups}
+                  />
+                  <AmplessToggle
+                    lineup={lineupItem}
+                    lineupIndex={lineupIndex}
+                    setLineups={setLineups}
+                  />
+                  <AcousticToggle
+                    lineup={lineupItem}
+                    lineupIndex={lineupIndex}
+                    setLineups={setLineups}
+                  />
+                  <AnotherVocalistToggle
+                    lineup={lineupItem}
+                    lineupIndex={lineupIndex}
+                    setLineups={setLineups}
+                  />
+                </div>
+                <div className="space-y-5 col-span-7">
+                  <HasDrumsToggle
+                    lineup={lineupItem}
+                    lineupIndex={lineupIndex}
+                    setLineups={setLineups}
+                  />
+                  <WithoutDrumsToggle
+                    lineup={lineupItem}
+                    lineupIndex={lineupIndex}
+                    setLineups={setLineups}
+                  />
+                  <ElectricDrumsToggle
+                    lineup={lineupItem}
+                    lineupIndex={lineupIndex}
+                    setLineups={setLineups}
+                  />
                 </div>
 
-                <div className="flex gap-4 items-end mt-4">
-                  <div className="flex-1">
-                    <SetupAndSoundCheckTimes
+                {lineupItem.hasDrums &&
+                  lineupItem.bandMembers.some((m) => m.canDJ) && (
+                    <RoamingPercussion
                       lineup={lineupItem}
-                      index={lineupIndex}
+                      lineupIndex={lineupIndex}
                       setLineups={setLineups}
                     />
-                  </div>
-                </div>
+                  )}
+              </div>
 
-                <div className="grid grid-cols-12 gap-6 items-start mt-4">
-                  <div className="space-y-5 col-span-5">
-                    <DryAndLevel
-                      lineup={lineupItem}
-                      index={lineupIndex}
-                      setLineups={setLineups}
-                    />
-                    <CoverOverhead
-                      lineup={lineupItem}
-                      index={lineupIndex}
-                      setLineups={setLineups}
-                    />
-                    <ChangingRoom
-                      lineup={lineupItem}
-                      index={lineupIndex}
-                      setLineups={setLineups}
-                    />
-                  </div>
-                  <div className="space-y-5 col-span-7">
-                    <HotMeal
-                      lineup={lineupItem}
-                      index={lineupIndex}
-                      setLineups={setLineups}
-                    />
-                    <Parking
-                      lineup={lineupItem}
-                      index={lineupIndex}
-                      setLineups={setLineups}
-                    />
-                    <OtherRequests
-                      lineup={lineupItem}
-                      index={lineupIndex}
-                      setLineups={setLineups}
-                    />
-                  </div>
-                </div>
+              <div className="mt-6 w-full bg-white p-3">
+                <label className="text-xl">Team Members</label>
 
-                <div className="grid grid-cols-12 gap-6 items-start mt-4">
-                  <div className="space-y-5 col-span-5">
-                    <IemsToggle
-                      lineup={lineupItem}
-                      lineupIndex={lineupIndex}
-                      setLineups={setLineups}
-                    />
-                    <AmplessToggle
-                      lineup={lineupItem}
-                      lineupIndex={lineupIndex}
-                      setLineups={setLineups}
-                    />
-                    <AcousticToggle
-                      lineup={lineupItem}
-                      lineupIndex={lineupIndex}
-                      setLineups={setLineups}
-                    />
-                    <AnotherVocalistToggle
-                      lineup={lineupItem}
-                      lineupIndex={lineupIndex}
-                      setLineups={setLineups}
-                    />
-                  </div>
-                  <div className="space-y-5 col-span-7">
-                    <HasDrumsToggle
-                      lineup={lineupItem}
-                      lineupIndex={lineupIndex}
-                      setLineups={setLineups}
-                    />
-                    <WithoutDrumsToggle
-                      lineup={lineupItem}
-                      lineupIndex={lineupIndex}
-                      setLineups={setLineups}
-                    />
-                    <ElectricDrumsToggle
-                      lineup={lineupItem}
-                      lineupIndex={lineupIndex}
-                      setLineups={setLineups}
-                    />
-                  </div>
-                  {lineupItem.hasDrums && lineupItem.bandMembers.some((m) => m.canDJ) && (
-  <RoamingPercussion
-    lineup={lineupItem}
-    lineupIndex={lineupIndex}
-    setLineups={setLineups}
-  />
-)}
-                </div>
-
-                <div className="mt-6 w-full bg-white p-3">
-                  <label className="text-xl">Team Members</label>
-                  {lineupItem.bandMembers.map((member, memberIndex) => (
-                    <div
-                      key={memberIndex}
-                      className=" grid grid-cols-8 items-start m-4"
-                    >
-                      <div className="col-span-8 flex justify-between items-center mb-2">
-                        <div
-                          className="flex items-center gap-2 cursor-pointer"
-                          onClick={() =>
-                            toggleBandMember(lineupIndex, memberIndex)
-                          }
-                        >
-                          <img
-                            src={assets.dropdown_icon}
-                            alt="Toggle"
-                            className={`transition-transform duration-200 w-4 h-6 m-1 ${
-                              openBandMembers[lineupIndex]?.[memberIndex]
-                                ? "rotate-90"
-                                : ""
-                            }`}
-                          />
-                          <h4 className="text-lg font-semibold">
-                            {member.firstName || member.instrument
-                              ? `${member.firstName || "Unnamed"}${
-                                  member.instrument
-                                    ? ` – ${member.instrument}`
-                                    : ""
-                                }`
-                              : `Team Member ${memberIndex + 1}`}
-                          </h4>
-                        </div>
-
-                        <button
-                        type="button"
-                          className="text-gray-400 hover:text-red-500"
-                          onClick={() =>
-                            removeBandMember(lineupIndex, memberIndex)
-                          }
-                        >
-                          <img
-                            src={assets.cross_icon}
-                            alt="Remove"
-                            className="w-5 h-5"
-                          />
-                        </button>
+                {lineupItem.bandMembers.map((member, memberIndex) => (
+                  <div
+                    key={memberIndex}
+                    className=" grid grid-cols-8 items-start m-4"
+                  >
+                    <div className="col-span-8 flex justify-between items-center mb-2">
+                      <div
+                        className="flex items-center gap-2 cursor-pointer"
+                        onClick={() =>
+                          toggleBandMember(lineupIndex, memberIndex)
+                        }
+                      >
+                        <img
+                          src={assets.dropdown_icon}
+                          alt="Toggle"
+                          className={`transition-transform duration-200 w-4 h-6 m-1 ${
+                            openBandMembers[lineupIndex]?.[memberIndex]
+                              ? "rotate-90"
+                              : ""
+                          }`}
+                        />
+                        <h4 className="text-lg font-semibold">
+                          {member.firstName || member.instrument
+                            ? `${member.firstName || "Unnamed"}${
+                                member.instrument ? ` – ${member.instrument}` : ""
+                              }`
+                            : `Team Member ${memberIndex + 1}`}
+                        </h4>
                       </div>
-                      {openBandMembers[lineupIndex]?.[memberIndex] && (
-                        <>
-                          
-                          <div className="col-span-8 grid gap-4">
-                            
-                              <div className="col-span-4">
-  <MusicianProfileImageUpload
-    // Convert the stored string → array for the component
-    profileImage={
-      member.musicianProfileImageUpload
-        ? [
-            {
-              id: "existing",
-              url: member.musicianProfileImageUpload,
-              title: "Profile",
-            },
-          ]
-        : []
-    }
-    // Convert array → string and persist to the band member
-    setProfileImage={(arr) =>
-      updateBandMember(
-        lineupIndex,
-        memberIndex,
-        "musicianProfileImageUpload",
-        arr?.[0]?.url || ""
-      )
-    }
 
-    bandMembers={lineupItem?.bandMembers || []}
-    lineupSize={lineupItem?.actSize}
-    additionalKeywords={[member?.firstName, member?.instrument].filter(Boolean)}
-  />
+                      <button
+                        type="button"
+                        className="text-gray-400 hover:text-red-500"
+                        onClick={() =>
+                          removeBandMember(lineupIndex, memberIndex)
+                        }
+                      >
+                        <img
+                          src={assets.cross_icon}
+                          alt="Remove"
+                          className="w-5 h-5"
+                        />
+                      </button>
+                    </div>
 
- 
-  </div>
+                    {openBandMembers[lineupIndex]?.[memberIndex] && (
+                      <>
+                        <div className="col-span-8 grid gap-4">
+                          <div className="col-span-4">
+                            <MusicianProfileImageUpload
+                              profileImage={
+                                member.musicianProfileImageUpload
+                                  ? [
+                                      {
+                                        id: "existing",
+                                        url: member.musicianProfileImageUpload,
+                                        title: "Profile",
+                                      },
+                                    ]
+                                  : []
+                              }
+                              setProfileImage={(arr) =>
+                                updateBandMember(
+                                  lineupIndex,
+                                  memberIndex,
+                                  "musicianProfileImageUpload",
+                                  arr?.[0]?.url || ""
+                                )
+                              }
+                              bandMembers={lineupItem?.bandMembers || []}
+                              lineupSize={lineupItem?.actSize}
+                              additionalKeywords={[
+                                member?.firstName,
+                                member?.instrument,
+                              ].filter(Boolean)}
+                            />
+                          </div>
 
+                          <div className="col-span-2">
+                            <FirstNameInput
+                              member={member}
+                              index={lineupIndex}
+                              memberIndex={memberIndex}
+                              updateBandMember={updateBandMember}
+                            />
+                          </div>
 
-                            <div className="col-span-2">
-                              <FirstNameInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <LastNameInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <EmailInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <MobileNumberInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                             <div className="col-span-2">
-                              <CarRegistrationInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <DietaryRequirementsInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-2">
-                               <InstrumentInput
-      member={member}
-      index={lineupIndex}
-      memberIndex={memberIndex}
-      updateBandMember={updateBandMember}
-      MU_RATES={MU_RATES}
-    />
-    </div>
-                           
-                            <div className="col-span-1">
-    <FeeInput
-      member={member}
-      index={lineupIndex}
-      memberIndex={memberIndex}
-      updateBandMember={updateBandMember}
-      MU_RATES={MU_RATES}
-    />
-  </div>
-  <div className="col-span-1 text-sm text-center justify-center">    
-    <MURatesToggle
-      member={member}
-      index={lineupIndex}
-      memberIndex={memberIndex}
-      updateBandMember={updateBandMember}
-    />
-  </div>
+                          <div className="col-span-2">
+                            <LastNameInput
+                              member={member}
+                              index={lineupIndex}
+                              memberIndex={memberIndex}
+                              updateBandMember={updateBandMember}
+                            />
+                          </div>
 
-    <div className="col-span-4">
-      {(member.additionalRoles && member.additionalRoles.length > 0
-        ? member.additionalRoles
-        : []
-      ).map((role, i) => (
-        <div key={i} className="mb-2">
-          <AdditionalRoleInput
-            role={role}
-            index={i}
-            isLast={i === (member.additionalRoles?.length || 1) - 1}
-            updateAdditionalRole={(
-              roleIndex,
-              field,
-              value
-            ) =>
-              updateAdditionalRole(
-                lineupIndex,
-                memberIndex,
-                roleIndex,
-                field,
-                value
-              )
-            }
-            removeAdditionalRole={(roleIndex) =>
-              removeAdditionalRole(
-                lineupIndex,
-                memberIndex,
-                roleIndex
-              )
-            }
-            addAdditionalRole={() =>
-              addAdditionalRole(lineupIndex, memberIndex)
-            }
-            OTHER_ROLES={OTHER_ROLES}
-          />
-       {i === member.additionalRoles.length - 1 && (
-         <button
-           type="button"
-           className="text-blue-500 text-xs underline ml-1"
-           onClick={() => addAdditionalRole(lineupIndex, memberIndex)}
-         >
-           Add Another
-         </button>
-       )}
-        </div>
-      ))}
-      {/* Show "Add Additional Role" button if no roles exist */}
-      {(!member.additionalRoles || member.additionalRoles.length === 0) && (
-        <button
-          type="button"
-          className="border px-2 py-1 rounded text-sm mt-2 bg-gray-100 hover:bg-gray-200"
-          onClick={() => addAdditionalRole(lineupIndex, memberIndex)}
-        >
-          Add Additional Role
-        </button>
-      )}
-    </div>
-                            <div className="col-span-2">
-                              <AccountNameInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                        
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <SortCodeInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                                sortCodeError={sortCodeError}
-                                setSortCodeError={setSortCodeError}
-                                validateSortCode={validateSortCode}
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <AccountNumberInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                                accountError={accountError}
-                                setAccountError={setAccountError}
-                                validateAccountNumber={validateAccountNumber}
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <PostCodeInput
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                                postCodeError={postCodeError}
-                                setPostCodeError={setPostCodeError}
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <WirelessCheckbox
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <InPromoCheckbox
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <SoloPACheckbox
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <DuoPACheckbox
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            <div className="col-span-2">
-                              <CanDJCheckbox
-                                member={member}
-                                index={lineupIndex}
-                                memberIndex={memberIndex}
-                                updateBandMember={updateBandMember}
-                              />
-                            </div>
-                            {/* Conditional DJ gear checkboxes (only if canDJ is true) */}
-                            {member.canDJ && (
-                              <>
-                                <div className="col-span-2">
-                                  <HaveMixingConsoleCheckbox
-                                    member={member}
-                                    index={lineupIndex}
-                                    memberIndex={memberIndex}
-                                    updateBandMember={updateBandMember}
-                                  />
-                                </div>
-                                <div className="col-span-2">
-                                  <HasDjTableCheckbox
-                                    member={member}
-                                    index={lineupIndex}
-                                    memberIndex={memberIndex}
-                                    updateBandMember={updateBandMember}
-                                  />
-                                </div>
-                                <div className="col-span-2">
-                                  <HasDJBoothCheckbox
-                                    member={member}
-                                    index={lineupIndex}
-                                    memberIndex={memberIndex}
-                                    updateBandMember={updateBandMember}
-                                  />
-                                </div>
-                              </>
+                          <div className="col-span-2">
+                            <EmailInput
+                              member={member}
+                              index={lineupIndex}
+                              memberIndex={memberIndex}
+                              updateBandMember={updateBandMember}
+                            />
+                          </div>
+
+                          <div className="col-span-2">
+                            <MobileNumberInput
+                              member={member}
+                              index={lineupIndex}
+                              memberIndex={memberIndex}
+                              updateBandMember={updateBandMember}
+                            />
+                          </div>
+
+                          <div className="col-span-2">
+                            <CarRegistrationInput
+                              member={member}
+                              index={lineupIndex}
+                              memberIndex={memberIndex}
+                              updateBandMember={updateBandMember}
+                            />
+                          </div>
+
+                          <div className="col-span-2">
+                            <DietaryRequirementsInput
+                              member={member}
+                              index={lineupIndex}
+                              memberIndex={memberIndex}
+                              updateBandMember={updateBandMember}
+                            />
+                          </div>
+
+                          <div className="col-span-2">
+                            <InstrumentInput
+                              member={member}
+                              index={lineupIndex}
+                              memberIndex={memberIndex}
+                              updateBandMember={updateBandMember}
+                              MU_RATES={MU_RATES}
+                            />
+                          </div>
+
+                          <div className="col-span-1">
+                            <FeeInput
+                              member={member}
+                              index={lineupIndex}
+                              memberIndex={memberIndex}
+                              updateBandMember={updateBandMember}
+                              MU_RATES={MU_RATES}
+                            />
+                          </div>
+
+                          <div className="col-span-1 text-sm text-center justify-center">
+                            <MURatesToggle
+                              member={member}
+                              index={lineupIndex}
+                              memberIndex={memberIndex}
+                              updateBandMember={updateBandMember}
+                            />
+                          </div>
+
+                          <div className="col-span-4">
+                            {(member.additionalRoles &&
+                            member.additionalRoles.length > 0
+                              ? member.additionalRoles
+                              : []
+                            ).map((role, i) => (
+                              <div key={i} className="mb-2">
+                                <AdditionalRoleInput
+                                  role={role}
+                                  index={i}
+                                  isLast={
+                                    i ===
+                                    (member.additionalRoles?.length || 1) - 1
+                                  }
+                                  updateAdditionalRole={(
+                                    roleIndex,
+                                    field,
+                                    value
+                                  ) =>
+                                    updateAdditionalRole(
+                                      lineupIndex,
+                                      memberIndex,
+                                      roleIndex,
+                                      field,
+                                      value
+                                    )
+                                  }
+                                  removeAdditionalRole={(roleIndex) =>
+                                    removeAdditionalRole(
+                                      lineupIndex,
+                                      memberIndex,
+                                      roleIndex
+                                    )
+                                  }
+                                  addAdditionalRole={() =>
+                                    addAdditionalRole(lineupIndex, memberIndex)
+                                  }
+                                  OTHER_ROLES={OTHER_ROLES}
+                                />
+
+                                {i === member.additionalRoles.length - 1 && (
+                                  <button
+                                    type="button"
+                                    className="text-blue-500 text-xs underline ml-1"
+                                    onClick={() =>
+                                      addAdditionalRole(
+                                        lineupIndex,
+                                        memberIndex
+                                      )
+                                    }
+                                  >
+                                    Add Another
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+
+                            {(!member.additionalRoles ||
+                              member.additionalRoles.length === 0) && (
+                              <button
+                                type="button"
+                                className="border px-2 py-1 rounded text-sm mt-2 bg-gray-100 hover:bg-gray-200"
+                                onClick={() =>
+                                  addAdditionalRole(lineupIndex, memberIndex)
+                                }
+                              >
+                                Add Additional Role
+                              </button>
                             )}
                           </div>
 
-                        
-                          
-                      <div className="col-span-8">
-          <DeputiesInput
-            member={member}
-   index={lineupIndex}
-      memberIndex={memberIndex}
-   updateBandMember={updateBandMember}
-      actRepertoire={Array.isArray(selectedSongs) ? selectedSongs : []}   // ← act’s songs
-   isVocalSlot={/vocal|singer|lead|backing/i.test((member?.instrument || ""))}  // ← force vocal filter
-     actGenres={Array.isArray(actGenres) ? actGenres : []}
+                          <div className="col-span-2">
+                            <AccountNameInput
+                              member={member}
+                              index={lineupIndex}
+                              memberIndex={memberIndex}
+                              updateBandMember={updateBandMember}
+                            />
+                          </div>
 
- />
-                    </div>
-                    </>
-                      )}
-                    </div>
-                  ))}
+                          <div className="col-span-2">
+                            <SortCodeInput
+                              member={member}
+                              index={lineupIndex}
+                              memberIndex={memberIndex}
+                              updateBandMember={updateBandMember}
+                              sortCodeError={sortCodeError}
+                              setSortCodeError={setSortCodeError}
+                              validateSortCode={validateSortCode}
+                            />
+                          </div>
 
-                  
+                          <div className="col-span-2">
+                            <AccountNumberInput
+                              member={member}
+                              index={lineupIndex}
+                              memberIndex={memberIndex}
+                              updateBandMember={updateBandMember}
+                              accountError={accountError}
+                              setAccountError={setAccountError}
+                              validateAccountNumber={validateAccountNumber}
+                            />
+                          </div>
 
-                  <div className="flex gap-4 items-center mt-4">
-                    <AddAnotherBandMemberButton
-                      lineup={lineupIndex}
-                      index={lineupIndex}
-                      onAdd={() => {
-                        const newMember = {
-                          firstName: "",
-                          lastName: "",
-                          instrument: "",
-                          additionalRoles: [],
-                          phone: "",
-                          email: "",
-                          useMURatesForFees: false,
-                          additionalFee: 0,
-                          fee: "",
-                          sortCode: "",
-                          accountNumber: "",
-                          dietaryRequirements: "",
-                          postCode: "",
-                          carRegistration: "",
-                          canDJ: false,
-                          haveMixingConsoleOrDecks: false,
-                          hasDjTable: false,
-                          haveBooth: false,
-                          wireless: false,
-                          inPromo: false,
-                          haveSoloPa: false,
-                          haveDuoPa: false,
-                        
-                          isEssential: true,
-                          deputies: [
-                            {
-                              firstName: "",
-                              lastName: "",
-                              phoneNumber: "",
-                              email: "",
-                            },
-                          ],
-                        };
-                        handleAddBandMember(lineupIndex, newMember);
-                      }}
-                    />
-                    <select
-                      className="border px-4 py-2 mt-2 rounded"
-                      onChange={(e) => {
-                        const selectedIndex = e.target.value;
-                        if (selectedIndex !== "") {
-                          const selectedMember = allSavedMembers[selectedIndex];
-                          const clonedMember = {
-  ...JSON.parse(JSON.stringify(selectedMember)),
-  isEssential: selectedMember.isEssential ?? true,
-};
-clonedMember.deputies = Array.isArray(clonedMember.deputies) ? clonedMember.deputies : [];
-handleAddBandMember(lineupIndex, clonedMember);
-                          e.target.value = "";
-                        }
-                      }}
-                      defaultValue=""
-                    >
-                      <option value="" disabled>
-                        Add a Saved Band Member
-                      </option>
-                      {allSavedMembers.map((member, i) => (
-                        <option key={i} value={i}>
-                          {member.firstName} {member.lastName} –{" "}
-                          {member.instrument}
-                        </option>
-                        
-                      ))}
-                    </select>
+                          <div className="col-span-2">
+                            <PostCodeInput
+                              member={member}
+                              index={lineupIndex}
+                              memberIndex={memberIndex}
+                              updateBandMember={updateBandMember}
+                              postCodeError={postCodeError}
+                              setPostCodeError={setPostCodeError}
+                            />
+                          </div>
 
+                          <div className="col-span-2">
+                            <WirelessCheckbox
+                              member={member}
+                              index={lineupIndex}
+                              memberIndex={memberIndex}
+                              updateBandMember={updateBandMember}
+                            />
+                          </div>
+
+                          <div className="col-span-2">
+                            <InPromoCheckbox
+                              member={member}
+                              index={lineupIndex}
+                              memberIndex={memberIndex}
+                              updateBandMember={updateBandMember}
+                            />
+                          </div>
+
+                          <div className="col-span-2">
+                            <SoloPACheckbox
+                              member={member}
+                              index={lineupIndex}
+                              memberIndex={memberIndex}
+                              updateBandMember={updateBandMember}
+                            />
+                          </div>
+
+                          <div className="col-span-2">
+                            <DuoPACheckbox
+                              member={member}
+                              index={lineupIndex}
+                              memberIndex={memberIndex}
+                              updateBandMember={updateBandMember}
+                            />
+                          </div>
+
+                          <div className="col-span-2">
+                            <CanDJCheckbox
+                              member={member}
+                              index={lineupIndex}
+                              memberIndex={memberIndex}
+                              updateBandMember={updateBandMember}
+                            />
+                          </div>
+
+                          {member.canDJ && (
+                            <>
+                              <div className="col-span-2">
+                                <HaveMixingConsoleCheckbox
+                                  member={member}
+                                  index={lineupIndex}
+                                  memberIndex={memberIndex}
+                                  updateBandMember={updateBandMember}
+                                />
+                              </div>
+
+                              <div className="col-span-2">
+                                <HasDjTableCheckbox
+                                  member={member}
+                                  index={lineupIndex}
+                                  memberIndex={memberIndex}
+                                  updateBandMember={updateBandMember}
+                                />
+                              </div>
+
+                              <div className="col-span-2">
+                                <HasDJBoothCheckbox
+                                  member={member}
+                                  index={lineupIndex}
+                                  memberIndex={memberIndex}
+                                  updateBandMember={updateBandMember}
+                                />
+                              </div>
+                            </>
+                          )}
+                        </div>
+
+                        <div className="col-span-8">
+                          <DeputiesInput
+                            member={member}
+                            index={lineupIndex}
+                            memberIndex={memberIndex}
+                            updateBandMember={updateBandMember}
+                            actRepertoire={
+                              Array.isArray(selectedSongs) ? selectedSongs : []
+                            }
+                            isVocalSlot={/vocal|singer|lead|backing/i.test(
+                              member?.instrument || ""
+                            )}
+                            actGenres={
+                              Array.isArray(actGenres) ? actGenres : []
+                            }
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
+                ))}
+
+                <div className="flex gap-4 items-center mt-4">
+                  <AddAnotherBandMemberButton
+                    lineup={lineupIndex}
+                    index={lineupIndex}
+                    onAdd={() => {
+                      const newMember = {
+                        firstName: "",
+                        lastName: "",
+                        instrument: "",
+                        additionalRoles: [],
+                        phone: "",
+                        email: "",
+                        useMURatesForFees: false,
+                        additionalFee: 0,
+                        fee: "",
+                        additionalPerformanceFees: [],
+                        sortCode: "",
+                        accountNumber: "",
+                        dietaryRequirements: "",
+                        postCode: "",
+                        carRegistration: "",
+                        canDJ: false,
+                        haveMixingConsoleOrDecks: false,
+                        hasDjTable: false,
+                        haveBooth: false,
+                        wireless: false,
+                        inPromo: false,
+                        haveSoloPa: false,
+                        haveDuoPa: false,
+                        isEssential: true,
+                        deputies: [
+                          {
+                            firstName: "",
+                            lastName: "",
+                            phoneNumber: "",
+                            email: "",
+                          },
+                        ],
+                      };
+                      handleAddBandMember(lineupIndex, newMember);
+                    }}
+                  />
+
+                  <select
+                    className="border px-4 py-2 mt-2 rounded"
+                    onChange={(e) => {
+                      const selectedIndex = e.target.value;
+                      if (selectedIndex !== "") {
+                        const selectedMember = allSavedMembers[selectedIndex];
+                        const clonedMember = {
+                          ...JSON.parse(JSON.stringify(selectedMember)),
+                          isEssential: selectedMember.isEssential ?? true,
+                          additionalPerformanceFees: Array.isArray(
+                            selectedMember?.additionalPerformanceFees
+                          )
+                            ? JSON.parse(
+                                JSON.stringify(
+                                  selectedMember.additionalPerformanceFees
+                                )
+                              )
+                            : [],
+                        };
+
+                        clonedMember.deputies = Array.isArray(
+                          clonedMember.deputies
+                        )
+                          ? clonedMember.deputies
+                          : [];
+
+                        handleAddBandMember(lineupIndex, clonedMember);
+                        e.target.value = "";
+                      }
+                    }}
+                    defaultValue=""
+                  >
+                    <option value="" disabled>
+                      Add a Saved Band Member
+                    </option>
+                    {allSavedMembers.map((member, i) => (
+                      <option key={i} value={i}>
+                        {member.firstName} {member.lastName} –{" "}
+                        {member.instrument}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </>
-            )}
-          
-         </div>
-         
-  ))}
+              </div>
+            </>
+          )}
+        </div>
+      ))}
 
-
-  {/* Add A Lineup button row */}
-  <div className="col-span-12">
-  <AddAnotherLineup
-  lineups={lineups}
-  setLineups={setLineups}
-  setOpenLineups={setOpenLineups}
-/>
-
-  </div>
- 
-</div>
+      <div className="col-span-12">
+        <AddAnotherLineup
+          lineups={lineups}
+          setLineups={setLineups}
+          setOpenLineups={setOpenLineups}
+        />
+      </div>
+    </div>
   );
 };
 
