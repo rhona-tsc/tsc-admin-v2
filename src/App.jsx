@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from "react";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 import { Routes, Route, Navigate } from "react-router-dom";
-import Add from "./pages/Add";
 import List from "./pages/List";
 import MusicianDashboard from "./pages/MusicianDashboard";
 import Orders from "./pages/Bookings";
@@ -17,8 +16,6 @@ import ModerateDeputies from "./pages/ModerateDeputies";
 import CreateBooking from "./pages/CreateBooking";
 import PendingSongsModeration from "./pages/PendingSongsModeration";
 import AddAct2 from "./components/AddAct2StepperForm";
-import AddAct2StepperForm from "./components/AddAct2StepperForm";
-import EditActModeration from "./pages/EditActModeration";
 import Modal from "react-modal";
 import DeputyForm from "./components/DeputyForm";
 import TrashedActs from "./components/TrashedActs";
@@ -88,6 +85,7 @@ const App = () => {
   const [userRole, setUserRole] = useState(initialUser.userRole || "");
   const [password, setPassword] = useState(initialUser.password || "");
   const [hydrated, setHydrated] = useState(true); // true because we already set from token synchronously
+  const isAdminAgent = userRole === "agent" || email === "hello@thesupremecollective.co.uk";
 
   const handleLogout = () => {
     setToken("");
@@ -176,12 +174,7 @@ const App = () => {
                     path="/"
                     element={
                       <Navigate
-                        to={
-                          userRole === "agent" ||
-                          email === "hello@thesupremecollective.co.uk"
-                            ? "/moderate"
-                            : "/musicians-dashboard"
-                        }
+                        to={isAdminAgent ? "/moderate" : "/musicians-dashboard"}
                         replace
                       />
                     }
@@ -262,8 +255,7 @@ const App = () => {
                       />
                     }
                   />
-                  {(userRole === "agent" ||
-                    email === "hello@thesupremecollective.co.uk") && (
+                  {isAdminAgent && (
                     <Route
                       path="/moderate-deputy/edit/:id"
                       element={<DeputyForm token={token} userRole={userRole} />}
@@ -287,22 +279,19 @@ const App = () => {
 
                   <Route path="/bookings" element={<Orders token={token} />} />
 
-                  {(userRole === "agent" ||
-                    email === "hello@thesupremecollective.co.uk") && (
+                  {isAdminAgent && (
                     <Route
                       path="/moderate"
                       element={<Moderate token={token} />}
                     />
                   )}
-                  {(userRole === "agent" ||
-                    email === "hello@thesupremecollective.co.uk") && (
+                  {isAdminAgent && (
                     <Route
                       path="/moderate-deputies"
                       element={<ModerateDeputies token={token} />}
                     />
                   )}
-                  {(userRole === "agent" ||
-                    email === "hello@thesupremecollective.co.uk") && (
+                  {isAdminAgent && (
                     <Route
                       path="/create-booking"
                       element={<CreateBooking token={token} />}
@@ -320,8 +309,7 @@ const App = () => {
                     }
                   />
 
-                  {(userRole === "agent" ||
-                    email === "hello@thesupremecollective.co.uk") && (
+                  {isAdminAgent && (
                     <Route
                       path="/moderate-songs"
                       element={<PendingSongsModeration token={token} />}
@@ -333,8 +321,7 @@ const App = () => {
                     element={<EnquiryBoard token={token} />}
                   />
 
-                  {(userRole === "agent" ||
-                    email === "hello@thesupremecollective.co.uk") && (
+                  {isAdminAgent && (
                     <Route
                       path="/booking-board"
                       element={<BookingBoard token={token} />}
@@ -346,8 +333,15 @@ const App = () => {
                     element={<Messages token={token} />}
                   />
                   <Route path="/musician/:slug" element={<Musician />} />
-                  <Route path="/deputy-jobs" element={<DeputyJobs />} />
-<Route path="/deputy-jobs/create" element={<CreateDeputyJob />} />
+                  {isAdminAgent && (
+                    <Route path="/deputy-jobs" element={<DeputyJobs />} />
+                  )}
+                  {isAdminAgent && (
+                    <Route
+                      path="/deputy-jobs/create"
+                      element={<CreateDeputyJob />}
+                    />
+                  )}
                   <Route
                     path="/trash"
                     element={<TrashedActs token={token} />}
