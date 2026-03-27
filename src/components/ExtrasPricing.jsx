@@ -1,6 +1,193 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { assets } from "../assets/assets";
 import { toast } from "react-toastify";
+
+const EXTRA_SET_CONFIG = {
+  extra_30min_performance_per_band_member: {
+    label: "Extra 30min Performance",
+    minutes: 30,
+  },
+  extra_40min_performance_per_band_member: {
+    label: "Extra 40min Performance",
+    minutes: 40,
+  },
+  extra_45min_performance_per_band_member: {
+    label: "Extra 45min Performance",
+    minutes: 45,
+  },
+  extra_60min_performance_per_band_member: {
+    label: "Extra 60min Performance",
+    minutes: 60,
+  },
+  custom_extra_performance_per_band_member: {
+    label: "Custom Extra Performance",
+    minutes: null,
+    isCustom: true,
+  },
+};
+
+const safeNumber = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+};
+
+const getEssentialMembersForExtraSet = (lineup) => {
+  const members = Array.isArray(lineup?.bandMembers) ? lineup.bandMembers : [];
+
+  return members.filter((member) => {
+    if (!member) return false;
+    if (member.isEssential === false) return false;
+    return true;
+  });
+};
+
+const getChargeableMembersForExtraSet = (lineup, minutes) => {
+  const essentialMembers = getEssentialMembersForExtraSet(lineup);
+
+  return essentialMembers.filter((member) => {
+    return getExtraSetFeeFromMember(member, minutes) > 0;
+  });
+};
+
+const getLineupDisplayName = (lineup, fallbackCount = 0) => {
+  const actSize = String(lineup?.actSize || "").trim();
+  if (actSize) return actSize;
+  return fallbackCount ? `${fallbackCount}-Piece` : "Lineup";
+};
+
+const getExtraSetFeeFromMember = (member, minutes) => {
+  if (!member) return 0;
+
+  const additionalRates = Array.isArray(member?.additionalPerformanceRates)
+    ? member.additionalPerformanceRates
+    : [];
+
+  const targetMinutes = safeNumber(minutes);
+  if (targetMinutes > 0) {
+    const matchedRate = additionalRates.find((rate) => {
+      const rateMinutes = safeNumber(rate?.duration);
+      return rateMinutes > 0 && rateMinutes === targetMinutes;
+    });
+
+    const matchedFee = safeNumber(matchedRate?.fee);
+    if (matchedFee > 0) return matchedFee;
+  }
+
+  if (!targetMinutes) {
+    const customRate = additionalRates.find((rate) => {
+      const rateMinutes = safeNumber(rate?.duration);
+      const rateFee = safeNumber(rate?.fee);
+      return rateFee > 0 && rateMinutes > 0;
+    });
+
+    const customFee = safeNumber(customRate?.fee);
+    if (customFee > 0) return customFee;
+  }
+
+  const directCandidates = [
+    member?.[`extraPerformance${minutes}Fee`],
+    member?.[`extra${minutes}Fee`],
+    member?.[`extra_${minutes}min_fee`],
+    member?.[`extra_${minutes}_fee`],
+  ];
+
+  for (const candidate of directCandidates) {
+    const value = safeNumber(candidate);
+    if (value > 0) return value;
+  }
+
+  const nestedCandidates = [
+    member?.extraPerformanceFees?.[minutes],
+    member?.extraPerformanceFees?.[`${minutes}`],
+    member?.extraPerformanceFees?.[`${minutes}min`],
+    member?.extraSetFees?.[minutes],
+    member?.extraSetFees?.[`${minutes}`],
+    member?.extraSetFees?.[`${minutes}min`],
+    member?.extraPerformanceLengthFees?.[minutes],
+    member?.extraPerformanceLengthFees?.[`${minutes}`],
+    member?.extraPerformanceLengthFees?.[`${minutes}min`],
+  ];
+
+  for (const candidate of nestedCandidates) {
+    const value = safeNumber(candidate);
+    if (value > 0) return value;
+  }
+
+  return 0;
+};
+
+const getCustomExtraMinutesFromLineup = (lineup) => {
+  const candidates = [
+    lineup?.customExtraPerformanceMinutes,
+    lineup?.customExtraMinutes,
+    lineup?.extraPerformanceCustomMinutes,
+    lineup?.extraPerformanceLengthCustom,
+  ];
+
+  for (const candidate of candidates) {
+    const value = safeNumber(candidate);
+    if (value > 0) return value;
+  }
+
+  const members = Array.isArray(lineup?.bandMembers) ? lineup.bandMembers : [];
+  const customDurations = members
+    .flatMap((member) =>
+      Array.isArray(member?.additionalPerformanceRates)
+        ? member.additionalPerformanceRates
+        : []
+    )
+    .map((rate) => safeNumber(rate?.duration))
+    .filter((value) => value > 0 && ![30, 40, 45, 60].includes(value));
+
+  if (customDurations.length) {
+    return customDurations[0];
+  }
+
+  return 0;
+};
+
+const buildAutoExtraSetTotals = (lineups = []) => {
+  const result = {};
+
+  Object.entries(EXTRA_SET_CONFIG).forEach(([extraKey, config]) => {
+    const lineupBreakdown = (Array.isArray(lineups) ? lineups : [])
+      .map((lineup) => {
+        const essentialMembers = getEssentialMembersForExtraSet(lineup);
+        if (!essentialMembers.length) return null;
+
+        const chargeableMembers = getChargeableMembersForExtraSet(
+          lineup,
+          config.minutes
+        );
+        if (!chargeableMembers.length) return null;
+
+        const total = chargeableMembers.reduce((sum, member) => {
+          return sum + getExtraSetFeeFromMember(member, config.minutes);
+        }, 0);
+
+        if (total <= 0) return null;
+
+        return {
+          lineupId:
+            lineup?._id ||
+            lineup?.id ||
+            getLineupDisplayName(lineup, essentialMembers.length),
+          lineupLabel: getLineupDisplayName(lineup, essentialMembers.length),
+          total,
+          memberCount: essentialMembers.length,
+          chargedMemberCount: chargeableMembers.length,
+          minutes: config.isCustom
+            ? getCustomExtraMinutesFromLineup(lineup)
+            : config.minutes,
+        };
+      })
+      .filter(Boolean);
+
+    result[extraKey] = lineupBreakdown;
+  });
+
+  return result;
+};
 
 const ExtrasPricing = ({ useMURates, setUseMURates, extras, setExtras, lineups, setLineups }) => {
   const [showSound, setShowSound] = useState(true);
@@ -11,6 +198,38 @@ const ExtrasPricing = ({ useMURates, setUseMURates, extras, setExtras, lineups, 
   const [customExtras, setCustomExtras] = useState([]);
   const [newExtraName, setNewExtraName] = useState("");
   const [newExtraPrice, setNewExtraPrice] = useState("");
+
+  const autoExtraSetTotals = useMemo(() => buildAutoExtraSetTotals(lineups), [lineups]);
+
+  useEffect(() => {
+    setExtras((prev) => {
+      let hasChanges = false;
+      const next = { ...(prev || {}) };
+
+      Object.keys(EXTRA_SET_CONFIG).forEach((extraKey) => {
+        const breakdown = autoExtraSetTotals[extraKey] || [];
+        if (!breakdown.length) return;
+
+        const totals = breakdown
+          .map((item) => safeNumber(item.total))
+          .filter((n) => n > 0);
+
+        const lowestTotal = totals.length ? Math.min(...totals) : 0;
+        if (!lowestTotal) return;
+
+        const currentPrice = safeNumber(prev?.[extraKey]?.price);
+        if (currentPrice !== lowestTotal) {
+          hasChanges = true;
+          next[extraKey] = {
+            ...(prev?.[extraKey] || {}),
+            price: lowestTotal,
+          };
+        }
+      });
+
+      return hasChanges ? next : prev;
+    });
+  }, [autoExtraSetTotals, setExtras]);
 
 
   const groupedExtras = {
@@ -32,7 +251,9 @@ const ExtrasPricing = ({ useMURates, setUseMURates, extras, setExtras, lineups, 
     "Extra Sets": [
       "extra_30min_performance_per_band_member",
       "extra_40min_performance_per_band_member",
+      "extra_45min_performance_per_band_member",
       "extra_60min_performance_per_band_member",
+      "custom_extra_performance_per_band_member",
     ],
     "Others": [
       "israeli_dancing_20mins_per_band_member",
@@ -93,6 +314,35 @@ const ExtrasPricing = ({ useMURates, setUseMURates, extras, setExtras, lineups, 
   const hasSaxophonist = allBandMembers?.some((m) => (m.instrument || "").toLowerCase().includes("sax"));
   const hasRoamingPercussion = lineups?.some((l) => l.roamingPercussion);
 
+  const isAutoCalculatedExtraSet = (extraKey) => {
+    return Object.prototype.hasOwnProperty.call(EXTRA_SET_CONFIG, extraKey);
+  };
+
+  const getAutoCalculatedSummary = (extraKey) => {
+    const breakdown = autoExtraSetTotals[extraKey] || [];
+    if (!breakdown.length) return "";
+
+    return breakdown
+      .map((item) => {
+        const isCustom = extraKey === "custom_extra_performance_per_band_member";
+        const minutesText = item.minutes
+          ? isCustom
+            ? ` custom ${item.minutes}mins`
+            : ` extra ${item.minutes}mins`
+          : isCustom
+            ? " custom performance"
+            : "";
+
+        const chargedText =
+          item.chargedMemberCount && item.memberCount !== item.chargedMemberCount
+            ? ` (${item.chargedMemberCount} of ${item.memberCount} members charged)`
+            : "";
+
+        return `${item.lineupLabel}${minutesText} £${safeNumber(item.total)}${chargedText}`;
+      })
+      .join(" • ");
+  };
+
   return (
     <div className="border rounded-md max-h-[750px] overflow-y-auto bg-white">
       <div className="sticky top-0 bg-white z-10 p-4 shadow-sm">
@@ -140,16 +390,34 @@ const ExtrasPricing = ({ useMURates, setUseMURates, extras, setExtras, lineups, 
                         })
                         .map((extraKey) => (
                           <tr key={extraKey}>
-                            <td className="border p-2 w-2/5">{extraKey.replace(/_/g, " ")}</td>
-                            <td className="border p-2 w-1/3">
+                            <td className="border p-2 w-2/5 align-top">
+                              <div>
+                                {EXTRA_SET_CONFIG[extraKey]?.label || extraKey.replace(/_/g, " ")}
+                              </div>
+                              {isAutoCalculatedExtraSet(extraKey) && getAutoCalculatedSummary(extraKey) && (
+                                <>
+                                  <p className="mt-1 text-xs text-gray-500">
+                                    Auto-calculated from lineup extra performance fees:
+                                  </p>
+                                  <p className="mt-1 text-xs text-gray-600">
+                                    {getAutoCalculatedSummary(extraKey)}
+                                  </p>
+                                  <p className="mt-1 text-xs text-[#ff6667]">
+                                    Only members with an additional performance fee entered in the lineup are included in this total. To change it, please go back to the corresponding lineup and update the band members' additional performance fees there.
+                                  </p>
+                                </>
+                              )}
+                            </td>
+                            <td className="border p-2 w-1/3 align-top">
                               <input
                                 type="number"
                                 value={extras[extraKey]?.price === 0 ? "" : extras[extraKey]?.price ?? ""}
-                                                                onChange={(e) => handleExtraPriceChange(extraKey, e.target.value)}
+                                onChange={(e) => handleExtraPriceChange(extraKey, e.target.value)}
                                 className="w-full px-2 py-1 border text-right"
-                                disabled={extras[extraKey]?.complimentary}                              />
+                                disabled={extras[extraKey]?.complimentary || isAutoCalculatedExtraSet(extraKey)}
+                              />
                             </td>
-                            <td className="border p-2 text-center">
+                            <td className="border p-2 text-center align-top">
                               <input
                                 type="checkbox"
                                 checked={extras[extraKey]?.complimentary || false}
