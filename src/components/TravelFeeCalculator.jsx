@@ -34,8 +34,76 @@ const TravelFeeCalculator = ({
 
   const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
+  const getCountyConfig = (county) => {
+    const raw = countyFees?.[county];
+
+    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+      return {
+        fee: raw.fee ?? "",
+        allowed: raw.allowed ?? false,
+      };
+    }
+
+    return {
+      fee: raw ?? "",
+      allowed: raw !== undefined && raw !== null,
+    };
+  };
+
+  const isCountyAllowed = (county) => getCountyConfig(county).allowed;
+
+  const getCountyFeeValue = (county) => getCountyConfig(county).fee;
+
   const handleCountyFeeChange = (county, value) => {
-    setCountyFees((prev) => ({ ...prev, [county]: value }));
+    setCountyFees((prev) => {
+      const prevConfig = (() => {
+        const raw = prev?.[county];
+        if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+          return {
+            fee: raw.fee ?? "",
+            allowed: raw.allowed ?? false,
+          };
+        }
+        return {
+          fee: raw ?? "",
+          allowed: raw !== undefined && raw !== null,
+        };
+      })();
+
+      return {
+        ...prev,
+        [county]: {
+          fee: value,
+          allowed: prevConfig.allowed,
+        },
+      };
+    });
+  };
+
+  const handleCountyAllowedToggle = (county) => {
+    setCountyFees((prev) => {
+      const prevConfig = (() => {
+        const raw = prev?.[county];
+        if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+          return {
+            fee: raw.fee ?? "",
+            allowed: raw.allowed ?? false,
+          };
+        }
+        return {
+          fee: raw ?? "",
+          allowed: raw !== undefined && raw !== null,
+        };
+      })();
+
+      return {
+        ...prev,
+        [county]: {
+          fee: prevConfig.fee,
+          allowed: !prevConfig.allowed,
+        },
+      };
+    });
   };
 
   const handleExampleCalculate = async () => {
@@ -107,20 +175,33 @@ const TravelFeeCalculator = ({
         <table className="mt-2 w-full border-collapse border border-gray-300">
           <thead>
             <tr>
-              <th className="border p-2 w-2/3 text-left">County</th>
-              <th className="border p-2 w-1/3 text-center">£ / band member</th>
+              <th className="border p-2 w-[45%] text-left">County</th>
+              <th className="border p-2 w-[20%] text-center">Travel there?</th>
+              <th className="border p-2 w-[35%] text-center">£ / band member</th>
             </tr>
           </thead>
           <tbody>
             {counties.map((county) => (
               <tr key={county}>
                 <td className="border p-2">{county}</td>
+                <td className="border p-2 text-center">
+                  <input
+                    type="checkbox"
+                    checked={isCountyAllowed(county)}
+                    onChange={() => handleCountyAllowedToggle(county)}
+                    className="h-4 w-4"
+                  />
+                </td>
                 <td className="border p-2">
                   <input
                     type="number"
-                    value={countyFees[county] || ""}
+                    value={getCountyFeeValue(county)}
                     onChange={(e) => handleCountyFeeChange(county, e.target.value)}
-                    className="w-full px-2 py-1 border rounded"
+                    className={`w-full px-2 py-1 border rounded ${
+                      !isCountyAllowed(county) ? "bg-gray-100 text-gray-400 cursor-not-allowed" : ""
+                    }`}
+                    disabled={!isCountyAllowed(county)}
+                    placeholder={isCountyAllowed(county) ? "0 = free travel" : "Not available"}
                   />
                 </td>
               </tr>
@@ -171,6 +252,11 @@ const TravelFeeCalculator = ({
           </span>
         </div>
       </div>
+      {useCountyTravelFee && (
+        <p className="mt-3 text-sm text-gray-600">
+          Tick a county if the act is willing to travel there. Leave the fee blank or enter 0 for free travel. Unticked counties mean the act should not appear in results for that county.
+        </p>
+      )}
     </div>
   
     {/* Per County UI */}

@@ -73,6 +73,7 @@ const [profileImage, setProfileImage] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [useCountyTravelFee, setUseCountyTravelFee] = useState(true);
   const [countyFees, setCountyFees] = useState({});
+  const [countyTravelSettings, setCountyTravelSettings] = useState({});
   const [costPerMile, setCostPerMile] = useState("");
   const [useMUTravelRates, setUseMUTravelRates] = useState(false);
   const [useMURates, setUseMURates] = useState(false);
@@ -163,6 +164,58 @@ const normalizeAdditionalPerformanceFees = (fees) => {
       };
     })
     .filter(Boolean);
+};
+
+const normalizeCountyTravelSettings = (settings = {}, fallbackCountyFees = {}) => {
+  const next = {};
+
+  const source =
+    settings && typeof settings === "object" && !Array.isArray(settings)
+      ? settings
+      : {};
+
+  const allCountyKeys = new Set([
+    ...Object.keys(source || {}),
+    ...Object.keys(fallbackCountyFees || {}),
+  ]);
+
+  allCountyKeys.forEach((county) => {
+    const rawSetting = source?.[county];
+
+    if (
+      rawSetting &&
+      typeof rawSetting === "object" &&
+      !Array.isArray(rawSetting)
+    ) {
+      const fee =
+        rawSetting.fee === "" || rawSetting.fee === null || rawSetting.fee === undefined
+          ? ""
+          : String(rawSetting.fee);
+
+      next[county] = {
+        available:
+          typeof rawSetting.available === "boolean"
+            ? rawSetting.available
+            : fee !== "",
+        fee,
+      };
+      return;
+    }
+
+    const legacyFee = fallbackCountyFees?.[county];
+    next[county] = {
+      available:
+        legacyFee === "" || legacyFee === null || legacyFee === undefined
+          ? false
+          : true,
+      fee:
+        legacyFee === "" || legacyFee === null || legacyFee === undefined
+          ? ""
+          : String(legacyFee),
+    };
+  });
+
+  return next;
 };
 
   const sanitizeMediaArray = (media) => {
@@ -429,14 +482,26 @@ roamingPercussion: coerceBool(lineup.roamingPercussion) ?? lineup.roamingPercuss
       setLineups((initialData.lineups || []).map(normalizeLineup));
       setReviews(initialData.reviews || []);
       setUseCountyTravelFee(initialData.useCountyTravelFee ?? true);
-      setCountyFees(initialData.countyFees || {});
+      const normalizedCountyTravelSettings = normalizeCountyTravelSettings(
+        initialData.countyTravelSettings,
+        initialData.countyFees || {}
+      );
+      setCountyTravelSettings(normalizedCountyTravelSettings);
+      setCountyFees(
+        Object.fromEntries(
+          Object.entries(normalizedCountyTravelSettings).map(([county, config]) => [
+            county,
+            config?.fee ?? "",
+          ])
+        )
+      );
       setCostPerMile(initialData.costPerMile || "");
       setUseMUTravelRates(initialData.useMUTravelRates || false);
       setUseMURates(initialData.useMURates || false);
       setExtras(initialData.extras || {});
       setDiscountToClient(initialData.discountToClient || "");
       setIsPercentage(initialData.isPercentage || false);
-       setInitializedFromData(true);
+      setInitializedFromData(true);
       console.log("✅ Hydrated form from initialData");
     }
   }, [initialData]);
@@ -497,7 +562,19 @@ setProfileImage(Array.isArray(data.profileImage) ? data.profileImage : []);
         setLineups((data.lineups || []).map(normalizeLineup));
         setReviews(data.reviews || []);
         setUseCountyTravelFee(data.useCountyTravelFee ?? true);
-        setCountyFees(data.countyFees || {});
+        const normalizedCountyTravelSettings = normalizeCountyTravelSettings(
+          data.countyTravelSettings,
+          data.countyFees || {}
+        );
+        setCountyTravelSettings(normalizedCountyTravelSettings);
+        setCountyFees(
+          Object.fromEntries(
+            Object.entries(normalizedCountyTravelSettings).map(([county, config]) => [
+              county,
+              config?.fee ?? "",
+            ])
+          )
+        );
         setCostPerMile(data.costPerMile || "");
         setUseMUTravelRates(data.useMUTravelRates || false);
         setUseMURates(data.useMURates || false);
@@ -666,6 +743,7 @@ const sanitizeLineups = (lineups) => {
         reviews,
         useCountyTravelFee,
         countyFees,
+        countyTravelSettings,
         costPerMile,
         useMUTravelRates,
         useMURates,
@@ -790,6 +868,7 @@ const sanitizeLineups = (lineups) => {
     reviews,
     useCountyTravelFee,
     countyFees,
+    countyTravelSettings,
     costPerMile,
     useMUTravelRates,
     useMURates,
@@ -864,6 +943,7 @@ const handleSubmit = async () => {
       reviews,
       useCountyTravelFee,
       countyFees,
+      countyTravelSettings,
       costPerMile,
       useMUTravelRates,
       useMURates,
@@ -1102,6 +1182,8 @@ const handleSubmit = async () => {
                 setUseCountyTravelFee,
                 countyFees,
                 setCountyFees,
+                countyTravelSettings,
+                setCountyTravelSettings,
                 costPerMile,
                 setCostPerMile,
                 useMUTravelRates,

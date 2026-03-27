@@ -6,6 +6,8 @@ const StepFive = ({
   setUseCountyTravelFee,
   countyFees,
   setCountyFees,
+  countyTravelRules,
+  setCountyTravelRules,
   costPerMile,
   setCostPerMile,
   useMUTravelRates,
@@ -17,6 +19,7 @@ const StepFive = ({
   const hasTravelChanges =
     isChanged("useCountyTravelFee") ||
     isChanged("countyFees") ||
+    isChanged("countyTravelRules") ||
     isChanged("costPerMile") ||
     isChanged("useMUTravelRates");
 
@@ -29,6 +32,8 @@ const StepFive = ({
           setUseCountyTravelFee={setUseCountyTravelFee}
           countyFees={countyFees}
           setCountyFees={setCountyFees}
+          countyTravelRules={countyTravelRules}
+          setCountyTravelRules={setCountyTravelRules}
           costPerMile={costPerMile}
           setCostPerMile={setCostPerMile}
           useMUTravelRates={useMUTravelRates}
