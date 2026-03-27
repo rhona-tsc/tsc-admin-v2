@@ -479,20 +479,7 @@ const isAdminAgent = useMemo(() => {
         <div className="lg:col-span-9 ">
           {/* 🚧 UNDER CONSTRUCTION BANNER */}
           <DashboardUnderConstruction firstname={firstName} />
-
-          {/* ------- Quick Stats ------- */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 space-y-2 md:space-y-0 my-6">
-            <div className="p-4 bg-white shadow rounded">
-              <p className="text-sm text-gray-500">Acts You Lead</p>
-              <p className="text-3xl font-bold">{myActs.length}</p>
-            </div>
-
-            <div className="p-4 bg-white shadow rounded">
-              <p className="text-sm text-gray-500">Acts You Dep For</p>
-              <p className="text-3xl font-bold">{deppingActs.length}</p>
-            </div>
-
-            {isAdminAgent && (
+    {isAdminAgent && (
   <div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
     <h3 className="text-lg font-semibold mb-3">Deputy Opportunities</h3>
     <p className="text-gray-600 mb-4">
@@ -524,6 +511,19 @@ const isAdminAgent = useMemo(() => {
     </div>
   </div>
 )}
+          {/* ------- Quick Stats ------- */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 space-y-2 md:space-y-0 my-6">
+            <div className="p-4 bg-white shadow rounded">
+              <p className="text-sm text-gray-500">Acts You Lead</p>
+              <p className="text-3xl font-bold">{myActs.length}</p>
+            </div>
+
+            <div className="p-4 bg-white shadow rounded">
+              <p className="text-sm text-gray-500">Acts You Dep For</p>
+              <p className="text-3xl font-bold">{deppingActs.length}</p>
+            </div>
+
+        
 
             <div className="p-4 bg-white shadow rounded">
               <p className="text-sm text-gray-500">Booking Enquiries (Last 30d)</p>
