@@ -30,6 +30,9 @@ import AgentDashboard from "./pages/AgentDashboard";
 import SetPassword from "./pages/SetPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Messages from "./pages/Messages";
+import Musician from "./pages/Musician";
+import DeputyJobs from "./pages/DeputyJobs";
+import CreateDeputyJob from "./pages/CreateDeputyJob";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -54,7 +57,7 @@ function parseToken(t) {
       lastName: d?.lastName || "",
       email: d?.email || "",
       phone: d?.phone || "",
-      userId: isOid ? rawId : "",   // ✅ only keep if it looks like an ObjectId
+      userId: isOid ? rawId : "", // ✅ only keep if it looks like an ObjectId
       userRole: d?.role || "",
       password: d?.password || "",
     };
@@ -99,21 +102,21 @@ const App = () => {
   };
 
   // If token changes at runtime (login), re-hydrate fields
-useEffect(() => {
-  if (!token) return;
+  useEffect(() => {
+    if (!token) return;
 
-  const d = parseToken(token);
+    const d = parseToken(token);
 
-  setFirstName((prev) => d.firstName || prev);
-  setLastName((prev) => d.lastName || prev);
-  setEmail((prev) => d.email || prev);
-  setPhone((prev) => d.phone || prev);
-  setUserId((prev) => d.userId || prev);
-  setUserRole((prev) => d.userRole || prev);
-  setPassword((prev) => d.password || prev);
+    setFirstName((prev) => d.firstName || prev);
+    setLastName((prev) => d.lastName || prev);
+    setEmail((prev) => d.email || prev);
+    setPhone((prev) => d.phone || prev);
+    setUserId((prev) => d.userId || prev);
+    setUserRole((prev) => d.userRole || prev);
+    setPassword((prev) => d.password || prev);
 
-  setHydrated(true);
-}, [token]);
+    setHydrated(true);
+  }, [token]);
 
   return (
     <div className="bg-gray-50 min-h-screen">
@@ -128,30 +131,30 @@ useEffect(() => {
       />
 
       {token === "" ? (
-  <Routes>
-    <Route
-      path="/login"
-      element={
-        <Login
-          setToken={setToken}
-          setUserEmail={setEmail}
-          setUserRole={setUserRole}
-          setUserFirstName={setFirstName}
-          setUserLastName={setLastName}
-          setUserPhone={setPhone}
-          setUserPassword={setPassword}
-        />
-      }
-    />
+        <Routes>
+          <Route
+            path="/login"
+            element={
+              <Login
+                setToken={setToken}
+                setUserEmail={setEmail}
+                setUserRole={setUserRole}
+                setUserFirstName={setFirstName}
+                setUserLastName={setLastName}
+                setUserPhone={setPhone}
+                setUserPassword={setPassword}
+              />
+            }
+          />
 
-    {/* ✅ Public password setup/reset pages */}
-    <Route path="/set-password" element={<SetPassword />} />
-    <Route path="/reset-password" element={<ResetPassword />} />
+          {/* ✅ Public password setup/reset pages */}
+          <Route path="/set-password" element={<SetPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
-    {/* Default when logged out */}
-    <Route path="*" element={<Navigate to="/login" replace />} />
-  </Routes>
-) : (
+          {/* Default when logged out */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      ) : (
         // 👇 optional: gate UI until hydrated to prevent flicker
         hydrated && (
           <>
@@ -193,7 +196,6 @@ useEffect(() => {
                         lastName={lastName}
                         phone={phone}
                         password={password}
-                        
                       />
                     }
                   />
@@ -201,7 +203,7 @@ useEffect(() => {
                     path="/act-pre-submissions"
                     element={<ActPreSubmissionsPage userRole={userRole} />}
                   />
-                   <Route
+                  <Route
                     path="/agent-dashboard"
                     element={<AgentDashboard userRole={userRole} />}
                   />
@@ -325,12 +327,12 @@ useEffect(() => {
                       element={<PendingSongsModeration token={token} />}
                     />
                   )}
-                 
-                    <Route
-                      path="/enquiry-board"
-                      element={<EnquiryBoard token={token} />}
-                    />
-               
+
+                  <Route
+                    path="/enquiry-board"
+                    element={<EnquiryBoard token={token} />}
+                  />
+
                   {(userRole === "agent" ||
                     email === "hello@thesupremecollective.co.uk") && (
                     <Route
@@ -340,10 +342,12 @@ useEffect(() => {
                   )}
 
                   <Route
-                      path="/messages"
-                      element={<Messages token={token} />}
-                    />
-
+                    path="/messages"
+                    element={<Messages token={token} />}
+                  />
+                  <Route path="/musician/:slug" element={<Musician />} />
+                  <Route path="/deputy-jobs" element={<DeputyJobs />} />
+<Route path="/deputy-jobs/create" element={<CreateDeputyJob />} />
                   <Route
                     path="/trash"
                     element={<TrashedActs token={token} />}

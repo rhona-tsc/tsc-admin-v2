@@ -11,6 +11,8 @@ const backendUrl =
 
 const publicSiteBase =
   import.meta.env.VITE_PUBLIC_SITE_URL || "http://localhost:5174";
+
+  const ADMIN_EMAIL = "hello@thesupremecollective.co.uk";
 /* -------------------- avatar helpers (same idea as DeputiesInput) -------------------- */
 const pickUrl = (v) => {
   if (!v) return "";
@@ -48,6 +50,8 @@ const lastInitial = (u) => {
   return l ? l.charAt(0).toUpperCase() : "";
 };
 
+
+
 /* -------------------- Right Profile Card -------------------- */
 const YourProfileCard = ({ me, fallbackFirstName, deputyCTA }) => {
 const navigate = useNavigate();
@@ -63,7 +67,12 @@ const ctaLabel = deputyCTA?.label || "Join The Books";
 
   const nameLine = `${firstName} ${lastInitial(me)}`.trim();
 
-  const viewHref = id ? `${publicSiteBase}/musician/${id}` : "";
+ const slug = String(me?.musicianSlug || "").trim();
+const viewHref = slug
+  ? `${publicSiteBase}/musician/${slug}`
+  : id
+    ? `${publicSiteBase}/musician/${id}`
+    : "";
 
   return (
     <div className=" bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
@@ -210,7 +219,7 @@ const PeerReviewCard = ({ peer }) => {
 const MusicianDashboard = ({ token, userId, firstName }) => {
   const navigate = useNavigate();
 const [peerReview, setPeerReview] = useState(null);
-
+const adminEmail = ADMIN_EMAIL.toLowerCase();
   const [myActs, setMyActs] = useState([]);
   const [deppingActs, setDeppingActs] = useState([]);
   const [stats, setStats] = useState({
@@ -296,6 +305,16 @@ const deputyCTA = useMemo(
   () => getDeputyCTA(myDeputyStatus, musicianId),
   [myDeputyStatus, musicianId]
 );
+
+const isAdminAgent = useMemo(() => {
+  const meEmail = String(
+    me?.email || me?.basicInfo?.email || localStorage.getItem("userEmail") || ""
+  )
+    .toLowerCase()
+    .trim();
+
+  return meEmail === adminEmail;
+}, [me, adminEmail]);
 
   // helper headers: some endpoints want token, others want Bearer
   const headers = useMemo(
@@ -472,6 +491,39 @@ const deputyCTA = useMemo(
               <p className="text-sm text-gray-500">Acts You Dep For</p>
               <p className="text-3xl font-bold">{deppingActs.length}</p>
             </div>
+
+            {isAdminAgent && (
+  <div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
+    <h3 className="text-lg font-semibold mb-3">Deputy Opportunities</h3>
+    <p className="text-gray-600 mb-4">
+      Manage the deputy jobs board, create new opportunities, and review applications.
+    </p>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <button
+        type="button"
+        onClick={() => navigate("/deputy-jobs")}
+        className="w-full text-left border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition"
+      >
+        <p className="text-sm font-semibold text-gray-900">Open Deputy Jobs Board</p>
+        <p className="text-sm text-gray-500 mt-1">
+          View live jobs, preview opportunities, and review applicants.
+        </p>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => navigate("/deputy-jobs/create")}
+        className="w-full text-left border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition"
+      >
+        <p className="text-sm font-semibold text-gray-900">Create Deputy Job</p>
+        <p className="text-sm text-gray-500 mt-1">
+          Post a new deputy opportunity and notify matching musicians.
+        </p>
+      </button>
+    </div>
+  </div>
+)}
 
             <div className="p-4 bg-white shadow rounded">
               <p className="text-sm text-gray-500">Booking Enquiries (Last 30d)</p>
