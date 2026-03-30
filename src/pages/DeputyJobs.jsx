@@ -68,12 +68,16 @@ const DeputyJobs = () => {
     sessionStorage.getItem("token") ||
     "";
 
-  const authHeaders = authToken
-    ? {
-        Authorization: `Bearer ${authToken}`,
-        token: authToken,
-      }
-    : {};
+  const authHeaders = useMemo(
+  () =>
+    authToken
+      ? {
+          Authorization: `Bearer ${authToken}`,
+          token: authToken,
+        }
+      : {},
+  [authToken]
+);
 
   const fetchJobs = useCallback(async () => {
     try {
