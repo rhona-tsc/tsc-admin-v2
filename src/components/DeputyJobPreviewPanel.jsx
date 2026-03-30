@@ -1,9 +1,20 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import axios from "axios";
+import { toast } from "react-toastify";
 import DeputyJobApplyButton from "./DeputyJobApplyButton";
 import DeputyJobApplicantsPanel from "./DeputyJobApplicantsPanel";
+import { loadStripe } from "@stripe/stripe-js";
+import {
+  Elements,
+  PaymentElement,
+  useElements,
+  useStripe,
+} from "@stripe/react-stripe-js";
 
 const ADMIN_EMAIL = "hello@thesupremecollective.co.uk";
+const BACKEND_BASE = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "");
 
 const formatMoney = (value) => {
   const n = Number(value || 0);
@@ -24,6 +35,41 @@ const formatDate = (value) => {
     month: "long",
     year: "numeric",
   });
+};
+
+const formatDateTime = (value) => {
+  if (!value) return "TBC";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+const paymentStatusClassMap = {
+  not_started: "bg-gray-100 text-gray-700 border-gray-200",
+  setup_required: "bg-amber-100 text-amber-800 border-amber-200",
+  setup_pending: "bg-blue-100 text-blue-700 border-blue-200",
+  ready_to_charge: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  charge_pending: "bg-blue-100 text-blue-700 border-blue-200",
+  paid: "bg-green-100 text-green-700 border-green-200",
+  failed: "bg-red-100 text-red-700 border-red-200",
+  refunded: "bg-purple-100 text-purple-700 border-purple-200",
+  cancelled: "bg-gray-100 text-gray-700 border-gray-200",
+};
+
+const payoutStatusClassMap = {
+  not_ready: "bg-gray-100 text-gray-700 border-gray-200",
+  scheduled: "bg-blue-100 text-blue-700 border-blue-200",
+  pending: "bg-amber-100 text-amber-800 border-amber-200",
+  paid: "bg-green-100 text-green-700 border-green-200",
+  held: "bg-orange-100 text-orange-700 border-orange-200",
+  cancelled: "bg-gray-100 text-gray-700 border-gray-200",
 };
 
 const formatLabel = (value = "") =>
@@ -68,6 +114,93 @@ const buildProfilePath = (applicant = {}) => {
   return "";
 };
 
+const DeputyJobCardSetupForm = ({
+  job,
+  clientSecret,
+  authHeaders = {},
+  onSaved,
+}) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSaveCard = async (event) => {
+    event.preventDefault();
+    if (!stripe || !elements || !job?._id || !clientSecret) return;
+
+    try {
+      setIsSaving(true);
+
+      const { error, setupIntent } = await stripe.confirmSetup({
+        elements,
+        confirmParams: {},
+        redirect: "if_required",
+      });
+
+      if (error) {
+        throw new Error(error.message || "Failed to confirm card setup");
+      }
+
+      if (!setupIntent?.id) {
+        throw new Error("No SetupIntent returned from Stripe");
+      }
+
+      const { data } = await axios.post(
+        `${BACKEND_BASE}/api/deputy-jobs/${job._id}/save-payment-method`,
+        {
+          setupIntentId: setupIntent.id,
+          clientName: job.clientName || "",
+          clientEmail: job.clientEmail || "",
+          clientPhone: job.clientPhone || "",
+        },
+        {
+          headers: authHeaders,
+          withCredentials: true,
+        }
+      );
+
+      if (!data?.success) {
+        throw new Error(data?.message || "Failed to save payment method");
+      }
+
+      toast.success("Client card saved successfully.");
+      onSaved?.(data.job);
+    } catch (error) {
+      console.error("❌ Failed to save deputy job payment method:", error);
+      toast.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to save client card."
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSaveCard} className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
+      <h4 className="text-sm font-semibold text-gray-900">Save client card</h4>
+      <p className="mt-1 text-xs text-gray-500">
+        Enter the client card details below and save them for off-session charging.
+      </p>
+
+      <div className="mt-4">
+        <PaymentElement />
+      </div>
+
+      <div className="mt-4 flex justify-end">
+        <button
+          type="submit"
+          disabled={!stripe || !elements || isSaving}
+          className="rounded bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isSaving ? "Saving card…" : "Save client card"}
+        </button>
+      </div>
+    </form>
+  );
+};
+
 const DeputyJobPreviewPanel = ({
   hoveredJob,
   currentUser,
@@ -78,8 +211,12 @@ const DeputyJobPreviewPanel = ({
   loadingApply = false,
   loadingAssign = false,
   loadingClose = false,
+  authHeaders = {},
 }) => {
   const [showApplicants, setShowApplicants] = useState(false);
+  const [isPreparingPaymentSetup, setIsPreparingPaymentSetup] = useState(false);
+  const [isChargingJob, setIsChargingJob] = useState(false);
+  const [paymentSetupInfo, setPaymentSetupInfo] = useState(null);
 
   const job = hoveredJob?.job || hoveredJob || null;
 
@@ -112,6 +249,112 @@ const DeputyJobPreviewPanel = ({
   const tags = normaliseArray(job?.tags);
   const applicants = Array.isArray(job?.applications) ? job.applications : [];
 
+  const paymentStatus = String(job?.paymentStatus || "not_started").toLowerCase();
+  const payoutStatus = String(job?.payoutStatus || "not_ready").toLowerCase();
+  const paymentEvents = Array.isArray(job?.paymentEvents) ? job.paymentEvents : [];
+  const latestPaymentEvent = paymentEvents.length ? paymentEvents[paymentEvents.length - 1] : null;
+  const canPreparePaymentSetup = canManage && Boolean(job?.clientEmail) && !job?.defaultPaymentMethodId;
+  const canChargeNow =
+    canManage &&
+    Boolean(job?.stripeCustomerId) &&
+    Boolean(job?.defaultPaymentMethodId) &&
+    paymentStatus !== "paid" &&
+    paymentStatus !== "charge_pending";
+
+  useEffect(() => {
+    setPaymentSetupInfo(null);
+  }, [job?._id]);
+
+  const handlePreparePaymentSetup = async () => {
+    if (!job?._id || !canPreparePaymentSetup || isPreparingPaymentSetup) return;
+
+    try {
+      setIsPreparingPaymentSetup(true);
+
+      const { data } = await axios.post(
+        `${BACKEND_BASE}/api/deputy-jobs/${job._id}/create-setup-intent`,
+        {
+          clientName: job.clientName || "",
+          clientEmail: job.clientEmail || "",
+          clientPhone: job.clientPhone || "",
+        },
+        {
+          headers: authHeaders,
+          withCredentials: true,
+        }
+      );
+
+      if (!data?.success) {
+        throw new Error(data?.message || "Failed to prepare payment setup");
+      }
+
+      const nextSetupInfo = {
+        deputyJobId: String(job._id || ""),
+        setupIntentId: data?.setupIntentId || "",
+        clientSecret: data?.clientSecret || "",
+        stripeCustomerId: data?.stripeCustomerId || "",
+      };
+
+      setPaymentSetupInfo(nextSetupInfo);
+
+      try {
+        sessionStorage.setItem("deputyJobPaymentSetup", JSON.stringify(nextSetupInfo));
+      } catch {
+        // ignore storage errors
+      }
+
+      toast.success("Payment setup prepared. The next step is connecting the card form.");
+      onRefresh?.(job);
+    } catch (error) {
+      console.error("❌ Failed to prepare deputy job payment setup:", error);
+      toast.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to prepare deputy job payment setup."
+      );
+    } finally {
+      setIsPreparingPaymentSetup(false);
+    }
+  };
+
+  const handleChargeNow = async () => {
+    if (!job?._id || !canChargeNow || isChargingJob) return;
+
+    try {
+      setIsChargingJob(true);
+
+      const { data } = await axios.post(
+        `${BACKEND_BASE}/api/deputy-jobs/${job._id}/charge`,
+        {},
+        {
+          headers: authHeaders,
+          withCredentials: true,
+        }
+      );
+
+      if (!data?.success) {
+        throw new Error(data?.message || "Failed to charge deputy job");
+      }
+
+      toast.success("Deputy job charged successfully.");
+      onRefresh?.(job);
+    } catch (error) {
+      console.error("❌ Failed to charge deputy job:", error);
+      toast.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to charge deputy job."
+      );
+    } finally {
+      setIsChargingJob(false);
+    }
+  };
+
+    const handleCardSaved = () => {
+    setPaymentSetupInfo(null);
+    onRefresh?.(job);
+  };
+
   if (!job) {
     return (
       <div className="w-full min-h-screen border-l p-6">
@@ -135,16 +378,16 @@ const DeputyJobPreviewPanel = ({
             </h2>
             <div className="mt-3 flex flex-wrap gap-2 text-sm text-gray-600">
               <span className="rounded-full bg-gray-100 px-3 py-1">
-                {formatDate(job.date)}
+                {formatDate(job.date || job.eventDate)}
               </span>
-              {job.callTime ? (
+              {(job.callTime || job.startTime) ? (
                 <span className="rounded-full bg-gray-100 px-3 py-1">
-                  Call: {job.callTime}
+                  Call: {job.callTime || job.startTime}
                 </span>
               ) : null}
-              {job.finishTime ? (
+              {(job.finishTime || job.endTime) ? (
                 <span className="rounded-full bg-gray-100 px-3 py-1">
-                  Finish: {job.finishTime}
+                  Finish: {job.finishTime || job.endTime}
                 </span>
               ) : null}
               <span
@@ -194,10 +437,16 @@ const DeputyJobPreviewPanel = ({
               <span className="font-medium text-gray-900">Posted by:</span>{" "}
               {job.createdByName || job.createdByEmail || "Member"}
             </p>
-            {job.assignedMusicianName ? (
+            {job.allocatedMusicianName || job.assignedMusicianName ? (
               <p>
                 <span className="font-medium text-gray-900">Allocated to:</span>{" "}
-                {job.assignedMusicianName}
+                {job.allocatedMusicianName || job.assignedMusicianName}
+              </p>
+            ) : null}
+            {job.clientEmail ? (
+              <p>
+                <span className="font-medium text-gray-900">Client email:</span>{" "}
+                {job.clientEmail}
               </p>
             ) : null}
           </div>
@@ -265,6 +514,133 @@ const DeputyJobPreviewPanel = ({
         ) : null}
 
         <section>
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Payment & payout</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Track card setup, charge status, ledger amounts, and when the deputy payout should be released.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <span
+                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${
+                    paymentStatusClassMap[paymentStatus] || paymentStatusClassMap.not_started
+                  }`}
+                >
+                  Payment: {formatLabel(paymentStatus)}
+                </span>
+                <span
+                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${
+                    payoutStatusClassMap[payoutStatus] || payoutStatusClassMap.not_ready
+                  }`}
+                >
+                  Payout: {formatLabel(payoutStatus)}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Gross amount
+                </p>
+                <p className="mt-2 text-lg font-semibold text-gray-900">
+                  {formatMoney(job.grossAmount || job.fee || 0)}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Commission
+                </p>
+                <p className="mt-2 text-lg font-semibold text-gray-900">
+                  {formatMoney(job.commissionAmount || 0)}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Deputy net
+                </p>
+                <p className="mt-2 text-lg font-semibold text-gray-900">
+                  {formatMoney(job.deputyNetAmount || job.fee || 0)}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Release on
+                </p>
+                <p className="mt-2 text-lg font-semibold text-gray-900">
+                  {job.releaseOn ? formatDate(job.releaseOn) : "TBC"}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-2 text-sm text-gray-600">
+              <p>
+                <span className="font-medium text-gray-900">Stripe customer:</span>{" "}
+                {job.stripeCustomerId || "Not created yet"}
+              </p>
+              <p>
+                <span className="font-medium text-gray-900">Saved payment method:</span>{" "}
+                {job.defaultPaymentMethodId || "Not saved yet"}
+              </p>
+              <p>
+                <span className="font-medium text-gray-900">Charged at:</span>{" "}
+                {job.chargedAt ? formatDateTime(job.chargedAt) : "Not charged yet"}
+              </p>
+              <p>
+                <span className="font-medium text-gray-900">Latest payment event:</span>{" "}
+                {latestPaymentEvent
+                  ? `${formatLabel(latestPaymentEvent.type || "manual_adjustment")} • ${formatDateTime(latestPaymentEvent.createdAt)}`
+                  : "No payment events yet"}
+              </p>
+              {job.paymentFailureReason ? (
+                <p className="text-red-600">
+                  <span className="font-medium text-red-700">Failure reason:</span>{" "}
+                  {job.paymentFailureReason}
+                </p>
+              ) : null}
+            </div>
+
+            {paymentSetupInfo?.setupIntentId ? (
+              <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-4 text-sm text-green-800">
+                SetupIntent prepared for this deputy job. SetupIntent ID: {paymentSetupInfo.setupIntentId}. The next step is still to connect the Stripe card form and then save the payment method.
+              </div>
+            ) : null}
+
+            {canManage ? (
+              <div className="mt-5 flex flex-wrap gap-3">
+                {canPreparePaymentSetup ? (
+                  <button
+                    type="button"
+                    onClick={handlePreparePaymentSetup}
+                    disabled={isPreparingPaymentSetup}
+                    className="rounded bg-black px-5 py-3 text-sm font-medium text-white transition hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isPreparingPaymentSetup ? "Preparing payment…" : "Prepare payment setup"}
+                  </button>
+                ) : null}
+
+                {canChargeNow ? (
+                  <button
+                    type="button"
+                    onClick={handleChargeNow}
+                    disabled={isChargingJob}
+                    className="rounded border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-800 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isChargingJob ? "Charging…" : "Charge now"}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        <section>
           <div className="flex flex-wrap items-center gap-3">
             <DeputyJobApplyButton
               job={job}
@@ -302,7 +678,7 @@ const DeputyJobPreviewPanel = ({
               {onRefresh ? (
                 <button
                   type="button"
-                  onClick={() => onRefresh(job)}
+                  onClick={() => onRefresh?.(job)}
                   className="text-sm font-medium text-gray-500 underline-offset-4 hover:text-black hover:underline"
                 >
                   Refresh

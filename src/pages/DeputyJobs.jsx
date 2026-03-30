@@ -63,6 +63,19 @@ const DeputyJobs = () => {
     instrument: "",
     onlyOpen: true,
   });
+  const authToken =
+    localStorage.getItem("token") ||
+    localStorage.getItem("adminToken") ||
+    localStorage.getItem("musicianToken") ||
+    sessionStorage.getItem("token") ||
+    "";
+
+  const authHeaders = authToken
+    ? {
+        Authorization: `Bearer ${authToken}`,
+        token: authToken,
+      }
+    : {};
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -296,11 +309,12 @@ const DeputyJobs = () => {
           {hoveredJob ? (
             <div className="sticky top-6">
               <DeputyJobPreviewPanel
-                job={hoveredJob}
-                onRefresh={fetchJobs}
-              />
+  hoveredJob={hoveredJob}
+  onRefresh={fetchJobs}
+  authHeaders={authHeaders}
+/>
             </div>
-          ) : (
+          ) : ( 
             <div className="sticky top-6 rounded border border-gray-200 bg-white p-8 text-center text-gray-500">
               Hover over a deputy job to preview the details here.
             </div>
