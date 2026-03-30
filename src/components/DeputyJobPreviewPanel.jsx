@@ -179,14 +179,14 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
           throw new Error(data?.message || "Failed to save payment method");
         }
 
-        toast.success("Client card saved successfully.");
+        toast.success("Payment card saved successfully.");
         onSaved?.(data.job);
       } catch (error) {
         console.error("❌ Failed to save deputy job payment method:", error);
         toast.error(
           error?.response?.data?.message ||
             error?.message ||
-            "Failed to save client card."
+            "Failed to save payment card."
         );
       } finally {
         setIsSaving(false);
@@ -198,9 +198,9 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
 
     return (
       <form onSubmit={handleSaveCard} className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
-        <h4 className="text-sm font-semibold text-gray-900">Save client card</h4>
+        <h4 className="text-sm font-semibold text-gray-900">Save payment card</h4>
         <p className="mt-1 text-xs text-gray-500">
-          Enter the client card details below and save them for off-session charging.
+          Enter the payment card details below and save them for off-session charging.
         </p>
 
         <div className="mt-4">
@@ -213,7 +213,7 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
             disabled={!stripe || !elements || !clientSecret || isSaving}
             className="rounded bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isSaving ? "Saving card…" : "Save client card"}
+            {isSaving ? "Saving card…" : "Save payment card"}
           </button>
         </div>
       </form>
@@ -657,10 +657,7 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
                   ) : null}
                 </div>
 
-                {paymentSetupInfo?.setupIntentId ? (
-                  <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-4 text-sm text-green-800">
-  SetupIntent prepared for this deputy job. SetupIntent ID: {paymentSetupInfo.setupIntentId}. Enter the client card details below, then click Save client card.                </div>
-                ) : null}
+               
 
                 {paymentSetupInfo?.clientSecret ? (
                   STRIPE_PUBLISHABLE_KEY && stripePromise ? (
@@ -683,26 +680,9 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
                 ) : null}
 
                 <div className="mt-5 flex flex-wrap gap-3">
-                  {canPreparePaymentSetup ? (
-                    <button
-                      type="button"
-                      onClick={handlePreparePaymentSetup}
-                      disabled={isPreparingPaymentSetup}
-                      className="rounded bg-black px-5 py-3 text-sm font-medium text-white transition hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {isPreparingPaymentSetup ? "Preparing payment…" : "Prepare payment setup"}
-                    </button>
-                  ) : paymentSetupInfo?.clientSecret ? (
-                    <span className="inline-flex items-center rounded border border-green-200 bg-green-50 px-5 py-3 text-sm font-medium text-green-800">
-                      Card form ready below
-                    </span>
-                  ) : null}
+             
 
-                  {!STRIPE_PUBLISHABLE_KEY ? (
-                    <span className="inline-flex items-center rounded border border-red-200 bg-red-50 px-5 py-3 text-sm font-medium text-red-700">
-                      Missing Stripe publishable key
-                    </span>
-                  ) : null}
+                
 
                   {canChargeNow ? (
                     <button

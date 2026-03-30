@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import { backendUrl } from "../App";
@@ -11,27 +11,31 @@ const hintClass = "mt-2 text-xs text-gray-500";
 const sectionTitleClass = "text-lg font-semibold text-gray-900";
 const sectionTextClass = "text-sm text-gray-500";
 
+const WHATS_INCLUDED_OPTIONS = [
+  "hot meal",
+  "refreshments",
+  "buffet",
+  "light snacks",
+  "green room",
+  "parking space",
+  "other",
+];
+
+const CLAIMABLE_EXPENSE_OPTIONS = [
+  "congestion charge",
+  "travel",
+  "ULEZ",
+  "parking",
+  "subsistence",
+  "overnight accommodation",
+  "other",
+];
+
 const normaliseCsvArray = (value = "") =>
   String(value || "")
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
-
-const normaliseEmail = (value = "") => String(value || "").trim().toLowerCase();
-
-const toDateInputValue = (value) => {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return String(value || "").slice(0, 10);
-  }
-  return date.toISOString().slice(0, 10);
-};
-
-const asMoneyString = (value) => {
-  if (value === 0 || value) return String(value);
-  return "";
-};
 
 const buildInitialState = (initialValues = {}) => ({
   title: initialValues.title || "",
@@ -47,14 +51,9 @@ const buildInitialState = (initialValues = {}) => ({
       ? String(initialValues.fee)
       : "",
   notes: initialValues.notes || "",
-  clientName: initialValues.clientName || "",
-  clientEmail: initialValues.clientEmail || "",
-  clientPhone: initialValues.clientPhone || "",
-  grossAmount: asMoneyString(initialValues.grossAmount),
-  commissionAmount: asMoneyString(initialValues.commissionAmount),
-  deputyNetAmount: asMoneyString(initialValues.deputyNetAmount),
-  releaseOn: toDateInputValue(initialValues.releaseOn),
-  saveClientCard: true,
+  setLengths: Array.isArray(initialValues.setLengths)
+    ? initialValues.setLengths.join(", ")
+    : initialValues.setLengths || "",
   requiredInstruments: Array.isArray(initialValues.requiredInstruments)
     ? initialValues.requiredInstruments.join(", ")
     : initialValues.requiredInstruments || initialValues.instrument || "",
@@ -75,6 +74,32 @@ const buildInitialState = (initialValues = {}) => ({
   tags: Array.isArray(initialValues.tags)
     ? initialValues.tags.join(", ")
     : initialValues.tags || "",
+  whatsIncluded: Array.isArray(initialValues.whatsIncluded)
+    ? initialValues.whatsIncluded.filter((item) =>
+        WHATS_INCLUDED_OPTIONS.includes(String(item).toLowerCase())
+      )
+    : [],
+  whatsIncludedOther: Array.isArray(initialValues.whatsIncluded)
+    ? initialValues.whatsIncluded
+        .filter(
+          (item) =>
+            !WHATS_INCLUDED_OPTIONS.includes(String(item).toLowerCase())
+        )
+        .join(", ")
+    : initialValues.whatsIncludedOther || "",
+  claimableExpenses: Array.isArray(initialValues.claimableExpenses)
+    ? initialValues.claimableExpenses.filter((item) =>
+        CLAIMABLE_EXPENSE_OPTIONS.includes(String(item).toLowerCase())
+      )
+    : [],
+  claimableExpensesOther: Array.isArray(initialValues.claimableExpenses)
+    ? initialValues.claimableExpenses
+        .filter(
+          (item) =>
+            !CLAIMABLE_EXPENSE_OPTIONS.includes(String(item).toLowerCase())
+        )
+        .join(", ")
+    : initialValues.claimableExpensesOther || "",
   previewOnly:
     initialValues.previewOnly === undefined
       ? true
@@ -94,38 +119,6 @@ const DeputyJobCreateForm = ({
   const [errors, setErrors] = useState({});
   const [submittingAction, setSubmittingAction] = useState("");
 
-  useEffect(() => {
-    if (!formData.fee) return;
-
-    setFormData((prev) => {
-      const nextDeputyNetAmount = prev.deputyNetAmount !== "" ? prev.deputyNetAmount : prev.fee;
-      const nextGrossAmount = prev.grossAmount !== "" ? prev.grossAmount : prev.fee;
-      const nextCommissionAmount =
-        prev.commissionAmount !== ""
-          ? prev.commissionAmount
-          : (() => {
-              const gross = Number(nextGrossAmount || 0);
-              const net = Number(nextDeputyNetAmount || 0);
-              return gross > net ? String(gross - net) : "0";
-            })();
-
-      if (
-        nextDeputyNetAmount === prev.deputyNetAmount &&
-        nextGrossAmount === prev.grossAmount &&
-        nextCommissionAmount === prev.commissionAmount
-      ) {
-        return prev;
-      }
-
-      return {
-        ...prev,
-        deputyNetAmount: nextDeputyNetAmount,
-        grossAmount: nextGrossAmount,
-        commissionAmount: nextCommissionAmount,
-      };
-    });
-  }, [formData.fee]);
-
   const parsedPreview = useMemo(
     () => ({
       requiredInstruments: normaliseCsvArray(formData.requiredInstruments),
@@ -134,6 +127,17 @@ const DeputyJobCreateForm = ({
       secondaryInstruments: normaliseCsvArray(formData.secondaryInstruments),
       genres: normaliseCsvArray(formData.genres),
       tags: normaliseCsvArray(formData.tags),
+      setLengths: normaliseCsvArray(formData.setLengths),
+      whatsIncluded: [
+        ...(Array.isArray(formData.whatsIncluded) ? formData.whatsIncluded : []),
+        ...normaliseCsvArray(formData.whatsIncludedOther),
+      ],
+      claimableExpenses: [
+        ...(Array.isArray(formData.claimableExpenses)
+          ? formData.claimableExpenses
+          : []),
+        ...normaliseCsvArray(formData.claimableExpensesOther),
+      ],
     }),
     [
       formData.requiredInstruments,
@@ -142,11 +146,40 @@ const DeputyJobCreateForm = ({
       formData.secondaryInstruments,
       formData.genres,
       formData.tags,
+      formData.setLengths,
+      formData.whatsIncluded,
+      formData.whatsIncludedOther,
+      formData.claimableExpenses,
+      formData.claimableExpensesOther,
     ]
   );
 
   const handleChange = (event) => {
     const { name, value, type, checked } = event.target;
+
+    if (name === "whatsIncluded" || name === "claimableExpenses") {
+      setFormData((prev) => {
+        const currentValues = Array.isArray(prev[name]) ? prev[name] : [];
+        const nextValues = checked
+          ? [...currentValues, value]
+          : currentValues.filter((item) => item !== value);
+
+        return {
+          ...prev,
+          [name]: nextValues,
+          ...(name === "whatsIncluded" && value === "other" && !checked
+            ? { whatsIncludedOther: "" }
+            : {}),
+          ...(name === "claimableExpenses" && value === "other" && !checked
+            ? { claimableExpensesOther: "" }
+            : {}),
+        };
+      });
+
+      setErrors((prev) => ({ ...prev, [name]: "" }));
+      return;
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -193,18 +226,6 @@ const DeputyJobCreateForm = ({
       nextErrors.genres = "Please add at least one genre.";
     }
 
-    if (!String(formData.clientName || "").trim()) {
-      nextErrors.clientName = "Please add the client name.";
-    }
-
-    if (!String(formData.clientEmail || "").trim()) {
-      nextErrors.clientEmail = "Please add the client email.";
-    }
-
-    if (!String(formData.clientPhone || "").trim()) {
-      nextErrors.clientPhone = "Please add the client phone number.";
-    }
-
     if (
       formData.fee === "" ||
       !Number.isFinite(Number(formData.fee)) ||
@@ -212,22 +233,6 @@ const DeputyJobCreateForm = ({
     ) {
       nextErrors.fee = "Fee must be a valid number.";
     }
-
-    if (
-      formData.clientEmail &&
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(formData.clientEmail).trim())
-    ) {
-      nextErrors.clientEmail = "Please enter a valid client email address.";
-    }
-
-    ["grossAmount", "commissionAmount", "deputyNetAmount"].forEach((fieldName) => {
-      if (
-        formData[fieldName] !== "" &&
-        (!Number.isFinite(Number(formData[fieldName])) || Number(formData[fieldName]) < 0)
-      ) {
-        nextErrors[fieldName] = "Must be a valid number.";
-      }
-    });
 
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -240,6 +245,19 @@ const DeputyJobCreateForm = ({
     const secondaryInstruments = normaliseCsvArray(formData.secondaryInstruments);
     const genres = normaliseCsvArray(formData.genres);
     const tags = normaliseCsvArray(formData.tags);
+    const setLengths = normaliseCsvArray(formData.setLengths);
+
+    const whatsIncluded = [
+      ...(Array.isArray(formData.whatsIncluded) ? formData.whatsIncluded : []),
+      ...normaliseCsvArray(formData.whatsIncludedOther),
+    ];
+
+    const claimableExpenses = [
+      ...(Array.isArray(formData.claimableExpenses)
+        ? formData.claimableExpenses
+        : []),
+      ...normaliseCsvArray(formData.claimableExpensesOther),
+    ];
 
     const mergedDesiredRoles = Array.from(
       new Set([...requiredSkills, ...desiredRoles])
@@ -263,16 +281,6 @@ const DeputyJobCreateForm = ({
       postcode: String(formData.postcode || "").trim(),
       fee: formData.fee === "" ? 0 : Number(formData.fee),
       notes: String(formData.notes || "").trim(),
-      clientName: String(formData.clientName || "").trim(),
-      clientEmail: normaliseEmail(formData.clientEmail),
-      clientPhone: String(formData.clientPhone || "").trim(),
-      grossAmount: formData.grossAmount === "" ? 0 : Number(formData.grossAmount),
-      commissionAmount:
-        formData.commissionAmount === "" ? 0 : Number(formData.commissionAmount),
-      deputyNetAmount:
-        formData.deputyNetAmount === "" ? 0 : Number(formData.deputyNetAmount),
-      releaseOn: formData.releaseOn || null,
-      saveClientCard: true,
       instrument: primaryInstrument,
       requiredInstruments,
       requiredSkills,
@@ -281,6 +289,9 @@ const DeputyJobCreateForm = ({
       secondaryInstruments,
       genres,
       tags,
+      setLengths,
+      whatsIncluded,
+      claimableExpenses,
       isVocalSlot: inferredIsVocalSlot,
       mode: previewOnlyOverride ? "preview" : "send",
       previewOnly: Boolean(previewOnlyOverride),
@@ -360,9 +371,7 @@ const DeputyJobCreateForm = ({
               className={inputClass}
               placeholder="e.g. Female lead vocalist for wedding band"
             />
-            {errors.title ? (
-              <p className="mt-2 text-sm text-red-600">{errors.title}</p>
-            ) : null}
+            {errors.title ? <p className="mt-2 text-sm text-red-600">{errors.title}</p> : null}
           </div>
 
           <div>
@@ -377,9 +386,7 @@ const DeputyJobCreateForm = ({
               onChange={handleChange}
               className={inputClass}
             />
-            {errors.date ? (
-              <p className="mt-2 text-sm text-red-600">{errors.date}</p>
-            ) : null}
+            {errors.date ? <p className="mt-2 text-sm text-red-600">{errors.date}</p> : null}
           </div>
 
           <div>
@@ -397,80 +404,7 @@ const DeputyJobCreateForm = ({
               className={inputClass}
               placeholder="0"
             />
-            {errors.fee ? (
-              <p className="mt-2 text-sm text-red-600">{errors.fee}</p>
-            ) : null}
-          </div>
-
-          <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900">Client payment setup</h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  Add the client details now so you can save their card after job creation and charge once the deputy is allocated.
-                </p>
-              </div>
-
-              <div className="inline-flex items-center rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700">
-                Payment details required
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-              <div>
-                <label className={labelClass} htmlFor="clientName">
-                  Client name
-                </label>
-                <input
-                  id="clientName"
-                  name="clientName"
-                  type="text"
-                  value={formData.clientName}
-                  onChange={handleChange}
-                  className={inputClass}
-                  placeholder="Client full name"
-                />
-                {errors.clientName ? (
-                  <p className="mt-2 text-sm text-red-600">{errors.clientName}</p>
-                ) : null}
-              </div>
-
-              <div>
-                <label className={labelClass} htmlFor="clientEmail">
-                  Client email
-                </label>
-                <input
-                  id="clientEmail"
-                  name="clientEmail"
-                  type="email"
-                  value={formData.clientEmail}
-                  onChange={handleChange}
-                  className={inputClass}
-                  placeholder="client@example.com"
-                />
-                {errors.clientEmail ? (
-                  <p className="mt-2 text-sm text-red-600">{errors.clientEmail}</p>
-                ) : null}
-              </div>
-
-              <div>
-                <label className={labelClass} htmlFor="clientPhone">
-                  Client phone
-                </label>
-                <input
-                  id="clientPhone"
-                  name="clientPhone"
-                  type="text"
-                  value={formData.clientPhone}
-                  onChange={handleChange}
-                  className={inputClass}
-                  placeholder="Client phone number"
-                />
-                {errors.clientPhone ? (
-                  <p className="mt-2 text-sm text-red-600">{errors.clientPhone}</p>
-                ) : null}
-              </div>
-            </div>
+            {errors.fee ? <p className="mt-2 text-sm text-red-600">{errors.fee}</p> : null}
           </div>
 
           <div>
@@ -485,9 +419,7 @@ const DeputyJobCreateForm = ({
               onChange={handleChange}
               className={inputClass}
             />
-            {errors.callTime ? (
-              <p className="mt-2 text-sm text-red-600">{errors.callTime}</p>
-            ) : null}
+            {errors.callTime ? <p className="mt-2 text-sm text-red-600">{errors.callTime}</p> : null}
           </div>
 
           <div>
@@ -502,9 +434,7 @@ const DeputyJobCreateForm = ({
               onChange={handleChange}
               className={inputClass}
             />
-            {errors.finishTime ? (
-              <p className="mt-2 text-sm text-red-600">{errors.finishTime}</p>
-            ) : null}
+            {errors.finishTime ? <p className="mt-2 text-sm text-red-600">{errors.finishTime}</p> : null}
           </div>
 
           <div>
@@ -535,9 +465,7 @@ const DeputyJobCreateForm = ({
               className={inputClass}
               placeholder="e.g. Essex"
             />
-            {errors.county ? (
-              <p className="mt-2 text-sm text-red-600">{errors.county}</p>
-            ) : null}
+            {errors.county ? <p className="mt-2 text-sm text-red-600">{errors.county}</p> : null}
           </div>
 
           <div>
@@ -553,9 +481,7 @@ const DeputyJobCreateForm = ({
               className={inputClass}
               placeholder="e.g. CM19 5LE"
             />
-            {errors.postcode ? (
-              <p className="mt-2 text-sm text-red-600">{errors.postcode}</p>
-            ) : null}
+            {errors.postcode ? <p className="mt-2 text-sm text-red-600">{errors.postcode}</p> : null}
           </div>
 
           <div className="lg:col-span-2">
@@ -571,9 +497,7 @@ const DeputyJobCreateForm = ({
               className={inputClass}
               placeholder="Town, county or full address"
             />
-            {errors.location ? (
-              <p className="mt-2 text-sm text-red-600">{errors.location}</p>
-            ) : null}
+            {errors.location ? <p className="mt-2 text-sm text-red-600">{errors.location}</p> : null}
           </div>
 
           <div className="lg:col-span-2">
@@ -653,9 +577,7 @@ const DeputyJobCreateForm = ({
               className={inputClass}
               placeholder="e.g. Motown, Soul, Pop"
             />
-            {errors.genres ? (
-              <p className="mt-2 text-sm text-red-600">{errors.genres}</p>
-            ) : null}
+            {errors.genres ? <p className="mt-2 text-sm text-red-600">{errors.genres}</p> : null}
           </div>
 
           <div className="lg:col-span-2">
@@ -674,6 +596,120 @@ const DeputyJobCreateForm = ({
           </div>
 
           <div className="lg:col-span-2">
+            <label className={labelClass} htmlFor="setLengths">
+              Set lengths
+            </label>
+            <input
+              id="setLengths"
+              name="setLengths"
+              type="text"
+              value={formData.setLengths}
+              onChange={handleChange}
+              className={inputClass}
+              placeholder="e.g. 2x45 mins, 3x40 mins"
+            />
+            <p className={hintClass}>Separate multiple set formats with commas.</p>
+          </div>
+
+          <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900">What’s included</h3>
+              <p className="text-xs text-gray-500 mt-1">
+                Tick anything the deputy can expect on the job.
+              </p>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {WHATS_INCLUDED_OPTIONS.map((option) => (
+                <label
+                  key={option}
+                  className="inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700"
+                >
+                  <input
+                    type="checkbox"
+                    name="whatsIncluded"
+                    value={option}
+                    checked={
+                      Array.isArray(formData.whatsIncluded) &&
+                      formData.whatsIncluded.includes(option)
+                    }
+                    onChange={handleChange}
+                    className="h-4 w-4 accent-black"
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+
+            {Array.isArray(formData.whatsIncluded) &&
+            formData.whatsIncluded.includes("other") ? (
+              <div className="mt-4">
+                <label className={labelClass} htmlFor="whatsIncludedOther">
+                  Other included item
+                </label>
+                <input
+                  id="whatsIncludedOther"
+                  name="whatsIncludedOther"
+                  type="text"
+                  value={formData.whatsIncludedOther}
+                  onChange={handleChange}
+                  className={inputClass}
+                  placeholder="Add another included item"
+                />
+              </div>
+            ) : null}
+          </div>
+
+          <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900">Claimable expenses</h3>
+              <p className="text-xs text-gray-500 mt-1">
+                Tick any expenses the deputy can claim back.
+              </p>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {CLAIMABLE_EXPENSE_OPTIONS.map((option) => (
+                <label
+                  key={option}
+                  className="inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700"
+                >
+                  <input
+                    type="checkbox"
+                    name="claimableExpenses"
+                    value={option}
+                    checked={
+                      Array.isArray(formData.claimableExpenses) &&
+                      formData.claimableExpenses.includes(option)
+                    }
+                    onChange={handleChange}
+                    className="h-4 w-4 accent-black"
+                  />
+                  {option}
+                </label>
+              ))}
+            </div>
+
+            {Array.isArray(formData.claimableExpenses) &&
+            formData.claimableExpenses.includes("other") ? (
+              <div className="mt-4">
+                <label className={labelClass} htmlFor="claimableExpensesOther">
+                  Other claimable expense
+                </label>
+                <input
+                  id="claimableExpensesOther"
+                  name="claimableExpensesOther"
+                  type="text"
+                  value={formData.claimableExpensesOther}
+                  onChange={handleChange}
+                  className={inputClass}
+                  placeholder="Add another claimable expense"
+                />
+              </div>
+            ) : null}
+          </div>
+
+          <div className="lg:col-span-2">
             <label className={labelClass} htmlFor="notes">
               Notes
             </label>
@@ -687,92 +723,6 @@ const DeputyJobCreateForm = ({
               placeholder="Add any useful details for applicants — sets, dress code, parking, dep time, accommodation, doubling requirements, etc."
             />
           </div>
-
-          <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900">Booking ledger</h3>
-              <p className="text-xs text-gray-500 mt-1">
-                These values will be stored on the deputy job so payment and payout status can be tracked later.
-              </p>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-4">
-              <div>
-                <label className={labelClass} htmlFor="grossAmount">
-                  Gross amount
-                </label>
-                <input
-                  id="grossAmount"
-                  name="grossAmount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.grossAmount}
-                  onChange={handleChange}
-                  className={inputClass}
-                  placeholder="0"
-                />
-                {errors.grossAmount ? (
-                  <p className="mt-2 text-sm text-red-600">{errors.grossAmount}</p>
-                ) : null}
-              </div>
-
-              <div>
-                <label className={labelClass} htmlFor="commissionAmount">
-                  Commission amount
-                </label>
-                <input
-                  id="commissionAmount"
-                  name="commissionAmount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.commissionAmount}
-                  onChange={handleChange}
-                  className={inputClass}
-                  placeholder="0"
-                />
-                {errors.commissionAmount ? (
-                  <p className="mt-2 text-sm text-red-600">{errors.commissionAmount}</p>
-                ) : null}
-              </div>
-
-              <div>
-                <label className={labelClass} htmlFor="deputyNetAmount">
-                  Deputy net amount
-                </label>
-                <input
-                  id="deputyNetAmount"
-                  name="deputyNetAmount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.deputyNetAmount}
-                  onChange={handleChange}
-                  className={inputClass}
-                  placeholder="0"
-                />
-                {errors.deputyNetAmount ? (
-                  <p className="mt-2 text-sm text-red-600">{errors.deputyNetAmount}</p>
-                ) : null}
-              </div>
-
-              <div>
-                <label className={labelClass} htmlFor="releaseOn">
-                  Release payout on
-                </label>
-                <input
-                  id="releaseOn"
-                  name="releaseOn"
-                  type="date"
-                  value={formData.releaseOn}
-                  onChange={handleChange}
-                  className={inputClass}
-                />
-                <p className={hintClass}>Leave blank to let the backend default it.</p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -781,7 +731,7 @@ const DeputyJobCreateForm = ({
           <div>
             <h3 className="text-base font-semibold text-gray-900">Matching preview</h3>
             <p className="mt-1 text-sm text-gray-500">
-              These are the fields the matching logic can use when deciding who to notify. Client payment and ledger fields are stored too, but they do not affect matching.
+              These are the fields the matching logic can use when deciding who to notify.
             </p>
           </div>
 
@@ -900,6 +850,68 @@ const DeputyJobCreateForm = ({
             </div>
           </div>
         </div>
+
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Set lengths
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {parsedPreview.setLengths.length ? (
+                parsedPreview.setLengths.map((item) => (
+                  <span
+                    key={`set-length-${item}`}
+                    className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700 border border-gray-200"
+                  >
+                    {item}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-gray-400">No set lengths added</span>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              What’s included
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {parsedPreview.whatsIncluded.length ? (
+                parsedPreview.whatsIncluded.map((item, index) => (
+                  <span
+                    key={`included-${item}-${index}`}
+                    className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700 border border-gray-200"
+                  >
+                    {item}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-gray-400">No inclusions added</span>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Claimable expenses
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {parsedPreview.claimableExpenses.length ? (
+                parsedPreview.claimableExpenses.map((item, index) => (
+                  <span
+                    key={`expense-${item}-${index}`}
+                    className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700 border border-gray-200"
+                  >
+                    {item}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-gray-400">No claimable expenses added</span>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-end gap-3">
@@ -931,7 +943,7 @@ const DeputyJobCreateForm = ({
             ? "Creating…"
             : formData.previewOnly
             ? submitLabel
-            : "Create, notify and prep payment"}
+            : "Create and notify"}
         </button>
       </div>
     </form>

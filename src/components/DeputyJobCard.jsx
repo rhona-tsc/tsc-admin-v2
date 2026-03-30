@@ -69,9 +69,12 @@ const DeputyJobCard = ({
   if (!job) return null;
 
   const title = job.title || "Deputy opportunity";
-  const venueText = job.venue || job.location || "Venue TBC";
-  const dateText = formatDate(job.date);
-  const timeText = formatTimeRange(job.callTime, job.finishTime);
+const venueText = job.venue || job.locationName || job.location || "Venue TBC";
+const dateText = formatDate(job.date || job.eventDate);
+const timeText = formatTimeRange(
+  job.callTime || job.startTime,
+  job.finishTime || job.endTime
+);
   const feeText = formatMoney(job.fee);
   const status = String(job.status || "open").toLowerCase();
   const chips = buildTagList(job);
