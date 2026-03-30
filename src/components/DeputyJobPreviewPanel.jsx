@@ -263,8 +263,12 @@ const DeputyJobPreviewPanel = ({
   const payoutStatus = String(job?.payoutStatus || "not_ready").toLowerCase();
   const paymentEvents = Array.isArray(job?.paymentEvents) ? job.paymentEvents : [];
   const latestPaymentEvent = paymentEvents.length ? paymentEvents[paymentEvents.length - 1] : null;
-  const canPreparePaymentSetup = canManage && Boolean(job?.clientEmail) && !job?.defaultPaymentMethodId;
-  const canChargeNow =
+const canPreparePaymentSetup =
+  canManage &&
+  Boolean(job?.clientEmail) &&
+  !job?.defaultPaymentMethodId &&
+  !paymentSetupInfo?.clientSecret &&
+  !job?.setupIntentId;  const canChargeNow =
     canManage &&
     Boolean(job?.stripeCustomerId) &&
     Boolean(job?.defaultPaymentMethodId) &&
@@ -453,12 +457,7 @@ const DeputyJobPreviewPanel = ({
                 {job.allocatedMusicianName || job.assignedMusicianName}
               </p>
             ) : null}
-            {job.clientEmail ? (
-              <p>
-                <span className="font-medium text-gray-900">Client email:</span>{" "}
-                {job.clientEmail}
-              </p>
-            ) : null}
+         
           </div>
         </section>
 
