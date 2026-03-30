@@ -191,6 +191,9 @@ const DeputyJobCardSetupForm = ({
     }
   };
 
+  console.log("Stripe key present?", Boolean(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY));
+console.log("Stripe key preview:", import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
+
   return (
     <form onSubmit={handleSaveCard} className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
       <h4 className="text-sm font-semibold text-gray-900">Save client card</h4>
