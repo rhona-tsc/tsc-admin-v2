@@ -109,13 +109,28 @@ const formatMoney = (value) => {
 };
 
 const buildMusicianProfileUrl = (application = {}) => {
-  const slug = String(application.musicianSlug || "").trim();
+  const nestedMusician = application?.musician || {};
+
+  const slug = String(
+    application?.musicianSlug ||
+      application?.slug ||
+      nestedMusician?.musicianSlug ||
+      nestedMusician?.slug ||
+      ""
+  ).trim();
   if (slug) return `${ADMIN_MUSICIAN_ROUTE_BASE}/${slug}`;
 
-  const id = String(application.musicianId || "").trim();
+  const id = String(
+    application?.musicianId?._id ||
+      application?.musicianId ||
+      nestedMusician?._id ||
+      nestedMusician?.id ||
+      application?._id ||
+      ""
+  ).trim();
   if (id) return `${ADMIN_MUSICIAN_ROUTE_BASE}/${id}`;
 
-  const direct = String(application.profileUrl || "").trim();
+  const direct = String(application?.profileUrl || nestedMusician?.profileUrl || "").trim();
   if (direct) {
     return direct.startsWith(PUBLIC_SITE_BASE)
       ? direct.replace(PUBLIC_SITE_BASE, "")
@@ -191,8 +206,12 @@ const DeputyJobApplicantsPanel = ({
 
   const handleAssign = async (application) => {
     const applicationMusicianId = String(
-      application?.musicianId || application?._id || ""
-    );
+      application?.musicianId?._id ||
+        application?.musicianId ||
+        application?.musician?._id ||
+        application?.musician?.id ||
+        ""
+    ).trim();
 
     if (!job?._id || !applicationMusicianId || assigningId) return;
 
@@ -305,10 +324,16 @@ const DeputyJobApplicantsPanel = ({
               const profileUrl = buildMusicianProfileUrl(application);
               const instrumentation = getInstrumentation(application);
               const status = String(application?.status || "applied").toLowerCase();
-              const applicantMusicianId = String(application?.musicianId || application?._id || "");
+              const applicantMusicianId = String(
+                application?.musicianId?._id ||
+                  application?.musicianId ||
+                  application?.musician?._id ||
+                  application?.musician?.id ||
+                  ""
+              ).trim();
               const isAssigned = ["allocated", "booked", "assigned"].includes(status);
-              const canAssign = !assignedApplicant && status === "applied";
-              const isAssigning = assigningId === applicantMusicianId;
+              const canAssign = Boolean(applicantMusicianId) && !assignedApplicant && status === "applied";
+              const isAssigning = Boolean(applicantMusicianId) && assigningId === applicantMusicianId;
 
               return (
                 <div
@@ -429,6 +454,12 @@ const DeputyJobApplicantsPanel = ({
                     {isAssigned ? (
                       <span className="inline-flex items-center px-4 py-2 rounded-full bg-green-100 text-green-800 text-sm font-medium">
                         Allocated
+                      </span>
+                    ) : null}
+
+                    {!applicantMusicianId ? (
+                      <span className="inline-flex items-center px-4 py-2 rounded-full bg-amber-50 text-amber-800 text-sm font-medium border border-amber-200">
+                        Missing musician link
                       </span>
                     ) : null}
                   </div>
