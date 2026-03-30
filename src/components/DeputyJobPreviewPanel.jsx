@@ -14,6 +14,7 @@ import {
 
 const ADMIN_EMAIL = "hello@thesupremecollective.co.uk";
 const BACKEND_BASE = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+const PAYMENT_SETUP_STORAGE_KEY = "deputyJobPaymentSetup";
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "");
 
 const formatMoney = (value) => {
@@ -199,7 +200,7 @@ const DeputyJobCardSetupForm = ({
       <div className="mt-4 flex justify-end">
         <button
           type="submit"
-          disabled={!stripe || !elements || isSaving}
+disabled={!stripe || !elements || !clientSecret || isSaving}
           className="rounded bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSaving ? "Saving card…" : "Save client card"}
@@ -258,7 +259,8 @@ const DeputyJobPreviewPanel = ({
   const tags = normaliseArray(job?.tags);
   const applicants = Array.isArray(job?.applications) ? job.applications : [];
   const postedByLabel = getPostedByLabel(job);
-
+const venueDisplay = job?.venue || job?.locationName || job?.location || "TBC";
+const locationDisplay = job?.location || job?.locationName || job?.venue || "TBC";
   const paymentStatus = String(job?.paymentStatus || "not_started").toLowerCase();
   const payoutStatus = String(job?.payoutStatus || "not_ready").toLowerCase();
   const paymentEvents = Array.isArray(job?.paymentEvents) ? job.paymentEvents : [];
@@ -275,9 +277,34 @@ const canPreparePaymentSetup =
     paymentStatus !== "paid" &&
     paymentStatus !== "charge_pending";
 
-  useEffect(() => {
+useEffect(() => {
+  if (!job?._id) {
     setPaymentSetupInfo(null);
-  }, [job?._id]);
+    return;
+  }
+
+  try {
+    const saved = sessionStorage.getItem(PAYMENT_SETUP_STORAGE_KEY);
+    if (!saved) {
+      setPaymentSetupInfo(null);
+      return;
+    }
+
+    const parsed = JSON.parse(saved);
+    if (
+      parsed?.deputyJobId &&
+      String(parsed.deputyJobId) === String(job._id) &&
+      parsed?.clientSecret
+    ) {
+      setPaymentSetupInfo(parsed);
+      return;
+    }
+  } catch {
+    // ignore storage parse issues
+  }
+
+  setPaymentSetupInfo(null);
+}, [job?._id]);
 
   const handlePreparePaymentSetup = async () => {
     if (!job?._id || !canPreparePaymentSetup || isPreparingPaymentSetup) return;
@@ -312,7 +339,7 @@ const canPreparePaymentSetup =
       setPaymentSetupInfo(nextSetupInfo);
 
       try {
-        sessionStorage.setItem("deputyJobPaymentSetup", JSON.stringify(nextSetupInfo));
+sessionStorage.setItem(PAYMENT_SETUP_STORAGE_KEY, JSON.stringify(nextSetupInfo));
       } catch {
         // ignore storage errors
       }
@@ -364,10 +391,16 @@ const canPreparePaymentSetup =
     }
   };
 
-    const handleCardSaved = () => {
-    setPaymentSetupInfo(null);
-    onRefresh?.(job);
-  };
+  const handleCardSaved = () => {
+  try {
+    sessionStorage.removeItem(PAYMENT_SETUP_STORAGE_KEY);
+  } catch {
+    // ignore storage errors
+  }
+
+  setPaymentSetupInfo(null);
+  onRefresh?.(job);
+};
 
   if (!job) {
     return (
@@ -441,12 +474,10 @@ const canPreparePaymentSetup =
           <div className="space-y-2 text-gray-600">
             <p>
               <span className="font-medium text-gray-900">Venue:</span>{" "}
-              {job.venue || "TBC"}
-            </p>
+{venueDisplay}            </p>
             <p>
               <span className="font-medium text-gray-900">Location:</span>{" "}
-              {job.location || "TBC"}
-            </p>
+{locationDisplay}            </p>
             <p>
               <span className="font-medium text-gray-900">Posted by:</span>{" "}
               {postedByLabel}
@@ -618,8 +649,7 @@ const canPreparePaymentSetup =
 
               {paymentSetupInfo?.setupIntentId ? (
                 <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-4 text-sm text-green-800">
-                  SetupIntent prepared for this deputy job. SetupIntent ID: {paymentSetupInfo.setupIntentId}. The next step is still to connect the Stripe card form and then save the payment method.
-                </div>
+SetupIntent prepared for this deputy job. SetupIntent ID: {paymentSetupInfo.setupIntentId}. Enter the client card details below, then click Save client card.                </div>
               ) : null}
 
               {paymentSetupInfo?.clientSecret ? (
@@ -637,16 +667,20 @@ const canPreparePaymentSetup =
               ) : null}
 
               <div className="mt-5 flex flex-wrap gap-3">
-                {canPreparePaymentSetup ? (
-                  <button
-                    type="button"
-                    onClick={handlePreparePaymentSetup}
-                    disabled={isPreparingPaymentSetup}
-                    className="rounded bg-black px-5 py-3 text-sm font-medium text-white transition hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isPreparingPaymentSetup ? "Preparing payment…" : "Prepare payment setup"}
-                  </button>
-                ) : null}
+              {canPreparePaymentSetup ? (
+  <button
+    type="button"
+    onClick={handlePreparePaymentSetup}
+    disabled={isPreparingPaymentSetup}
+    className="rounded bg-black px-5 py-3 text-sm font-medium text-white transition hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    {isPreparingPaymentSetup ? "Preparing payment…" : "Prepare payment setup"}
+  </button>
+) : paymentSetupInfo?.clientSecret ? (
+  <span className="inline-flex items-center rounded border border-green-200 bg-green-50 px-5 py-3 text-sm font-medium text-green-800">
+    Card form ready below
+  </span>
+) : null}
 
                 {canChargeNow ? (
                   <button
