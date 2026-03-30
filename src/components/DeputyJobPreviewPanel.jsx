@@ -114,6 +114,14 @@ const buildProfilePath = (applicant = {}) => {
   return "";
 };
 
+const getPostedByLabel = (job) => {
+  const createdByEmail = String(job?.createdByEmail || "").trim().toLowerCase();
+  if (createdByEmail === "hello@thesupremecollective.co.uk") {
+    return "The Supreme Collective";
+  }
+  return "A Supreme Collective Member";
+};
+
 const DeputyJobCardSetupForm = ({
   job,
   clientSecret,
@@ -243,11 +251,13 @@ const DeputyJobPreviewPanel = ({
   }, [job, currentUser, currentUserEmail, isAdmin]);
 
   const canManage = isAdmin || isCreator;
+  const canViewPayments = isAdmin;
 
   const requiredInstruments = normaliseArray(job?.requiredInstruments);
   const requiredSkills = normaliseArray(job?.requiredSkills);
   const tags = normaliseArray(job?.tags);
   const applicants = Array.isArray(job?.applications) ? job.applications : [];
+  const postedByLabel = getPostedByLabel(job);
 
   const paymentStatus = String(job?.paymentStatus || "not_started").toLowerCase();
   const payoutStatus = String(job?.payoutStatus || "not_ready").toLowerCase();
@@ -367,8 +377,9 @@ const DeputyJobPreviewPanel = ({
 
   return (
     <div className="w-full min-h-screen border-l p-6">
-      <div className="sticky top-0 bg-white pb-4">
-        <div className="flex items-start justify-between gap-4 border-b pb-4">
+      <div className="sticky top-0 pb-4">
+        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="flex items-start justify-between gap-4 border-b border-gray-200 pb-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.2em] text-gray-400">
               Deputy opportunity
@@ -414,9 +425,8 @@ const DeputyJobPreviewPanel = ({
                 TSC commission: {job.commissionPercent || 10}% (
                 {formatMoney(job.commissionAmount || 0)})
               </p>
-            ) : (
-              <p className="mt-2 text-sm text-gray-500">No TSC commission</p>
-            )}
+            ) : null}
+          </div>
           </div>
         </div>
       </div>
@@ -435,7 +445,7 @@ const DeputyJobPreviewPanel = ({
             </p>
             <p>
               <span className="font-medium text-gray-900">Posted by:</span>{" "}
-              {job.createdByName || job.createdByEmail || "Member"}
+              {postedByLabel}
             </p>
             {job.allocatedMusicianName || job.assignedMusicianName ? (
               <p>
@@ -513,120 +523,120 @@ const DeputyJobPreviewPanel = ({
           </section>
         ) : null}
 
-        <section>
-          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">Payment & payout</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Track card setup, charge status, ledger amounts, and when the deputy payout should be released.
-                </p>
+        {canViewPayments ? (
+          <section>
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Payment & payout</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Track card setup, charge status, ledger amounts, and when the deputy payout should be released.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <span
+                    className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${
+                      paymentStatusClassMap[paymentStatus] || paymentStatusClassMap.not_started
+                    }`}
+                  >
+                    Payment: {formatLabel(paymentStatus)}
+                  </span>
+                  <span
+                    className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${
+                      payoutStatusClassMap[payoutStatus] || payoutStatusClassMap.not_ready
+                    }`}
+                  >
+                    Payout: {formatLabel(payoutStatus)}
+                  </span>
+                </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                <span
-                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${
-                    paymentStatusClassMap[paymentStatus] || paymentStatusClassMap.not_started
-                  }`}
-                >
-                  Payment: {formatLabel(paymentStatus)}
-                </span>
-                <span
-                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${
-                    payoutStatusClassMap[payoutStatus] || payoutStatusClassMap.not_ready
-                  }`}
-                >
-                  Payout: {formatLabel(payoutStatus)}
-                </span>
-              </div>
-            </div>
+              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Gross amount
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-gray-900">
+                    {formatMoney(job.grossAmount || job.fee || 0)}
+                  </p>
+                </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Gross amount
-                </p>
-                <p className="mt-2 text-lg font-semibold text-gray-900">
-                  {formatMoney(job.grossAmount || job.fee || 0)}
-                </p>
-              </div>
+                <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Commission
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-gray-900">
+                    {formatMoney(job.commissionAmount || 0)}
+                  </p>
+                </div>
 
-              <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Commission
-                </p>
-                <p className="mt-2 text-lg font-semibold text-gray-900">
-                  {formatMoney(job.commissionAmount || 0)}
-                </p>
-              </div>
+                <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Deputy net
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-gray-900">
+                    {formatMoney(job.deputyNetAmount || job.fee || 0)}
+                  </p>
+                </div>
 
-              <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Deputy net
-                </p>
-                <p className="mt-2 text-lg font-semibold text-gray-900">
-                  {formatMoney(job.deputyNetAmount || job.fee || 0)}
-                </p>
+                <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Release on
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-gray-900">
+                    {job.releaseOn ? formatDate(job.releaseOn) : "TBC"}
+                  </p>
+                </div>
               </div>
 
-              <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Release on
+              <div className="mt-4 space-y-2 text-sm text-gray-600">
+                <p>
+                  <span className="font-medium text-gray-900">Stripe customer:</span>{" "}
+                  {job.stripeCustomerId || "Not created yet"}
                 </p>
-                <p className="mt-2 text-lg font-semibold text-gray-900">
-                  {job.releaseOn ? formatDate(job.releaseOn) : "TBC"}
+                <p>
+                  <span className="font-medium text-gray-900">Saved payment method:</span>{" "}
+                  {job.defaultPaymentMethodId || "Not saved yet"}
                 </p>
+                <p>
+                  <span className="font-medium text-gray-900">Charged at:</span>{" "}
+                  {job.chargedAt ? formatDateTime(job.chargedAt) : "Not charged yet"}
+                </p>
+                <p>
+                  <span className="font-medium text-gray-900">Latest payment event:</span>{" "}
+                  {latestPaymentEvent
+                    ? `${formatLabel(latestPaymentEvent.type || "manual_adjustment")} • ${formatDateTime(latestPaymentEvent.createdAt)}`
+                    : "No payment events yet"}
+                </p>
+                {job.paymentFailureReason ? (
+                  <p className="text-red-600">
+                    <span className="font-medium text-red-700">Failure reason:</span>{" "}
+                    {job.paymentFailureReason}
+                  </p>
+                ) : null}
               </div>
-            </div>
 
-            <div className="mt-4 space-y-2 text-sm text-gray-600">
-              <p>
-                <span className="font-medium text-gray-900">Stripe customer:</span>{" "}
-                {job.stripeCustomerId || "Not created yet"}
-              </p>
-              <p>
-                <span className="font-medium text-gray-900">Saved payment method:</span>{" "}
-                {job.defaultPaymentMethodId || "Not saved yet"}
-              </p>
-              <p>
-                <span className="font-medium text-gray-900">Charged at:</span>{" "}
-                {job.chargedAt ? formatDateTime(job.chargedAt) : "Not charged yet"}
-              </p>
-              <p>
-                <span className="font-medium text-gray-900">Latest payment event:</span>{" "}
-                {latestPaymentEvent
-                  ? `${formatLabel(latestPaymentEvent.type || "manual_adjustment")} • ${formatDateTime(latestPaymentEvent.createdAt)}`
-                  : "No payment events yet"}
-              </p>
-              {job.paymentFailureReason ? (
-                <p className="text-red-600">
-                  <span className="font-medium text-red-700">Failure reason:</span>{" "}
-                  {job.paymentFailureReason}
-                </p>
+              {paymentSetupInfo?.setupIntentId ? (
+                <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-4 text-sm text-green-800">
+                  SetupIntent prepared for this deputy job. SetupIntent ID: {paymentSetupInfo.setupIntentId}. The next step is still to connect the Stripe card form and then save the payment method.
+                </div>
               ) : null}
-            </div>
 
-            {paymentSetupInfo?.setupIntentId ? (
-              <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-4 text-sm text-green-800">
-                SetupIntent prepared for this deputy job. SetupIntent ID: {paymentSetupInfo.setupIntentId}. The next step is still to connect the Stripe card form and then save the payment method.
-              </div>
-            ) : null}
+              {paymentSetupInfo?.clientSecret ? (
+                <Elements
+                  stripe={stripePromise}
+                  options={{ clientSecret: paymentSetupInfo.clientSecret }}
+                >
+                  <DeputyJobCardSetupForm
+                    job={job}
+                    clientSecret={paymentSetupInfo.clientSecret}
+                    authHeaders={authHeaders}
+                    onSaved={handleCardSaved}
+                  />
+                </Elements>
+              ) : null}
 
-                        {paymentSetupInfo?.clientSecret ? (
-              <Elements
-                stripe={stripePromise}
-                options={{ clientSecret: paymentSetupInfo.clientSecret }}
-              >
-                <DeputyJobCardSetupForm
-                  job={job}
-                  clientSecret={paymentSetupInfo.clientSecret}
-                  authHeaders={authHeaders}
-                  onSaved={handleCardSaved}
-                />
-              </Elements>
-            ) : null}
-
-            {canManage ? (
               <div className="mt-5 flex flex-wrap gap-3">
                 {canPreparePaymentSetup ? (
                   <button
@@ -650,9 +660,9 @@ const DeputyJobPreviewPanel = ({
                   </button>
                 ) : null}
               </div>
-            ) : null}
-          </div>
-        </section>
+            </div>
+          </section>
+        ) : null}
 
         <section>
           <div className="flex flex-wrap items-center gap-3">

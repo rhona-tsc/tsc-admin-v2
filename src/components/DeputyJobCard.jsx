@@ -1,5 +1,3 @@
-
-
 import React from "react";
 
 const formatMoney = (value) => {
@@ -51,6 +49,14 @@ const statusClasses = {
   closed: "bg-gray-100 text-gray-600 border-gray-200",
 };
 
+const getPostedByLabel = (job) => {
+  const createdByEmail = String(job?.createdByEmail || "").trim().toLowerCase();
+  if (createdByEmail === "hello@thesupremecollective.co.uk") {
+    return "The Supreme Collective";
+  }
+  return "A Supreme Collective Member";
+};
+
 const DeputyJobCard = ({
   job,
   isSelected = false,
@@ -73,6 +79,7 @@ const DeputyJobCard = ({
   const commissionText = commissionApplies
     ? `${Number(job.commissionPercent || 10)}% commission`
     : "No commission";
+  const postedByLabel = getPostedByLabel(job);
 
   const handleApplicantsClick = (event) => {
     event.stopPropagation();
@@ -148,7 +155,7 @@ const DeputyJobCard = ({
 
       <div className="mt-4 flex items-center justify-between gap-3">
         <div className="text-xs text-gray-500">
-          Posted by {job.createdByName || "Member"}
+          Posted by {postedByLabel}
         </div>
 
         {canManage && (

@@ -5,7 +5,20 @@ import Title from "../components/Title";
 import DeputyJobCard from "../components/DeputyJobCard";
 import DeputyJobPreviewPanel from "../components/DeputyJobPreviewPanel";
 
-const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+
+const parseJwtPayload = (token = "") => {
+  try {
+    const payload = String(token || "").split(".")[1] || "";
+    if (!payload) return {};
+
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const decoded = atob(padded);
+    return JSON.parse(decoded);
+  } catch {
+    return {};
+  }
+};
 
 const formatDate = (dateString) => {
   if (!dateString) return "Date TBC";
@@ -68,6 +81,7 @@ const DeputyJobs = () => {
     sessionStorage.getItem("token") ||
     "";
 
+
   const authHeaders = useMemo(
   () =>
     authToken
@@ -78,6 +92,35 @@ const DeputyJobs = () => {
       : {},
   [authToken]
 );
+
+  const currentUser = useMemo(() => {
+    const tokenPayload = parseJwtPayload(authToken);
+
+    return {
+      _id:
+        tokenPayload?._id ||
+        tokenPayload?.id ||
+        tokenPayload?.userId ||
+        "",
+      id:
+        tokenPayload?.id ||
+        tokenPayload?._id ||
+        tokenPayload?.userId ||
+        "",
+      email:
+        tokenPayload?.email ||
+        tokenPayload?.useremail ||
+        localStorage.getItem("userEmail") ||
+        sessionStorage.getItem("userEmail") ||
+        "",
+      role:
+        tokenPayload?.role ||
+        tokenPayload?.userrole ||
+        localStorage.getItem("userRole") ||
+        sessionStorage.getItem("userRole") ||
+        "",
+    };
+  }, [authToken]);
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -105,7 +148,7 @@ const DeputyJobs = () => {
     } finally {
       setLoading(false);
     }
-  }, [authHeaders]);
+}, [authToken]);
 
   useEffect(() => {
     fetchJobs();
@@ -311,10 +354,11 @@ const DeputyJobs = () => {
         <div className="hidden lg:block">
           {hoveredJob ? (
             <div className="sticky top-6">
-              <DeputyJobPreviewPanel
+            <DeputyJobPreviewPanel
   hoveredJob={hoveredJob}
   onRefresh={fetchJobs}
   authHeaders={authHeaders}
+  currentUser={currentUser}
 />
             </div>
           ) : ( 
