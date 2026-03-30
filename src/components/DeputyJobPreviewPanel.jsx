@@ -21,6 +21,8 @@
   const stripePromise = STRIPE_PUBLISHABLE_KEY
     ? loadStripe(STRIPE_PUBLISHABLE_KEY)
     : null;
+    console.log("Stripe key present?", Boolean(STRIPE_PUBLISHABLE_KEY));
+console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
 
   const formatMoney = (value) => {
     const n = Number(value || 0);
@@ -191,9 +193,7 @@
       }
     };
 
-    console.log("Stripe key present?", Boolean(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY));
-  console.log("Stripe key preview:", import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
-
+ 
   
 
     return (
