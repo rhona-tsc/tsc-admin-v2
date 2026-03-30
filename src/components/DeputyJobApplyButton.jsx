@@ -4,7 +4,22 @@ import React, { useMemo, useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 
-const BACKEND_BASE = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+
+const getAuthHeaders = () => {
+  const authToken =
+    localStorage.getItem("token") ||
+    localStorage.getItem("adminToken") ||
+    localStorage.getItem("musicianToken") ||
+    sessionStorage.getItem("token") ||
+    "";
+
+  return authToken
+    ? {
+        Authorization: `Bearer ${authToken}`,
+        token: authToken,
+      }
+    : {};
+};
 
 const DeputyJobApplyButton = ({
   job,
@@ -18,9 +33,9 @@ const DeputyJobApplyButton = ({
   const [missingFields, setMissingFields] = useState([]);
 
   const status = String(job?.status || "open").toLowerCase();
-  const isAssigned = status === "assigned";
-  const isClosed = status === "closed";
-  const isOpen = status === "open";
+  const isAssigned = status === "assigned" || status === "allocated" || status === "filled";
+  const isClosed = status === "closed" || status === "cancelled";
+  const isOpen = status === "open" || status === "preview";
 
   const alreadyApplied = useMemo(() => {
     if (hasApplied) return true;
@@ -59,11 +74,16 @@ const DeputyJobApplyButton = ({
       setMissingFields([]);
 
       const { data } = await axios.post(
-        `${BACKEND_BASE}/api/deputy-opportunities/${job._id}/apply`,
+        `${BACKEND_BASE}/api/deputy-jobs/${job._id}/apply`,
+        {},
+        {
+          headers: getAuthHeaders(),
+          withCredentials: true,
+        }
       );
 
       if (!data?.success) {
-        throw new Error(data?.message || "Failed to apply for this opportunity");
+        throw new Error(data?.message || "Failed to apply for this deputy job");
       }
 
       setHasApplied(true);
@@ -86,7 +106,7 @@ const DeputyJobApplyButton = ({
       }
 
       toast.error(
-        responseMessage || error?.message || "Failed to apply for this opportunity",
+        responseMessage || error?.message || "Failed to apply for this deputy job",
       );
     } finally {
       setIsApplying(false);

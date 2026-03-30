@@ -6,6 +6,21 @@ import axios from "axios";
 import { toast } from "react-toastify";
 
 const BACKEND_BASE = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+const getAuthHeaders = () => {
+  const authToken =
+    localStorage.getItem("token") ||
+    localStorage.getItem("adminToken") ||
+    localStorage.getItem("musicianToken") ||
+    sessionStorage.getItem("token") ||
+    "";
+
+  return authToken
+    ? {
+        Authorization: `Bearer ${authToken}`,
+        token: authToken,
+      }
+    : {};
+};
 const PUBLIC_SITE_BASE = (
   import.meta.env.VITE_PUBLIC_SITE_URL || "https://thesupremecollective.co.uk"
 ).replace(/\/$/, "");
@@ -14,17 +29,25 @@ const ADMIN_MUSICIAN_ROUTE_BASE = "/musician";
 
 const statusLabelMap = {
   applied: "Applied",
-  assigned: "Assigned",
-  closed: "Closed",
+  shortlisted: "Shortlisted",
+  allocated: "Allocated",
+  booked: "Booked",
+  declined: "Declined",
   withdrawn: "Withdrawn",
+  assigned: "Allocated",
+  closed: "Closed",
   rejected: "Rejected",
 };
 
 const statusClassMap = {
   applied: "bg-blue-50 text-blue-700 border-blue-200",
+  shortlisted: "bg-purple-50 text-purple-700 border-purple-200",
+  allocated: "bg-green-50 text-green-700 border-green-200",
+  booked: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  declined: "bg-red-50 text-red-700 border-red-200",
+  withdrawn: "bg-orange-50 text-orange-700 border-orange-200",
   assigned: "bg-green-50 text-green-700 border-green-200",
   closed: "bg-gray-100 text-gray-700 border-gray-200",
-  withdrawn: "bg-orange-50 text-orange-700 border-orange-200",
   rejected: "bg-red-50 text-red-700 border-red-200",
 };
 
@@ -105,8 +128,8 @@ const DeputyJobApplicantsPanel = ({
 
   const sortedApplicants = useMemo(() => {
     return [...(Array.isArray(localApplicants) ? localApplicants : [])].sort((a, b) => {
-      const aAssigned = a?.status === "assigned" ? 1 : 0;
-      const bAssigned = b?.status === "assigned" ? 1 : 0;
+      const aAssigned = ["allocated", "booked", "assigned"].includes(String(a?.status || "").toLowerCase()) ? 1 : 0;
+      const bAssigned = ["allocated", "booked", "assigned"].includes(String(b?.status || "").toLowerCase()) ? 1 : 0;
       if (aAssigned !== bAssigned) return bAssigned - aAssigned;
 
       const aApplied = new Date(a?.appliedAt || a?.createdAt || 0).getTime();
@@ -116,43 +139,52 @@ const DeputyJobApplicantsPanel = ({
   }, [localApplicants]);
 
   const assignedApplicant = useMemo(() => {
-    return sortedApplicants.find((app) => app?.status === "assigned") || null;
+    return (
+      sortedApplicants.find((app) =>
+        ["allocated", "booked", "assigned"].includes(String(app?.status || "").toLowerCase())
+      ) || null
+    );
   }, [sortedApplicants]);
 
   const handleAssign = async (application) => {
-    if (!job?._id || !application?._id || assigningId) return;
+    const applicationMusicianId = String(
+      application?.musicianId || application?._id || ""
+    );
+
+    if (!job?._id || !applicationMusicianId || assigningId) return;
 
     const confirmed = window.confirm(
-      `Allocate this job to ${getApplicantName(application)}? This will close the job to other applicants.`
+      `Allocate this job to ${getApplicantName(application)}? This will allocate the deputy job and update the applicant list.`
     );
 
     if (!confirmed) return;
 
     try {
-      setAssigningId(String(application._id));
+      setAssigningId(applicationMusicianId);
 
       const { data } = await axios.post(
-        `${BACKEND_BASE}/api/deputy-opportunities/${job._id}/assign`,
-        { applicationId: application._id }
+        `${BACKEND_BASE}/api/deputy-jobs/${job._id}/confirm-allocation`,
+        { musicianId: applicationMusicianId },
+        {
+          headers: getAuthHeaders(),
+          withCredentials: true,
+        }
       );
 
       if (!data?.success) {
-        throw new Error(data?.message || "Failed to assign applicant");
+        throw new Error(data?.message || "Failed to allocate applicant");
       }
 
+      const nowIso = new Date().toISOString();
       const nextApplicants = sortedApplicants.map((app) => {
-        if (String(app._id) === String(application._id)) {
-          return {
-            ...app,
-            status: "assigned",
-            assignedAt: new Date().toISOString(),
-          };
-        }
+        const sameApplicant =
+          String(app?.musicianId || app?._id || "") === applicationMusicianId;
 
-        if (app.status === "applied") {
+        if (sameApplicant) {
           return {
             ...app,
-            status: "closed",
+            status: "allocated",
+            allocatedAt: nowIso,
           };
         }
 
@@ -165,13 +197,15 @@ const DeputyJobApplicantsPanel = ({
       if (typeof onAssigned === "function") {
         onAssigned({
           job: data.job,
-          applicationId: application._id,
+          musicianId: applicationMusicianId,
           assignedApplicant: application,
         });
       }
     } catch (error) {
-      console.error("❌ Failed to assign deputy opportunity:", error);
-      toast.error(error?.response?.data?.message || error?.message || "Failed to assign applicant");
+      console.error("❌ Failed to allocate deputy job:", error);
+      toast.error(
+        error?.response?.data?.message || error?.message || "Failed to allocate applicant"
+      );
     } finally {
       setAssigningId("");
     }
@@ -214,8 +248,10 @@ const DeputyJobApplicantsPanel = ({
                 <p className="text-sm font-semibold text-green-800">Allocated applicant</p>
                 <p className="text-sm text-green-700 mt-1">
                   {getApplicantName(assignedApplicant)}
-                  {assignedApplicant?.assignedAt
-                    ? ` • assigned ${formatDateTime(assignedApplicant.assignedAt)}`
+                  {assignedApplicant?.allocatedAt
+                    ? ` • allocated ${formatDateTime(assignedApplicant.allocatedAt)}`
+                    : assignedApplicant?.assignedAt
+                    ? ` • allocated ${formatDateTime(assignedApplicant.assignedAt)}`
                     : ""}
                 </p>
               </div>
@@ -226,9 +262,10 @@ const DeputyJobApplicantsPanel = ({
               const profileUrl = buildMusicianProfileUrl(application);
               const instrumentation = getInstrumentation(application);
               const status = String(application?.status || "applied").toLowerCase();
-              const isAssigned = status === "assigned";
+              const applicantMusicianId = String(application?.musicianId || application?._id || "");
+              const isAssigned = ["allocated", "booked", "assigned"].includes(status);
               const canAssign = !assignedApplicant && status === "applied";
-              const isAssigning = assigningId === String(application?._id);
+              const isAssigning = assigningId === applicantMusicianId;
 
               return (
                 <div

@@ -1,5 +1,3 @@
-
-
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
@@ -82,7 +80,8 @@ const DeputyJobs = () => {
       setLoading(true);
       setError("");
 
-      const { data } = await axios.get(`${BACKEND_URL}/api/deputy-opportunities`, {
+      const { data } = await axios.get(`${BACKEND_URL}/api/deputy-jobs`, {
+        headers: authHeaders,
         withCredentials: true,
       });
 
@@ -96,13 +95,13 @@ const DeputyJobs = () => {
       });
     } catch (err) {
       console.error("❌ Failed to fetch deputy jobs:", err);
-      setError(err?.response?.data?.message || "Could not load deputy opportunities.");
+      setError(err?.response?.data?.message || "Could not load deputy jobs.");
       setJobs([]);
       setHoveredJob(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authHeaders]);
 
   useEffect(() => {
     fetchJobs();
@@ -184,7 +183,7 @@ const DeputyJobs = () => {
         <div>
           <Title text1="DEPUTY" text2="JOBS" />
           <p className="text-sm text-gray-500 mt-3 max-w-2xl">
-            Browse open deputy opportunities, hover to preview full details, and jump into
+            Browse deputy jobs, including previews, hover to preview full details, and jump into
             applicants or allocation from the job panel.
           </p>
         </div>
@@ -274,7 +273,7 @@ const DeputyJobs = () => {
         <div className="min-w-0">
           {loading ? (
             <div className="rounded border border-gray-200 bg-white p-8 text-center text-gray-500">
-              Loading deputy opportunities...
+              Loading deputy jobs...
             </div>
           ) : error ? (
             <div className="rounded border border-red-200 bg-red-50 p-6 text-sm text-red-700">
@@ -297,7 +296,7 @@ const DeputyJobs = () => {
                     isActive={String(hoveredJob?._id || "") === String(job._id)}
                     onHover={() => setHoveredJob(job)}
                     onRefresh={fetchJobs}
-                    subtitle={`${formatDate(job?.date)} • ${getFeeLabel(job)}`}
+                    subtitle={`${formatDate(job?.date || job?.eventDate)} • ${getFeeLabel(job)}`}
                   />
                 </div>
               ))}
