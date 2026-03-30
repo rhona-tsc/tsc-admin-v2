@@ -612,6 +612,20 @@ const DeputyJobPreviewPanel = ({
               </div>
             ) : null}
 
+                        {paymentSetupInfo?.clientSecret ? (
+              <Elements
+                stripe={stripePromise}
+                options={{ clientSecret: paymentSetupInfo.clientSecret }}
+              >
+                <DeputyJobCardSetupForm
+                  job={job}
+                  clientSecret={paymentSetupInfo.clientSecret}
+                  authHeaders={authHeaders}
+                  onSaved={handleCardSaved}
+                />
+              </Elements>
+            ) : null}
+
             {canManage ? (
               <div className="mt-5 flex flex-wrap gap-3">
                 {canPreparePaymentSetup ? (
