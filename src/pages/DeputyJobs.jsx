@@ -5,6 +5,7 @@ import Title from "../components/Title";
 import DeputyJobCard from "../components/DeputyJobCard";
 import DeputyJobPreviewPanel from "../components/DeputyJobPreviewPanel";
 
+const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
 
 const parseJwtPayload = (token = "") => {
   try {
@@ -148,7 +149,7 @@ const DeputyJobs = () => {
     } finally {
       setLoading(false);
     }
-}, [authToken]);
+  }, [authHeaders]);
 
   useEffect(() => {
     fetchJobs();
