@@ -4,6 +4,8 @@ import React, { useMemo, useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 
+const BACKEND_BASE = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+
 
 const getAuthHeaders = () => {
   const authToken =
