@@ -21,6 +21,8 @@ const WHATS_INCLUDED_OPTIONS = [
   "other",
 ];
 
+const normaliseOption = (value = "") => String(value || "").trim().toLowerCase();
+
 const CLAIMABLE_EXPENSE_OPTIONS = [
   "congestion charge",
   "travel",
