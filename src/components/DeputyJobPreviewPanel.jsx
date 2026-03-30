@@ -15,7 +15,12 @@ import {
 const ADMIN_EMAIL = "hello@thesupremecollective.co.uk";
 const BACKEND_BASE = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
 const PAYMENT_SETUP_STORAGE_KEY = "deputyJobPaymentSetup";
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "");
+const STRIPE_PUBLISHABLE_KEY = String(
+  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || ""
+).trim();
+const stripePromise = STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(STRIPE_PUBLISHABLE_KEY)
+  : null;
 
 const formatMoney = (value) => {
   const n = Number(value || 0);
@@ -200,7 +205,7 @@ const DeputyJobCardSetupForm = ({
       <div className="mt-4 flex justify-end">
         <button
           type="submit"
-disabled={!stripe || !elements || !clientSecret || isSaving}
+          disabled={!stripe || !elements || !clientSecret || isSaving}
           className="rounded bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSaving ? "Saving card…" : "Save client card"}
@@ -653,34 +658,46 @@ SetupIntent prepared for this deputy job. SetupIntent ID: {paymentSetupInfo.setu
               ) : null}
 
               {paymentSetupInfo?.clientSecret ? (
-                <Elements
-                  stripe={stripePromise}
-                  options={{ clientSecret: paymentSetupInfo.clientSecret }}
-                >
-                  <DeputyJobCardSetupForm
-                    job={job}
-                    clientSecret={paymentSetupInfo.clientSecret}
-                    authHeaders={authHeaders}
-                    onSaved={handleCardSaved}
-                  />
-                </Elements>
+                STRIPE_PUBLISHABLE_KEY && stripePromise ? (
+                  <Elements
+                    stripe={stripePromise}
+                    options={{ clientSecret: paymentSetupInfo.clientSecret }}
+                  >
+                    <DeputyJobCardSetupForm
+                      job={job}
+                      clientSecret={paymentSetupInfo.clientSecret}
+                      authHeaders={authHeaders}
+                      onSaved={handleCardSaved}
+                    />
+                  </Elements>
+                ) : (
+                  <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
+                    Stripe card form is unavailable because <strong>VITE_STRIPE_PUBLISHABLE_KEY</strong> is missing in the frontend environment.
+                  </div>
+                )
               ) : null}
 
               <div className="mt-5 flex flex-wrap gap-3">
-              {canPreparePaymentSetup ? (
-  <button
-    type="button"
-    onClick={handlePreparePaymentSetup}
-    disabled={isPreparingPaymentSetup}
-    className="rounded bg-black px-5 py-3 text-sm font-medium text-white transition hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
-  >
-    {isPreparingPaymentSetup ? "Preparing payment…" : "Prepare payment setup"}
-  </button>
-) : paymentSetupInfo?.clientSecret ? (
-  <span className="inline-flex items-center rounded border border-green-200 bg-green-50 px-5 py-3 text-sm font-medium text-green-800">
-    Card form ready below
-  </span>
-) : null}
+                {canPreparePaymentSetup ? (
+                  <button
+                    type="button"
+                    onClick={handlePreparePaymentSetup}
+                    disabled={isPreparingPaymentSetup}
+                    className="rounded bg-black px-5 py-3 text-sm font-medium text-white transition hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isPreparingPaymentSetup ? "Preparing payment…" : "Prepare payment setup"}
+                  </button>
+                ) : paymentSetupInfo?.clientSecret ? (
+                  <span className="inline-flex items-center rounded border border-green-200 bg-green-50 px-5 py-3 text-sm font-medium text-green-800">
+                    Card form ready below
+                  </span>
+                ) : null}
+
+                {!STRIPE_PUBLISHABLE_KEY ? (
+                  <span className="inline-flex items-center rounded border border-red-200 bg-red-50 px-5 py-3 text-sm font-medium text-red-700">
+                    Missing Stripe publishable key
+                  </span>
+                ) : null}
 
                 {canChargeNow ? (
                   <button
