@@ -6,6 +6,19 @@ import axios from "axios";
 import { toast } from "react-toastify";
 
 const BACKEND_BASE = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+const parseJwtPayload = (token = "") => {
+  try {
+    const payload = String(token || "").split(".")[1] || "";
+    if (!payload) return {};
+
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const decoded = atob(padded);
+    return JSON.parse(decoded);
+  } catch {
+    return {};
+  }
+};
 const getAuthHeaders = () => {
   const authToken =
     localStorage.getItem("token") ||
@@ -20,6 +33,28 @@ const getAuthHeaders = () => {
         token: authToken,
       }
     : {};
+};
+const getCurrentUser = () => {
+  const authToken =
+    localStorage.getItem("token") ||
+    localStorage.getItem("adminToken") ||
+    localStorage.getItem("musicianToken") ||
+    sessionStorage.getItem("token") ||
+    "";
+
+  const tokenPayload = parseJwtPayload(authToken);
+
+  return {
+    email: String(
+      tokenPayload?.email ||
+        tokenPayload?.useremail ||
+        localStorage.getItem("userEmail") ||
+        sessionStorage.getItem("userEmail") ||
+        ""
+    )
+      .trim()
+      .toLowerCase(),
+  };
 };
 const PUBLIC_SITE_BASE = (
   import.meta.env.VITE_PUBLIC_SITE_URL || "https://thesupremecollective.co.uk"
@@ -99,6 +134,12 @@ const getApplicantName = (application = {}) => {
   const lastName = String(application.lastName || "").trim();
   return `${firstName} ${lastName}`.trim() || "Unnamed applicant";
 };
+const getApplicantShortName = (application = {}) => {
+  const firstName = String(application.firstName || "").trim();
+  const lastName = String(application.lastName || "").trim();
+  const lastInitial = lastName ? `${lastName.charAt(0).toUpperCase()}.` : "";
+  return [firstName, lastInitial].filter(Boolean).join(" ") || getApplicantName(application);
+};
 
 const getInstrumentation = (application = {}) => {
   if (Array.isArray(application.instrumentation) && application.instrumentation.length) {
@@ -121,6 +162,8 @@ const DeputyJobApplicantsPanel = ({
 }) => {
   const [assigningId, setAssigningId] = useState("");
   const [localApplicants, setLocalApplicants] = useState(applicants);
+  const currentUser = useMemo(() => getCurrentUser(), []);
+  const isAdmin = currentUser.email === "hello@thesupremecollective.co.uk";
 
   React.useEffect(() => {
     setLocalApplicants(Array.isArray(applicants) ? applicants : []);
@@ -258,7 +301,7 @@ const DeputyJobApplicantsPanel = ({
             )}
 
             {sortedApplicants.map((application) => {
-              const applicantName = getApplicantName(application);
+              const applicantName = getApplicantShortName(application);
               const profileUrl = buildMusicianProfileUrl(application);
               const instrumentation = getInstrumentation(application);
               const status = String(application?.status || "applied").toLowerCase();
@@ -279,6 +322,17 @@ const DeputyJobApplicantsPanel = ({
                           {applicantName}
                         </h4>
 
+                        {profileUrl ? (
+                          <Link
+                            to={profileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100"
+                          >
+                            View profile
+                          </Link>
+                        ) : null}
+
                         <span
                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
                             statusClassMap[status] || "bg-gray-100 text-gray-700 border-gray-200"
@@ -294,7 +348,7 @@ const DeputyJobApplicantsPanel = ({
                           {formatDateTime(application?.appliedAt || application?.createdAt)}
                         </p>
 
-                        {application?.email ? (
+                        {isAdmin && application?.email ? (
                           <p>
                             <span className="font-medium text-gray-800">Email:</span>{" "}
                             <a
@@ -306,7 +360,7 @@ const DeputyJobApplicantsPanel = ({
                           </p>
                         ) : null}
 
-                        {application?.phone ? (
+                        {isAdmin && application?.phone ? (
                           <p>
                             <span className="font-medium text-gray-800">Phone:</span>{" "}
                             <a
@@ -361,26 +415,6 @@ const DeputyJobApplicantsPanel = ({
                   ) : null}
 
                   <div className="mt-4 flex flex-wrap gap-3">
-                    {profileUrl ? (
-                      <Link
-                        to={profileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center px-4 py-2 rounded-full border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                      >
-                        View profile
-                      </Link>
-                    ) : null}
-
-                    {application?.email ? (
-                      <a
-                        href={`mailto:${application.email}`}
-                        className="inline-flex items-center px-4 py-2 rounded-full border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                      >
-                        Email applicant
-                      </a>
-                    ) : null}
-
                     {canAssign ? (
                       <button
                         type="button"

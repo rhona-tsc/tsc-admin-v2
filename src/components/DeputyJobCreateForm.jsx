@@ -54,10 +54,7 @@ const buildInitialState = (initialValues = {}) => ({
   commissionAmount: asMoneyString(initialValues.commissionAmount),
   deputyNetAmount: asMoneyString(initialValues.deputyNetAmount),
   releaseOn: toDateInputValue(initialValues.releaseOn),
-  saveClientCard:
-    initialValues.saveClientCard === undefined
-      ? Boolean(initialValues.clientEmail)
-      : Boolean(initialValues.saveClientCard),
+  saveClientCard: true,
   requiredInstruments: Array.isArray(initialValues.requiredInstruments)
     ? initialValues.requiredInstruments.join(", ")
     : initialValues.requiredInstruments || initialValues.instrument || "",
@@ -168,6 +165,22 @@ const DeputyJobCreateForm = ({
       nextErrors.date = "Please add a job date.";
     }
 
+    if (!String(formData.callTime || "").trim()) {
+      nextErrors.callTime = "Please add a call time.";
+    }
+
+    if (!String(formData.finishTime || "").trim()) {
+      nextErrors.finishTime = "Please add a finish time.";
+    }
+
+    if (!String(formData.county || "").trim()) {
+      nextErrors.county = "Please add a county.";
+    }
+
+    if (!String(formData.postcode || "").trim()) {
+      nextErrors.postcode = "Please add a postcode.";
+    }
+
     if (!String(formData.location || formData.venue || formData.county || "").trim()) {
       nextErrors.location = "Please add at least a location, venue or county.";
     }
@@ -176,18 +189,28 @@ const DeputyJobCreateForm = ({
       nextErrors.requiredInstruments = "Please add at least one required instrument.";
     }
 
-    if (
-      formData.fee !== "" &&
-      (!Number.isFinite(Number(formData.fee)) || Number(formData.fee) < 0)
-    ) {
-      nextErrors.fee = "Fee must be a valid number.";
+    if (!normaliseCsvArray(formData.genres).length) {
+      nextErrors.genres = "Please add at least one genre.";
+    }
+
+    if (!String(formData.clientName || "").trim()) {
+      nextErrors.clientName = "Please add the client name.";
+    }
+
+    if (!String(formData.clientEmail || "").trim()) {
+      nextErrors.clientEmail = "Please add the client email.";
+    }
+
+    if (!String(formData.clientPhone || "").trim()) {
+      nextErrors.clientPhone = "Please add the client phone number.";
     }
 
     if (
-      formData.saveClientCard &&
-      !String(formData.clientEmail || "").trim()
+      formData.fee === "" ||
+      !Number.isFinite(Number(formData.fee)) ||
+      Number(formData.fee) < 0
     ) {
-      nextErrors.clientEmail = "Please add the client email if you want to save a client card.";
+      nextErrors.fee = "Fee must be a valid number.";
     }
 
     if (
@@ -249,7 +272,7 @@ const DeputyJobCreateForm = ({
       deputyNetAmount:
         formData.deputyNetAmount === "" ? 0 : Number(formData.deputyNetAmount),
       releaseOn: formData.releaseOn || null,
-      saveClientCard: Boolean(formData.saveClientCard),
+      saveClientCard: true,
       instrument: primaryInstrument,
       requiredInstruments,
       requiredSkills,
@@ -361,7 +384,7 @@ const DeputyJobCreateForm = ({
 
           <div>
             <label className={labelClass} htmlFor="fee">
-              Fee
+              Fee (£)
             </label>
             <input
               id="fee"
@@ -388,16 +411,9 @@ const DeputyJobCreateForm = ({
                 </p>
               </div>
 
-              <label className="inline-flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  name="saveClientCard"
-                  checked={Boolean(formData.saveClientCard)}
-                  onChange={handleChange}
-                  className="h-4 w-4 accent-black"
-                />
-                Save client card after create
-              </label>
+              <div className="inline-flex items-center rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700">
+                Payment details required
+              </div>
             </div>
 
             <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -414,6 +430,9 @@ const DeputyJobCreateForm = ({
                   className={inputClass}
                   placeholder="Client full name"
                 />
+                {errors.clientName ? (
+                  <p className="mt-2 text-sm text-red-600">{errors.clientName}</p>
+                ) : null}
               </div>
 
               <div>
@@ -445,8 +464,11 @@ const DeputyJobCreateForm = ({
                   value={formData.clientPhone}
                   onChange={handleChange}
                   className={inputClass}
-                  placeholder="Optional"
+                  placeholder="Client phone number"
                 />
+                {errors.clientPhone ? (
+                  <p className="mt-2 text-sm text-red-600">{errors.clientPhone}</p>
+                ) : null}
               </div>
             </div>
           </div>
@@ -463,6 +485,9 @@ const DeputyJobCreateForm = ({
               onChange={handleChange}
               className={inputClass}
             />
+            {errors.callTime ? (
+              <p className="mt-2 text-sm text-red-600">{errors.callTime}</p>
+            ) : null}
           </div>
 
           <div>
@@ -477,6 +502,9 @@ const DeputyJobCreateForm = ({
               onChange={handleChange}
               className={inputClass}
             />
+            {errors.finishTime ? (
+              <p className="mt-2 text-sm text-red-600">{errors.finishTime}</p>
+            ) : null}
           </div>
 
           <div>
@@ -507,6 +535,9 @@ const DeputyJobCreateForm = ({
               className={inputClass}
               placeholder="e.g. Essex"
             />
+            {errors.county ? (
+              <p className="mt-2 text-sm text-red-600">{errors.county}</p>
+            ) : null}
           </div>
 
           <div>
@@ -522,6 +553,9 @@ const DeputyJobCreateForm = ({
               className={inputClass}
               placeholder="e.g. CM19 5LE"
             />
+            {errors.postcode ? (
+              <p className="mt-2 text-sm text-red-600">{errors.postcode}</p>
+            ) : null}
           </div>
 
           <div className="lg:col-span-2">
@@ -619,6 +653,9 @@ const DeputyJobCreateForm = ({
               className={inputClass}
               placeholder="e.g. Motown, Soul, Pop"
             />
+            {errors.genres ? (
+              <p className="mt-2 text-sm text-red-600">{errors.genres}</p>
+            ) : null}
           </div>
 
           <div className="lg:col-span-2">
@@ -894,9 +931,7 @@ const DeputyJobCreateForm = ({
             ? "Creating…"
             : formData.previewOnly
             ? submitLabel
-            : formData.saveClientCard
-            ? "Create, notify and prep payment"
-            : "Create and notify"}
+            : "Create, notify and prep payment"}
         </button>
       </div>
     </form>
