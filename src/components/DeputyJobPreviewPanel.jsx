@@ -14,13 +14,7 @@ import {
 
 const ADMIN_EMAIL = "hello@thesupremecollective.co.uk";
 const BACKEND_BASE = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
-const PAYMENT_SETUP_STORAGE_KEY = "deputyJobPaymentSetup";
-const STRIPE_PUBLISHABLE_KEY = String(
-  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || ""
-).trim();
-const stripePromise = STRIPE_PUBLISHABLE_KEY
-  ? loadStripe(STRIPE_PUBLISHABLE_KEY)
-  : null;
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "");
 
 const formatMoney = (value) => {
   const n = Number(value || 0);
@@ -191,9 +185,6 @@ const DeputyJobCardSetupForm = ({
     }
   };
 
-  console.log("Stripe key present?", Boolean(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY));
-console.log("Stripe key preview:", import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
-
   return (
     <form onSubmit={handleSaveCard} className="mt-4 rounded-2xl border border-gray-200 bg-white p-4">
       <h4 className="text-sm font-semibold text-gray-900">Save client card</h4>
@@ -208,7 +199,7 @@ console.log("Stripe key preview:", import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY?.
       <div className="mt-4 flex justify-end">
         <button
           type="submit"
-          disabled={!stripe || !elements || !clientSecret || isSaving}
+          disabled={!stripe || !elements || isSaving}
           className="rounded bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSaving ? "Saving card…" : "Save client card"}
@@ -267,52 +258,22 @@ const DeputyJobPreviewPanel = ({
   const tags = normaliseArray(job?.tags);
   const applicants = Array.isArray(job?.applications) ? job.applications : [];
   const postedByLabel = getPostedByLabel(job);
-const venueDisplay = job?.venue || job?.locationName || job?.location || "TBC";
-const locationDisplay = job?.location || job?.locationName || job?.venue || "TBC";
+
   const paymentStatus = String(job?.paymentStatus || "not_started").toLowerCase();
   const payoutStatus = String(job?.payoutStatus || "not_ready").toLowerCase();
   const paymentEvents = Array.isArray(job?.paymentEvents) ? job.paymentEvents : [];
   const latestPaymentEvent = paymentEvents.length ? paymentEvents[paymentEvents.length - 1] : null;
-const canPreparePaymentSetup =
-  canManage &&
-  Boolean(job?.clientEmail) &&
-  !job?.defaultPaymentMethodId &&
-  !paymentSetupInfo?.clientSecret &&
-  !job?.setupIntentId;  const canChargeNow =
+  const canPreparePaymentSetup = canManage && Boolean(job?.clientEmail) && !job?.defaultPaymentMethodId;
+  const canChargeNow =
     canManage &&
     Boolean(job?.stripeCustomerId) &&
     Boolean(job?.defaultPaymentMethodId) &&
     paymentStatus !== "paid" &&
     paymentStatus !== "charge_pending";
 
-useEffect(() => {
-  if (!job?._id) {
+  useEffect(() => {
     setPaymentSetupInfo(null);
-    return;
-  }
-
-  try {
-    const saved = sessionStorage.getItem(PAYMENT_SETUP_STORAGE_KEY);
-    if (!saved) {
-      setPaymentSetupInfo(null);
-      return;
-    }
-
-    const parsed = JSON.parse(saved);
-    if (
-      parsed?.deputyJobId &&
-      String(parsed.deputyJobId) === String(job._id) &&
-      parsed?.clientSecret
-    ) {
-      setPaymentSetupInfo(parsed);
-      return;
-    }
-  } catch {
-    // ignore storage parse issues
-  }
-
-  setPaymentSetupInfo(null);
-}, [job?._id]);
+  }, [job?._id]);
 
   const handlePreparePaymentSetup = async () => {
     if (!job?._id || !canPreparePaymentSetup || isPreparingPaymentSetup) return;
@@ -347,7 +308,7 @@ useEffect(() => {
       setPaymentSetupInfo(nextSetupInfo);
 
       try {
-sessionStorage.setItem(PAYMENT_SETUP_STORAGE_KEY, JSON.stringify(nextSetupInfo));
+        sessionStorage.setItem("deputyJobPaymentSetup", JSON.stringify(nextSetupInfo));
       } catch {
         // ignore storage errors
       }
@@ -399,16 +360,10 @@ sessionStorage.setItem(PAYMENT_SETUP_STORAGE_KEY, JSON.stringify(nextSetupInfo))
     }
   };
 
-  const handleCardSaved = () => {
-  try {
-    sessionStorage.removeItem(PAYMENT_SETUP_STORAGE_KEY);
-  } catch {
-    // ignore storage errors
-  }
-
-  setPaymentSetupInfo(null);
-  onRefresh?.(job);
-};
+    const handleCardSaved = () => {
+    setPaymentSetupInfo(null);
+    onRefresh?.(job);
+  };
 
   if (!job) {
     return (
@@ -482,10 +437,12 @@ sessionStorage.setItem(PAYMENT_SETUP_STORAGE_KEY, JSON.stringify(nextSetupInfo))
           <div className="space-y-2 text-gray-600">
             <p>
               <span className="font-medium text-gray-900">Venue:</span>{" "}
-{venueDisplay}            </p>
+              {job.venue || "TBC"}
+            </p>
             <p>
               <span className="font-medium text-gray-900">Location:</span>{" "}
-{locationDisplay}            </p>
+              {job.location || "TBC"}
+            </p>
             <p>
               <span className="font-medium text-gray-900">Posted by:</span>{" "}
               {postedByLabel}
@@ -657,27 +614,22 @@ sessionStorage.setItem(PAYMENT_SETUP_STORAGE_KEY, JSON.stringify(nextSetupInfo))
 
               {paymentSetupInfo?.setupIntentId ? (
                 <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-4 text-sm text-green-800">
-SetupIntent prepared for this deputy job. SetupIntent ID: {paymentSetupInfo.setupIntentId}. Enter the client card details below, then click Save client card.                </div>
+                  SetupIntent prepared for this deputy job. SetupIntent ID: {paymentSetupInfo.setupIntentId}. The next step is still to connect the Stripe card form and then save the payment method.
+                </div>
               ) : null}
 
               {paymentSetupInfo?.clientSecret ? (
-                STRIPE_PUBLISHABLE_KEY && stripePromise ? (
-                  <Elements
-                    stripe={stripePromise}
-                    options={{ clientSecret: paymentSetupInfo.clientSecret }}
-                  >
-                    <DeputyJobCardSetupForm
-                      job={job}
-                      clientSecret={paymentSetupInfo.clientSecret}
-                      authHeaders={authHeaders}
-                      onSaved={handleCardSaved}
-                    />
-                  </Elements>
-                ) : (
-                  <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
-                    Stripe card form is unavailable because <strong>VITE_STRIPE_PUBLISHABLE_KEY</strong> is missing in the frontend environment.
-                  </div>
-                )
+                <Elements
+                  stripe={stripePromise}
+                  options={{ clientSecret: paymentSetupInfo.clientSecret }}
+                >
+                  <DeputyJobCardSetupForm
+                    job={job}
+                    clientSecret={paymentSetupInfo.clientSecret}
+                    authHeaders={authHeaders}
+                    onSaved={handleCardSaved}
+                  />
+                </Elements>
               ) : null}
 
               <div className="mt-5 flex flex-wrap gap-3">
@@ -690,16 +642,6 @@ SetupIntent prepared for this deputy job. SetupIntent ID: {paymentSetupInfo.setu
                   >
                     {isPreparingPaymentSetup ? "Preparing payment…" : "Prepare payment setup"}
                   </button>
-                ) : paymentSetupInfo?.clientSecret ? (
-                  <span className="inline-flex items-center rounded border border-green-200 bg-green-50 px-5 py-3 text-sm font-medium text-green-800">
-                    Card form ready below
-                  </span>
-                ) : null}
-
-                {!STRIPE_PUBLISHABLE_KEY ? (
-                  <span className="inline-flex items-center rounded border border-red-200 bg-red-50 px-5 py-3 text-sm font-medium text-red-700">
-                    Missing Stripe publishable key
-                  </span>
                 ) : null}
 
                 {canChargeNow ? (
