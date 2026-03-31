@@ -116,12 +116,16 @@ const PUBLIC_SITE_BASE = (
   import.meta.env.VITE_PUBLIC_SITE_URL || "https://thesupremecollective.co.uk"
 ).replace(/\/$/, "");
 
+const isLikelyObjectId = (value = "") => /^[a-f\d]{24}$/i.test(String(value || "").trim());
+
 const buildMusicianProfileUrl = (application = {}) => {
   const slug = String(application.musicianSlug || "").trim();
   if (slug) return `${PUBLIC_SITE_BASE}/musician/${slug}`;
 
-  const id = String(application.musicianId || application._id || "").trim();
-  if (id) return `${PUBLIC_SITE_BASE}/musician/${id}`;
+  const musicianId = String(application.musicianId || "").trim();
+  if (isLikelyObjectId(musicianId)) {
+    return `${PUBLIC_SITE_BASE}/musician/${musicianId}`;
+  }
 
   const direct = String(application.profileUrl || "").trim();
   if (!direct) return "";
@@ -197,7 +201,7 @@ const buildMergedApplication = (job, application = {}) => {
       matchedSnapshot?._id ||
       application?.musicianId ||
       matchedSnapshot?.musicianId ||
-      `${application?.email || ""}_${application?.appliedAt || ""}`,
+      `${application?.email || "unknown"}_${application?.appliedAt || application?.createdAt || "row"}`,
     musicianId:
       application?.musicianId ||
       matchedSnapshot?.musicianId ||
