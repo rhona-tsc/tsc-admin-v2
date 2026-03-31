@@ -114,18 +114,24 @@ const formatMoney = (value) => {
 const normalisePhone = (value = "") =>
   String(value || "").replace(/\s+/g, "").trim();
 
+const PUBLIC_SITE_BASE = (
+  import.meta.env.VITE_PUBLIC_SITE_URL || "https://thesupremecollective.co.uk"
+).replace(/\/$/, "");
+
 const buildMusicianProfileUrl = (application = {}) => {
   const slug = String(application.musicianSlug || "").trim();
-  if (slug) return `${ADMIN_MUSICIAN_ROUTE_BASE}/${slug}`;
+  if (slug) return `${PUBLIC_SITE_BASE}/musician/${slug}`;
 
-  const id = String(application.musicianId || "").trim();
-  if (id) return `${ADMIN_MUSICIAN_ROUTE_BASE}/${id}`;
+  const id = String(application.musicianId || application._id || "").trim();
+  if (id) return `${PUBLIC_SITE_BASE}/musician/${id}`;
 
   const direct = String(application.profileUrl || "").trim();
-  if (direct) {
-    return direct.startsWith(PUBLIC_SITE_BASE)
-      ? direct.replace(PUBLIC_SITE_BASE, "")
-      : direct;
+  if (!direct) return "";
+
+  if (/^https?:\/\//i.test(direct)) return direct;
+
+  if (direct.startsWith("/musician/")) {
+    return `${PUBLIC_SITE_BASE}${direct}`;
   }
 
   return "";
@@ -428,20 +434,16 @@ const DeputyJobApplicantsPanel = ({
                           {applicantName}
                         </h4>
 
-                        {profileUrl ? (
-                          <Link
-                            to={profileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100"
-                          >
-                            View profile
-                          </Link>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border border-gray-200 bg-gray-50 text-gray-400">
-                            Missing musician link
-                          </span>
-                        )}
+                       {profileUrl ? (
+  <a
+    href={profileUrl}
+    target="_blank"
+    rel="noreferrer"
+    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100"
+  >
+    View profile
+  </a>
+) : null}
 
                         <span
                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
