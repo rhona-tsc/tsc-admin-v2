@@ -1,11 +1,11 @@
-
-
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 
 const BACKEND_BASE = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+const ADMIN_EMAIL = "hello@thesupremecollective.co.uk";
+
 const parseJwtPayload = (token = "") => {
   try {
     const payload = String(token || "").split(".")[1] || "";
@@ -19,6 +19,7 @@ const parseJwtPayload = (token = "") => {
     return {};
   }
 };
+
 const getAuthHeaders = () => {
   const authToken =
     localStorage.getItem("token") ||
@@ -34,6 +35,7 @@ const getAuthHeaders = () => {
       }
     : {};
 };
+
 const getCurrentUser = () => {
   const authToken =
     localStorage.getItem("token") ||
@@ -56,6 +58,7 @@ const getCurrentUser = () => {
       .toLowerCase(),
   };
 };
+
 const PUBLIC_SITE_BASE = (
   import.meta.env.VITE_PUBLIC_SITE_URL || "https://thesupremecollective.co.uk"
 ).replace(/\/$/, "");
@@ -108,29 +111,17 @@ const formatMoney = (value) => {
   })}`;
 };
 
-const buildMusicianProfileUrl = (application = {}) => {
-  const nestedMusician = application?.musician || {};
+const normalisePhone = (value = "") =>
+  String(value || "").replace(/\s+/g, "").trim();
 
-  const slug = String(
-    application?.musicianSlug ||
-      application?.slug ||
-      nestedMusician?.musicianSlug ||
-      nestedMusician?.slug ||
-      ""
-  ).trim();
+const buildMusicianProfileUrl = (application = {}) => {
+  const slug = String(application.musicianSlug || "").trim();
   if (slug) return `${ADMIN_MUSICIAN_ROUTE_BASE}/${slug}`;
 
-  const id = String(
-    application?.musicianId?._id ||
-      application?.musicianId ||
-      nestedMusician?._id ||
-      nestedMusician?.id ||
-      application?._id ||
-      ""
-  ).trim();
+  const id = String(application.musicianId || "").trim();
   if (id) return `${ADMIN_MUSICIAN_ROUTE_BASE}/${id}`;
 
-  const direct = String(application?.profileUrl || nestedMusician?.profileUrl || "").trim();
+  const direct = String(application.profileUrl || "").trim();
   if (direct) {
     return direct.startsWith(PUBLIC_SITE_BASE)
       ? direct.replace(PUBLIC_SITE_BASE, "")
@@ -149,6 +140,7 @@ const getApplicantName = (application = {}) => {
   const lastName = String(application.lastName || "").trim();
   return `${firstName} ${lastName}`.trim() || "Unnamed applicant";
 };
+
 const getApplicantShortName = (application = {}) => {
   const firstName = String(application.firstName || "").trim();
   const lastName = String(application.lastName || "").trim();
@@ -168,6 +160,88 @@ const getInstrumentation = (application = {}) => {
   return [];
 };
 
+const findMatchedSnapshot = (job, application = {}) => {
+  const matched = Array.isArray(job?.matchedMusicians) ? job.matchedMusicians : [];
+
+  const appMusicianId = String(application?.musicianId || "").trim();
+  const appEmail = String(application?.email || "").trim().toLowerCase();
+  const appPhone = normalisePhone(application?.phone || "");
+  const appFirstName = String(application?.firstName || "").trim().toLowerCase();
+  const appLastName = String(application?.lastName || "").trim().toLowerCase();
+
+  return (
+    matched.find((item) => String(item?.musicianId || "").trim() === appMusicianId) ||
+    matched.find((item) => String(item?.email || "").trim().toLowerCase() === appEmail) ||
+    matched.find((item) => normalisePhone(item?.phone || "") === appPhone) ||
+    matched.find((item) => {
+      const first = String(item?.firstName || "").trim().toLowerCase();
+      const last = String(item?.lastName || "").trim().toLowerCase();
+      return first === appFirstName && last === appLastName;
+    }) ||
+    null
+  );
+};
+
+const buildMergedApplication = (job, application = {}) => {
+  const matchedSnapshot = findMatchedSnapshot(job, application);
+
+  return {
+    ...matchedSnapshot,
+    ...application,
+    _id:
+      application?._id ||
+      matchedSnapshot?._id ||
+      application?.musicianId ||
+      matchedSnapshot?.musicianId ||
+      `${application?.email || ""}_${application?.appliedAt || ""}`,
+    musicianId:
+      application?.musicianId ||
+      matchedSnapshot?.musicianId ||
+      application?._id ||
+      "",
+    musicianSlug:
+      application?.musicianSlug ||
+      matchedSnapshot?.musicianSlug ||
+      "",
+    firstName:
+      application?.firstName ||
+      matchedSnapshot?.firstName ||
+      "",
+    lastName:
+      application?.lastName ||
+      matchedSnapshot?.lastName ||
+      "",
+    email:
+      application?.email ||
+      matchedSnapshot?.email ||
+      "",
+    phone:
+      application?.phone ||
+      matchedSnapshot?.phone ||
+      "",
+    profileImage:
+      application?.profileImage ||
+      application?.photoUrl ||
+      matchedSnapshot?.profilePicture ||
+      matchedSnapshot?.profileImage ||
+      "",
+    photoUrl:
+      application?.photoUrl ||
+      application?.profileImage ||
+      matchedSnapshot?.profilePicture ||
+      matchedSnapshot?.profileImage ||
+      "",
+    skills:
+      application?.skills ||
+      matchedSnapshot?.skills ||
+      [],
+    instrumentation:
+      application?.instrumentation ||
+      matchedSnapshot?.instrumentation ||
+      [],
+  };
+};
+
 const DeputyJobApplicantsPanel = ({
   job,
   applicants = [],
@@ -178,7 +252,7 @@ const DeputyJobApplicantsPanel = ({
   const [assigningId, setAssigningId] = useState("");
   const [localApplicants, setLocalApplicants] = useState(applicants);
   const currentUser = useMemo(() => getCurrentUser(), []);
-  const isAdmin = currentUser.email === "hello@thesupremecollective.co.uk";
+  const isAdmin = currentUser.email === ADMIN_EMAIL;
 
   React.useEffect(() => {
     setLocalApplicants(Array.isArray(applicants) ? applicants : []);
@@ -186,8 +260,17 @@ const DeputyJobApplicantsPanel = ({
 
   const sortedApplicants = useMemo(() => {
     return [...(Array.isArray(localApplicants) ? localApplicants : [])].sort((a, b) => {
-      const aAssigned = ["allocated", "booked", "assigned"].includes(String(a?.status || "").toLowerCase()) ? 1 : 0;
-      const bAssigned = ["allocated", "booked", "assigned"].includes(String(b?.status || "").toLowerCase()) ? 1 : 0;
+      const aAssigned = ["allocated", "booked", "assigned"].includes(
+        String(a?.status || "").toLowerCase()
+      )
+        ? 1
+        : 0;
+      const bAssigned = ["allocated", "booked", "assigned"].includes(
+        String(b?.status || "").toLowerCase()
+      )
+        ? 1
+        : 0;
+
       if (aAssigned !== bAssigned) return bAssigned - aAssigned;
 
       const aApplied = new Date(a?.appliedAt || a?.createdAt || 0).getTime();
@@ -197,26 +280,21 @@ const DeputyJobApplicantsPanel = ({
   }, [localApplicants]);
 
   const assignedApplicant = useMemo(() => {
-    return (
-      sortedApplicants.find((app) =>
-        ["allocated", "booked", "assigned"].includes(String(app?.status || "").toLowerCase())
-      ) || null
+    const found = sortedApplicants.find((app) =>
+      ["allocated", "booked", "assigned"].includes(String(app?.status || "").toLowerCase())
     );
-  }, [sortedApplicants]);
+
+    return found ? buildMergedApplication(job, found) : null;
+  }, [sortedApplicants, job]);
 
   const handleAssign = async (application) => {
-    const applicationMusicianId = String(
-      application?.musicianId?._id ||
-        application?.musicianId ||
-        application?.musician?._id ||
-        application?.musician?.id ||
-        ""
-    ).trim();
+    const mergedApplication = buildMergedApplication(job, application);
+    const applicationMusicianId = String(mergedApplication?.musicianId || "").trim();
 
     if (!job?._id || !applicationMusicianId || assigningId) return;
 
     const confirmed = window.confirm(
-      `Allocate this job to ${getApplicantName(application)}? This will allocate the deputy job and update the applicant list.`
+      `Allocate this job to ${getApplicantName(mergedApplication)}? This will allocate the deputy job and update the applicant list.`
     );
 
     if (!confirmed) return;
@@ -239,12 +317,20 @@ const DeputyJobApplicantsPanel = ({
 
       const nowIso = new Date().toISOString();
       const nextApplicants = sortedApplicants.map((app) => {
+        const mergedApp = buildMergedApplication(job, app);
         const sameApplicant =
-          String(app?.musicianId || app?._id || "") === applicationMusicianId;
+          String(mergedApp?.musicianId || "").trim() === applicationMusicianId;
 
         if (sameApplicant) {
           return {
             ...app,
+            musicianId: mergedApp.musicianId,
+            musicianSlug: mergedApp.musicianSlug,
+            firstName: mergedApp.firstName,
+            lastName: mergedApp.lastName,
+            email: mergedApp.email,
+            phone: mergedApp.phone,
+            profileImage: mergedApp.profileImage,
             status: "allocated",
             allocatedAt: nowIso,
           };
@@ -254,13 +340,13 @@ const DeputyJobApplicantsPanel = ({
       });
 
       setLocalApplicants(nextApplicants);
-      toast.success(`${getApplicantName(application)} has been allocated to the job.`);
+      toast.success(`${getApplicantName(mergedApplication)} has been allocated to the job.`);
 
       if (typeof onAssigned === "function") {
         onAssigned({
           job: data.job,
           musicianId: applicationMusicianId,
-          assignedApplicant: application,
+          assignedApplicant: mergedApplication,
         });
       }
     } catch (error) {
@@ -320,24 +406,19 @@ const DeputyJobApplicantsPanel = ({
             )}
 
             {sortedApplicants.map((application) => {
-              const applicantName = getApplicantShortName(application);
-              const profileUrl = buildMusicianProfileUrl(application);
-              const instrumentation = getInstrumentation(application);
-              const status = String(application?.status || "applied").toLowerCase();
-              const applicantMusicianId = String(
-                application?.musicianId?._id ||
-                  application?.musicianId ||
-                  application?.musician?._id ||
-                  application?.musician?.id ||
-                  ""
-              ).trim();
+              const mergedApplication = buildMergedApplication(job, application);
+              const applicantName = getApplicantShortName(mergedApplication);
+              const profileUrl = buildMusicianProfileUrl(mergedApplication);
+              const instrumentation = getInstrumentation(mergedApplication);
+              const status = String(mergedApplication?.status || "applied").toLowerCase();
+              const applicantMusicianId = String(mergedApplication?.musicianId || "").trim();
               const isAssigned = ["allocated", "booked", "assigned"].includes(status);
-              const canAssign = Boolean(applicantMusicianId) && !assignedApplicant && status === "applied";
-              const isAssigning = Boolean(applicantMusicianId) && assigningId === applicantMusicianId;
+              const canAssign = !assignedApplicant && status === "applied" && Boolean(applicantMusicianId);
+              const isAssigning = assigningId === applicantMusicianId;
 
               return (
                 <div
-                  key={application._id}
+                  key={mergedApplication._id}
                   className="border border-gray-200 rounded-2xl p-4 hover:border-gray-300 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-4">
@@ -356,59 +437,65 @@ const DeputyJobApplicantsPanel = ({
                           >
                             View profile
                           </Link>
-                        ) : null}
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border border-gray-200 bg-gray-50 text-gray-400">
+                            Missing musician link
+                          </span>
+                        )}
 
                         <span
                           className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${
                             statusClassMap[status] || "bg-gray-100 text-gray-700 border-gray-200"
                           }`}
                         >
-                          {statusLabelMap[status] || application?.status || "Applied"}
+                          {statusLabelMap[status] || mergedApplication?.status || "Applied"}
                         </span>
                       </div>
 
                       <div className="mt-2 space-y-1 text-sm text-gray-600">
                         <p>
                           <span className="font-medium text-gray-800">Applied:</span>{" "}
-                          {formatDateTime(application?.appliedAt || application?.createdAt)}
+                          {formatDateTime(
+                            mergedApplication?.appliedAt || mergedApplication?.createdAt
+                          )}
                         </p>
 
-                        {isAdmin && application?.email ? (
+                        {isAdmin && mergedApplication?.email ? (
                           <p>
                             <span className="font-medium text-gray-800">Email:</span>{" "}
                             <a
-                              href={`mailto:${application.email}`}
+                              href={`mailto:${mergedApplication.email}`}
                               className="text-[#ff6667] hover:underline"
                             >
-                              {application.email}
+                              {mergedApplication.email}
                             </a>
                           </p>
                         ) : null}
 
-                        {isAdmin && application?.phone ? (
+                        {isAdmin && mergedApplication?.phone ? (
                           <p>
                             <span className="font-medium text-gray-800">Phone:</span>{" "}
                             <a
-                              href={`tel:${application.phone}`}
+                              href={`tel:${mergedApplication.phone}`}
                               className="text-[#ff6667] hover:underline"
                             >
-                              {application.phone}
+                              {mergedApplication.phone}
                             </a>
                           </p>
                         ) : null}
 
-                        {application?.postcode ? (
+                        {mergedApplication?.postcode ? (
                           <p>
                             <span className="font-medium text-gray-800">Postcode:</span>{" "}
-                            {application.postcode}
+                            {mergedApplication.postcode}
                           </p>
                         ) : null}
                       </div>
                     </div>
 
-                    {application?.profileImage || application?.photoUrl ? (
+                    {mergedApplication?.profileImage || mergedApplication?.photoUrl ? (
                       <img
-                        src={application.profileImage || application.photoUrl}
+                        src={mergedApplication.profileImage || mergedApplication.photoUrl}
                         alt={applicantName}
                         className="w-14 h-14 rounded-full object-cover border border-gray-200"
                       />
@@ -419,7 +506,7 @@ const DeputyJobApplicantsPanel = ({
                     <div className="mt-4 flex flex-wrap gap-2">
                       {instrumentation.map((item, idx) => (
                         <span
-                          key={`${application._id}_skill_${idx}`}
+                          key={`${mergedApplication._id}_skill_${idx}`}
                           className="inline-flex items-center px-2.5 py-1 rounded-full bg-gray-100 text-xs text-gray-700 border border-gray-200"
                         >
                           {item}
@@ -428,13 +515,13 @@ const DeputyJobApplicantsPanel = ({
                     </div>
                   ) : null}
 
-                  {application?.notes ? (
+                  {mergedApplication?.notes ? (
                     <div className="mt-4 p-3 rounded-xl bg-gray-50 border border-gray-100">
                       <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1">
                         Notes
                       </p>
                       <p className="text-sm text-gray-600 whitespace-pre-wrap">
-                        {application.notes}
+                        {mergedApplication.notes}
                       </p>
                     </div>
                   ) : null}
@@ -443,7 +530,7 @@ const DeputyJobApplicantsPanel = ({
                     {canAssign ? (
                       <button
                         type="button"
-                        onClick={() => handleAssign(application)}
+                        onClick={() => handleAssign(mergedApplication)}
                         disabled={isAssigning}
                         className="inline-flex items-center px-4 py-2 rounded-full bg-black text-white text-sm font-medium hover:bg-[#ff6667] disabled:opacity-60 disabled:cursor-not-allowed"
                       >
@@ -451,15 +538,15 @@ const DeputyJobApplicantsPanel = ({
                       </button>
                     ) : null}
 
-                    {isAssigned ? (
-                      <span className="inline-flex items-center px-4 py-2 rounded-full bg-green-100 text-green-800 text-sm font-medium">
-                        Allocated
+                    {!canAssign && !isAssigned && !applicantMusicianId ? (
+                      <span className="inline-flex items-center px-4 py-2 rounded-full bg-gray-100 text-gray-600 text-sm font-medium">
+                        Missing musician ID
                       </span>
                     ) : null}
 
-                    {!applicantMusicianId ? (
-                      <span className="inline-flex items-center px-4 py-2 rounded-full bg-amber-50 text-amber-800 text-sm font-medium border border-amber-200">
-                        Missing musician link
+                    {isAssigned ? (
+                      <span className="inline-flex items-center px-4 py-2 rounded-full bg-green-100 text-green-800 text-sm font-medium">
+                        Allocated
                       </span>
                     ) : null}
                   </div>
