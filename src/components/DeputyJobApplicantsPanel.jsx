@@ -59,9 +59,7 @@ const getCurrentUser = () => {
   };
 };
 
-const PUBLIC_SITE_BASE = (
-  import.meta.env.VITE_PUBLIC_SITE_URL || "https://thesupremecollective.co.uk"
-).replace(/\/$/, "");
+
 
 const ADMIN_MUSICIAN_ROUTE_BASE = "/musician";
 
