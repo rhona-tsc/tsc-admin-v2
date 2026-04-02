@@ -70,11 +70,11 @@ const DeputyJobs = () => {
   const [error, setError] = useState("");
   const [hoveredJob, setHoveredJob] = useState(null);
   const [sortType, setSortType] = useState("date_asc");
-  const [filters, setFilters] = useState({
-    search: "",
-    instrument: "",
-    onlyOpen: true,
-  });
+const [filters, setFilters] = useState({
+  search: "",
+  instrument: "",
+  onlyOpen: false,
+});
   const authToken =
     localStorage.getItem("token") ||
     localStorage.getItem("adminToken") ||
@@ -172,45 +172,68 @@ const DeputyJobs = () => {
     return Array.from(values).sort((a, b) => a.localeCompare(b));
   }, [jobs]);
 
-  const filteredJobs = useMemo(() => {
-    const query = filters.search.trim().toLowerCase();
-    const instrumentFilter = filters.instrument.trim().toLowerCase();
+const filteredJobs = useMemo(() => {
+  const query = filters.search.trim().toLowerCase();
+  const instrumentFilter = filters.instrument.trim().toLowerCase();
+  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
 
-    const next = jobs.filter((job) => {
-      if (filters.onlyOpen && String(job?.status || "open").toLowerCase() !== "open") {
+  const next = jobs.filter((job) => {
+    const status = String(job?.status || "open").toLowerCase();
+
+    // If Open jobs only is ticked, only show true open jobs
+    if (filters.onlyOpen && status !== "open") {
+      return false;
+    }
+
+    // If Open jobs only is NOT ticked, keep allocated/filled/closed/cancelled
+    // visible for 7 days, then hide them
+    if (
+      !filters.onlyOpen &&
+      ["allocated", "filled", "closed", "cancelled"].includes(status)
+    ) {
+      const updatedAt = new Date(
+        job?.updatedAt || job?.allocatedAt || job?.bookingConfirmedAt || 0
+      ).getTime();
+
+      if (updatedAt && Date.now() - updatedAt > sevenDaysMs) {
         return false;
       }
+    }
 
-      if (instrumentFilter) {
-        const instruments = Array.isArray(job?.requiredInstruments)
-          ? job.requiredInstruments.map((item) => String(item || "").toLowerCase())
-          : [];
+    if (instrumentFilter) {
+      const instruments = Array.isArray(job?.requiredInstruments)
+        ? job.requiredInstruments.map((item) =>
+            String(item || "").toLowerCase()
+          )
+        : [];
 
-        if (!instruments.some((item) => item.includes(instrumentFilter))) {
-          return false;
-        }
+      if (!instruments.some((item) => item.includes(instrumentFilter))) {
+        return false;
       }
+    }
 
-      if (!query) return true;
+    if (!query) return true;
 
-      const haystack = [
-        job?.title,
-        job?.venue,
-        job?.location,
-        job?.notes,
-        ...(Array.isArray(job?.requiredInstruments) ? job.requiredInstruments : []),
-        ...(Array.isArray(job?.requiredSkills) ? job.requiredSkills : []),
-        ...(Array.isArray(job?.tags) ? job.tags : []),
-      ]
-        .map((value) => String(value || "").toLowerCase())
-        .join(" ");
+    const haystack = [
+      job?.title,
+      job?.venue,
+      job?.location,
+      job?.notes,
+      ...(Array.isArray(job?.requiredInstruments) ? job.requiredInstruments : []),
+      ...(Array.isArray(job?.requiredSkills) ? job.requiredSkills : []),
+      ...(Array.isArray(job?.tags) ? job.tags : []),
+      ...(Array.isArray(job?.setLengths) ? job.setLengths : []),
+      ...(Array.isArray(job?.whatsIncluded) ? job.whatsIncluded : []),
+      ...(Array.isArray(job?.claimableExpenses) ? job.claimableExpenses : []),
+    ]
+      .map((value) => String(value || "").toLowerCase())
+      .join(" ");
 
-      return haystack.includes(query);
-    });
+    return haystack.includes(query);
+  });
 
-    return sortJobs(next, sortType);
-  }, [jobs, filters, sortType]);
-
+  return sortJobs(next, sortType);
+}, [jobs, filters, sortType]);
   useEffect(() => {
     if (!filteredJobs.length) {
       setHoveredJob(null);

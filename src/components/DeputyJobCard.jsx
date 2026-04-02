@@ -45,8 +45,11 @@ const buildTagList = (job) => {
 
 const statusClasses = {
   open: "bg-green-100 text-green-700 border-green-200",
-  assigned: "bg-blue-100 text-blue-700 border-blue-200",
+  preview: "bg-amber-100 text-amber-700 border-amber-200",
+  allocated: "bg-orange-100 text-orange-700 border-orange-200",
+  filled: "bg-gray-100 text-gray-600 border-gray-200",
   closed: "bg-gray-100 text-gray-600 border-gray-200",
+  cancelled: "bg-gray-100 text-gray-600 border-gray-200",
 };
 
 const getPostedByLabel = (job) => {
@@ -77,6 +80,20 @@ const timeText = formatTimeRange(
 );
   const feeText = formatMoney(job.fee);
   const status = String(job.status || "open").toLowerCase();
+  const isUnavailable = ["allocated", "filled", "closed", "cancelled"].includes(status);
+
+const statusText =
+  status === "allocated"
+    ? "Allocated"
+    : status === "filled"
+    ? "Filled"
+    : status === "closed"
+    ? "Closed"
+    : status === "cancelled"
+    ? "Cancelled"
+    : status === "preview"
+    ? "Preview"
+    : "Open";
   const chips = buildTagList(job);
   const commissionApplies = !!job.commissionApplies;
   const commissionText = commissionApplies
@@ -105,9 +122,11 @@ const timeText = formatTimeRange(
       onClick={handleCardClick}
       onMouseEnter={handleMouseEnter}
       className={[
-        "w-full rounded-2xl border bg-white p-4 text-left shadow-sm transition-all duration-200",
-        "hover:-translate-y-0.5 hover:shadow-md",
-        isSelected ? "border-black ring-1 ring-black/10" : "border-gray-200",
+        "w-full rounded-2xl border p-4 text-left shadow-sm transition-all duration-200",
+        isUnavailable
+          ? "border-gray-200 bg-gray-50 opacity-80"
+          : "border-gray-200 bg-white hover:-translate-y-0.5 hover:shadow-md",
+        isSelected ? "border-black ring-1 ring-black/10" : "",
       ].join(" ")}
     >
       <div className="flex items-start justify-between gap-3">
@@ -117,12 +136,12 @@ const timeText = formatTimeRange(
               {title}
             </h3>
             <span
-              className={[
-                "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize",
-                statusClasses[status] || statusClasses.open,
-              ].join(" ")}
+            className={[
+              "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
+              statusClasses[status] || "bg-gray-100 text-gray-700 border-gray-200",
+            ].join(" ")}
             >
-              {status}
+              {statusText}
             </span>
           </div>
 
