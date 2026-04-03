@@ -21,8 +21,6 @@ const WHATS_INCLUDED_OPTIONS = [
   "other",
 ];
 
-const normaliseOption = (value = "") => String(value || "").trim().toLowerCase();
-
 const CLAIMABLE_EXPENSE_OPTIONS = [
   "congestion charge",
   "travel",
@@ -48,6 +46,13 @@ const buildInitialState = (initialValues = {}) => ({
   location: initialValues.location || "",
   county: initialValues.county || "",
   postcode: initialValues.postcode || "",
+  clientName: initialValues.clientName || "",
+  clientEmail: initialValues.clientEmail || "",
+  clientPhone: initialValues.clientPhone || "",
+  saveClientCard:
+    initialValues.saveClientCard === undefined
+      ? true
+      : Boolean(initialValues.saveClientCard),
   fee:
     initialValues.fee === 0 || initialValues.fee
       ? String(initialValues.fee)
@@ -216,6 +221,16 @@ const DeputyJobCreateForm = ({
       nextErrors.postcode = "Please add a postcode.";
     }
 
+    if (formData.saveClientCard) {
+      if (!String(formData.clientName || "").trim()) {
+        nextErrors.clientName = "Please add the client name for card setup.";
+      }
+
+      if (!String(formData.clientEmail || "").trim()) {
+        nextErrors.clientEmail = "Please add the client email for card setup.";
+      }
+    }
+
     if (!String(formData.location || formData.venue || formData.county || "").trim()) {
       nextErrors.location = "Please add at least a location, venue or county.";
     }
@@ -281,6 +296,10 @@ const DeputyJobCreateForm = ({
       location: String(formData.location || "").trim(),
       county: String(formData.county || "").trim(),
       postcode: String(formData.postcode || "").trim(),
+      clientName: String(formData.clientName || "").trim(),
+      clientEmail: String(formData.clientEmail || "").trim().toLowerCase(),
+      clientPhone: String(formData.clientPhone || "").trim(),
+      saveClientCard: Boolean(formData.saveClientCard),
       fee: formData.fee === "" ? 0 : Number(formData.fee),
       notes: String(formData.notes || "").trim(),
       instrument: primaryInstrument,
@@ -500,6 +519,83 @@ const DeputyJobCreateForm = ({
               placeholder="Town, county or full address"
             />
             {errors.location ? <p className="mt-2 text-sm text-red-600">{errors.location}</p> : null}
+          </div>
+
+          <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Client card setup</h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  Save the client’s card details now so payment can be taken automatically when a deputy is allocated.
+                </p>
+              </div>
+
+              <label className="inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  name="saveClientCard"
+                  checked={Boolean(formData.saveClientCard)}
+                  onChange={handleChange}
+                  className="h-4 w-4 accent-black"
+                />
+                Save client card
+              </label>
+            </div>
+
+            {formData.saveClientCard ? (
+              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div>
+                  <label className={labelClass} htmlFor="clientName">
+                    Client name
+                  </label>
+                  <input
+                    id="clientName"
+                    name="clientName"
+                    type="text"
+                    value={formData.clientName}
+                    onChange={handleChange}
+                    className={inputClass}
+                    placeholder="Full name"
+                  />
+                  {errors.clientName ? (
+                    <p className="mt-2 text-sm text-red-600">{errors.clientName}</p>
+                  ) : null}
+                </div>
+
+                <div>
+                  <label className={labelClass} htmlFor="clientEmail">
+                    Client email
+                  </label>
+                  <input
+                    id="clientEmail"
+                    name="clientEmail"
+                    type="email"
+                    value={formData.clientEmail}
+                    onChange={handleChange}
+                    className={inputClass}
+                    placeholder="name@example.com"
+                  />
+                  {errors.clientEmail ? (
+                    <p className="mt-2 text-sm text-red-600">{errors.clientEmail}</p>
+                  ) : null}
+                </div>
+
+                <div>
+                  <label className={labelClass} htmlFor="clientPhone">
+                    Client phone
+                  </label>
+                  <input
+                    id="clientPhone"
+                    name="clientPhone"
+                    type="text"
+                    value={formData.clientPhone}
+                    onChange={handleChange}
+                    className={inputClass}
+                    placeholder="Optional"
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="lg:col-span-2">
