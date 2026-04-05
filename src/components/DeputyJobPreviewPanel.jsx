@@ -32,6 +32,19 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
     })}`;
   };
 
+  const getDisplayFee = (job = {}) => {
+    const commissionAmount = Number(job?.commissionAmount || 0);
+    const deputyNetAmount = Number(job?.deputyNetAmount || 0);
+    const grossAmount = Number(job?.grossAmount || job?.fee || 0);
+
+    if (commissionAmount > 0) {
+      return deputyNetAmount > 0 ? deputyNetAmount : Math.max(grossAmount - commissionAmount, 0);
+    }
+
+    if (deputyNetAmount > 0) return deputyNetAmount;
+    return grossAmount;
+  };
+
   const formatDate = (value) => {
     if (!value) return "TBC";
     const date = new Date(value);
@@ -78,6 +91,26 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
     paid: "bg-green-100 text-green-700 border-green-200",
     held: "bg-orange-100 text-orange-700 border-orange-200",
     cancelled: "bg-gray-100 text-gray-700 border-gray-200",
+  };
+
+  const jobStatusClassMap = {
+    open: "bg-green-100 text-green-700 border-green-200",
+    preview: "bg-amber-100 text-amber-700 border-amber-200",
+    allocated: "bg-orange-100 text-orange-700 border-orange-200",
+    filled: "bg-gray-100 text-gray-600 border-gray-200",
+    closed: "bg-gray-100 text-gray-600 border-gray-200",
+    cancelled: "bg-gray-100 text-gray-600 border-gray-200",
+  };
+
+  const getJobStatusLabel = (status = "") => {
+    const safeStatus = String(status || "").toLowerCase();
+
+    if (safeStatus === "allocated") return "Allocated";
+    if (safeStatus === "filled") return "Filled";
+    if (safeStatus === "closed") return "Closed";
+    if (safeStatus === "cancelled") return "Cancelled";
+    if (safeStatus === "preview") return "Preview";
+    return "Open";
   };
 
   const formatLabel = (value = "") =>
@@ -273,6 +306,8 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
   const locationDisplay = job?.location || job?.locationName || job?.venue || "TBC";
     const paymentStatus = String(job?.paymentStatus || "not_started").toLowerCase();
     const payoutStatus = String(job?.payoutStatus || "not_ready").toLowerCase();
+    const jobStatus = String(job?.status || "open").toLowerCase();
+    const displayFee = getDisplayFee(job);
     const paymentEvents = Array.isArray(job?.paymentEvents) ? job.paymentEvents : [];
     const latestPaymentEvent = paymentEvents.length ? paymentEvents[paymentEvents.length - 1] : null;
   const canPreparePaymentSetup =
@@ -449,15 +484,11 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
                   </span>
                 ) : null}
                 <span
-                  className={`rounded-full px-3 py-1 ${
-                    job.status === "assigned"
-                      ? "bg-green-100 text-green-700"
-                      : job.status === "closed"
-                        ? "bg-gray-200 text-gray-700"
-                        : "bg-orange-100 text-orange-700"
+                  className={`rounded-full border px-3 py-1 ${
+                    jobStatusClassMap[jobStatus] || "bg-gray-100 text-gray-700 border-gray-200"
                   }`}
                 >
-                  {formatLabel(job.status || "open")}
+                  {getJobStatusLabel(jobStatus)}
                 </span>
               </div>
             </div>
@@ -465,12 +496,11 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
             <div className="text-right">
               <p className="text-sm text-gray-500">Fee</p>
               <p className="text-3xl font-semibold text-gray-900">
-                {formatMoney(job.fee)}
+                {formatMoney(displayFee)}
               </p>
-              {job.commissionApplies ? (
+              {Number(job?.commissionAmount || 0) > 0 ? (
                 <p className="mt-2 text-sm text-gray-500">
-                  TSC commission: {job.commissionPercent || 10}% (
-                  {formatMoney(job.commissionAmount || 0)})
+                  Net fee after commission
                 </p>
               ) : null}
             </div>

@@ -1,8 +1,8 @@
 import React from "react";
 
-const formatMoney = (value) => {
-  const n = Number(value || 0);
-  if (!Number.isFinite(n)) return "Fee TBC";
+const formatMoney = (value, fallback = "Fee TBC") => {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
   return `£${n.toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
 };
 
@@ -78,7 +78,14 @@ const timeText = formatTimeRange(
   job.callTime || job.startTime,
   job.finishTime || job.endTime
 );
-  const feeText = formatMoney(job.fee);
+  const commissionApplies = !!job.commissionApplies;
+  const netFeeValue =
+    Number(job.deputyNetAmount) > 0
+      ? Number(job.deputyNetAmount)
+      : commissionApplies && Number(job.commissionAmount) > 0
+      ? Number(job.fee || 0) - Number(job.commissionAmount || 0)
+      : Number(job.fee || 0);
+  const feeText = formatMoney(netFeeValue);
   const status = String(job.status || "open").toLowerCase();
   const isUnavailable = ["allocated", "filled", "closed", "cancelled"].includes(status);
 
@@ -95,10 +102,9 @@ const statusText =
     ? "Preview"
     : "Open";
   const chips = buildTagList(job);
-  const commissionApplies = !!job.commissionApplies;
   const commissionText = commissionApplies
-    ? `${Number(job.commissionPercent || 10)}% commission`
-    : "No commission";
+    ? `Net after ${formatMoney(job.commissionAmount || 0, "£0")} commission`
+    : "";
   const postedByLabel = getPostedByLabel(job);
 
   const handleApplicantsClick = (event) => {
@@ -154,7 +160,9 @@ const statusText =
 
         <div className="shrink-0 text-right">
           <p className="text-lg font-semibold text-gray-900">{feeText}</p>
-          <p className="mt-1 text-xs text-gray-500">{commissionText}</p>
+          {commissionText ? (
+            <p className="mt-1 text-xs text-gray-500">{commissionText}</p>
+          ) : null}
         </div>
       </div>
 

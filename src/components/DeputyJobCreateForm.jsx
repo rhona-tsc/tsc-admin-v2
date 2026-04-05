@@ -524,7 +524,7 @@ const DeputyJobCreateForm = ({
           <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-gray-900">Client card setup</h3>
+                <h3 className="text-sm font-semibold text-gray-900">Payment card setup</h3>
                 <p className="text-xs text-gray-500 mt-1">
                   Save the client’s card details now so payment can be taken automatically when a deputy is allocated.
                 </p>
@@ -538,7 +538,7 @@ const DeputyJobCreateForm = ({
                   onChange={handleChange}
                   className="h-4 w-4 accent-black"
                 />
-                Save client card
+                Save payment card
               </label>
             </div>
 
@@ -546,7 +546,7 @@ const DeputyJobCreateForm = ({
               <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
                   <label className={labelClass} htmlFor="clientName">
-                    Client name
+                    Payer name
                   </label>
                   <input
                     id="clientName"
@@ -564,7 +564,7 @@ const DeputyJobCreateForm = ({
 
                 <div>
                   <label className={labelClass} htmlFor="clientEmail">
-                    Client email
+                    Payer email
                   </label>
                   <input
                     id="clientEmail"
@@ -582,7 +582,7 @@ const DeputyJobCreateForm = ({
 
                 <div>
                   <label className={labelClass} htmlFor="clientPhone">
-                    Client phone
+                    Payer phone
                   </label>
                   <input
                     id="clientPhone"

@@ -98,83 +98,141 @@ const CreateDeputyJob = () => {
     navigate("/deputy-jobs");
   };
 
-  const handleSubmit = async (payload) => {
-    try {
-      setIsSubmitting(true);
-      setPaymentSetupState({
-        status: "idle",
-        deputyJobId: "",
-        setupIntentId: "",
-        clientSecret: "",
-        stripeCustomerId: "",
-      });
+const handleSubmit = async (payload) => {
+  try {
+    setIsSubmitting(true);
+    setPaymentSetupState({
+      status: "idle",
+      deputyJobId: "",
+      setupIntentId: "",
+      clientSecret: "",
+      stripeCustomerId: "",
+    });
 
-      const endpoint = payload?.previewOnly
-        ? `${deputyJobsBaseUrl}/preview`
-        : deputyJobsBaseUrl;
+    const endpoint = payload?.previewOnly
+      ? `${deputyJobsBaseUrl}/preview`
+      : deputyJobsBaseUrl;
 
-      const res = await axios.post(endpoint, payload, {
-        headers: authHeaders,
-      });
+    const res = await axios.post(endpoint, payload, {
+      headers: authHeaders,
+    });
 
-      if (!res.data?.success) {
-        toast.error(res.data?.message || "Failed to create deputy job.");
-        return;
-      }
+    if (!res.data?.success) {
+      toast.error(res.data?.message || "Failed to create deputy job.");
+      return;
+    }
 
-      const createdJob = res.data.job;
-      const createdJobId = createdJob?._id || createdJob?.id;
+    const createdJob = res.data.job;
+    const createdJobId = createdJob?._id || createdJob?.id;
 
-      if (payload?.previewOnly) {
-        toast.success(
-          `Preview ready. ${res.data.matchedCount || 0} musicians matched.`
-        );
-        handleCreated(createdJob);
-        return;
-      }
-
+    if (payload?.previewOnly) {
       let paymentSetupPrepared = false;
 
       if (payload?.saveClientCard && payload?.clientEmail && createdJobId) {
-        try {
-          const paymentSetupResult = await prepareDeputyJobPaymentSetup({
-            jobId: createdJobId,
-            payload,
-          });
+        const previewPayment = res.data?.payment;
 
-          paymentSetupPrepared = Boolean(paymentSetupResult?.success);
-        } catch (paymentSetupError) {
-          console.error("❌ Failed to prepare deputy job payment setup:", paymentSetupError);
-          toast.warn(
-            paymentSetupError?.response?.data?.message ||
-              paymentSetupError?.message ||
-              "Deputy job created, but payment setup could not be prepared yet."
-          );
+        if (previewPayment?.clientSecret) {
+          const nextPaymentSetupState = {
+            status: "prepared",
+            deputyJobId: String(createdJobId || ""),
+            setupIntentId: previewPayment?.setupIntentId || "",
+            clientSecret: previewPayment?.clientSecret || "",
+            stripeCustomerId: previewPayment?.stripeCustomerId || "",
+          };
+
+          setPaymentSetupState(nextPaymentSetupState);
+
+          try {
+            sessionStorage.setItem(
+              "deputyJobPaymentSetup",
+              JSON.stringify(nextPaymentSetupState)
+            );
+          } catch {
+            // ignore storage errors
+          }
+
+          paymentSetupPrepared = true;
+        } else {
+          try {
+            const paymentSetupResult = await prepareDeputyJobPaymentSetup({
+              jobId: createdJobId,
+              payload,
+            });
+
+            paymentSetupPrepared = Boolean(paymentSetupResult?.success);
+          } catch (paymentSetupError) {
+            console.error(
+              "❌ Failed to prepare deputy job preview payment setup:",
+              paymentSetupError
+            );
+            toast.warn(
+              paymentSetupError?.response?.data?.message ||
+                paymentSetupError?.message ||
+                "Preview created, but payment setup could not be prepared yet."
+            );
+          }
         }
       }
 
       toast.success(
         paymentSetupPrepared
-          ? `Deputy job created. ${res.data.notifiedCount || 0} musicians notified and payment setup prepared.`
-          : `Deputy job created. ${res.data.notifiedCount || 0} musicians notified.`
+          ? `Preview ready. ${res.data.matchedCount || 0} musicians matched and payment setup prepared.`
+          : `Preview ready. ${res.data.matchedCount || 0} musicians matched.`
       );
 
-      if (payload?.saveClientCard && payload?.clientEmail && !paymentSetupPrepared) {
+      if (paymentSetupPrepared) {
         toast.info(
-          "You can still open the deputy job and start payment setup from the management view once the card form is connected."
+          "Preview created and card setup is ready below. Complete the Stripe card step before leaving this page."
         );
+        return;
       }
 
-      handleCreated(createdJob, { paymentSetupPrepared });
-    } catch (error) {
-      console.error("❌ Failed to create deputy job:", error);
-      toast.error(
-        error?.response?.data?.message || "Failed to create deputy job."
-      );
-    } finally {
-      setIsSubmitting(false);
+      handleCreated(createdJob, { paymentSetupPrepared: false });
+      return;
     }
-  };
+
+    let paymentSetupPrepared = false;
+
+    if (payload?.saveClientCard && payload?.clientEmail && createdJobId) {
+      try {
+        const paymentSetupResult = await prepareDeputyJobPaymentSetup({
+          jobId: createdJobId,
+          payload,
+        });
+
+        paymentSetupPrepared = Boolean(paymentSetupResult?.success);
+      } catch (paymentSetupError) {
+        console.error("❌ Failed to prepare deputy job payment setup:", paymentSetupError);
+        toast.warn(
+          paymentSetupError?.response?.data?.message ||
+            paymentSetupError?.message ||
+            "Deputy job created, but payment setup could not be prepared yet."
+        );
+      }
+    }
+
+    toast.success(
+      paymentSetupPrepared
+        ? `Deputy job created. ${res.data.notifiedCount || 0} musicians notified and payment setup prepared.`
+        : `Deputy job created. ${res.data.notifiedCount || 0} musicians notified.`
+    );
+
+    if (payload?.saveClientCard && payload?.clientEmail && !paymentSetupPrepared) {
+      toast.info(
+        "You can still open the deputy job and start payment setup from the management view once the card form is connected."
+      );
+    }
+
+    handleCreated(createdJob, { paymentSetupPrepared });
+  } catch (error) {
+    console.error("❌ Failed to create deputy job:", error);
+    toast.error(
+      error?.response?.data?.message || "Failed to create deputy job."
+    );
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
