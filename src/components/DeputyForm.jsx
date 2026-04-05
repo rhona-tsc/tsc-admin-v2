@@ -103,6 +103,7 @@ setShowSubmittingPopup(true);
     appendJSON("basicInfo", formData.basicInfo);
     appendJSON("address", formData.address);
     appendJSON("bank_account", formData.bank_account);
+        appendJSON("stripeConnect", formData.stripeConnect);
     appendJSON("academic_credentials", formData.academic_credentials);
     appendJSON("agreementCheckboxes", agreementCheckboxes);
 appendJSON(
@@ -523,12 +524,19 @@ if (coverUrl) fd.append("coverHeroImage", coverUrl);        // matches mongoose 
       },
     ],
     signature: [],
-    bank_account: {
-  sort_code: "",
-  account_number: "",
-  account_name: "",
-  account_type: "",
-},
+       bank_account: {
+      sort_code: "",
+      account_number: "",
+      account_name: "",
+      account_type: "",
+    },
+    stripeConnect: {
+      accountId: "",
+      onboardingComplete: false,
+      chargesEnabled: false,
+      payoutsEnabled: false,
+      detailsSubmitted: false,
+    },
     djing: {
       has_mixing_console: false,
       has_dj_table: false,
@@ -551,8 +559,8 @@ if (coverUrl) fd.append("coverHeroImage", coverUrl);        // matches mongoose 
     (async () => {
       try {
         const url = `${backendUrl}/api/moderation/deputy/${deputyId}`;
-        const res = await axios.get(url, {
-          headers: { Authorization: `Bearer ${token}` },
+                const res = await axios.get(url, {
+          headers: authHeaders,
           withCredentials: true,
         });
 
@@ -568,6 +576,7 @@ if (coverUrl) fd.append("coverHeroImage", coverUrl);        // matches mongoose 
         };
         const addressFromDb = deputy.address || {};
         const bankFromDb = deputy.bank_account || {};
+                const stripeConnectFromDb = deputy.stripeConnect || {};
 const safeArray = (v) => (Array.isArray(v) ? v.filter(Boolean) : []);
 
 const normalizeSelectedSongs = (v) =>
@@ -597,7 +606,7 @@ const normalizeVocals = (v) => normalizeVocalsForSubmit(v);
   basicInfo: { ...prev.basicInfo, ...basicInfoFromDb },
   address: { ...prev.address, ...addressFromDb },
   bank_account: { ...prev.bank_account, ...bankFromDb },
-          
+            stripeConnect: { ...prev.stripeConnect, ...stripeConnectFromDb },
           dateRegistered: deputy.dateRegistered || prev.dateRegistered || new Date(),
           academic_credentials: deputy.academic_credentials || prev.academic_credentials,
           function_bands_performed_with: deputy.function_bands_performed_with || prev.function_bands_performed_with,
@@ -653,7 +662,7 @@ instrumentation: safeArray(deputy.instrumentation || prev.instrumentation).map((
               // Never restore file fields from autosave
               if (["profilePicture", "coverHeroImage"].includes(key)) {
                 merged[key] = null;
-              } else if (
+                          } else if (
                 typeof parsed[key] === "object" &&
                 !Array.isArray(parsed[key]) &&
                 parsed[key] !== null &&
@@ -662,7 +671,14 @@ instrumentation: safeArray(deputy.instrumentation || prev.instrumentation).map((
               ) {
                 if (key === "address") {
                   merged[key] = { ...prev.address, ...parsed.address };
+                } else if (key === "bank_account") {
+                  merged[key] = { ...prev.bank_account, ...parsed.bank_account };
+                } else if (key === "stripeConnect") {
+                  merged[key] = { ...prev.stripeConnect, ...parsed.stripeConnect };
                 } else {
+                  merged[key] = { ...merged[key], ...parsed[key] };
+                }
+              } else {
                   merged[key] = { ...merged[key], ...parsed[key] };
                 }
               } else {
@@ -759,11 +775,12 @@ instrumentation: safeArray(deputy.instrumentation || prev.instrumentation).map((
         return <DeputyStepFive formData={formData} setFormData={setFormData} userRole={userRole} {...stepProps} />;
       case 6:
         return (
-          <DeputyStepSix
+                   <DeputyStepSix
             formData={formData}
             setFormData={setFormData}
             userRole={userRole}
             setHasDrawnSignature={setHasDrawnSignature}
+            authToken={authToken}
             {...stepProps}
           />
         );

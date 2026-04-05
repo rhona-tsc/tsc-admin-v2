@@ -1,9 +1,18 @@
 import React, { useRef, useState, useEffect, useMemo } from "react";
+import axios from "axios";
 import ReactSignatureCanvas from "react-signature-canvas";
 import DepFiveAgreementCheckboxes from "./DepFiveAgreementCheckboxes";
 
-const DeputyStepSix = ({ formData, setFormData, userRole, stepProps, setHasDrawnSignature }) => {  
-  console.log("🟣 [DeputyStepSix] RENDER — formData:", formData);
+import { backendUrl } from "../App";
+
+const DeputyStepSix = ({
+  formData,
+  setFormData,
+  userRole,
+  stepProps,
+  setHasDrawnSignature,
+  authToken,
+}) => {  console.log("🟣 [DeputyStepSix] RENDER — formData:", formData);
     const sigCanvas = useRef(null);
 
 useEffect(() => {
@@ -30,8 +39,52 @@ useEffect(() => {
   
   const [errors, setErrors] = useState({ sortCode: "", accountNumber: "" });
   const [isSignaturePresent, setIsSignaturePresent] = useState(false);
+  const [stripeLoading, setStripeLoading] = useState(false);
+  const [stripeError, setStripeError] = useState("");
 
+ const handleConnectStripe = async () => {
+  try {
+    setStripeLoading(true);
+    setStripeError("");
 
+    const tokenToUse =
+      authToken ||
+      localStorage.getItem("token") ||
+      localStorage.getItem("adminToken") ||
+      localStorage.getItem("musicianToken") ||
+      "";
+
+    const response = await axios.post(
+      `${backendUrl}/api/musician/account/stripe-connect/onboarding-link`,
+      {},
+      {
+        headers: {
+          ...(tokenToUse ? { token: tokenToUse } : {}),
+          ...(tokenToUse
+            ? { Authorization: `Bearer ${tokenToUse}` }
+            : {}),
+        },
+        withCredentials: true,
+      }
+    );
+
+    const onboardingUrl = response?.data?.url || "";
+    if (!onboardingUrl) {
+      throw new Error("No Stripe onboarding link returned");
+    }
+
+    window.location.href = onboardingUrl;
+  } catch (err) {
+    console.error("❌ Failed to create Stripe onboarding link:", err);
+    setStripeError(
+      err?.response?.data?.message ||
+        err?.message ||
+        "We couldn't start Stripe onboarding right now. Please try again."
+    );
+  } finally {
+    setStripeLoading(false);
+  }
+};
 
   const validateBankDetails = (field, value) => {
     let error = "";
@@ -158,9 +211,48 @@ if (!formData.reference && safeLastName) {
   
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4">Bank Details & Contract</h2>
+      <h2 className="text-xl font-semibold mb-4">Payment Setup & Contract</h2>
 
-      <div className="mb-4 flex gap-4">
+      <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+        <h3 className="text-lg font-semibold mb-2">Preferred payout method</h3>
+        <p className="text-sm text-gray-700 mb-3">
+          Please connect your Stripe account for deputy payouts. This is the preferred method and is what will be used for automatic payouts once a job has been completed and released.
+        </p>
+        <p className="text-sm text-gray-600 mb-4">
+          Stripe will securely collect and verify the bank details needed for payment. You only need to do this once, and it is generally better than entering bank details manually here.
+        </p>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleConnectStripe}
+            disabled={stripeLoading}
+            className="px-4 py-2 rounded bg-black text-white hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {stripeLoading ? "Opening Stripe…" : "Connect Stripe for payouts"}
+          </button>
+
+          {formData?.stripeConnect?.accountId && (
+            <span className="text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">
+              Stripe account connected
+            </span>
+          )}
+        </div>
+
+        {stripeError && (
+          <p className="text-sm text-red-600 mt-3">{stripeError}</p>
+        )}
+      </div>
+
+      <div className="mb-6 rounded-xl border border-gray-200 bg-gray-50 p-4">
+        <h3 className="text-base font-semibold mb-2">Manual bank details (fallback only)</h3>
+        <p className="text-sm text-gray-600">
+          You can still enter bank details below as a temporary fallback, but Stripe Connect should be used for live deputy payouts.
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white p-4 mb-6">
+        <div className="mb-4 flex gap-4">
         <div className="flex flex-col w-full">
           <label htmlFor="sortCode" className="mb-1 font-medium">Sort Code</label>
           <input
@@ -237,6 +329,8 @@ if (!formData.reference && safeLastName) {
             <option value="Business">Business</option>
           </select>
         </div>
+      </div>
+
       </div>
 
       <div className="mb-6">
