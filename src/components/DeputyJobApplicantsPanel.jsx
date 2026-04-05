@@ -302,7 +302,7 @@ const DeputyJobApplicantsPanel = ({
     if (!job?._id || !applicationMusicianId || assigningId) return;
 
     const confirmed = window.confirm(
-      `Allocate this job to ${getApplicantName(mergedApplication)}? This will allocate the deputy job and update the applicant list.`
+      `Allocate this job to ${getApplicantShortName(mergedApplication)}? This will allocate the deputy job and update the applicant list.`
     );
 
     if (!confirmed) return;

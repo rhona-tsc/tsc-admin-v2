@@ -100,8 +100,7 @@ const DeputyJobPaymentSetupCard = ({
               The card will only be charged automatically once you allocate the role to a deputy.
             </p>
             <p>
-              Payment will be processed securely by Stripe, held until after the event, and then released to the performer minus our 20% service fee.
-            </p>
+Payment is charged securely via Stripe once a deputy is allocated. The deputy’s payment is then scheduled for release after the event, less our commission, and tracked in our payout system.            </p>
           </div>
         </div>
 
