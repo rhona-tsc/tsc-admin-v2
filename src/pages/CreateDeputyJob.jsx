@@ -2,8 +2,110 @@ import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
 import DeputyJobCreateForm from "../components/DeputyJobCreateForm";
 import { backendUrl } from "../App";
+
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "");
+
+const DeputyJobPaymentSetupCard = ({
+  paymentSetupState,
+  authHeaders,
+  deputyJobsBaseUrl,
+  onSuccess,
+}) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSaveCard = async (event) => {
+    event.preventDefault();
+
+    if (!stripe || !elements) {
+      toast.error("Stripe is still loading. Please wait a moment and try again.");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+
+      const result = await stripe.confirmSetup({
+        elements,
+        redirect: "if_required",
+      });
+
+      if (result.error) {
+        throw new Error(result.error.message || "Failed to confirm card details.");
+      }
+
+      const setupIntent = result.setupIntent;
+      const paymentMethodId =
+        typeof setupIntent?.payment_method === "string"
+          ? setupIntent.payment_method
+          : setupIntent?.payment_method?.id || "";
+
+      const saveRes = await axios.post(
+        `${deputyJobsBaseUrl}/${paymentSetupState.deputyJobId}/save-payment-method`,
+        {
+          setupIntentId: setupIntent?.id || paymentSetupState.setupIntentId || "",
+          paymentMethodId,
+        },
+        { headers: authHeaders }
+      );
+
+      if (!saveRes.data?.success) {
+        throw new Error(saveRes.data?.message || "Failed to save payment method.");
+      }
+
+      toast.success("Card saved successfully. Automatic payment is now ready for this deputy job.");
+
+      if (typeof onSuccess === "function") {
+        onSuccess(saveRes.data?.job || null);
+      }
+    } catch (error) {
+      console.error("❌ Failed to save deputy job payment method:", error);
+      toast.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to save payment method."
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
+      <div className="mb-4">
+        <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Save client card</h2>
+        <p className="mt-2 text-sm text-gray-600 leading-6">
+          Enter the client’s card details below so payment can be taken automatically once a deputy is allocated.
+        </p>
+      </div>
+
+      <form onSubmit={handleSaveCard} className="space-y-5">
+        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:p-5">
+          <PaymentElement />
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-gray-500 leading-5">
+            Job ID: {paymentSetupState.deputyJobId}
+          </p>
+
+          <button
+            type="submit"
+            disabled={!stripe || !elements || isSaving}
+            className="inline-flex items-center justify-center rounded-full bg-black px-5 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isSaving ? "Saving card..." : "Save card details"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+};
 
 const CreateDeputyJob = () => {
   const [paymentSetupState, setPaymentSetupState] = useState({
@@ -13,6 +115,7 @@ const CreateDeputyJob = () => {
     clientSecret: "",
     stripeCustomerId: "",
   });
+  const [createdPreviewJob, setCreatedPreviewJob] = useState(null);
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -181,6 +284,7 @@ const handleSubmit = async (payload) => {
       );
 
       if (paymentSetupPrepared) {
+        setCreatedPreviewJob(createdJob);
         toast.info(
           "Preview created and card setup is ready below. Complete the Stripe card step before leaving this page."
         );
@@ -261,9 +365,38 @@ const handleSubmit = async (payload) => {
         </div>
 
         {paymentSetupState.status === "prepared" ? (
-          <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 px-4 py-4 text-sm text-green-800">
-            Deputy job payment setup has been prepared. The SetupIntent has been created and saved for job ID {paymentSetupState.deputyJobId}. The next step is to connect a card form to confirm the card details and then save the resulting payment method.
-          </div>
+          <>
+            <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 px-4 py-4 text-sm text-green-800">
+              Deputy job payment setup has been prepared. The SetupIntent has been created and saved for job ID {paymentSetupState.deputyJobId}. Enter the client card details below to finish linking the payment method.
+            </div>
+
+            {paymentSetupState.clientSecret ? (
+              <Elements
+                stripe={stripePromise}
+                options={{
+                  clientSecret: paymentSetupState.clientSecret,
+                  appearance: {
+                    theme: "stripe",
+                  },
+                }}
+              >
+                <DeputyJobPaymentSetupCard
+                  paymentSetupState={paymentSetupState}
+                  authHeaders={authHeaders}
+                  deputyJobsBaseUrl={deputyJobsBaseUrl}
+                  onSuccess={(savedJob) => {
+                    setPaymentSetupState((prev) => ({
+                      ...prev,
+                      status: "saved",
+                    }));
+                    handleCreated(savedJob || createdPreviewJob || { _id: paymentSetupState.deputyJobId }, {
+                      paymentSetupPrepared: true,
+                    });
+                  }}
+                />
+              </Elements>
+            ) : null}
+          </>
         ) : null}
 
         <DeputyJobCreateForm
