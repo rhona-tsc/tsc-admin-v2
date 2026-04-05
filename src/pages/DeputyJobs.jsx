@@ -41,6 +41,14 @@ const getFeeLabel = (job) => {
   return `£${fee.toLocaleString("en-GB")}`;
 };
 
+const hasStoredCardForJob = (job = {}) => {
+  const paymentStatus = String(job?.paymentStatus || "").toLowerCase();
+
+  if (job?.defaultPaymentMethodId) return true;
+
+  return ["ready_to_charge", "charge_pending", "paid"].includes(paymentStatus);
+};
+
 const sortJobs = (jobs, sortType) => {
   const copy = [...jobs];
 
@@ -180,13 +188,15 @@ const filteredJobs = useMemo(() => {
   const next = jobs.filter((job) => {
     const status = String(job?.status || "open").toLowerCase();
 
-    // If Open jobs only is ticked, only show true open jobs
-    if (filters.onlyOpen && status !== "open") {
+    const requiresStoredCard = ["open", "allocated", "filled", "closed", "cancelled"].includes(status);
+
+    if (requiresStoredCard && !hasStoredCardForJob(job)) {
       return false;
     }
 
     // If Open jobs only is NOT ticked, keep allocated/filled/closed/cancelled
-    // visible for 7 days, then hide them
+    // visible for 7 days, then hide them. Jobs that require payment setup
+    // are also hidden until a stored card is attached.
     if (
       !filters.onlyOpen &&
       ["allocated", "filled", "closed", "cancelled"].includes(status)

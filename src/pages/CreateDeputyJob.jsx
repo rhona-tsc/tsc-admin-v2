@@ -77,14 +77,34 @@ const DeputyJobPaymentSetupCard = ({
 
   return (
     <div className="mb-6 rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm">
-      <div className="mb-4">
-        <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Save client card</h2>
-        <p className="mt-2 text-sm text-gray-600 leading-6">
-          Enter the client’s card details below so payment can be taken automatically once a deputy is allocated.
+      <div className="mb-5">
+        <div className="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-green-700">
+          Final step
+        </div>
+        <h2 className="mt-3 text-xl sm:text-2xl font-semibold text-gray-900">
+          Save payment card to activate this deputy job
+        </h2>
+        <p className="mt-3 text-sm text-gray-600 leading-7">
+          Your deputy job preview has been created successfully. To activate the job and enable automatic payment collection, please enter the payer’s card details below.
         </p>
       </div>
 
       <form onSubmit={handleSaveCard} className="space-y-5">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
+          <p className="font-semibold">Important payment information</p>
+          <div className="mt-2 space-y-2 leading-6">
+            <p>
+              No payment will be taken now.
+            </p>
+            <p>
+              The card will only be charged automatically once you allocate the role to a deputy.
+            </p>
+            <p>
+              Payment will be processed securely by Stripe, held until after the event, and then released to the performer minus our 20% service fee.
+            </p>
+          </div>
+        </div>
+
         <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:p-5">
           <PaymentElement />
         </div>
@@ -99,7 +119,7 @@ const DeputyJobPaymentSetupCard = ({
             disabled={!stripe || !elements || isSaving}
             className="inline-flex items-center justify-center rounded-full bg-black px-5 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isSaving ? "Saving card..." : "Save card details"}
+            {isSaving ? "Saving card..." : "Save card and activate job"}
           </button>
         </div>
       </form>
@@ -321,13 +341,15 @@ const handleSubmit = async (payload) => {
         : `Deputy job created. ${res.data.notifiedCount || 0} musicians notified.`
     );
 
-    if (payload?.saveClientCard && payload?.clientEmail && !paymentSetupPrepared) {
+    if (paymentSetupPrepared) {
+      setCreatedPreviewJob(createdJob);
       toast.info(
-        "You can still open the deputy job and start payment setup from the management view once the card form is connected."
+        "Job created. Please complete the card step below to activate payment collection for this deputy role."
       );
+      return;
     }
 
-    handleCreated(createdJob, { paymentSetupPrepared });
+    handleCreated(createdJob, { paymentSetupPrepared: false });
   } catch (error) {
     console.error("❌ Failed to create deputy job:", error);
     toast.error(
@@ -365,46 +387,43 @@ const handleSubmit = async (payload) => {
         </div>
 
         {paymentSetupState.status === "prepared" ? (
-          <>
-            <div className="mb-6 rounded-2xl border border-green-200 bg-green-50 px-4 py-4 text-sm text-green-800">
-              Deputy job payment setup has been prepared. The SetupIntent has been created and saved for job ID {paymentSetupState.deputyJobId}. Enter the client card details below to finish linking the payment method.
-            </div>
-
-            {paymentSetupState.clientSecret ? (
-              <Elements
-                stripe={stripePromise}
-                options={{
-                  clientSecret: paymentSetupState.clientSecret,
-                  appearance: {
-                    theme: "stripe",
-                  },
-                }}
-              >
-                <DeputyJobPaymentSetupCard
-                  paymentSetupState={paymentSetupState}
-                  authHeaders={authHeaders}
-                  deputyJobsBaseUrl={deputyJobsBaseUrl}
-                  onSuccess={(savedJob) => {
-                    setPaymentSetupState((prev) => ({
-                      ...prev,
-                      status: "saved",
-                    }));
-                    handleCreated(savedJob || createdPreviewJob || { _id: paymentSetupState.deputyJobId }, {
+          paymentSetupState.clientSecret ? (
+            <Elements
+              stripe={stripePromise}
+              options={{
+                clientSecret: paymentSetupState.clientSecret,
+                appearance: {
+                  theme: "stripe",
+                },
+              }}
+            >
+              <DeputyJobPaymentSetupCard
+                paymentSetupState={paymentSetupState}
+                authHeaders={authHeaders}
+                deputyJobsBaseUrl={deputyJobsBaseUrl}
+                onSuccess={(savedJob) => {
+                  setPaymentSetupState((prev) => ({
+                    ...prev,
+                    status: "saved",
+                  }));
+                  handleCreated(
+                    savedJob || createdPreviewJob || { _id: paymentSetupState.deputyJobId },
+                    {
                       paymentSetupPrepared: true,
-                    });
-                  }}
-                />
-              </Elements>
-            ) : null}
-          </>
-        ) : null}
-
-        <DeputyJobCreateForm
-          onSubmit={handleSubmit}
-          isSubmitting={isSubmitting}
-          submitLabel="Create job"
-          authHeaders={authHeaders}
-        />
+                    }
+                  );
+                }}
+              />
+            </Elements>
+          ) : null
+        ) : (
+          <DeputyJobCreateForm
+            onSubmit={handleSubmit}
+            isSubmitting={isSubmitting}
+            submitLabel="Create job"
+            authHeaders={authHeaders}
+          />
+        )}
       </div>
     </div>
   );
