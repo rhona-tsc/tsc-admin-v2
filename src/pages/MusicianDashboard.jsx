@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import BookingsChart from "../components/BookingsChart";
@@ -50,15 +50,59 @@ const lastInitial = (u) => {
   return l ? l.charAt(0).toUpperCase() : "";
 };
 
+const getStripeConnectSummary = (u) => {
+  const stripeConnect = u?.stripeConnect || {};
+
+  const accountId = String(stripeConnect?.accountId || "").trim();
+  const chargesEnabled = Boolean(stripeConnect?.chargesEnabled);
+  const payoutsEnabled = Boolean(stripeConnect?.payoutsEnabled);
+  const onboardingComplete = Boolean(stripeConnect?.onboardingComplete);
+  const detailsSubmitted = Boolean(stripeConnect?.detailsSubmitted);
+
+  const isReady = Boolean(accountId && payoutsEnabled && (chargesEnabled || onboardingComplete || detailsSubmitted));
+
+  return {
+    accountId,
+    chargesEnabled,
+    payoutsEnabled,
+    onboardingComplete,
+    detailsSubmitted,
+    isReady,
+  };
+};
+
+const getStripePayoutUi = (u) => {
+  const stripe = getStripeConnectSummary(u);
+
+  if (stripe.isReady) {
+    return {
+      label: "Ready for payouts",
+      tone: "ready",
+      helper: "Your Stripe payout setup is complete.",
+      buttonLabel: "Update Stripe payout setup",
+    };
+  }
+
+  return {
+    label: "Payout setup incomplete",
+    tone: "incomplete",
+    helper: "Connect Stripe so deputy payouts can be released to you.",
+    buttonLabel: stripe.accountId ? "Finish Stripe setup" : "Connect Stripe",
+  };
+};
+
 
 
 /* -------------------- Right Profile Card -------------------- */
-const YourProfileCard = ({ me, fallbackFirstName, deputyCTA }) => {
-const navigate = useNavigate();
+const YourProfileCard = ({ me, fallbackFirstName, deputyCTA, token }) => {
+  const navigate = useNavigate();
   const [imgBroken, setImgBroken] = useState(false);
+  const [stripeLoading, setStripeLoading] = useState(false);
+  const [stripeError, setStripeError] = useState("");
+
   const id = useMemo(() => getUserId(me), [me]);
   const imgUrl = useMemo(() => getProfileImageUrl(me), [me]);
-const ctaLabel = deputyCTA?.label || "Join The Books";
+  const ctaLabel = deputyCTA?.label || "Join The Books";
   const ctaPath = deputyCTA?.path || "/register-as-deputy";
   const firstName =
     String(me?.firstName || me?.firstname || "").trim() ||
@@ -66,20 +110,62 @@ const ctaLabel = deputyCTA?.label || "Join The Books";
     "there";
 
   const nameLine = `${firstName} ${lastInitial(me)}`.trim();
+  const payoutUi = useMemo(() => getStripePayoutUi(me), [me]);
 
- const slug = String(me?.musicianSlug || "").trim();
-const viewHref = slug
-  ? `${publicSiteBase}/musician/${slug}`
-  : id
-    ? `${publicSiteBase}/musician/${id}`
-    : "";
+  const slug = String(me?.musicianSlug || "").trim();
+  const viewHref = slug
+    ? `${publicSiteBase}/musician/${slug}`
+    : id
+      ? `${publicSiteBase}/musician/${id}`
+      : "";
+
+  const handleConnectStripe = useCallback(async () => {
+    try {
+      setStripeLoading(true);
+      setStripeError("");
+
+      const tokenToUse =
+        token ||
+        localStorage.getItem("token") ||
+        localStorage.getItem("adminToken") ||
+        localStorage.getItem("musicianToken") ||
+        "";
+
+      const response = await axios.post(
+        `${backendUrl}/api/musician/account/stripe-connect/onboarding-link`,
+        {},
+        {
+          headers: {
+            token: tokenToUse,
+            Authorization: tokenToUse ? `Bearer ${tokenToUse}` : "",
+          },
+          withCredentials: true,
+        }
+      );
+
+      const onboardingUrl = response?.data?.url || "";
+      if (!onboardingUrl) {
+        throw new Error("No Stripe onboarding link returned");
+      }
+
+      window.location.href = onboardingUrl;
+    } catch (err) {
+      console.error("❌ Failed to create Stripe onboarding link:", err);
+      setStripeError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "We couldn't start Stripe onboarding right now. Please try again."
+      );
+    } finally {
+      setStripeLoading(false);
+    }
+  }, [token]);
 
   return (
-    <div className=" bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
       <p className="text-xs uppercase tracking-widest text-gray-500">Your Profile</p>
 
       <div className="mt-4 flex flex-col items-center text-center">
-        {/* Big circle avatar */}
         {imgUrl && !imgBroken ? (
           <div className="w-24 h-24 rounded-full overflow-hidden border border-gray-200 flex items-center justify-center">
             <img
@@ -118,12 +204,46 @@ const viewHref = slug
           </p>
 
           <button
-          type="button"
-          onClick={() => navigate(ctaPath)}
-          className="inline-flex items-center justify-center w-full px-4 py-2 rounded-md bg-[#ff6667] text-white font-semibold hover:bg-black transition"
-        >
-          {ctaLabel}
-        </button>
+            type="button"
+            onClick={() => navigate(ctaPath)}
+            className="inline-flex items-center justify-center w-full px-4 py-2 rounded-md bg-[#ff6667] text-white font-semibold hover:bg-black transition"
+          >
+            {ctaLabel}
+          </button>
+        </div>
+
+        <div className="mt-4 w-full rounded-xl border border-gray-200 bg-gray-50 p-4 text-left">
+          <p className="text-xs uppercase tracking-widest text-gray-500 mb-2">Deputy payouts</p>
+
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">{payoutUi.label}</p>
+              <p className="text-xs text-gray-500 mt-1">{payoutUi.helper}</p>
+            </div>
+
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                payoutUi.tone === "ready"
+                  ? "bg-green-50 text-green-700 border border-green-200"
+                  : "bg-amber-50 text-amber-700 border border-amber-200"
+              }`}
+            >
+              {payoutUi.tone === "ready" ? "Ready" : "Action needed"}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleConnectStripe}
+            disabled={stripeLoading}
+            className="mt-4 inline-flex items-center justify-center w-full px-4 py-2 rounded-md bg-black text-white font-semibold hover:bg-[#ff6667] transition disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {stripeLoading ? "Opening Stripe…" : payoutUi.buttonLabel}
+          </button>
+
+          {stripeError ? (
+            <p className="mt-3 text-xs text-red-600">{stripeError}</p>
+          ) : null}
         </div>
       </div>
     </div>
@@ -617,6 +737,7 @@ const isAdminAgent = useMemo(() => {
   me={me}
   fallbackFirstName={firstName}
   deputyCTA={deputyCTA}
+  token={token}
 />    <PeerReviewCard peer={peerReview} />
   </div>
 </div>

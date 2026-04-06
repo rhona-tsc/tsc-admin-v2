@@ -30,6 +30,7 @@ import Messages from "./pages/Messages";
 import Musician from "./pages/Musician";
 import DeputyJobs from "./pages/DeputyJobs";
 import CreateDeputyJob from "./pages/CreateDeputyJob";
+import PayoutSettings from "./pages/PayoutSettings";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -85,7 +86,8 @@ const App = () => {
   const [userRole, setUserRole] = useState(initialUser.userRole || "");
   const [password, setPassword] = useState(initialUser.password || "");
   const [hydrated, setHydrated] = useState(true); // true because we already set from token synchronously
-  const isAdminAgent = userRole === "agent" || email === "hello@thesupremecollective.co.uk";
+  const isAdminAgent =
+    userRole === "agent" || email === "hello@thesupremecollective.co.uk";
 
   const handleLogout = () => {
     setToken("");
@@ -327,7 +329,10 @@ const App = () => {
                       element={<BookingBoard token={token} />}
                     />
                   )}
-
+                  <Route
+                    path="/account/payout-settings"
+                    element={<PayoutSettings token={token} />}
+                  />
                   <Route
                     path="/messages"
                     element={<Messages token={token} />}
