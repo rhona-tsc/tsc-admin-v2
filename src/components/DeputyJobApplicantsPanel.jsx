@@ -348,7 +348,7 @@ const DeputyJobApplicantsPanel = ({
       });
 
       setLocalApplicants(nextApplicants);
-      toast.success(`${getApplicantName(mergedApplication)} has been allocated to the job.`);
+      toast.success(`An allocation request has been sent to ${getApplicantShortName(mergedApplication)}`);
 
       if (typeof onAssigned === "function") {
         onAssigned({
@@ -401,7 +401,7 @@ const DeputyJobApplicantsPanel = ({
           <div className="space-y-4">
             {assignedApplicant && (
               <div className="p-4 rounded-xl border border-green-200 bg-green-50">
-                <p className="text-sm font-semibold text-green-800">Allocated applicant</p>
+                <p className="text-sm font-semibold text-green-800">Allocation Requested</p>
                 <p className="text-sm text-green-700 mt-1">
                   {getApplicantName(assignedApplicant)}
                   {assignedApplicant?.allocatedAt
