@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useLocation } from "react-router-dom";
 import { backendUrl } from "../App";
@@ -16,12 +16,15 @@ const PayoutSettings = () => {
     localStorage.getItem("musicianToken") ||
     "";
 
-  const headers = token
-    ? {
-        Authorization: `Bearer ${token}`,
-        token,
-      }
-    : {};
+  const headers = useMemo(
+    () =>
+      token
+        ? {
+            Authorization: `Bearer ${token}`,
+          }
+        : {},
+    [token]
+  );
 
   const loadStatus = useCallback(async () => {
     try {

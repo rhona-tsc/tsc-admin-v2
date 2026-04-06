@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { backendUrl } from "../App";
@@ -16,6 +16,7 @@ const Login = ({
   setUserPassword, // optional
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [currentState, setCurrentState] = useState("Login");
   const [firstName, setFirstName] = useState("");
@@ -23,6 +24,21 @@ const Login = ({
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const getPostLoginRedirect = () => {
+    const stateRedirect = location.state?.from;
+    if (typeof stateRedirect === "string" && stateRedirect.startsWith("/")) {
+      return stateRedirect;
+    }
+
+    const searchParams = new URLSearchParams(location.search);
+    const queryRedirect = searchParams.get("redirect");
+    if (typeof queryRedirect === "string" && queryRedirect.startsWith("/")) {
+      return queryRedirect;
+    }
+
+    return "/musicians-dashboard";
+  };
 
   const onSubmitHandler = async (event) => {
     event.preventDefault();
@@ -92,8 +108,13 @@ const Login = ({
       // never store plaintext password
       setUserPassword?.("");
 
-      if (mustChangePassword) navigate("/security");
-      else navigate("/musicians-dashboard");
+      const redirectPath = getPostLoginRedirect();
+
+      if (mustChangePassword) {
+        navigate("/security", { state: { from: redirectPath } });
+      } else {
+        navigate(redirectPath, { replace: true });
+      }
     } catch (err) {
       const status = err?.response?.status;
       const apiMsg = err?.response?.data?.message;
@@ -136,7 +157,6 @@ const Login = ({
         { headers: { "Content-Type": "application/json" }, timeout: 15000 }
       );
 
-      // always show generic message (your backend is silent by design)
       toast(
         <CustomToast
           type="success"

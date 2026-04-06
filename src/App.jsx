@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import List from "./pages/List";
 import MusicianDashboard from "./pages/MusicianDashboard";
 import Orders from "./pages/Bookings";
@@ -31,6 +31,7 @@ import Musician from "./pages/Musician";
 import DeputyJobs from "./pages/DeputyJobs";
 import CreateDeputyJob from "./pages/CreateDeputyJob";
 import PayoutSettings from "./pages/PayoutSettings";
+import DeputyJobDetail from "./pages/DeputyJobDetail";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -69,6 +70,18 @@ function parseToken(t) {
     return {};
   }
 }
+
+const RequireLoginRedirect = () => {
+  const location = useLocation();
+
+  return (
+    <Navigate
+      to="/login"
+      replace
+      state={{ from: `${location.pathname}${location.search}${location.hash}` }}
+    />
+  );
+};
 
 const App = () => {
   Modal.setAppElement("#root");
@@ -152,7 +165,7 @@ const App = () => {
           <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Default when logged out */}
-          <Route path="*" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<RequireLoginRedirect />} />
         </Routes>
       ) : (
         // 👇 optional: gate UI until hydrated to prevent flicker
@@ -338,15 +351,15 @@ const App = () => {
                     element={<Messages token={token} />}
                   />
                   <Route path="/musician/:slug" element={<Musician />} />
-                  {isAdminAgent && (
+                  
                     <Route path="/deputy-jobs" element={<DeputyJobs />} />
-                  )}
-                  {isAdminAgent && (
+                
+                  
                     <Route
                       path="/deputy-jobs/create"
                       element={<CreateDeputyJob />}
                     />
-                  )}
+                 <Route path="/deputy-jobs/:id" element={<DeputyJobDetail />} />
                   <Route
                     path="/trash"
                     element={<TrashedActs token={token} />}
