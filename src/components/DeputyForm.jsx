@@ -651,18 +651,17 @@ instrumentation: safeArray(deputy.instrumentation || prev.instrumentation).map((
       if (saved) {
         const parsed = JSON.parse(saved);
         setFormData((prev) => {
-          // Deep merge for nested objects
           const merged = { ...prev };
+
           for (const key in parsed) {
             if (
               parsed[key] !== null &&
               parsed[key] !== undefined &&
               !(typeof parsed[key] === "string" && parsed[key].trim() === "")
             ) {
-              // Never restore file fields from autosave
               if (["profilePicture", "coverHeroImage"].includes(key)) {
                 merged[key] = null;
-                          } else if (
+              } else if (
                 typeof parsed[key] === "object" &&
                 !Array.isArray(parsed[key]) &&
                 parsed[key] !== null &&
@@ -679,13 +678,11 @@ instrumentation: safeArray(deputy.instrumentation || prev.instrumentation).map((
                   merged[key] = { ...merged[key], ...parsed[key] };
                 }
               } else {
-                  merged[key] = { ...merged[key], ...parsed[key] };
-                }
-              } else {
                 merged[key] = parsed[key];
               }
             }
           }
+
           return merged;
         });
         setHasRestoredAutosave(true);
