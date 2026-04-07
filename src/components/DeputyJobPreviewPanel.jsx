@@ -652,7 +652,7 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
 
                   <div className="rounded-2xl border border-gray-200 bg-white p-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Release on
+                      Payment release on
                     </p>
                     <p className="mt-2 text-lg font-semibold text-gray-900">
                       {job.releaseOn ? formatDate(job.releaseOn) : "TBC"}
