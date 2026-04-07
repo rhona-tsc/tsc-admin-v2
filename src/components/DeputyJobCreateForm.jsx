@@ -107,10 +107,6 @@ const buildInitialState = (initialValues = {}) => ({
         )
         .join(", ")
     : initialValues.claimableExpensesOther || "",
-  previewOnly:
-    initialValues.previewOnly === undefined
-      ? true
-      : Boolean(initialValues.previewOnly),
 });
 
 const DeputyJobCreateForm = ({
@@ -255,7 +251,7 @@ const DeputyJobCreateForm = ({
     return Object.keys(nextErrors).length === 0;
   };
 
-  const buildPayload = (previewOnlyOverride = formData.previewOnly) => {
+  const buildPayload = (previewOnlyOverride = false) => {
     const requiredInstruments = normaliseCsvArray(formData.requiredInstruments);
     const requiredSkills = normaliseCsvArray(formData.requiredSkills);
     const desiredRoles = normaliseCsvArray(formData.desiredRoles);
@@ -365,7 +361,7 @@ const DeputyJobCreateForm = ({
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    await submitPayload(formData.previewOnly);
+    await submitPayload(false);
   };
 
   return (
@@ -374,7 +370,7 @@ const DeputyJobCreateForm = ({
         <div className="border-b border-gray-200 px-6 py-5">
           <h2 className={sectionTitleClass}>Create deputy opportunity</h2>
           <p className={`${sectionTextClass} mt-1`}>
-            Add the job details below, preview who matches, and then choose whether to send notifications straight away.
+            Add the job details below and send the opportunity to matching musicians straight away.
           </p>
         </div>
 
@@ -1016,24 +1012,11 @@ const DeputyJobCreateForm = ({
         ) : null}
 
         <button
-          type="button"
-          disabled={isSubmitting || submittingAction === "preview" || submittingAction === "create"}
-          onClick={() => submitPayload(true)}
-          className="inline-flex items-center rounded-full border border-gray-300 bg-white px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {submittingAction === "preview" ? "Preparing preview…" : "Save preview"}
-        </button>
-
-        <button
           type="submit"
-          disabled={isSubmitting || submittingAction === "preview" || submittingAction === "create"}
+          disabled={isSubmitting || submittingAction === "create"}
           className="inline-flex items-center rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {submittingAction === "create"
-            ? "Creating…"
-            : formData.previewOnly
-            ? submitLabel
-            : "Create and notify"}
+          {submittingAction === "create" ? "Creating…" : "Create and notify"}
         </button>
       </div>
     </form>
