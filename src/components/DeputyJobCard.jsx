@@ -3,7 +3,13 @@ import React from "react";
 const formatMoney = (value, fallback = "Fee TBC") => {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return fallback;
-  return `£${n.toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
+
+  return `£${n
+    .toLocaleString("en-GB", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+    .replace(/\.00$/, "")}`;
 };
 
 const formatDate = (value) => {

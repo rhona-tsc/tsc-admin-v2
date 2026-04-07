@@ -65,7 +65,42 @@ const formatDateTime = (value) => {
   });
 };
 
+
 const toArray = (value) => (Array.isArray(value) ? value.filter(Boolean) : []);
+
+const normaliseArray = (value) => {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (typeof value === "string" && value.trim()) {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+};
+
+const statusToneMap = {
+  open: "default",
+  preview: "yellow",
+  allocated: "yellow",
+  filled: "green",
+  closed: "red",
+  cancelled: "red",
+};
+
+const getStatusLabel = (value, fallback = "—") => {
+  const status = normaliseString(value).toLowerCase();
+  if (!status) return fallback;
+
+  if (status === "allocated") return "Allocation Requested";
+  if (status === "filled") return "Filled";
+  if (status === "closed") return "Closed";
+  if (status === "cancelled") return "Cancelled";
+  if (status === "preview") return "Preview";
+  if (status === "open") return "Open";
+
+  return formatLabel(status, fallback);
+};
 
 const formatLabel = (value, fallback = "—") => {
   const text = normaliseString(value);
@@ -207,13 +242,27 @@ const DeputyJobDetail = () => {
   const canViewMatchedMusicians = isAdminViewer;
   const canViewNotifications = isAdminViewer;
   const canViewApplications = isAdminViewer || isJobManager;
+  const applications = toArray(job?.applications);
+  const applicationEmails = applications
+    .map((application) => normaliseString(application?.email).toLowerCase())
+    .filter(Boolean);
+
+  const hasApplied = Boolean(
+    currentUserEmail && applicationEmails.includes(currentUserEmail)
+  );
+
   const canApplyToJob = Boolean(
-    !isAdminViewer && token && job && !["filled", "allocated", "closed"].includes(job.status)
+    !isAdminViewer &&
+      musicianToken &&
+      job &&
+      !hasApplied &&
+      !["allocated", "filled", "closed", "cancelled"].includes(
+        normaliseString(job.status).toLowerCase()
+      )
   );
 
   const matchedMusicians = toArray(job?.matchedMusicians);
   const notifications = toArray(job?.notifications);
-  const applications = toArray(job?.applications);
 
   const fullLocation =
     normaliseString(job?.location) ||
@@ -234,23 +283,13 @@ const DeputyJobDetail = () => {
   );
 
   const statusTone =
-    job?.status === "filled"
-      ? "green"
-      : job?.status === "allocated"
-      ? "yellow"
-      : job?.status === "open"
-      ? "default"
-      : job?.status === "preview"
-      ? "yellow"
-      : "default";
+    statusToneMap[normaliseString(job?.status).toLowerCase()] || "default";
 
   const workflowTone =
     job?.workflowStage === "booking_confirmed"
       ? "green"
       : job?.workflowStage === "allocated"
       ? "yellow"
-      : job?.workflowStage === "sent_to_matches"
-      ? "default"
       : "default";
 
   const handleCopyLink = async () => {
@@ -264,6 +303,11 @@ const DeputyJobDetail = () => {
   };
 
   const handleApply = useCallback(async () => {
+    if (hasApplied) {
+      toast.success("You have already applied for this deputy job");
+      return;
+    }
+
     try {
       setApplying(true);
 
@@ -292,7 +336,7 @@ const DeputyJobDetail = () => {
     } finally {
       setApplying(false);
     }
-  }, [headers, id, loadJob]);
+  }, [hasApplied, headers, id, loadJob]);
 
   if (loading) {
     return (
@@ -351,8 +395,14 @@ const DeputyJobDetail = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone={statusTone}>{formatLabel(job.status, "Unknown")}</Badge>
+            <Badge tone={statusTone}>{getStatusLabel(job.status, "Unknown")}</Badge>
             <Badge tone={workflowTone}>{formatLabel(job.workflowStage)}</Badge>
+
+            {hasApplied ? (
+              <span className="inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
+                Applied
+              </span>
+            ) : null}
 
             {canApplyToJob && (
               <button
@@ -494,7 +544,7 @@ const DeputyJobDetail = () => {
                             )}
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            <Badge>{formatLabel(application.status, "Applied")}</Badge>
+                            <Badge>{getStatusLabel(application.status, "Applied")}</Badge>
                             {application.appliedAt && (
                               <span className="text-xs text-gray-500">
                                 Applied {formatDateTime(application.appliedAt)}
@@ -527,7 +577,7 @@ const DeputyJobDetail = () => {
               </div>
               <div className="flex items-center justify-between">
                 <span>Applications</span>
-                <span className="font-medium text-gray-900">{applications.length}</span>
+                <span className="font-medium text-gray-900">{normaliseArray(job?.applications).length || applications.length}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Client charge</span>
