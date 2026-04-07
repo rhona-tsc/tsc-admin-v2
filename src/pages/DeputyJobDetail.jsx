@@ -67,10 +67,57 @@ const formatDateTime = (value) => {
 
 const toArray = (value) => (Array.isArray(value) ? value.filter(Boolean) : []);
 
+const formatLabel = (value, fallback = "—") => {
+  const text = normaliseString(value);
+  if (!text) return fallback;
+
+  return text
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const getStoredUserEmail = () => {
+  const possibleKeys = ["user", "admin", "musician", "profile", "currentUser"];
+
+  for (const key of possibleKeys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      const email = normaliseString(parsed?.email).toLowerCase();
+      if (email) return email;
+    } catch {
+      // ignore malformed values
+    }
+  }
+
+  const directEmail =
+    normaliseString(localStorage.getItem("email")) ||
+    normaliseString(localStorage.getItem("userEmail")) ||
+    normaliseString(localStorage.getItem("adminEmail")) ||
+    normaliseString(localStorage.getItem("musicianEmail"));
+
+  return directEmail.toLowerCase();
+};
+
+const maskEmail = (value) => {
+  const email = normaliseString(value);
+  if (!email || !email.includes("@")) return "";
+
+  const [localPart, domain] = email.split("@");
+  const safeLocal =
+    localPart.length <= 2
+      ? `${localPart.charAt(0) || ""}*`
+      : `${localPart.slice(0, 2)}${"*".repeat(Math.max(localPart.length - 2, 1))}`;
+
+  return `${safeLocal}@${domain}`;
+};
+
 const DetailRow = ({ label, value }) => (
   <div className="grid grid-cols-1 gap-1 border-b border-gray-100 py-3 md:grid-cols-[180px_1fr]">
     <div className="text-sm font-medium text-gray-500">{label}</div>
-    <div className="text-sm text-gray-900 break-words">{value || "—"}</div>
+    <div className="break-words text-sm text-gray-900">{value || "—"}</div>
   </div>
 );
 
@@ -97,12 +144,13 @@ const DeputyJobDetail = () => {
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [applying, setApplying] = useState(false);
 
-  const token =
-    localStorage.getItem("token") ||
-    localStorage.getItem("adminToken") ||
-    localStorage.getItem("musicianToken") ||
-    "";
+  const adminToken = localStorage.getItem("adminToken") || "";
+  const musicianToken = localStorage.getItem("musicianToken") || "";
+  const generalToken = localStorage.getItem("token") || "";
+
+  const token = generalToken || adminToken || musicianToken || "";
 
   const headers = useMemo(
     () =>
@@ -145,6 +193,23 @@ const DeputyJobDetail = () => {
   useEffect(() => {
     loadJob();
   }, [loadJob]);
+
+  const currentUserEmail = useMemo(() => getStoredUserEmail(), []);
+  const createdByEmail = normaliseString(job?.createdByEmail).toLowerCase();
+  const managerEmail = normaliseString(job?.managerEmail || job?.createdBy?.email).toLowerCase();
+
+  const isAdminViewer = Boolean(adminToken);
+  const isJobManager = Boolean(
+    currentUserEmail &&
+      (currentUserEmail === createdByEmail || currentUserEmail === managerEmail)
+  );
+
+  const canViewMatchedMusicians = isAdminViewer;
+  const canViewNotifications = isAdminViewer;
+  const canViewApplications = isAdminViewer || isJobManager;
+  const canApplyToJob = Boolean(
+    !isAdminViewer && token && job && !["filled", "allocated", "closed"].includes(job.status)
+  );
 
   const matchedMusicians = toArray(job?.matchedMusicians);
   const notifications = toArray(job?.notifications);
@@ -197,6 +262,37 @@ const DeputyJobDetail = () => {
       toast.error("Could not copy link");
     }
   };
+
+  const handleApply = useCallback(async () => {
+    try {
+      setApplying(true);
+
+      const res = await axios.post(
+        `${backendUrl}/api/deputy-jobs/${id}/apply`,
+        {},
+        {
+          headers,
+          withCredentials: true,
+        }
+      );
+
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || "Failed to apply for deputy job");
+      }
+
+      toast.success(res.data?.message || "Application submitted");
+      await loadJob();
+    } catch (err) {
+      console.error("❌ Failed to apply for deputy job:", err);
+      toast.error(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to apply for deputy job"
+      );
+    } finally {
+      setApplying(false);
+    }
+  }, [headers, id, loadJob]);
 
   if (loading) {
     return (
@@ -255,8 +351,20 @@ const DeputyJobDetail = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone={statusTone}>{job.status || "unknown"}</Badge>
-            <Badge tone={workflowTone}>{job.workflowStage || "—"}</Badge>
+            <Badge tone={statusTone}>{formatLabel(job.status, "Unknown")}</Badge>
+            <Badge tone={workflowTone}>{formatLabel(job.workflowStage)}</Badge>
+
+            {canApplyToJob && (
+              <button
+                type="button"
+                onClick={handleApply}
+                disabled={applying}
+                className="rounded-lg border border-[#ff6667] px-4 py-2 text-sm font-medium text-[#ff6667] hover:bg-[#fff1f1] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {applying ? "Applying…" : "One-click apply"}
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handleCopyLink}
@@ -322,79 +430,87 @@ const DeputyJobDetail = () => {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-6 shadow">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">Matched musicians</h2>
-            {matchedMusicians.length ? (
-              <div className="space-y-3">
-                {matchedMusicians.map((musician, index) => {
-                  const name = [musician.firstName, musician.lastName]
-                    .filter(Boolean)
-                    .join(" ")
-                    .trim() || "Unnamed musician";
+          {canViewMatchedMusicians && (
+            <div className="rounded-2xl bg-white p-6 shadow">
+              <h2 className="mb-4 text-lg font-semibold text-gray-900">Matched musicians</h2>
+              {matchedMusicians.length ? (
+                <div className="space-y-3">
+                  {matchedMusicians.map((musician, index) => {
+                    const name = [musician.firstName, musician.lastName]
+                      .filter(Boolean)
+                      .join(" ")
+                      .trim() || "Unnamed musician";
 
-                  return (
-                    <div
-                      key={musician.musicianId || musician._id || `${name}-${index}`}
-                      className="rounded-xl border border-gray-200 p-4"
-                    >
-                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900">{name}</p>
-                          <p className="text-sm text-gray-500">{musician.email || "No email"}</p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {typeof musician.matchPct === "number" && (
-                            <Badge>{musician.matchPct}% match</Badge>
-                          )}
-                          {musician.notified && <Badge tone="green">Notified</Badge>}
+                    return (
+                      <div
+                        key={musician.musicianId || musician._id || `${name}-${index}`}
+                        className="rounded-xl border border-gray-200 p-4"
+                      >
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">{name}</p>
+                            {musician.email && (
+                              <p className="text-sm text-gray-500">{maskEmail(musician.email)}</p>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {typeof musician.matchPct === "number" && (
+                              <Badge>{musician.matchPct}% match</Badge>
+                            )}
+                            {musician.notified && <Badge tone="green">Notified</Badge>}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">No matched musicians stored on this job yet.</p>
-            )}
-          </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No matched musicians stored on this job yet.</p>
+              )}
+            </div>
+          )}
 
-          <div className="rounded-2xl bg-white p-6 shadow">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">Applications</h2>
-            {applications.length ? (
-              <div className="space-y-3">
-                {applications.map((application, index) => {
-                  const name = [application.firstName, application.lastName]
-                    .filter(Boolean)
-                    .join(" ")
-                    .trim() || "Unnamed applicant";
+          {canViewApplications && (
+            <div className="rounded-2xl bg-white p-6 shadow">
+              <h2 className="mb-4 text-lg font-semibold text-gray-900">Applications</h2>
+              {applications.length ? (
+                <div className="space-y-3">
+                  {applications.map((application, index) => {
+                    const name = [application.firstName, application.lastName]
+                      .filter(Boolean)
+                      .join(" ")
+                      .trim() || "Unnamed applicant";
 
-                  return (
-                    <div
-                      key={application.musicianId || `${name}-${index}`}
-                      className="rounded-xl border border-gray-200 p-4"
-                    >
-                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900">{name}</p>
-                          <p className="text-sm text-gray-500">{application.email || "No email"}</p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <Badge>{application.status || "applied"}</Badge>
-                          {application.appliedAt && (
-                            <span className="text-xs text-gray-500">
-                              Applied {formatDateTime(application.appliedAt)}
-                            </span>
-                          )}
+                    return (
+                      <div
+                        key={application.musicianId || `${name}-${index}`}
+                        className="rounded-xl border border-gray-200 p-4"
+                      >
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <p className="font-medium text-gray-900">{name}</p>
+                            {application.email && (
+                              <p className="text-sm text-gray-500">{maskEmail(application.email)}</p>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Badge>{formatLabel(application.status, "Applied")}</Badge>
+                            {application.appliedAt && (
+                              <span className="text-xs text-gray-500">
+                                Applied {formatDateTime(application.appliedAt)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">No applications yet.</p>
-            )}
-          </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No applications yet.</p>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -407,7 +523,7 @@ const DeputyJobDetail = () => {
               </div>
               <div className="flex items-center justify-between">
                 <span>Notified</span>
-                <span className="font-medium text-gray-900">{job.notifiedCount || 0}</span>
+                <span className="font-medium text-gray-900">{job.notifiedCount || notifications.length || 0}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Applications</span>
@@ -440,38 +556,48 @@ const DeputyJobDetail = () => {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-6 shadow">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">Notifications</h2>
-            {notifications.length ? (
-              <div className="space-y-3">
-                {notifications.map((notification, index) => (
-                  <div
-                    key={`${notification.type || "notification"}-${notification.providerMessageId || index}`}
-                    className="rounded-xl border border-gray-200 p-4"
-                  >
-                    <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <Badge>{notification.type || "notification"}</Badge>
-                      <Badge tone={notification.status === "sent" ? "green" : notification.status === "failed" ? "red" : "default"}>
-                        {notification.status || "unknown"}
-                      </Badge>
+          {canViewNotifications && (
+            <div className="rounded-2xl bg-white p-6 shadow">
+              <h2 className="mb-4 text-lg font-semibold text-gray-900">Notifications</h2>
+              {notifications.length ? (
+                <div className="space-y-3">
+                  {notifications.map((notification, index) => (
+                    <div
+                      key={`${notification.type || "notification"}-${notification.providerMessageId || index}`}
+                      className="rounded-xl border border-gray-200 p-4"
+                    >
+                      <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <Badge>{formatLabel(notification.type, "Notification")}</Badge>
+                        <Badge
+                          tone={
+                            notification.status === "sent"
+                              ? "green"
+                              : notification.status === "failed"
+                              ? "red"
+                              : "default"
+                          }
+                        >
+                          {formatLabel(notification.status, "Unknown")}
+                        </Badge>
+                      </div>
+                      <p className="text-sm font-medium text-gray-900">{notification.subject || "No subject"}</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {formatLabel(notification.channel)} · {formatDateTime(notification.sentAt)}
+                      </p>
+                      {notification.email && (
+                        <p className="mt-1 text-sm text-gray-600">{maskEmail(notification.email)}</p>
+                      )}
+                      {notification.error && (
+                        <p className="mt-2 text-sm text-red-600">{notification.error}</p>
+                      )}
                     </div>
-                    <p className="text-sm font-medium text-gray-900">{notification.subject || "No subject"}</p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {notification.channel || "—"} · {formatDateTime(notification.sentAt)}
-                    </p>
-                    {notification.email && (
-                      <p className="mt-1 text-sm text-gray-600">{notification.email}</p>
-                    )}
-                    {notification.error && (
-                      <p className="mt-2 text-sm text-red-600">{notification.error}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">No notifications recorded yet.</p>
-            )}
-          </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">No notifications recorded yet.</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
