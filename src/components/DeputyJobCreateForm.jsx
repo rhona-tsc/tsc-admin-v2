@@ -829,20 +829,12 @@ const DeputyJobCreateForm = ({
           <div>
             <h3 className="text-base font-semibold text-gray-900">Matching preview</h3>
             <p className="mt-1 text-sm text-gray-500">
-              These are the fields the matching logic can use when deciding who to notify.
+              These are the fields the matching logic will use when deciding who to notify.
             </p>
           </div>
 
-          <label className="inline-flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              name="previewOnly"
-              checked={Boolean(formData.previewOnly)}
-              onChange={handleChange}
-              className="h-4 w-4 accent-black"
-            />
-            Create as preview only
-          </label>
+        
+        
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
