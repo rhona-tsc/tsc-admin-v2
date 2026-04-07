@@ -181,11 +181,12 @@ const DeputyJobDetail = () => {
   const [error, setError] = useState("");
   const [applying, setApplying] = useState(false);
 
-  const adminToken = localStorage.getItem("adminToken") || "";
+    const adminToken = localStorage.getItem("adminToken") || "";
   const musicianToken = localStorage.getItem("musicianToken") || "";
   const generalToken = localStorage.getItem("token") || "";
 
   const token = generalToken || adminToken || musicianToken || "";
+  const hasAnyUserToken = Boolean(token);
 
   const headers = useMemo(
     () =>
@@ -253,9 +254,10 @@ const DeputyJobDetail = () => {
 
   const canApplyToJob = Boolean(
     !isAdminViewer &&
-      musicianToken &&
+      hasAnyUserToken &&
       job &&
       !hasApplied &&
+      !isJobManager &&
       !["allocated", "filled", "closed", "cancelled"].includes(
         normaliseString(job.status).toLowerCase()
       )
@@ -398,10 +400,19 @@ const DeputyJobDetail = () => {
             <Badge tone={statusTone}>{getStatusLabel(job.status, "Unknown")}</Badge>
             <Badge tone={workflowTone}>{formatLabel(job.workflowStage)}</Badge>
 
-            {hasApplied ? (
+                        {hasApplied ? (
               <span className="inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
                 Applied
               </span>
+            ) : canApplyToJob ? (
+              <button
+                type="button"
+                onClick={handleApply}
+                disabled={applying}
+                className="inline-flex items-center rounded-lg border border-[#ff6667] px-4 py-2 text-sm font-medium text-[#ff6667] hover:bg-[#fff1f1] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {applying ? "Applying…" : "One-click apply"}
+              </button>
             ) : null}
 
             {canApplyToJob && (
@@ -437,7 +448,23 @@ const DeputyJobDetail = () => {
         <div className="space-y-6">
           <div className="rounded-2xl bg-white p-6 shadow">
             <h2 className="mb-4 text-lg font-semibold text-gray-900">Job details</h2>
-            <div>
+
+            {hasApplied ? (
+              <div className="mb-4 inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
+                You have already applied for this deputy job
+              </div>
+            ) : canApplyToJob ? (
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={handleApply}
+                  disabled={applying}
+                  className="rounded-lg bg-[#ff6667] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {applying ? "Applying…" : "One-click apply"}
+                </button>
+              </div>
+            ) : null}            <div>
               <DetailRow label="Job title" value={job.title || job.instrument || "—"} />
               <DetailRow label="Date" value={formatDateLong(job.eventDate || job.date)} />
               <DetailRow label="Call time" value={job.callTime || job.startTime || "TBC"} />

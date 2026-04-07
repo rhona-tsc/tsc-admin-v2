@@ -599,7 +599,7 @@ const isAdminAgent = useMemo(() => {
         <div className="lg:col-span-9 ">
           {/* 🚧 UNDER CONSTRUCTION BANNER */}
           <DashboardUnderConstruction firstname={firstName} />
-    {isAdminAgent && (
+ 
   <div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
     <h3 className="text-lg font-semibold mb-3">Deputy Opportunities</h3>
     <p className="text-gray-600 mb-4">
@@ -630,7 +630,7 @@ const isAdminAgent = useMemo(() => {
       </button>
     </div>
   </div>
-)}
+
           {/* ------- Quick Stats ------- */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 space-y-2 md:space-y-0 my-6">
             <div className="p-4 bg-white shadow rounded">
