@@ -451,7 +451,7 @@ const DeputyJobDetail = () => {
 
             {hasApplied ? (
               <div className="mb-4 inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
-                You have already applied for this deputy job
+                You have applied for this deputy job
               </div>
             ) : canApplyToJob ? (
               <div className="mb-4">
