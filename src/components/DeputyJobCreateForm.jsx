@@ -319,6 +319,7 @@ const DeputyJobCreateForm = ({
     if (!validate()) return;
 
     const payload = buildPayload(previewOnlyOverride);
+    console.log("[DeputyJobCreateForm] submitting payload", payload);
     const actionLabel = payload.previewOnly ? "preview" : "create";
 
     try {
@@ -332,6 +333,7 @@ const DeputyJobCreateForm = ({
       const res = await axios.post(`${backendUrl}/api/deputy-jobs`, payload, {
         headers: authHeaders,
       });
+      console.log("[DeputyJobCreateForm] create response", res.data);
 
       if (res.data?.success) {
         if (payload.previewOnly) {
