@@ -1,9 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import BookingsChart from "../components/BookingsChart";
-import RevenueChart from "../components/RevenueChart";
-import EnquiriesVsBookingsChart from "../components/EnquiriesVsBookingsChart";
 import DashboardUnderConstruction from "../components/DashboardUnderConstruction";
 
 const backendUrl =
@@ -604,22 +601,59 @@ const isAdminAgent = useMemo(() => {
     <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
       <div>
         <div className="inline-flex items-center rounded-full bg-[#ff6667]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#ff6667]">
-          Deputy hub
+          New on the portal
         </div>
-        <h3 className="mt-3 text-xl font-semibold text-gray-900">Deputy Opportunities</h3>
+        <h3 className="mt-3 text-xl font-semibold text-gray-900">Deputy Jobs are live</h3>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-          Manage the deputy jobs board, create new opportunities, and review applications.
+          You can now post your own deputy jobs, apply to opportunities in one click, and keep your profile updated so bands and bookers can check out your experience, skills, and media when you apply.
         </p>
       </div>
 
-      <div className="shrink-0 rounded-xl border border-white/70 bg-white/80 px-4 py-3 shadow-sm backdrop-blur">
+      <div className="shrink-0 rounded-xl border border-white/70 bg-white/80 px-4 py-3 shadow-sm backdrop-blur md:max-w-[250px]">
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-          Quick access
+          Quick reminder
         </p>
         <p className="mt-1 text-sm text-gray-700">
-          Post a job or jump straight into live deputy activity.
+          Make sure your deputy profile is up to date so the right jobs find you and bands can view your profile with confidence.
         </p>
       </div>
+    </div>
+
+    <div className="mt-5 rounded-2xl border border-[#ffe1e1] bg-white/80 p-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="rounded-xl bg-[#fff7f7] p-4 border border-[#ffdede]">
+          <p className="text-sm font-semibold text-gray-900">Post your own deputy jobs</p>
+          <p className="mt-1 text-sm leading-6 text-gray-600">
+            Create opportunities directly from the portal and reach matched musicians faster.
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-[#fff7f7] p-4 border border-[#ffdede]">
+          <p className="text-sm font-semibold text-gray-900">Apply in one click</p>
+          <p className="mt-1 text-sm leading-6 text-gray-600">
+            See relevant deputy roles and send your application quickly when something suits you.
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-[#fff7f7] p-4 border border-[#ffdede]">
+          <p className="text-sm font-semibold text-gray-900">Keep your profile fresh</p>
+          <p className="mt-1 text-sm leading-6 text-gray-600">
+            Bands may check your profile before choosing a deputy, so it’s worth keeping your skills, media, and experience up to date.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-gray-500">
+      <span className="inline-flex items-center rounded-full bg-white/80 px-3 py-1 border border-[#ffe1e1]">
+        One-click applications
+      </span>
+      <span className="inline-flex items-center rounded-full bg-white/80 px-3 py-1 border border-[#ffe1e1]">
+        Post your own deputy jobs
+      </span>
+      <span className="inline-flex items-center rounded-full bg-white/80 px-3 py-1 border border-[#ffe1e1]">
+        Keep your profile fresh
+      </span>
     </div>
 
     <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -634,7 +668,7 @@ const isAdminAgent = useMemo(() => {
               Open Deputy Jobs Board
             </p>
             <p className="mt-2 text-sm leading-6 text-gray-500">
-              View live jobs, preview opportunities, and review applicants.
+              Browse live jobs, apply quickly, and keep track of deputy opportunities.
             </p>
           </div>
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#fff1f1] text-[#ff6667] transition group-hover:bg-[#ff6667] group-hover:text-white">
@@ -723,20 +757,6 @@ const isAdminAgent = useMemo(() => {
             )}
           </div>
 
-          {/* ------- Charts Section ------- */}
-          <div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
-            <h3 className="text-lg font-semibold mb-4">
-              Monthly Performance Overview
-            </h3>
-
-            <div className="h-64 flex items-center justify-center text-gray-400">
-              <>
-                <BookingsChart data={stats?.bookingsByMonth || {}} />
-                <RevenueChart data={stats?.revenueByMonth || {}} />
-                <EnquiriesVsBookingsChart data={stats?.enquiriesByMonth || {}} />
-              </>
-            </div>
-          </div>
 
           {/* ------- Noticeboard ------- */}
           <div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
