@@ -220,144 +220,78 @@ const CreateDeputyJob = () => {
     navigate("/deputy-jobs");
   };
 
-const handleSubmit = async (payload) => {
-  try {
-    setIsSubmitting(true);
-    setPaymentSetupState({
-      status: "idle",
-      deputyJobId: "",
-      setupIntentId: "",
-      clientSecret: "",
-      stripeCustomerId: "",
-    });
+  const handleSubmit = async (payload) => {
+    try {
+      setIsSubmitting(true);
+      setPaymentSetupState({
+        status: "idle",
+        deputyJobId: "",
+        setupIntentId: "",
+        clientSecret: "",
+        stripeCustomerId: "",
+      });
 
-    const endpoint = payload?.previewOnly
-      ? `${deputyJobsBaseUrl}/preview`
-      : deputyJobsBaseUrl;
+      const submitPayload = {
+        ...payload,
+        previewOnly: false,
+      };
 
-    const res = await axios.post(endpoint, payload, {
-      headers: authHeaders,
-    });
+      const res = await axios.post(deputyJobsBaseUrl, submitPayload, {
+        headers: authHeaders,
+      });
 
-    if (!res.data?.success) {
-      toast.error(res.data?.message || "Failed to create deputy job.");
-      return;
-    }
+      if (!res.data?.success) {
+        toast.error(res.data?.message || "Failed to create deputy job.");
+        return;
+      }
 
-    const createdJob = res.data.job;
-    const createdJobId = createdJob?._id || createdJob?.id;
+      const createdJob = res.data?.job || null;
+      const createdJobId = createdJob?._id || createdJob?.id || "";
 
-    if (payload?.previewOnly) {
       let paymentSetupPrepared = false;
 
-      if (payload?.saveClientCard && payload?.clientEmail && createdJobId) {
-        const previewPayment = res.data?.payment;
+      if (submitPayload?.saveClientCard && submitPayload?.clientEmail && createdJobId) {
+        try {
+          const paymentSetupResult = await prepareDeputyJobPaymentSetup({
+            jobId: createdJobId,
+            payload: submitPayload,
+          });
 
-        if (previewPayment?.clientSecret) {
-          const nextPaymentSetupState = {
-            status: "prepared",
-            deputyJobId: String(createdJobId || ""),
-            setupIntentId: previewPayment?.setupIntentId || "",
-            clientSecret: previewPayment?.clientSecret || "",
-            stripeCustomerId: previewPayment?.stripeCustomerId || "",
-          };
-
-          setPaymentSetupState(nextPaymentSetupState);
-
-          try {
-            sessionStorage.setItem(
-              "deputyJobPaymentSetup",
-              JSON.stringify(nextPaymentSetupState)
-            );
-          } catch {
-            // ignore storage errors
-          }
-
-          paymentSetupPrepared = true;
-        } else {
-          try {
-            const paymentSetupResult = await prepareDeputyJobPaymentSetup({
-              jobId: createdJobId,
-              payload,
-            });
-
-            paymentSetupPrepared = Boolean(paymentSetupResult?.success);
-          } catch (paymentSetupError) {
-            console.error(
-              "❌ Failed to prepare deputy job preview payment setup:",
-              paymentSetupError
-            );
-            toast.warn(
-              paymentSetupError?.response?.data?.message ||
-                paymentSetupError?.message ||
-                "Preview created, but payment setup could not be prepared yet."
-            );
-          }
+          paymentSetupPrepared = Boolean(paymentSetupResult?.success);
+        } catch (paymentSetupError) {
+          console.error("❌ Failed to prepare deputy job payment setup:", paymentSetupError);
+          toast.warn(
+            paymentSetupError?.response?.data?.message ||
+              paymentSetupError?.message ||
+              "Deputy job created, but payment setup could not be prepared yet."
+          );
         }
       }
 
       toast.success(
         paymentSetupPrepared
-          ? `Preview ready. ${res.data.matchedCount || 0} musicians matched and payment setup prepared.`
-          : `Preview ready. ${res.data.matchedCount || 0} musicians matched.`
+          ? `Deputy job created. ${res.data?.notifiedCount || 0} musicians notified and payment setup prepared.`
+          : `Deputy job created. ${res.data?.notifiedCount || 0} musicians notified.`
       );
 
       if (paymentSetupPrepared) {
         setCreatedPreviewJob(createdJob);
         toast.info(
-          "Preview created and card setup is ready below. Complete the Stripe card step before leaving this page."
+          "Job created. Please complete the card step below to activate payment collection for this deputy role."
         );
         return;
       }
 
       handleCreated(createdJob, { paymentSetupPrepared: false });
-      return;
-    }
-
-    let paymentSetupPrepared = false;
-
-    if (payload?.saveClientCard && payload?.clientEmail && createdJobId) {
-      try {
-        const paymentSetupResult = await prepareDeputyJobPaymentSetup({
-          jobId: createdJobId,
-          payload,
-        });
-
-        paymentSetupPrepared = Boolean(paymentSetupResult?.success);
-      } catch (paymentSetupError) {
-        console.error("❌ Failed to prepare deputy job payment setup:", paymentSetupError);
-        toast.warn(
-          paymentSetupError?.response?.data?.message ||
-            paymentSetupError?.message ||
-            "Deputy job created, but payment setup could not be prepared yet."
-        );
-      }
-    }
-
-    toast.success(
-      paymentSetupPrepared
-        ? `Deputy job created. ${res.data.notifiedCount || 0} musicians notified and payment setup prepared.`
-        : `Deputy job created. ${res.data.notifiedCount || 0} musicians notified.`
-    );
-
-    if (paymentSetupPrepared) {
-      setCreatedPreviewJob(createdJob);
-      toast.info(
-        "Job created. Please complete the card step below to activate payment collection for this deputy role."
+    } catch (error) {
+      console.error("❌ Failed to create deputy job:", error);
+      toast.error(
+        error?.response?.data?.message || "Failed to create deputy job."
       );
-      return;
+    } finally {
+      setIsSubmitting(false);
     }
-
-    handleCreated(createdJob, { paymentSetupPrepared: false });
-  } catch (error) {
-    console.error("❌ Failed to create deputy job:", error);
-    toast.error(
-      error?.response?.data?.message || "Failed to create deputy job."
-    );
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
