@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -58,7 +58,11 @@ const DeputyJobPaymentSetupCard = ({
         throw new Error(saveRes.data?.message || "Failed to save payment method.");
       }
 
-      toast.success("Card saved successfully. Automatic payment is now ready for this deputy job.");
+      toast.success(
+        saveRes.data?.autoSentNotifications
+          ? `Card saved successfully. ${saveRes.data?.notifiedCount || 0} musicians have now been notified.`
+          : "Card saved successfully. Automatic payment is now ready for this deputy job."
+      );
 
       if (typeof onSuccess === "function") {
         onSuccess(saveRes.data?.job || null);
@@ -85,7 +89,7 @@ const DeputyJobPaymentSetupCard = ({
           Save payment card to activate this deputy job
         </h2>
         <p className="mt-3 text-sm text-gray-600 leading-7">
-          Your deputy job has been created successfully. To activate the job and enable automatic payment collection, please enter the payer’s card details below.
+          Your deputy job has been created, but it is not live yet. Please enter the payer’s card details below to activate the job and notify matched musicians.
         </p>
       </div>
 
@@ -93,14 +97,11 @@ const DeputyJobPaymentSetupCard = ({
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">
           <p className="font-semibold">Important payment information</p>
           <div className="mt-2 space-y-2 leading-6">
+            <p>No payment will be taken now.</p>
+            <p>The card will only be charged automatically once you allocate the role to a deputy.</p>
             <p>
-              No payment will be taken now.
+              Payment is charged securely via Stripe once a deputy is allocated. The deputy’s payment is then scheduled for release after the event, less our commission, and tracked in our payout system.
             </p>
-            <p>
-              The card will only be charged automatically once you allocate the role to a deputy.
-            </p>
-            <p>
-Payment is charged securely via Stripe once a deputy is allocated. The deputy’s payment is then scheduled for release after the event, less our commission, and tracked in our payout system.            </p>
           </div>
         </div>
 
@@ -156,6 +157,24 @@ const CreateDeputyJob = () => {
     () => `${backendUrl}/api/deputy-jobs`,
     []
   );
+
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("deputyJobPaymentSetup");
+      if (!stored) return;
+
+      const parsed = JSON.parse(stored);
+      if (
+        parsed?.status === "prepared" &&
+        parsed?.deputyJobId &&
+        parsed?.clientSecret
+      ) {
+        setPaymentSetupState(parsed);
+      }
+    } catch (error) {
+      console.error("❌ Failed to restore deputy job payment setup state:", error);
+    }
+  }, []);
 
   const prepareDeputyJobPaymentSetup = async ({ jobId, payload }) => {
     if (!payload?.saveClientCard || !payload?.clientEmail || !jobId) {
@@ -231,6 +250,12 @@ const CreateDeputyJob = () => {
         stripeCustomerId: "",
       });
 
+      try {
+        sessionStorage.removeItem("deputyJobPaymentSetup");
+      } catch {
+        // ignore
+      }
+
       const submitPayload = {
         ...payload,
         previewOnly: false,
@@ -270,14 +295,14 @@ const CreateDeputyJob = () => {
 
       toast.success(
         paymentSetupPrepared
-          ? `Deputy job created. ${res.data?.notifiedCount || 0} musicians notified and payment setup prepared.`
+          ? "Deputy job created. Complete the card step below to activate the job and notify matched musicians."
           : `Deputy job created. ${res.data?.notifiedCount || 0} musicians notified.`
       );
 
       if (paymentSetupPrepared) {
         setCreatedPreviewJob(createdJob);
         toast.info(
-          "Job created. Please complete the card step below to activate payment collection for this deputy role."
+          "Your job is not live yet. Please complete the card step below to activate it and send notifications."
         );
         return;
       }
@@ -335,10 +360,17 @@ const CreateDeputyJob = () => {
                 authHeaders={authHeaders}
                 deputyJobsBaseUrl={deputyJobsBaseUrl}
                 onSuccess={(savedJob) => {
+                  try {
+                    sessionStorage.removeItem("deputyJobPaymentSetup");
+                  } catch {
+                    // ignore
+                  }
+
                   setPaymentSetupState((prev) => ({
                     ...prev,
                     status: "saved",
                   }));
+
                   handleCreated(
                     savedJob || createdPreviewJob || { _id: paymentSetupState.deputyJobId },
                     {
