@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -8,6 +8,7 @@ import DeputyJobCreateForm from "../components/DeputyJobCreateForm";
 import { backendUrl } from "../App";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "");
+const ADMIN_EMAIL = "hello@thesupremecollective.co.uk";
 
 const DeputyJobPaymentSetupCard = ({
   paymentSetupState,
@@ -153,6 +154,17 @@ const CreateDeputyJob = () => {
       }
     : {};
 
+  const storedEmail = String(
+    localStorage.getItem("userEmail") ||
+      localStorage.getItem("adminEmail") ||
+      localStorage.getItem("email") ||
+      ""
+  )
+    .toLowerCase()
+    .trim();
+
+  const isAdminUser = storedEmail === ADMIN_EMAIL;
+
   const deputyJobsBaseUrl = useMemo(
     () => `${backendUrl}/api/deputy-jobs`,
     []
@@ -175,6 +187,43 @@ const CreateDeputyJob = () => {
       console.error("❌ Failed to restore deputy job payment setup state:", error);
     }
   }, []);
+
+  const handleLoadExistingPaymentSetup = useCallback(() => {
+    if (!isAdminUser) return;
+
+    const deputyJobId = window.prompt("Enter the deputy job ID");
+    if (!deputyJobId) return;
+
+    const setupIntentId = window.prompt("Enter the SetupIntent ID");
+    if (!setupIntentId) return;
+
+    const clientSecret = window.prompt("Paste the client secret returned by the API");
+    if (!clientSecret) return;
+
+    const stripeCustomerId =
+      window.prompt("Stripe customer ID (optional)") || "";
+
+    const nextPaymentSetupState = {
+      status: "prepared",
+      deputyJobId: String(deputyJobId).trim(),
+      setupIntentId: String(setupIntentId).trim(),
+      clientSecret: String(clientSecret).trim(),
+      stripeCustomerId: String(stripeCustomerId).trim(),
+    };
+
+    setPaymentSetupState(nextPaymentSetupState);
+
+    try {
+      sessionStorage.setItem(
+        "deputyJobPaymentSetup",
+        JSON.stringify(nextPaymentSetupState)
+      );
+    } catch {
+      // ignore storage errors
+    }
+
+    toast.success("Existing payment setup loaded. You can now complete the Stripe card step for this job.");
+  }, [isAdminUser]);
 
   const prepareDeputyJobPaymentSetup = async ({ jobId, payload }) => {
     if (!payload?.saveClientCard || !payload?.clientEmail || !jobId) {
@@ -331,16 +380,30 @@ const CreateDeputyJob = () => {
           </button>
 
           <div className="mt-4">
-            <p className="text-sm font-medium uppercase tracking-[0.2em] text-gray-400">
-              Deputy opportunities
-            </p>
-            <h1 className="mt-2 text-3xl sm:text-4xl font-semibold text-gray-900">
-              Create a deputy job
-            </h1>
-            <p className="mt-3 text-sm sm:text-base text-gray-600 max-w-3xl leading-7">
-              Post a deputy opportunity for suitable musicians to apply in one click.
-              Matching members will be notified automatically.
-            </p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-medium uppercase tracking-[0.2em] text-gray-400">
+                  Deputy opportunities
+                </p>
+                <h1 className="mt-2 text-3xl sm:text-4xl font-semibold text-gray-900">
+                  Create a deputy job
+                </h1>
+                <p className="mt-3 text-sm sm:text-base text-gray-600 max-w-3xl leading-7">
+                  Post a deputy opportunity for suitable musicians to apply in one click.
+                  Matching members will be notified automatically.
+                </p>
+              </div>
+
+              {isAdminUser ? (
+                <button
+                  type="button"
+                  onClick={handleLoadExistingPaymentSetup}
+                  className="inline-flex items-center justify-center rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:border-black hover:text-black"
+                >
+                  Load existing payment setup
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
 
