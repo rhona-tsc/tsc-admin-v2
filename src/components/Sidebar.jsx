@@ -267,7 +267,12 @@ useEffect(() => {
           <p className="hidden md:block text-white">Security</p>
         </NavLink>
 
-        <NavLink
+       
+
+        {normalize(userRole) === "agent" && (
+          <>
+
+       <NavLink
           className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
           to="/payment-tracker"
           state={{ userRole }}
@@ -275,11 +280,6 @@ useEffect(() => {
           <img className="w-5 h-5" src={assets.payment_icon} alt="" />
           <p className="hidden md:block text-white">Payment Tracker</p>
         </NavLink>
-
-        {normalize(userRole) === "agent" && (
-          <>
-
-      
 
                 <NavLink
           className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
