@@ -279,10 +279,6 @@ const DeputyJobDetail = () => {
     job?.currency || "GBP"
   );
 
-  const paymentText = formatMoney(
-    job?.grossAmount || job?.fee || 0,
-    job?.currency || "GBP"
-  );
 
   const statusTone =
     statusToneMap[normaliseString(job?.status).toLowerCase()] || "default";
@@ -598,10 +594,6 @@ const DeputyJobDetail = () => {
                 <span className="font-medium text-gray-900">{normaliseArray(job?.applications).length || applications.length}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span>Client charge</span>
-                <span className="font-medium text-gray-900">{paymentText}</span>
-              </div>
-              <div className="flex items-center justify-between">
                 <span>Deputy net</span>
                 <span className="font-medium text-gray-900">{feeText}</span>
               </div>
@@ -612,17 +604,6 @@ const DeputyJobDetail = () => {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-6 shadow">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">Payment status</h2>
-            <div className="space-y-3 text-sm text-gray-700">
-              <DetailRow label="Payment status" value={job.paymentStatus || "—"} />
-              <DetailRow label="Payout status" value={job.payoutStatus || "—"} />
-              <DetailRow label="Setup intent" value={job.setupIntentStatus || job.setupIntentId || "—"} />
-              <DetailRow label="Payment intent" value={job.paymentIntentStatus || job.paymentIntentId || "—"} />
-              <DetailRow label="Charged at" value={formatDateTime(job.chargedAt)} />
-              <DetailRow label="Payout paid at" value={formatDateTime(job.payoutPaidAt)} />
-            </div>
-          </div>
 
           {canViewNotifications && (
             <div className="rounded-2xl bg-white p-6 shadow">
