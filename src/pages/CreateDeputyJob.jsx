@@ -85,7 +85,7 @@ const DeputyJobPaymentSetupCard = ({
           Save payment card to activate this deputy job
         </h2>
         <p className="mt-3 text-sm text-gray-600 leading-7">
-          Your deputy job preview has been created successfully. To activate the job and enable automatic payment collection, please enter the payer’s card details below.
+          Your deputy job has been created successfully. To activate the job and enable automatic payment collection, please enter the payer’s card details below.
         </p>
       </div>
 
