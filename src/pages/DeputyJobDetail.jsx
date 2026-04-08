@@ -415,16 +415,7 @@ const DeputyJobDetail = () => {
               </button>
             ) : null}
 
-            {canApplyToJob && (
-              <button
-                type="button"
-                onClick={handleApply}
-                disabled={applying}
-                className="rounded-lg border border-[#ff6667] px-4 py-2 text-sm font-medium text-[#ff6667] hover:bg-[#fff1f1] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {applying ? "Applying…" : "One-click apply"}
-              </button>
-            )}
+            
 
             <button
               type="button"
