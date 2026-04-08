@@ -12,61 +12,61 @@ const List = ({ token }) => {
   const [loading, setLoading] = useState(true);
 
   // ✅ Pull the logged-in user id from storage (covers both patterns)
-const getStoredUserId = () => {
-  const candidates = [
-    sessionStorage.getItem("userId"),
-    localStorage.getItem("userId"),
-    sessionStorage.getItem("userid"),
-    localStorage.getItem("userid"),
-    sessionStorage.getItem("musicianId"),
-    localStorage.getItem("musicianId"),
-    sessionStorage.getItem("musicianid"),
-    localStorage.getItem("musicianid"),
-  ]
-    .map(v => (v ?? "").trim())
-    .filter(v => v && v !== "undefined" && v !== "null");
+  const getStoredUserId = () => {
+    const candidates = [
+      sessionStorage.getItem("userId"),
+      localStorage.getItem("userId"),
+      sessionStorage.getItem("userid"),
+      localStorage.getItem("userid"),
+      sessionStorage.getItem("musicianId"),
+      localStorage.getItem("musicianId"),
+      sessionStorage.getItem("musicianid"),
+      localStorage.getItem("musicianid"),
+    ]
+      .map((v) => (v ?? "").trim())
+      .filter((v) => v && v !== "undefined" && v !== "null");
 
-  return candidates[0] || "";
-};
+    return candidates[0] || "";
+  };
 
   // ✅ Normalise ID shapes: string, ObjectId-ish, populated object, etc.
-const normId = (v) => {
-  if (!v) return "";
+  const normId = (v) => {
+    if (!v) return "";
 
-  // already a string id
-  if (typeof v === "string") {
-    const s = v.trim();
+    // already a string id
+    if (typeof v === "string") {
+      const s = v.trim();
 
-    // handle "ObjectId('...')" / 'ObjectId("...")'
-    const m = s.match(/ObjectId\((?:'|")?([a-fA-F0-9]{24})(?:'|")?\)/);
-    if (m?.[1]) return m[1];
+      // handle "ObjectId('...')" / 'ObjectId("...")'
+      const m = s.match(/ObjectId\((?:'|")?([a-fA-F0-9]{24})(?:'|")?\)/);
+      if (m?.[1]) return m[1];
 
-    // handle plain 24-char id
-    if (/^[a-fA-F0-9]{24}$/.test(s)) return s;
-
-    return s;
-  }
-
-  // objects
-  if (typeof v === "object") {
-    // Extended JSON: { $oid: "..." }
-    if (v?.$oid && typeof v.$oid === "string") return v.$oid.trim();
-
-    // populated: { _id: "..." } or { _id: { $oid: "..." } }
-    if (v?._id) return normId(v._id);
-
-    // sometimes { id: "..." }
-    if (v?.id) return normId(v.id);
-
-    // native ObjectId (mongodb / mongoose)
-    if (typeof v.toString === "function") {
-      const s = String(v.toString()).trim();
+      // handle plain 24-char id
       if (/^[a-fA-F0-9]{24}$/.test(s)) return s;
-    }
-  }
 
-  return String(v).trim();
-};
+      return s;
+    }
+
+    // objects
+    if (typeof v === "object") {
+      // Extended JSON: { $oid: "..." }
+      if (v?.$oid && typeof v.$oid === "string") return v.$oid.trim();
+
+      // populated: { _id: "..." } or { _id: { $oid: "..." } }
+      if (v?._id) return normId(v._id);
+
+      // sometimes { id: "..." }
+      if (v?.id) return normId(v.id);
+
+      // native ObjectId (mongodb / mongoose)
+      if (typeof v.toString === "function") {
+        const s = String(v.toString()).trim();
+        if (/^[a-fA-F0-9]{24}$/.test(s)) return s;
+      }
+    }
+
+    return String(v).trim();
+  };
 
   const sameId = (a, b) => {
     const A = normId(a);
@@ -82,8 +82,22 @@ const normId = (v) => {
     withCredentials: false,
   });
 
+  const normalize = (s) => (s || "").toLowerCase().trim();
+
+  const getStoredRole = () => {
+    const candidates = [
+      localStorage.getItem("userRole"),
+      sessionStorage.getItem("userRole"),
+      localStorage.getItem("role"),
+      sessionStorage.getItem("role"),
+    ]
+      .map((v) => (v ?? "").trim())
+      .filter(Boolean);
+
+    return candidates[0] || "";
+  };
+
   const fetchList = async () => {
-    const controller = new AbortController();
     try {
       setLoading(true);
 
@@ -97,45 +111,42 @@ const normId = (v) => {
 
       const resp = await axios.get(`${backendUrl}/api/musician/act-v2/list`, {
         params,
-        signal: controller.signal,
         ...buildHeaders(),
       });
 
       const ok = resp?.data?.success === true;
       const rows = ok && Array.isArray(resp?.data?.acts) ? resp.data.acts : [];
-console.log("🧪 createdBy samples:", rows.slice(0, 5).map(a => ({
-  _id: a?._id,
-  createdBy: a?.createdBy,
-  typeof: typeof a?.createdBy,
-})));
-    const visible = rows.filter((a) => a?.status !== "trashed");
 
-const storedUserId = getStoredUserId();
+      const visible = rows.filter((a) => a?.status !== "trashed");
 
-const mine = storedUserId
-  ? visible.filter((a) => sameId(a?.createdBy, storedUserId))
-  : [];
+      const storedUserId = getStoredUserId();
+      const storedRole = getStoredRole();
+      const isAgent = normalize(storedRole) === "agent";
 
-// ✅ IMPORTANT: actually update state
-setList(visible);
+      const mine = storedUserId
+        ? visible.filter((a) => sameId(a?.createdBy, storedUserId))
+        : [];
 
-  console.log("🧪 match check:", {
-  storedUserId,
-  storedUserIdNorm: normId(storedUserId),
-  firstCreatedBy: visible?.[0]?.createdBy,
-  firstCreatedByNorm: normId(visible?.[0]?.createdBy),
-});
+      const nextList = isAgent ? visible : mine;
+
+      setList(nextList);
+
       console.log("📥 act-v2/list:", {
         success: resp?.data?.success,
-        count: rows.length,
+        totalCount: rows.length,
         visibleCount: visible.length,
         mineCount: mine.length,
+        finalCount: nextList.length,
         storedUserId,
+        storedRole,
+        isAgent,
         message: resp?.data?.message,
       });
 
-      if (!storedUserId) {
-        console.warn("⚠️ No stored userId/musicianId found; list will be empty.");
+      if (!storedUserId && !isAgent) {
+        console.warn(
+          "⚠️ No stored userId/musicianId found; list hidden for safety.",
+        );
       }
     } catch (error) {
       console.error("❌ Failed to fetch act list:", {
@@ -156,7 +167,7 @@ setList(visible);
       const response = await axios.post(
         `${backendUrl}/api/musician/act-v2/trash`,
         { id },
-        { headers: { token } }
+        { headers: { token } },
       );
 
       if (response.data.success) {
@@ -164,12 +175,15 @@ setList(visible);
           <CustomToast
             type="success"
             message="Moved to trash. Will delete permanently after 30 days."
-          />
+          />,
         );
         setList((prev) => prev.filter((act) => act._id !== id));
       } else {
         toast(
-          <CustomToast type="error" message={response.data.message || "Error"} />
+          <CustomToast
+            type="error"
+            message={response.data.message || "Error"}
+          />,
         );
       }
     } catch (error) {
@@ -178,7 +192,7 @@ setList(visible);
         <CustomToast
           type="error"
           message={error.message || "Failed to remove act"}
-        />
+        />,
       );
     }
   };
@@ -201,7 +215,7 @@ setList(visible);
       const res = await axios.post(
         `${backendUrl}/api/act/approve-amendment`,
         { id },
-        { headers: { token } }
+        { headers: { token } },
       );
       if (res.data.success) {
         toast(<CustomToast type="success" message={res.data.message} />);
@@ -258,7 +272,11 @@ setList(visible);
               typeof item.images?.[0] === "string"
                 ? item.images[0]
                 : item.images?.[0]?.url || assets.placeholder_image;
-
+            const storedUserId = getStoredUserId();
+            const storedRole = getStoredRole();
+            const isAgent = normalize(storedRole) === "agent";
+            const canManageThisAct =
+              isAgent || sameId(item?.createdBy, storedUserId);
             return (
               <div
                 className="grid grid-cols-[1fr_3fr_1fr_1fr_1fr] items-center gap-2 py-1 px-2 border text-sm bg-white"
@@ -282,12 +300,12 @@ setList(visible);
                       item.status === "approved" && item.amendment?.isPending
                         ? "bg-orange-100 text-orange-700"
                         : item.status === "approved"
-                        ? "bg-green-100 text-green-700"
-                        : item.status === "pending"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : item.status === "draft"
-                        ? "bg-gray-300 text-gray-900"
-                        : "bg-gray-200 text-gray-700"
+                          ? "bg-green-100 text-green-700"
+                          : item.status === "pending"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : item.status === "draft"
+                              ? "bg-gray-300 text-gray-900"
+                              : "bg-gray-200 text-gray-700"
                     }`}
                   >
                     {getActStatusLabel(item)}
@@ -299,28 +317,32 @@ setList(visible);
 
                 {/* ✅ Action icons */}
                 <div className="flex justify-center items-center gap-4">
-                  <img
-                    src={assets.edit_icon}
-                    alt="Edit"
-                    className="w-5 h-5 cursor-pointer"
-                    onClick={() => navigate(`/edit-act-2/${item._id}`)}
-                  />
+                  {canManageThisAct && (
+                    <>
+                      <img
+                        src={assets.edit_icon}
+                        alt="Edit"
+                        className="w-5 h-5 cursor-pointer"
+                        onClick={() => navigate(`/edit-act-2/${item._id}`)}
+                      />
 
-                  {item.amendment?.isPending && (
-                    <button
-                      className="text-xs text-green-600 underline"
-                      onClick={() => handleApproveAmendment(item._id)}
-                    >
-                      Approve Changes
-                    </button>
+                      {item.amendment?.isPending && isAgent && (
+                        <button
+                          className="text-xs text-green-600 underline"
+                          onClick={() => handleApproveAmendment(item._id)}
+                        >
+                          Approve Changes
+                        </button>
+                      )}
+
+                      <img
+                        src={assets.cross_icon}
+                        alt="Delete"
+                        className="w-5 h-5 cursor-pointer"
+                        onClick={() => removeAct(item._id)}
+                      />
+                    </>
                   )}
-
-                  <img
-                    src={assets.cross_icon}
-                    alt="Delete"
-                    className="w-5 h-5 cursor-pointer"
-                    onClick={() => removeAct(item._id)}
-                  />
                 </div>
               </div>
             );
