@@ -613,9 +613,7 @@ const isAdminAgent = useMemo(() => {
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
           Quick reminder
         </p>
-        <p className="mt-1 text-sm text-gray-700">
-          Make sure your deputy profile is up to date so the right jobs find you and bands can view your profile with confidence.
-        </p>
+       
       </div>
     </div>
 
@@ -758,13 +756,7 @@ const isAdminAgent = useMemo(() => {
           </div>
 
 
-          {/* ------- Noticeboard ------- */}
-          <div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
-            <h3 className="text-lg font-semibold mb-4">Noticeboard</h3>
-            <p className="text-gray-600">
-              Important updates, opportunities, and announcements will appear here.
-            </p>
-          </div>
+      
 
           {/* ------- Feedback Section ------- */}
           <div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
