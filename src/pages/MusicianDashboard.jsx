@@ -600,33 +600,67 @@ const isAdminAgent = useMemo(() => {
           {/* 🚧 UNDER CONSTRUCTION BANNER */}
           <DashboardUnderConstruction firstname={firstName} />
  
-  <div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
-    <h3 className="text-lg font-semibold mb-3">Deputy Opportunities</h3>
-    <p className="text-gray-600 mb-4">
-      Manage the deputy jobs board, create new opportunities, and review applications.
-    </p>
+  <div className="my-6 overflow-hidden rounded-2xl border border-[#ffd6d6] bg-gradient-to-br from-[#fff7f7] via-white to-[#fff1f1] p-5 shadow-[0_12px_35px_rgba(255,102,103,0.14)] ring-1 ring-[#ff6667]/10">
+    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div>
+        <div className="inline-flex items-center rounded-full bg-[#ff6667]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#ff6667]">
+          Deputy hub
+        </div>
+        <h3 className="mt-3 text-xl font-semibold text-gray-900">Deputy Opportunities</h3>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
+          Manage the deputy jobs board, create new opportunities, and review applications.
+        </p>
+      </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div className="shrink-0 rounded-xl border border-white/70 bg-white/80 px-4 py-3 shadow-sm backdrop-blur">
+        <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+          Quick access
+        </p>
+        <p className="mt-1 text-sm text-gray-700">
+          Post a job or jump straight into live deputy activity.
+        </p>
+      </div>
+    </div>
+
+    <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
       <button
         type="button"
         onClick={() => navigate("/deputy-jobs")}
-        className="w-full text-left border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition"
+        className="group w-full rounded-2xl border border-[#ffd0d1] bg-white p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#ff6667] hover:shadow-md"
       >
-        <p className="text-sm font-semibold text-gray-900">Open Deputy Jobs Board</p>
-        <p className="text-sm text-gray-500 mt-1">
-          View live jobs, preview opportunities, and review applicants.
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-base font-semibold text-gray-900 transition group-hover:text-[#ff6667]">
+              Open Deputy Jobs Board
+            </p>
+            <p className="mt-2 text-sm leading-6 text-gray-500">
+              View live jobs, preview opportunities, and review applicants.
+            </p>
+          </div>
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#fff1f1] text-[#ff6667] transition group-hover:bg-[#ff6667] group-hover:text-white">
+            →
+          </span>
+        </div>
       </button>
 
       <button
         type="button"
         onClick={() => navigate("/deputy-jobs/create")}
-        className="w-full text-left border border-gray-200 rounded-xl p-4 hover:bg-gray-50 transition"
+        className="group w-full rounded-2xl border border-[#ffd0d1] bg-[#111111] p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-[#ff6667] hover:shadow-md"
       >
-        <p className="text-sm font-semibold text-gray-900">Create Deputy Job</p>
-        <p className="text-sm text-gray-500 mt-1">
-          Post a new deputy opportunity and notify matching musicians.
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-base font-semibold text-white">
+              Create Deputy Job
+            </p>
+            <p className="mt-2 text-sm leading-6 text-white/80">
+              Post a new deputy opportunity and notify matching musicians.
+            </p>
+          </div>
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition group-hover:bg-white/20">
+            +
+          </span>
+        </div>
       </button>
     </div>
   </div>
