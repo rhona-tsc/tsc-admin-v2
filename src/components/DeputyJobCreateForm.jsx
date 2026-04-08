@@ -342,7 +342,7 @@ const DeputyJobCreateForm = ({
           );
         } else {
          toast.success(
-  `Deputy job created. ${res.data?.matchedCount || 0} matched, ${res.data?.notifiedCount || 0} notified.`
+  `Deputy job created. ${res.data?.matchedCount || 0} matched, ready to notify them!`
 );
         }
 
