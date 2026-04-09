@@ -4,36 +4,66 @@ import FeeLabelWithToolTip from "../FeeLabelWithToolTip";
 const PERFORMANCE_LENGTH_OPTIONS = ["30", "40", "45", "60", "custom"];
 const ADDITIONAL_PERFORMANCE_FIELD = "additionalPerformanceRates";
 
-const normalizeAdditionalPerformanceRate = (rate = {}) => {
+const sanitizeNumericInput = (value) => {
+  let inputValue = String(value ?? "").replace(/[^0-9.]/g, "");
+
+  if ((inputValue.match(/\./g) || []).length > 1) {
+    inputValue = inputValue.slice(0, -1);
+  }
+
+  if (inputValue.startsWith(".")) {
+    inputValue = "";
+  }
+
+  return inputValue;
+};
+
+// DB shape -> UI shape
+const normalizeAdditionalPerformanceRateForUi = (rate = {}) => {
   const rawDuration =
     rate?.duration ?? rate?.minutes ?? rate?.label ?? "";
 
   const duration =
     rawDuration === null || rawDuration === undefined
       ? ""
-      : String(rawDuration).replace(/[^0-9.]/g, "");
+      : sanitizeNumericInput(rawDuration);
 
-  const fee =
+  const rawFee =
     rate?.fee === null || rate?.fee === undefined
       ? ""
-      : String(rate.fee).replace(/[^0-9.]/g, "");
+      : sanitizeNumericInput(rate.fee);
 
   return {
     duration,
-    minutes: duration === "" ? null : Number(duration),
-    label: duration,
-    fee,
-    isCustom: Boolean(rate?.isCustom) || !["30", "40", "45", "60"].includes(duration),
+    fee: rawFee,
+    isCustom: !["30", "40", "45", "60"].includes(String(duration)),
   };
 };
 
+// UI shape -> DB shape
+const normalizeAdditionalPerformanceRateForDb = (rate = {}) => {
+  const rawDuration =
+    rate?.duration ?? rate?.minutes ?? rate?.label ?? "";
 
+  const duration = sanitizeNumericInput(rawDuration);
+
+  const rawFee =
+    rate?.fee === null || rate?.fee === undefined
+      ? ""
+      : sanitizeNumericInput(rate.fee);
+
+  return {
+    minutes: duration === "" ? null : Number(duration),
+    label: duration,
+    fee: rawFee === "" ? null : Number(rawFee),
+  };
+};
 
 const FeeInput = ({
   member,
   MU_RATES,
   feeError,
-  setFeeError = () => {}, // fallback no-op function
+  setFeeError = () => {},
   updateBandMember,
   index,
   memberIndex,
@@ -51,95 +81,78 @@ const FeeInput = ({
   const setNyeOverride = (nextOverride) => {
     const prev = member?.specialDatePricing || {};
     const prevNye = prev?.nye || {};
+
+    const cleanedOverride = sanitizeNumericInput(nextOverride);
+
     const next = {
       ...prev,
       nye: {
         ...prevNye,
-        // keep extraFee if you ever use it later
         extraFee: typeof prevNye.extraFee === "number" ? prevNye.extraFee : 0,
         overrideFee:
-          nextOverride === "" || nextOverride === null || nextOverride === undefined
+          cleanedOverride === "" || cleanedOverride === null || cleanedOverride === undefined
             ? null
-            : nextOverride,
+            : Number(cleanedOverride),
       },
     };
 
     updateBandMember(index, memberIndex, "specialDatePricing", next);
   };
 
-const getAdditionalPerformanceRates = () => {
-  const rates =
-    member?.[ADDITIONAL_PERFORMANCE_FIELD] ||
-    member?.additionalPerformanceFees;
+  const getAdditionalPerformanceRates = () => {
+    const rates =
+      member?.[ADDITIONAL_PERFORMANCE_FIELD] ||
+      member?.additionalPerformanceFees ||
+      [];
 
-  return Array.isArray(rates)
-    ? rates.map(normalizeAdditionalPerformanceRate)
-    : [];
-};
-
-const setAdditionalPerformanceRates = (nextRates) => {
-  const normalizedRates = Array.isArray(nextRates)
-    ? nextRates.map(normalizeAdditionalPerformanceRate)
-    : [];
-
-  updateBandMember(
-    index,
-    memberIndex,
-    ADDITIONAL_PERFORMANCE_FIELD,
-    normalizedRates
-  );
-};
-
-  const sanitizeNumericInput = (value) => {
-    let inputValue = String(value ?? "").replace(/[^0-9.]/g, "");
-
-    if ((inputValue.match(/\./g) || []).length > 1) {
-      inputValue = inputValue.slice(0, -1);
-    }
-
-    if (inputValue.startsWith(".")) {
-      inputValue = "";
-    }
-
-    return inputValue;
+    return Array.isArray(rates)
+      ? rates.map(normalizeAdditionalPerformanceRateForUi)
+      : [];
   };
 
-const addAdditionalPerformanceRate = (selectedLength) => {
-  const currentRates = getAdditionalPerformanceRates();
+  const setAdditionalPerformanceRates = (nextRates) => {
+    const normalizedRates = Array.isArray(nextRates)
+      ? nextRates.map(normalizeAdditionalPerformanceRateForDb)
+      : [];
 
-  const duration = selectedLength === "custom" ? "" : String(selectedLength);
-
-  const nextRate = {
-    duration,
-    minutes: duration === "" ? null : Number(duration),
-    label: duration,
-    fee: "",
-    isCustom: selectedLength === "custom",
+    updateBandMember(
+      index,
+      memberIndex,
+      ADDITIONAL_PERFORMANCE_FIELD,
+      normalizedRates
+    );
   };
 
-  setAdditionalPerformanceRates([...currentRates, nextRate]);
-};
+  const addAdditionalPerformanceRate = (selectedLength) => {
+    const currentRates = getAdditionalPerformanceRates();
 
-const updateAdditionalPerformanceRate = (rateIndex, field, value) => {
-  const currentRates = getAdditionalPerformanceRates();
-  const nextRates = currentRates.map((rate, i) => {
-    if (i !== rateIndex) return rate;
+    const duration = selectedLength === "custom" ? "" : String(selectedLength);
 
     const nextRate = {
-      ...rate,
-      [field]: value,
+      duration,
+      fee: "",
+      isCustom: selectedLength === "custom",
     };
 
-    if (field === "duration") {
-      nextRate.minutes = value === "" ? null : Number(value);
-      nextRate.label = value;
-    }
+    setAdditionalPerformanceRates([...currentRates, nextRate]);
+  };
 
-    return normalizeAdditionalPerformanceRate(nextRate);
-  });
+  const updateAdditionalPerformanceRate = (rateIndex, field, value) => {
+    const currentRates = getAdditionalPerformanceRates();
 
-  setAdditionalPerformanceRates(nextRates);
-};
+    const nextRates = currentRates.map((rate, i) => {
+      if (i !== rateIndex) return rate;
+
+      return {
+        ...rate,
+        [field]: field === "duration" || field === "fee"
+          ? sanitizeNumericInput(value)
+          : value,
+      };
+    });
+
+    setAdditionalPerformanceRates(nextRates);
+  };
 
   const removeAdditionalPerformanceRate = (rateIndex) => {
     const currentRates = getAdditionalPerformanceRates();
@@ -157,21 +170,28 @@ const updateAdditionalPerformanceRate = (rateIndex, field, value) => {
   return (
     <div className="col-span-1">
       <FeeLabelWithToolTip />
+
       <input
         type="text"
         value={
           member.useMURatesForFees
             ? getMuRate()
             : member.fee === null || member.fee === undefined
-              ? ""
-              : String(member.fee)
+            ? ""
+            : String(member.fee)
         }
         onChange={(e) => {
           const inputValue = sanitizeNumericInput(e.target.value);
 
-          updateBandMember(index, memberIndex, "fee", inputValue);
+          updateBandMember(
+            index,
+            memberIndex,
+            "fee",
+            inputValue === "" ? null : Number(inputValue)
+          );
+
           setFeeError(
-            inputValue === "" || isNaN(inputValue)
+            inputValue === "" || isNaN(Number(inputValue))
               ? "Fee must be a valid number"
               : ""
           );
@@ -180,12 +200,14 @@ const updateAdditionalPerformanceRate = (rateIndex, field, value) => {
         placeholder="Fee"
         disabled={member.useMURatesForFees}
       />
+
       {feeError && <p className="text-red-500 text-sm">{feeError}</p>}
 
-      {/* ➕ Additional performance rates */}
       <div className="mt-4 rounded-md border border-gray-200 bg-white p-3">
         <div>
-          <p className="text-xs font-medium text-gray-800">Additional performance fees</p>
+          <p className="text-xs font-medium text-gray-800">
+            Additional performance fees
+          </p>
           <p className="text-[11px] text-gray-500 mt-1">
             Add optional fees for longer performance times.
           </p>
@@ -194,6 +216,7 @@ const updateAdditionalPerformanceRate = (rateIndex, field, value) => {
         <div className="flex flex-wrap gap-2 mt-3">
           {PERFORMANCE_LENGTH_OPTIONS.map((option) => {
             const label = option === "custom" ? "+ Custom" : `+ ${option} mins`;
+
             return (
               <button
                 key={option}
@@ -226,7 +249,7 @@ const updateAdditionalPerformanceRate = (rateIndex, field, value) => {
                         updateAdditionalPerformanceRate(
                           rateIndex,
                           "duration",
-                          sanitizeNumericInput(e.target.value)
+                          e.target.value
                         );
                       }}
                       className="w-full px-3 py-2 border bg-white text-sm"
@@ -245,7 +268,7 @@ const updateAdditionalPerformanceRate = (rateIndex, field, value) => {
                         updateAdditionalPerformanceRate(
                           rateIndex,
                           "fee",
-                          sanitizeNumericInput(e.target.value)
+                          e.target.value
                         );
                       }}
                       className="w-full px-3 py-2 border bg-white text-sm"
@@ -268,7 +291,6 @@ const updateAdditionalPerformanceRate = (rateIndex, field, value) => {
         )}
       </div>
 
-      {/* 🎇 NYE override (per band member) */}
       <div className="mt-3">
         <label className="text-xs text-gray-700 flex items-center gap-2">
           <input
@@ -276,9 +298,12 @@ const updateAdditionalPerformanceRate = (rateIndex, field, value) => {
             checked={hasNyeOverride}
             onChange={(e) => {
               const nextChecked = e.target.checked;
+
               if (nextChecked) {
-                // default to current fee (or MU rate) so they can tweak
-                const seed = member?.useMURatesForFees ? getMuRate() : member?.fee ?? "";
+                const seed = member?.useMURatesForFees
+                  ? getMuRate()
+                  : member?.fee ?? "";
+
                 setNyeOverride(seed === null || seed === undefined ? "" : String(seed));
               } else {
                 setNyeOverride(null);
@@ -295,8 +320,7 @@ const updateAdditionalPerformanceRate = (rateIndex, field, value) => {
               type="text"
               value={getNyeOverride()}
               onChange={(e) => {
-                const inputValue = sanitizeNumericInput(e.target.value);
-                setNyeOverride(inputValue);
+                setNyeOverride(e.target.value);
               }}
               className="w-full px-3 py-2 border"
               placeholder="NYE fee override"
