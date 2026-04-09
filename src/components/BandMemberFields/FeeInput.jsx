@@ -4,6 +4,31 @@ import FeeLabelWithToolTip from "../FeeLabelWithToolTip";
 const PERFORMANCE_LENGTH_OPTIONS = ["30", "40", "45", "60", "custom"];
 const ADDITIONAL_PERFORMANCE_FIELD = "additionalPerformanceRates";
 
+const normalizeAdditionalPerformanceRate = (rate = {}) => {
+  const rawDuration =
+    rate?.duration ?? rate?.minutes ?? rate?.label ?? "";
+
+  const duration =
+    rawDuration === null || rawDuration === undefined
+      ? ""
+      : String(rawDuration).replace(/[^0-9.]/g, "");
+
+  const fee =
+    rate?.fee === null || rate?.fee === undefined
+      ? ""
+      : String(rate.fee).replace(/[^0-9.]/g, "");
+
+  return {
+    duration,
+    minutes: duration === "" ? null : Number(duration),
+    label: duration,
+    fee,
+    isCustom: Boolean(rate?.isCustom) || !["30", "40", "45", "60"].includes(duration),
+  };
+};
+
+
+
 const FeeInput = ({
   member,
   MU_RATES,
@@ -42,19 +67,28 @@ const FeeInput = ({
     updateBandMember(index, memberIndex, "specialDatePricing", next);
   };
 
-  const getAdditionalPerformanceRates = () => {
-    const rates = member?.[ADDITIONAL_PERFORMANCE_FIELD];
-    return Array.isArray(rates) ? rates : [];
-  };
+const getAdditionalPerformanceRates = () => {
+  const rates =
+    member?.[ADDITIONAL_PERFORMANCE_FIELD] ||
+    member?.additionalPerformanceFees;
 
-  const setAdditionalPerformanceRates = (nextRates) => {
-    updateBandMember(
-      index,
-      memberIndex,
-      ADDITIONAL_PERFORMANCE_FIELD,
-      nextRates
-    );
-  };
+  return Array.isArray(rates)
+    ? rates.map(normalizeAdditionalPerformanceRate)
+    : [];
+};
+
+const setAdditionalPerformanceRates = (nextRates) => {
+  const normalizedRates = Array.isArray(nextRates)
+    ? nextRates.map(normalizeAdditionalPerformanceRate)
+    : [];
+
+  updateBandMember(
+    index,
+    memberIndex,
+    ADDITIONAL_PERFORMANCE_FIELD,
+    normalizedRates
+  );
+};
 
   const sanitizeNumericInput = (value) => {
     let inputValue = String(value ?? "").replace(/[^0-9.]/g, "");
@@ -70,30 +104,42 @@ const FeeInput = ({
     return inputValue;
   };
 
-  const addAdditionalPerformanceRate = (selectedLength) => {
-    const currentRates = getAdditionalPerformanceRates();
+const addAdditionalPerformanceRate = (selectedLength) => {
+  const currentRates = getAdditionalPerformanceRates();
+
+  const duration = selectedLength === "custom" ? "" : String(selectedLength);
+
+  const nextRate = {
+    duration,
+    minutes: duration === "" ? null : Number(duration),
+    label: duration,
+    fee: "",
+    isCustom: selectedLength === "custom",
+  };
+
+  setAdditionalPerformanceRates([...currentRates, nextRate]);
+};
+
+const updateAdditionalPerformanceRate = (rateIndex, field, value) => {
+  const currentRates = getAdditionalPerformanceRates();
+  const nextRates = currentRates.map((rate, i) => {
+    if (i !== rateIndex) return rate;
 
     const nextRate = {
-      duration: selectedLength === "custom" ? "" : selectedLength,
-      fee: "",
-      isCustom: selectedLength === "custom",
+      ...rate,
+      [field]: value,
     };
 
-    setAdditionalPerformanceRates([...currentRates, nextRate]);
-  };
+    if (field === "duration") {
+      nextRate.minutes = value === "" ? null : Number(value);
+      nextRate.label = value;
+    }
 
-  const updateAdditionalPerformanceRate = (rateIndex, field, value) => {
-    const currentRates = getAdditionalPerformanceRates();
-    const nextRates = currentRates.map((rate, i) => {
-      if (i !== rateIndex) return rate;
-      return {
-        ...rate,
-        [field]: value,
-      };
-    });
+    return normalizeAdditionalPerformanceRate(nextRate);
+  });
 
-    setAdditionalPerformanceRates(nextRates);
-  };
+  setAdditionalPerformanceRates(nextRates);
+};
 
   const removeAdditionalPerformanceRate = (rateIndex) => {
     const currentRates = getAdditionalPerformanceRates();
@@ -168,34 +214,44 @@ const FeeInput = ({
                 key={`${rate.duration || "custom"}-${rateIndex}`}
                 className="rounded-md border border-gray-200 bg-gray-50 p-2.5"
               >
-                <div className="grid grid-cols-1 sm:grid-cols-[120px_minmax(0,1fr)_auto] gap-2 items-center">
-                  <input
-                    type="text"
-                    value={String(rate?.duration ?? "")}
-                    onChange={(e) => {
-                      updateAdditionalPerformanceRate(
-                        rateIndex,
-                        "duration",
-                        sanitizeNumericInput(e.target.value)
-                      );
-                    }}
-                    className="w-full px-3 py-2 border bg-white text-sm"
-                    placeholder="Minutes"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-[120px_minmax(0,1fr)_auto] gap-2 items-end">
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-gray-600">
+                      Mins
+                    </label>
+                    <input
+                      type="text"
+                      value={String(rate?.duration ?? "")}
+                      onChange={(e) => {
+                        updateAdditionalPerformanceRate(
+                          rateIndex,
+                          "duration",
+                          sanitizeNumericInput(e.target.value)
+                        );
+                      }}
+                      className="w-full px-3 py-2 border bg-white text-sm"
+                      placeholder="Minutes"
+                    />
+                  </div>
 
-                  <input
-                    type="text"
-                    value={String(rate?.fee ?? "")}
-                    onChange={(e) => {
-                      updateAdditionalPerformanceRate(
-                        rateIndex,
-                        "fee",
-                        sanitizeNumericInput(e.target.value)
-                      );
-                    }}
-                    className="w-full px-3 py-2 border bg-white text-sm"
-                    placeholder="Fee"
-                  />
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-gray-600">
+                      Fee (£)
+                    </label>
+                    <input
+                      type="text"
+                      value={String(rate?.fee ?? "")}
+                      onChange={(e) => {
+                        updateAdditionalPerformanceRate(
+                          rateIndex,
+                          "fee",
+                          sanitizeNumericInput(e.target.value)
+                        );
+                      }}
+                      className="w-full px-3 py-2 border bg-white text-sm"
+                      placeholder="Fee"
+                    />
+                  </div>
 
                   <button
                     type="button"

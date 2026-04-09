@@ -116,12 +116,15 @@ const LineupsComponent = ({
       };
 
       // normalize additionalPerformanceFees
-      if (field === "additionalPerformanceFees") {
-        updated[lineupIndex].bandMembers[memberIndex] = {
-          ...updated[lineupIndex].bandMembers[memberIndex],
-          additionalPerformanceFees: Array.isArray(value) ? value : [],
-        };
-      }
+     if (
+  field === "additionalPerformanceRates" ||
+  field === "additionalPerformanceFees"
+) {
+  updated[lineupIndex].bandMembers[memberIndex] = {
+    ...updated[lineupIndex].bandMembers[memberIndex],
+    additionalPerformanceRates: Array.isArray(value) ? value : [],
+  };
+}
 
       // 🔁 If deputies updated, sync to ALL bandMembers that represent same person
       if (field === "deputies") {
@@ -1137,7 +1140,7 @@ const LineupsComponent = ({
                         useMURatesForFees: false,
                         additionalFee: 0,
                         fee: "",
-                        additionalPerformanceFees: [],
+                        additionalPerformanceRates: [],
                         sortCode: "",
                         accountNumber: "",
                         dietaryRequirements: "",
@@ -1174,15 +1177,17 @@ const LineupsComponent = ({
                         const clonedMember = {
                           ...JSON.parse(JSON.stringify(selectedMember)),
                           isEssential: selectedMember.isEssential ?? true,
-                          additionalPerformanceFees: Array.isArray(
-                            selectedMember?.additionalPerformanceFees
-                          )
-                            ? JSON.parse(
-                                JSON.stringify(
-                                  selectedMember.additionalPerformanceFees
-                                )
-                              )
-                            : [],
+                          additionalPerformanceRates: Array.isArray(
+  selectedMember?.additionalPerformanceRates ||
+    selectedMember?.additionalPerformanceFees
+)
+  ? JSON.parse(
+      JSON.stringify(
+        selectedMember.additionalPerformanceRates ||
+          selectedMember.additionalPerformanceFees
+      )
+    )
+  : [],
                         };
 
                         clonedMember.deputies = Array.isArray(

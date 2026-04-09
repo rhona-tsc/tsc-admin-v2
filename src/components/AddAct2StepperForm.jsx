@@ -23,7 +23,7 @@ const steps = [
 ];
 
 const AddAct2StepperForm = ({  initialData = null, mode = "add", userEmail, userRole, isModeration = false })  => {
-  const hs = null;
+
   console.log("🔍 AddAct2StepperForm userEmail:", userEmail);
   console.log("🔍 AddAct2StepperForm userRole:", userRole);
   console.log("🔒 AddAct2StepperForm isModeration:", isModeration);
@@ -144,23 +144,26 @@ const normalizeAdditionalPerformanceFees = (fees) => {
     .map((item) => {
       if (!item || typeof item !== "object") return null;
 
-      const durationRaw = item.duration;
-      const feeRaw = item.fee;
+      const rawDuration = item.duration ?? item.minutes ?? item.label ?? "";
+      const rawFee = item.fee;
 
       const duration =
-        durationRaw === "" || durationRaw === null || durationRaw === undefined
+        rawDuration === "" || rawDuration === null || rawDuration === undefined
           ? ""
-          : String(durationRaw);
+          : String(rawDuration).replace(/[^0-9.]/g, "");
 
       const fee =
-        feeRaw === "" || feeRaw === null || feeRaw === undefined
+        rawFee === "" || rawFee === null || rawFee === undefined
           ? ""
-          : String(feeRaw);
+          : String(rawFee).replace(/[^0-9.]/g, "");
 
       return {
         duration,
+        minutes: duration === "" ? null : Number(duration),
+        label: duration,
         fee,
-        isCustom: Boolean(item.isCustom),
+        isCustom:
+          Boolean(item.isCustom) || !["30", "40", "45", "60"].includes(duration),
       };
     })
     .filter(Boolean);
@@ -275,9 +278,9 @@ newLineup.roamingPercussion = coerceBool(newLineup.roamingPercussion) ?? newLine
               nye: { ...prevNye, extraFee, overrideFee },
             };
           })(),
-          additionalPerformanceFees: normalizeAdditionalPerformanceFees(
-            member?.additionalPerformanceFees
-          ),
+          additionalPerformanceRates: normalizeAdditionalPerformanceFees(
+  member?.additionalPerformanceRates || member?.additionalPerformanceFees
+),
           additionalRoles: (member.additionalRoles || [])
             .filter((role) => role && typeof role === "object" && role.role)
             .map((role) => ({
@@ -356,9 +359,9 @@ roamingPercussion: coerceBool(lineup.roamingPercussion) ?? lineup.roamingPercuss
             },
           };
         })(),
-        additionalPerformanceFees: normalizeAdditionalPerformanceFees(
-          member?.additionalPerformanceFees
-        ),
+        additionalPerformanceRates: normalizeAdditionalPerformanceFees(
+  member?.additionalPerformanceRates || member?.additionalPerformanceFees
+),
         additionalRoles: (member.additionalRoles || [])
           .filter((role) => role && typeof role === "object" && role.role)
           .map((role) => ({
@@ -409,8 +412,8 @@ roamingPercussion: coerceBool(lineup.roamingPercussion) ?? lineup.roamingPercuss
           },
         };
       })(),
-      additionalPerformanceFees: normalizeAdditionalPerformanceFees(
-        member?.additionalPerformanceFees
+      additionalPerformanceRates: normalizeAdditionalPerformanceFees(
+        member?.additionalPerformanceRates || member?.additionalPerformanceFees
       ),
       additionalRoles: (member.additionalRoles || [])
         .filter((role) => role && typeof role === "object" && role.role)
@@ -662,9 +665,9 @@ const sanitizeLineups = (lineups) => {
             nye: { ...prevNye, extraFee, overrideFee },
           };
         })(),
-        additionalPerformanceFees: normalizeAdditionalPerformanceFees(
-          member?.additionalPerformanceFees
-        ),
+       additionalPerformanceRates: normalizeAdditionalPerformanceFees(
+  member?.additionalPerformanceRates || member?.additionalPerformanceFees
+),
         additionalRoles: (member.additionalRoles || [])
           .filter((role) => role && typeof role === "object" && role.role)
           .map((role) => ({
