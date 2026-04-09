@@ -534,19 +534,31 @@ const isAdminAgent = useMemo(() => {
   // Fetch user’s acts (created by them)
   const fetchMyActs = async () => {
     try {
+      const resolvedUserId = storedUserId || userId || localStorage.getItem("musicianId") || "";
+
       const res = await axios.get(
-        `${backendUrl}/api/musician/act-v2/list?mine=true`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        `${backendUrl}/api/musician/act-v2/list?mine=true&limit=200`,
+        {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : undefined,
+            token,
+            userid: resolvedUserId,
+            userrole: "musician",
+          },
+        }
       );
-      const acts = Array.isArray(res.data.acts) ? res.data.acts : [];
 
-      const filteredActs = acts.filter(
-        (act) => act?.createdBy?.toString?.() === storedUserId?.toString?.()
-      );
+      const payload = res?.data || {};
+      const acts = Array.isArray(payload?.acts)
+        ? payload.acts
+        : Array.isArray(payload?.items)
+          ? payload.items
+          : [];
 
-      setMyActs(filteredActs);
+      setMyActs(acts);
     } catch (err) {
       console.error("Error fetching my acts", err);
+      setMyActs([]);
     }
   };
 
