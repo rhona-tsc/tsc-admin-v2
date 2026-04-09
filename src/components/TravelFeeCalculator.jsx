@@ -7,6 +7,8 @@ const TravelFeeCalculator = ({
   setUseCountyTravelFee,
   countyFees,
   setCountyFees,
+  countyTravelSettings = {},
+  setCountyTravelSettings,
   costPerMile,
   setCostPerMile,
   useMUTravelRates,
@@ -35,18 +37,23 @@ const TravelFeeCalculator = ({
   const API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   const getCountyConfig = (county) => {
-    const raw = countyFees?.[county];
+    const rawSetting = countyTravelSettings?.[county];
 
-    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    if (rawSetting && typeof rawSetting === "object" && !Array.isArray(rawSetting)) {
       return {
-        fee: raw.fee ?? "",
-        allowed: raw.allowed ?? false,
+        fee:
+          rawSetting.fee === undefined || rawSetting.fee === null
+            ? ""
+            : rawSetting.fee,
+        allowed: Boolean(rawSetting.available),
       };
     }
 
+    const rawFee = countyFees?.[county];
+
     return {
-      fee: raw ?? "",
-      allowed: raw !== undefined && raw !== null,
+      fee: rawFee ?? "",
+      allowed: rawFee !== undefined && rawFee !== null && String(rawFee) !== "",
     };
   };
 
@@ -55,55 +62,40 @@ const TravelFeeCalculator = ({
   const getCountyFeeValue = (county) => getCountyConfig(county).fee;
 
   const handleCountyFeeChange = (county, value) => {
-    setCountyFees((prev) => {
-      const prevConfig = (() => {
-        const raw = prev?.[county];
-        if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-          return {
-            fee: raw.fee ?? "",
-            allowed: raw.allowed ?? false,
-          };
-        }
-        return {
-          fee: raw ?? "",
-          allowed: raw !== undefined && raw !== null,
-        };
-      })();
+    setCountyFees((prev) => ({
+      ...prev,
+      [county]: value,
+    }));
 
-      return {
-        ...prev,
+    if (typeof setCountyTravelSettings === "function") {
+      setCountyTravelSettings((prev) => ({
+        ...(prev || {}),
         [county]: {
+          available: getCountyConfig(county).allowed,
           fee: value,
-          allowed: prevConfig.allowed,
         },
-      };
-    });
+      }));
+    }
   };
 
   const handleCountyAllowedToggle = (county) => {
-    setCountyFees((prev) => {
-      const prevConfig = (() => {
-        const raw = prev?.[county];
-        if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-          return {
-            fee: raw.fee ?? "",
-            allowed: raw.allowed ?? false,
-          };
-        }
-        return {
-          fee: raw ?? "",
-          allowed: raw !== undefined && raw !== null,
-        };
-      })();
+    const nextAllowed = !getCountyConfig(county).allowed;
+    const currentFee = getCountyConfig(county).fee;
 
-      return {
-        ...prev,
+    if (typeof setCountyTravelSettings === "function") {
+      setCountyTravelSettings((prev) => ({
+        ...(prev || {}),
         [county]: {
-          fee: prevConfig.fee,
-          allowed: !prevConfig.allowed,
+          available: nextAllowed,
+          fee: currentFee,
         },
-      };
-    });
+      }));
+    }
+
+    setCountyFees((prev) => ({
+      ...prev,
+      [county]: currentFee,
+    }));
   };
 
   const handleExampleCalculate = async () => {
