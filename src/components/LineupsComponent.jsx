@@ -80,13 +80,15 @@ const LineupsComponent = ({
     return `name:${fn}_${ln}`; // last resort
   };
 
-  const allSavedMembers = Array.from(
-    new Map(
-      lineups
-        .flatMap((l) => l.bandMembers || [])
-        .map((m) => [getMemberKey(m), m])
-    ).values()
-  );
+const flattenedMembers = lineups.flatMap((l) => l.bandMembers || []);
+
+const allSavedMembers = Array.from(
+  new Map(
+    [...flattenedMembers]
+      .reverse()
+      .map((member) => [getMemberKey(member), member])
+  ).values()
+).reverse();
 
   const [openLineups, setOpenLineups] = useState([true]);
 
