@@ -22,29 +22,33 @@ const ModerateDeputies = ({ token }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  const fetchQueue = async () => {
-    setLoading(true);
+const fetchQueue = async () => {
+  setLoading(true);
+  try {
+    const params = new URLSearchParams();
+    params.append("statuses", "pending");
+    params.append("statuses", "Approved, changes pending");
+
+    const url = `${backendUrl}/api/moderation/deputies/review-queue?${params.toString()}`;
+    const res = await axios.get(url, { headers: { token } });
+
+    setRows(res.data?.deputies || []);
+  } catch (err) {
+    console.warn("⚠️ COMBINED queue failed, falling back to /pending only:", err);
     try {
-      // ask for both statuses
-      const statuses = encodeURIComponent("pending,Approved, changes pending");
-      const url = `${backendUrl}/api/moderation/deputies/review-queue?statuses=${statuses}`;
-      const res = await axios.get(url, { headers: { token } });
-    
+      const res = await axios.get(
+        `${backendUrl}/api/moderation/deputies/pending`,
+        { headers: { token } }
+      );
+
       setRows(res.data?.deputies || []);
-    } catch (err) {
-      // fallback to only "pending"
-      console.warn("⚠️ COMBINED queue failed, falling back to /pending only:", err);
-      try {
-        const res = await axios.get(`${backendUrl}/api/moderation/deputies/pending`, { headers: { token } });
-      
-        setRows(res.data?.deputies || []);
-      } catch (err2) {
-        toast(<CustomToast type="error" message="Failed to load deputies" />);
-      }
-    } finally {
-      setLoading(false);
+    } catch (err2) {
+      toast(<CustomToast type="error" message="Failed to load deputies" />);
     }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleApproval = async (id, action) => {
     const endpoint = action === "approve" ? "approve-deputy" : "reject-deputy";
@@ -60,11 +64,23 @@ const res = await axios.post(
     }
   };
 
-  const sorted = useMemo(() => {
-    // ensure “Approved, changes pending” shows first, then “pending”
-    const weight = (s) => (s === "Approved, changes pending" ? 0 : s === "pending" ? 1 : 2);
-    return [...rows].sort((a, b) => weight(a.status) - weight(b.status));
-  }, [rows]);
+const sorted = useMemo(() => {
+  const weight = (m) => {
+    if (m.status === "Approved, changes pending") return 0;
+    if (m.status === "pending") return 1;
+    if (m.profileLastEditedAt && !m.profileLastReviewedAt) return 2;
+    if (
+      m.profileLastEditedAt &&
+      m.profileLastReviewedAt &&
+      new Date(m.profileLastEditedAt) > new Date(m.profileLastReviewedAt)
+    ) {
+      return 3;
+    }
+    return 4;
+  };
+
+  return [...rows].sort((a, b) => weight(a) - weight(b));
+}, [rows]);
 
   useEffect(() => {
     fetchQueue();

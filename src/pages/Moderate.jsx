@@ -205,8 +205,8 @@ const Moderate = ({ token: tokenProp }) => {
                     }}
                   />
                   <div>
-                    <p className="font-semibold">{act.name}</p>
-                    <p className="text-xs text-gray-500">{act.tscName}</p>
+                    <p className="font-semibold">{act.tscName}</p>
+                    <p className="text-xs text-gray-500">{act.name}</p>
                     <p className="text-[11px] text-gray-400 mt-1">
                       Status: {act.status || "—"}
                     </p>
