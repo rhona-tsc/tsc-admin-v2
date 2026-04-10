@@ -336,7 +336,16 @@ const ModerateDeputies = ({ token }) => {
           needsReview ? "bg-orange-50 hover:bg-orange-100" : "hover:bg-gray-50"
         }`}
       >
-        <td className="px-4 py-3 font-medium">{getDisplayName(m)}</td>
+        <td className="px-4 py-3 font-medium">
+  <a
+    href={`/moderate-deputy/edit/${m._id}`}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="text-blue-600 hover:underline"
+  >
+    {getDisplayName(m)}
+  </a>
+</td>
         <td className="px-4 py-3 text-gray-600">{m.email || "—"}</td>
         <td className="px-4 py-3">
           <PILL status={m.status} />
