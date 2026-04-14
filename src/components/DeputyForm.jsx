@@ -634,6 +634,8 @@ const url = `${backendUrl}/api/musician/moderation/deputy/${deputyId}`;
 
         if (!deputy) return;
 
+        console.log("✅ Deputy fetched:", res.data);
+
         const basicInfoFromDb = deputy.basicInfo || {
           firstName: deputy.firstName,
           lastName: deputy.lastName,
@@ -727,9 +729,14 @@ const url = `${backendUrl}/api/musician/moderation/deputy/${deputyId}`;
     })();
   }, [deputyId, token]);
 
-  // Autosave hydration
-  useEffect(() => {
-    if (hasHydratedFromBackend) return;
+// Autosave hydration
+useEffect(() => {
+  if (isEdit) {
+    console.warn("⏸️ Edit mode: skipping local autosave restore");
+    return;
+  }
+
+  if (hasHydratedFromBackend) return;
     try {
       const saved = localStorage.getItem("deputyAutosave");
       if (saved) {
@@ -974,10 +981,16 @@ const url = `${backendUrl}/api/musician/moderation/deputy/${deputyId}`;
   console.log("🎧 coverMp3s:", formData.coverMp3s);
   console.log("🎧 originalMp3s:", formData.originalMp3s);
 
-  /* ----------------------- AUTOSAVE to localStorage (debounced) -------------- */
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      try {
+/* ----------------------- AUTOSAVE to localStorage (debounced) -------------- */
+useEffect(() => {
+  if (isEdit && !hasHydratedFromBackend) {
+    console.warn("⏸️ Skipping autosave until backend profile has hydrated");
+    return;
+  }
+
+  const handler = setTimeout(() => {
+    try {
+      // keep all your existing autosave code here
         const safe = JSON.parse(
           JSON.stringify(formData, (key, value) => {
             if (value instanceof File) return undefined;
@@ -1053,7 +1066,15 @@ const url = `${backendUrl}/api/musician/moderation/deputy/${deputyId}`;
     }, 800);
 
     return () => clearTimeout(handler);
-  }, [formData, tscApprovedBio, deputyId, token, backendUrl]);
+}, [
+  formData,
+  tscApprovedBio,
+  deputyId,
+  authToken,
+  backendUrl,
+  isEdit,
+  hasHydratedFromBackend,
+]);
 
   /* ---------------------------- DEBUG: track changes -------------------------- */
   useEffect(() => {
