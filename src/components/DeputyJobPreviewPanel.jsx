@@ -351,6 +351,14 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
     setPaymentSetupInfo(null);
   }, [job?._id]);
 
+  const formatShortName = (name = "") => {
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "";
+  const firstName = parts[0];
+  const lastInitial = parts[1] ? `${parts[1][0].toUpperCase()}.` : "";
+  return [firstName, lastInitial].filter(Boolean).join(" ");
+};
+
     const handlePreparePaymentSetup = async () => {
       if (!job?._id || !canPreparePaymentSetup || isPreparingPaymentSetup) return;
 
@@ -523,11 +531,11 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
                 {postedByLabel}
               </p>
               {job.allocatedMusicianName || job.assignedMusicianName ? (
-                <p>
-                  <span className="font-medium text-gray-900">Allocated to:</span>{" "}
-                  {job.allocatedMusicianName || job.assignedMusicianName}
-                </p>
-              ) : null}
+  <p>
+    <span className="font-medium text-gray-900">Allocated to:</span>{" "}
+    {formatShortName(job.allocatedMusicianName || job.assignedMusicianName)}
+  </p>
+) : null}
           
             </div>
           </section>
