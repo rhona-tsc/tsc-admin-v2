@@ -46,11 +46,30 @@ const getCurrentUser = () => {
   const tokenPayload = parseJwtPayload(authToken);
 
   return {
+    _id:
+      tokenPayload?._id ||
+      tokenPayload?.id ||
+      tokenPayload?.userId ||
+      "",
+    id:
+      tokenPayload?.id ||
+      tokenPayload?._id ||
+      tokenPayload?.userId ||
+      "",
     email: String(
       tokenPayload?.email ||
         tokenPayload?.useremail ||
         localStorage.getItem("userEmail") ||
         sessionStorage.getItem("userEmail") ||
+        ""
+    )
+      .trim()
+      .toLowerCase(),
+    role: String(
+      tokenPayload?.role ||
+        tokenPayload?.userrole ||
+        localStorage.getItem("userRole") ||
+        sessionStorage.getItem("userRole") ||
         ""
     )
       .trim()
@@ -260,6 +279,10 @@ const DeputyJobApplicantsPanel = ({
   const [localApplicants, setLocalApplicants] = useState(applicants);
   const currentUser = useMemo(() => getCurrentUser(), []);
   const isAdmin = currentUser.email === ADMIN_EMAIL;
+  const canManageManually =
+    isAdmin ||
+    currentUser.role === "admin" ||
+    currentUser.role === "agent";
 
   const assignedApplicantId = useMemo(() => {
     const allocatedId = String(
@@ -268,7 +291,16 @@ const DeputyJobApplicantsPanel = ({
     return allocatedId;
   }, [job]);
 
-  const canShowManualAllocate = isAdmin && typeof onManualAllocate === "function";
+  const canShowManualAllocate =
+    canManageManually && typeof onManualAllocate === "function";
+  const handleManualAllocateClick = () => {
+    if (typeof onManualAllocate !== "function") {
+      toast.error("Manual allocate is not available here.");
+      return;
+    }
+
+    onManualAllocate(job);
+  };
 
   React.useEffect(() => {
     setLocalApplicants(Array.isArray(applicants) ? applicants : []);
@@ -390,7 +422,7 @@ const DeputyJobApplicantsPanel = ({
           {canShowManualAllocate ? (
             <button
               type="button"
-              onClick={() => onManualAllocate()}
+              onClick={handleManualAllocateClick}
               className="inline-flex items-center rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
             >
               Manual allocate musician

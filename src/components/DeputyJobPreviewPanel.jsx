@@ -474,22 +474,23 @@ const formatShortName = (name = "") => {
   };
 
   const handleManualAllocate = async (selectedMusician) => {
-    if (!job?._id || !selectedMusician?._id || isManualAllocating) return;
+    const selectedMusicianId = String(
+      selectedMusician?._id || selectedMusician?.musicianId || ""
+    ).trim();
 
-    const musicianName = [selectedMusician.firstName, selectedMusician.lastName]
-      .filter(Boolean)
-      .join(" ")
-      .trim() || "this musician";
+    if (!job?._id || !selectedMusicianId || isManualAllocating) return;
+
+    const musicianName =
+      [selectedMusician?.firstName, selectedMusician?.lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim() ||
+      selectedMusician?.name ||
+      "this musician";
 
     const confirmed = window.confirm(
-      `Manually allocate \"${job.title || "Untitled job"}\" to ${musicianName}?`
+      `Manually allocate "${job.title || "Untitled job"}" to ${musicianName}?`
     );
-
-    const selectedMusicianId = String(
-  selectedMusician?._id || selectedMusician?.musicianId || ""
-).trim();
-
-if (!job?._id || !selectedMusicianId || isManualAllocating) return;
 
     if (!confirmed) return;
 
@@ -499,7 +500,8 @@ if (!job?._id || !selectedMusicianId || isManualAllocating) return;
       const { data } = await axios.post(
         `${BACKEND_BASE}/api/deputy-jobs/${job._id}/manual-allocate`,
         {
-musicianId: selectedMusicianId,        },
+          musicianId: selectedMusicianId,
+        },
         {
           headers: authHeaders,
           withCredentials: true,
