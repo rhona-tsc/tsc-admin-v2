@@ -58,6 +58,11 @@ const statusClasses = {
   cancelled: "bg-gray-100 text-gray-600 border-gray-200",
 };
 
+const jobTypeClasses = {
+  enquiry: "bg-blue-100 text-blue-700 border-blue-200",
+  booked: "bg-gray-100 text-gray-700 border-gray-200",
+};
+
 const getPostedByLabel = (job) => {
   const createdByEmail = String(job?.createdByEmail || "").trim().toLowerCase();
   if (createdByEmail === "hello@thesupremecollective.co.uk") {
@@ -84,13 +89,17 @@ const timeText = formatTimeRange(
   job.callTime || job.startTime,
   job.finishTime || job.endTime
 );
-  const commissionApplies = !!job.commissionApplies;
+  const jobType = String(job?.jobType || "booked").toLowerCase();
+  const isEnquiryJob = jobType === "enquiry" || Boolean(job?.isEnquiryOnly);
+  const commissionApplies =
+    !isEnquiryJob &&
+    (Number(job?.commissionAmount || 0) > 0 || Number(job?.deputyNetAmount || 0) > 0);
   const netFeeValue =
-    Number(job.deputyNetAmount) > 0
+    Number(job?.deputyNetAmount) > 0
       ? Number(job.deputyNetAmount)
-      : commissionApplies && Number(job.commissionAmount) > 0
-      ? Number(job.fee || 0) - Number(job.commissionAmount || 0)
-      : Number(job.fee || 0);
+      : commissionApplies
+      ? Math.max(Number(job?.fee || 0) - Number(job?.commissionAmount || 0), 0)
+      : Number(job?.fee || 0);
   const feeText = formatMoney(netFeeValue);
   const status = String(job.status || "open").toLowerCase();
   const isUnavailable = ["allocated", "filled", "closed", "cancelled"].includes(status);
@@ -111,6 +120,7 @@ const statusText =
   const commissionText = commissionApplies
     ? `Net after ${formatMoney(job.commissionAmount || 0, "£0")} commission`
     : "";
+  const jobTypeText = isEnquiryJob ? "Enquiry" : "Booked";
   const postedByLabel = getPostedByLabel(job);
 
   const handleApplicantsClick = (event) => {
@@ -155,6 +165,14 @@ const statusText =
             >
               {statusText}
             </span>
+            <span
+              className={[
+                "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
+                jobTypeClasses[jobType] || jobTypeClasses.booked,
+              ].join(" ")}
+            >
+              {jobTypeText}
+            </span>
           </div>
 
           <div className="mt-2 space-y-1 text-sm text-gray-600">
@@ -168,6 +186,8 @@ const statusText =
           <p className="text-lg font-semibold text-gray-900">{feeText}</p>
           {commissionText ? (
             <p className="mt-1 text-xs text-gray-500">{commissionText}</p>
+          ) : isEnquiryJob ? (
+            <p className="mt-1 text-xs text-gray-500">Potential fee</p>
           ) : null}
         </div>
       </div>
@@ -200,7 +220,9 @@ const statusText =
             onClick={handleApplicantsClick}
             className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:border-black hover:text-black"
           >
-            Applicants{applicationCount ? ` (${applicationCount})` : ""}
+            Applicants{(applicationCount || job?.applicationCount || job?.applications?.length)
+              ? ` (${applicationCount || job?.applicationCount || job?.applications?.length})`
+              : ""}
           </button>
         )}
       </div>

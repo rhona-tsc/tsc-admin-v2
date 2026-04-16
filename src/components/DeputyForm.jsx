@@ -727,7 +727,7 @@ const url = `${backendUrl}/api/musician/moderation/deputy/${deputyId}`;
         console.error("❌ Failed to fetch deputy:", err);
       }
     })();
-  }, [deputyId, token]);
+}, [deputyId, authHeaders]);
 
 // Autosave hydration
 useEffect(() => {

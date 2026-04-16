@@ -21,9 +21,7 @@
   const stripePromise = STRIPE_PUBLISHABLE_KEY
     ? loadStripe(STRIPE_PUBLISHABLE_KEY)
     : null;
-    console.log("Stripe key present?", Boolean(STRIPE_PUBLISHABLE_KEY));
-console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
-
+  
   const formatMoney = (value) => {
     const n = Number(value || 0);
     return `£${n.toLocaleString("en-GB", {
@@ -58,6 +56,7 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
     });
   };
 
+  
   const formatDateTime = (value) => {
     if (!value) return "TBC";
     const date = new Date(value);
@@ -82,6 +81,7 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
     failed: "bg-red-100 text-red-700 border-red-200",
     refunded: "bg-purple-100 text-purple-700 border-purple-200",
     cancelled: "bg-gray-100 text-gray-700 border-gray-200",
+    not_required: "bg-blue-100 text-blue-700 border-blue-200",
   };
 
   const payoutStatusClassMap = {
@@ -269,6 +269,7 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
     const [isPreparingPaymentSetup, setIsPreparingPaymentSetup] = useState(false);
     const [isChargingJob, setIsChargingJob] = useState(false);
     const [paymentSetupInfo, setPaymentSetupInfo] = useState(null);
+    const [isManualAllocating, setIsManualAllocating] = useState(false);
 
     const job = hoveredJob?.job || hoveredJob || null;
 
@@ -294,8 +295,18 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
       );
     }, [job, currentUser, currentUserEmail, isAdmin]);
 
-    const canManage = isAdmin || isCreator;
-    const canViewPayments = isAdmin;
+
+    const currentUserRole = String(currentUser?.role || "").toLowerCase().trim();
+
+const canAdminManage =
+  currentUserEmail === ADMIN_EMAIL ||
+  currentUserRole === "admin" ||
+  currentUserRole === "agent";
+
+const canManage = canAdminManage || isCreator;
+const canManualAllocate = canAdminManage;
+const canViewPayments = canAdminManage;
+
 
     const requiredInstruments = normaliseArray(job?.requiredInstruments);
     const requiredSkills = normaliseArray(job?.requiredSkills);
@@ -307,15 +318,21 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
     const paymentStatus = String(job?.paymentStatus || "not_started").toLowerCase();
     const payoutStatus = String(job?.payoutStatus || "not_ready").toLowerCase();
     const jobStatus = String(job?.status || "open").toLowerCase();
+    const isEnquiryJob = String(job?.jobType || "").toLowerCase() === "enquiry";
     const displayFee = getDisplayFee(job);
     const paymentEvents = Array.isArray(job?.paymentEvents) ? job.paymentEvents : [];
     const latestPaymentEvent = paymentEvents.length ? paymentEvents[paymentEvents.length - 1] : null;
-  const canPreparePaymentSetup =
-    canManage &&
-    Boolean(job?.clientEmail) &&
-    !job?.defaultPaymentMethodId &&
-    !paymentSetupInfo?.clientSecret &&
-    !job?.setupIntentId;  const canChargeNow =
+
+    const canPreparePaymentSetup =
+      !isEnquiryJob &&
+      canManage &&
+      Boolean(job?.clientEmail) &&
+      !job?.defaultPaymentMethodId &&
+      !paymentSetupInfo?.clientSecret &&
+      !job?.setupIntentId;
+
+    const canChargeNow =
+      !isEnquiryJob &&
       canManage &&
       Boolean(job?.stripeCustomerId) &&
       Boolean(job?.defaultPaymentMethodId) &&
@@ -351,11 +368,12 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
     setPaymentSetupInfo(null);
   }, [job?._id]);
 
-  const formatShortName = (name = "") => {
+const formatShortName = (name = "") => {
   const parts = String(name).trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "";
   const firstName = parts[0];
-  const lastInitial = parts[1] ? `${parts[1][0].toUpperCase()}.` : "";
+  const lastName = parts.length > 1 ? parts[parts.length - 1] : "";
+  const lastInitial = lastName ? `${lastName[0].toUpperCase()}.` : "";
   return [firstName, lastInitial].filter(Boolean).join(" ");
 };
 
@@ -455,6 +473,58 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
     onRefresh?.(job);
   };
 
+  const handleManualAllocate = async (selectedMusician) => {
+    if (!job?._id || !selectedMusician?._id || isManualAllocating) return;
+
+    const musicianName = [selectedMusician.firstName, selectedMusician.lastName]
+      .filter(Boolean)
+      .join(" ")
+      .trim() || "this musician";
+
+    const confirmed = window.confirm(
+      `Manually allocate \"${job.title || "Untitled job"}\" to ${musicianName}?`
+    );
+
+    const selectedMusicianId = String(
+  selectedMusician?._id || selectedMusician?.musicianId || ""
+).trim();
+
+if (!job?._id || !selectedMusicianId || isManualAllocating) return;
+
+    if (!confirmed) return;
+
+    try {
+      setIsManualAllocating(true);
+
+      const { data } = await axios.post(
+        `${BACKEND_BASE}/api/deputy-jobs/${job._id}/manual-allocate`,
+        {
+musicianId: selectedMusicianId,        },
+        {
+          headers: authHeaders,
+          withCredentials: true,
+        }
+      );
+
+      if (!data?.success) {
+        throw new Error(data?.message || "Failed to manually allocate deputy job");
+      }
+
+      toast.success(`Allocated to ${musicianName}`);
+      onRefresh?.(job);
+      setShowApplicants(false);
+    } catch (error) {
+      console.error("❌ Failed to manually allocate deputy:", error);
+      toast.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to manually allocate deputy"
+      );
+    } finally {
+      setIsManualAllocating(false);
+    }
+  };
+
     if (!job) {
       return (
         <div className="w-full min-h-screen border-l p-6">
@@ -498,6 +568,11 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
                 >
                   {getJobStatusLabel(jobStatus)}
                 </span>
+                {isEnquiryJob ? (
+                  <span className="rounded-full border border-blue-200 bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+                    Enquiry only
+                  </span>
+                ) : null}
               </div>
             </div>
 
@@ -601,7 +676,7 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
             </section>
           ) : null}
 
-          {canViewPayments ? (
+          {canViewPayments && !isEnquiryJob ? (
             <section>
               <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -788,8 +863,8 @@ console.log("Stripe key preview:", STRIPE_PUBLISHABLE_KEY?.slice(0, 12));
                   applicants={applicants}
                   job={job}
                   onAssignApplicant={onAssignApplicant}
-                  loadingAssign={loadingAssign}
-                  renderApplicantActions={(applicant) => {
+                  loadingAssign={loadingAssign || isManualAllocating}
+onManualAllocate={canManualAllocate ? handleManualAllocate : undefined}                  renderApplicantActions={(applicant) => {
                     const profilePath = buildProfilePath(applicant);
 
                     return (

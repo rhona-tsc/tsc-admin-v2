@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
+import { toast } from "react-toastify";
 import Title from "../components/Title";
 import DeputyJobCard from "../components/DeputyJobCard";
 import DeputyJobPreviewPanel from "../components/DeputyJobPreviewPanel";
@@ -43,11 +44,15 @@ const getFeeLabel = (job) => {
 
 const hasStoredCardForJob = (job = {}) => {
   const paymentStatus = String(job?.paymentStatus || "").toLowerCase();
+  const jobType = String(job?.jobType || "booked").toLowerCase();
 
+  if (jobType === "enquiry") return true;
   if (job?.defaultPaymentMethodId) return true;
 
   return ["ready_to_charge", "charge_pending", "paid"].includes(paymentStatus);
 };
+
+
 
 const sortJobs = (jobs, sortType) => {
   const copy = [...jobs];
@@ -78,6 +83,9 @@ const DeputyJobs = () => {
   const [error, setError] = useState("");
   const [hoveredJob, setHoveredJob] = useState(null);
   const [sortType, setSortType] = useState("date_asc");
+  const [loadingClose, setLoadingClose] = useState(false);
+  const [showEnquiryOnly, setShowEnquiryOnly] = useState(false);
+
 const [filters, setFilters] = useState({
   search: "",
   instrument: "",
@@ -130,6 +138,52 @@ const [filters, setFilters] = useState({
         "",
     };
   }, [authToken]);
+
+const currentUserEmail = String(currentUser?.email || "").trim().toLowerCase();
+const currentUserRole = String(currentUser?.role || "").trim().toLowerCase();
+const canCreateEnquiryJob =
+  currentUserRole === "admin" ||
+  currentUserRole === "agent" ||
+  currentUserEmail === "hello@thesupremecollective.co.uk";
+
+const handleCloseJob = async (job) => {
+  if (!job?._id || loadingClose) return;
+
+  const confirmed = window.confirm(
+    `Close the deputy job "${job.title || "Untitled job"}"?`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    setLoadingClose(true);
+
+    const { data } = await axios.post(
+      `${BACKEND_URL}/api/deputy-jobs/${job._id}/close`,
+      {},
+      {
+        headers: authHeaders,
+        withCredentials: true,
+      }
+    );
+
+    if (!data?.success) {
+      throw new Error(data?.message || "Failed to close deputy job");
+    }
+
+    toast.success("Deputy job closed");
+    await fetchJobs();
+  } catch (error) {
+    console.error("❌ Failed to close deputy job:", error);
+    toast.error(
+      error?.response?.data?.message ||
+        error?.message ||
+        "Failed to close deputy job"
+    );
+  } finally {
+    setLoadingClose(false);
+  }
+};
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -187,10 +241,17 @@ const filteredJobs = useMemo(() => {
 
   const next = jobs.filter((job) => {
     const status = String(job?.status || "open").toLowerCase();
+    const jobType = String(job?.jobType || "booked").toLowerCase();
 
-    const requiresStoredCard = ["open", "allocated", "filled", "closed", "cancelled"].includes(status);
+    const requiresStoredCard =
+      jobType !== "enquiry" &&
+      ["open", "allocated", "filled", "closed", "cancelled"].includes(status);
 
     if (requiresStoredCard && !hasStoredCardForJob(job)) {
+      return false;
+    }
+
+    if (showEnquiryOnly && jobType !== "enquiry") {
       return false;
     }
 
@@ -243,7 +304,7 @@ const filteredJobs = useMemo(() => {
   });
 
   return sortJobs(next, sortType);
-}, [jobs, filters, sortType]);
+}, [jobs, filters, sortType, showEnquiryOnly]);
   useEffect(() => {
     if (!filteredJobs.length) {
       setHoveredJob(null);
@@ -276,6 +337,18 @@ const filteredJobs = useMemo(() => {
           >
             + Create deputy job
           </Link>
+
+          {canCreateEnquiryJob ? (
+            <label className="inline-flex items-center gap-2 rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700">
+              <input
+                type="checkbox"
+                checked={showEnquiryOnly}
+                onChange={(e) => setShowEnquiryOnly(e.target.checked)}
+              />
+              Enquiry jobs only
+            </label>
+          ) : null}
+
           <button
             type="button"
             onClick={fetchJobs}
@@ -347,6 +420,7 @@ const filteredJobs = useMemo(() => {
 
         <div className="hidden lg:flex lg:items-center lg:justify-end text-sm text-gray-500">
           {filteredJobs.length} {filteredJobs.length === 1 ? "job" : "jobs"}
+          {showEnquiryOnly ? " • enquiry only" : ""}
         </div>
       </div>
 
@@ -393,6 +467,8 @@ const filteredJobs = useMemo(() => {
   onRefresh={fetchJobs}
   authHeaders={authHeaders}
   currentUser={currentUser}
+  onCloseJob={handleCloseJob}
+   loadingClose={loadingClose}
 />
             </div>
           ) : ( 

@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 
@@ -61,7 +60,6 @@ const getCurrentUser = () => {
 
 
 
-const ADMIN_MUSICIAN_ROUTE_BASE = "/musician";
 
 const statusLabelMap = {
   applied: "Applied",
@@ -256,11 +254,21 @@ const DeputyJobApplicantsPanel = ({
   loading = false,
   onClose,
   onAssigned,
+  onManualAllocate,
 }) => {
   const [assigningId, setAssigningId] = useState("");
   const [localApplicants, setLocalApplicants] = useState(applicants);
   const currentUser = useMemo(() => getCurrentUser(), []);
   const isAdmin = currentUser.email === ADMIN_EMAIL;
+
+  const assignedApplicantId = useMemo(() => {
+    const allocatedId = String(
+      job?.allocatedMusicianId || job?.assignedMusicianId || ""
+    ).trim();
+    return allocatedId;
+  }, [job]);
+
+  const canShowManualAllocate = isAdmin && typeof onManualAllocate === "function";
 
   React.useEffect(() => {
     setLocalApplicants(Array.isArray(applicants) ? applicants : []);
@@ -311,7 +319,7 @@ const DeputyJobApplicantsPanel = ({
       setAssigningId(applicationMusicianId);
 
       const { data } = await axios.post(
-        `${BACKEND_BASE}/api/deputy-jobs/${job._id}/confirm-allocation`,
+`${BACKEND_BASE}/api/deputy-jobs/${job._id}/manual-allocate`,
         { musicianId: applicationMusicianId },
         {
           headers: getAuthHeaders(),
@@ -378,16 +386,28 @@ const DeputyJobApplicantsPanel = ({
           </p>
         </div>
 
-        {typeof onClose === "function" && (
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex items-center justify-center w-10 h-10 rounded-full border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300"
-            aria-label="Close applicants panel"
-          >
-            ×
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {canShowManualAllocate ? (
+            <button
+              type="button"
+              onClick={() => onManualAllocate()}
+              className="inline-flex items-center rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+            >
+              Manual allocate musician
+            </button>
+          ) : null}
+
+          {typeof onClose === "function" && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center justify-center w-10 h-10 rounded-full border border-gray-200 text-gray-500 hover:text-gray-800 hover:border-gray-300"
+              aria-label="Close applicants panel"
+            >
+              ×
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="p-5 overflow-y-auto max-h-[75vh]">
@@ -399,15 +419,19 @@ const DeputyJobApplicantsPanel = ({
           </div>
         ) : (
           <div className="space-y-4">
-            {assignedApplicant && (
+            {(assignedApplicant || job?.allocatedMusicianName || job?.assignedMusicianName) && (
               <div className="p-4 rounded-xl border border-green-200 bg-green-50">
                 <p className="text-sm font-semibold text-green-800">Allocation Requested</p>
                 <p className="text-sm text-green-700 mt-1">
-                  {getApplicantName(assignedApplicant)}
-                  {assignedApplicant?.allocatedAt
-                    ? ` • allocated ${formatDateTime(assignedApplicant.allocatedAt)}`
-                    : assignedApplicant?.assignedAt
-                    ? ` • allocated ${formatDateTime(assignedApplicant.assignedAt)}`
+                  {assignedApplicant
+                    ? getApplicantName(assignedApplicant)
+                    : String(job?.allocatedMusicianName || job?.assignedMusicianName || "Allocated musician")}
+                  {(assignedApplicant?.allocatedAt || assignedApplicant?.assignedAt || job?.allocatedAt)
+                    ? ` • allocated ${formatDateTime(
+                        assignedApplicant?.allocatedAt ||
+                          assignedApplicant?.assignedAt ||
+                          job?.allocatedAt
+                      )}`
                     : ""}
                 </p>
               </div>
@@ -420,8 +444,10 @@ const DeputyJobApplicantsPanel = ({
               const instrumentation = getInstrumentation(mergedApplication);
               const status = String(mergedApplication?.status || "applied").toLowerCase();
               const applicantMusicianId = String(mergedApplication?.musicianId || "").trim();
-              const isAssigned = ["allocated", "booked", "assigned"].includes(status);
-              const canAssign = !assignedApplicant && status === "applied" && Boolean(applicantMusicianId);
+              const isAssigned =
+                ["allocated", "booked", "assigned"].includes(status) ||
+                (assignedApplicantId && assignedApplicantId === applicantMusicianId);
+              const canAssign = !isAssigned && Boolean(applicantMusicianId);
               const isAssigning = assigningId === applicantMusicianId;
 
               return (
@@ -538,7 +564,7 @@ const DeputyJobApplicantsPanel = ({
                         disabled={isAssigning}
                         className="inline-flex items-center px-4 py-2 rounded-full bg-black text-white text-sm font-medium hover:bg-[#ff6667] disabled:opacity-60 disabled:cursor-not-allowed"
                       >
-                        {isAssigning ? "Allocating…" : "Allocate job"}
+                        {isAssigning ? "Allocating…" : "Allocate applicant"}
                       </button>
                     ) : null}
 

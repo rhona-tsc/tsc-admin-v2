@@ -2,13 +2,34 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
+import {
+  Elements,
+  PaymentElement,
+  useElements,
+  useStripe,
+} from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 import DeputyJobCreateForm from "../components/DeputyJobCreateForm";
 import { backendUrl } from "../App";
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "");
+const stripePromise = loadStripe(
+  import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || ""
+);
 const ADMIN_EMAIL = "hello@thesupremecollective.co.uk";
+
+const parseJwtPayload = (token = "") => {
+  try {
+    const payload = String(token || "").split(".")[1] || "";
+    if (!payload) return {};
+
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const decoded = atob(padded);
+    return JSON.parse(decoded);
+  } catch {
+    return {};
+  }
+};
 
 const DeputyJobPaymentSetupCard = ({
   paymentSetupState,
@@ -37,7 +58,9 @@ const DeputyJobPaymentSetupCard = ({
       });
 
       if (result.error) {
-        throw new Error(result.error.message || "Failed to confirm card details.");
+        throw new Error(
+          result.error.message || "Failed to confirm card details."
+        );
       }
 
       const setupIntent = result.setupIntent;
@@ -52,11 +75,15 @@ const DeputyJobPaymentSetupCard = ({
           setupIntentId: setupIntent?.id || paymentSetupState.setupIntentId || "",
           paymentMethodId,
         },
-        { headers: authHeaders }
+        {
+          headers: authHeaders,
+        }
       );
 
       if (!saveRes.data?.success) {
-        throw new Error(saveRes.data?.message || "Failed to save payment method.");
+        throw new Error(
+          saveRes.data?.message || "Failed to save payment method."
+        );
       }
 
       toast.success(
@@ -90,7 +117,9 @@ const DeputyJobPaymentSetupCard = ({
           Save payment card to activate this deputy job
         </h2>
         <p className="mt-3 text-sm text-gray-600 leading-7">
-          Your deputy job has been created, but it is not live yet. Please enter the payer’s card details below to activate the job and notify matched musicians.
+          Your deputy job has been created, but it is not live yet. Please enter
+          the payer’s card details below to activate the booked job and notify
+          matched musicians.
         </p>
       </div>
 
@@ -99,9 +128,14 @@ const DeputyJobPaymentSetupCard = ({
           <p className="font-semibold">Important payment information</p>
           <div className="mt-2 space-y-2 leading-6">
             <p>No payment will be taken now.</p>
-            <p>The card will only be charged automatically once you allocate the role to a deputy.</p>
             <p>
-              Payment is charged securely via Stripe once a deputy is allocated. The deputy’s payment is then scheduled for release after the event, less our commission, and tracked in our payout system.
+              The card will only be charged automatically once you allocate the
+              role to a deputy.
+            </p>
+            <p>
+              Payment is charged securely via Stripe once a deputy is allocated.
+              The deputy’s payment is then scheduled for release after the event,
+              less our commission, and tracked in our payout system.
             </p>
           </div>
         </div>
@@ -154,8 +188,12 @@ const CreateDeputyJob = () => {
       }
     : {};
 
+  const tokenPayload = useMemo(() => parseJwtPayload(authToken), [authToken]);
+
   const storedEmail = String(
-    localStorage.getItem("userEmail") ||
+    tokenPayload?.email ||
+      tokenPayload?.useremail ||
+      localStorage.getItem("userEmail") ||
       localStorage.getItem("adminEmail") ||
       localStorage.getItem("email") ||
       ""
@@ -163,12 +201,22 @@ const CreateDeputyJob = () => {
     .toLowerCase()
     .trim();
 
+  const storedRole = String(
+    tokenPayload?.role ||
+      tokenPayload?.userrole ||
+      localStorage.getItem("userRole") ||
+      localStorage.getItem("adminRole") ||
+      ""
+  )
+    .toLowerCase()
+    .trim();
+
   const isAdminUser = storedEmail === ADMIN_EMAIL;
 
-  const deputyJobsBaseUrl = useMemo(
-    () => `${backendUrl}/api/deputy-jobs`,
-    []
-  );
+  const canCreateEnquiryPost =
+    isAdminUser || storedRole === "admin" || storedRole === "agent";
+
+  const deputyJobsBaseUrl = useMemo(() => `${backendUrl}/api/deputy-jobs`, []);
 
   useEffect(() => {
     try {
@@ -184,7 +232,10 @@ const CreateDeputyJob = () => {
         setPaymentSetupState(parsed);
       }
     } catch (error) {
-      console.error("❌ Failed to restore deputy job payment setup state:", error);
+      console.error(
+        "❌ Failed to restore deputy job payment setup state:",
+        error
+      );
     }
   }, []);
 
@@ -197,7 +248,9 @@ const CreateDeputyJob = () => {
     const setupIntentId = window.prompt("Enter the SetupIntent ID");
     if (!setupIntentId) return;
 
-    const clientSecret = window.prompt("Paste the client secret returned by the API");
+    const clientSecret = window.prompt(
+      "Paste the client secret returned by the API"
+    );
     if (!clientSecret) return;
 
     const stripeCustomerId =
@@ -222,7 +275,9 @@ const CreateDeputyJob = () => {
       // ignore storage errors
     }
 
-    toast.success("Existing payment setup loaded. You can now complete the Stripe card step for this job.");
+    toast.success(
+      "Existing payment setup loaded. You can now complete the Stripe card step for this job."
+    );
   }, [isAdminUser]);
 
   const prepareDeputyJobPaymentSetup = async ({ jobId, payload }) => {
@@ -241,7 +296,9 @@ const CreateDeputyJob = () => {
     );
 
     if (!setupRes.data?.success) {
-      throw new Error(setupRes.data?.message || "Failed to prepare payment setup");
+      throw new Error(
+        setupRes.data?.message || "Failed to prepare payment setup"
+      );
     }
 
     const nextPaymentSetupState = {
@@ -305,8 +362,19 @@ const CreateDeputyJob = () => {
         // ignore
       }
 
+      const requestedJobType =
+        String(payload?.jobType || "booked").trim().toLowerCase() === "enquiry"
+          ? "enquiry"
+          : "booked";
+
+      if (requestedJobType === "enquiry" && !canCreateEnquiryPost) {
+        toast.error("Only admins and agents can create enquiry deputy posts.");
+        return;
+      }
+
       const submitPayload = {
         ...payload,
+        jobType: requestedJobType,
         previewOnly: false,
       };
 
@@ -321,10 +389,16 @@ const CreateDeputyJob = () => {
 
       const createdJob = res.data?.job || null;
       const createdJobId = createdJob?._id || createdJob?.id || "";
+      const isEnquiryJob = submitPayload.jobType === "enquiry";
 
       let paymentSetupPrepared = false;
 
-      if (submitPayload?.saveClientCard && submitPayload?.clientEmail && createdJobId) {
+      if (
+        !isEnquiryJob &&
+        submitPayload?.saveClientCard &&
+        submitPayload?.clientEmail &&
+        createdJobId
+      ) {
         try {
           const paymentSetupResult = await prepareDeputyJobPaymentSetup({
             jobId: createdJobId,
@@ -333,7 +407,10 @@ const CreateDeputyJob = () => {
 
           paymentSetupPrepared = Boolean(paymentSetupResult?.success);
         } catch (paymentSetupError) {
-          console.error("❌ Failed to prepare deputy job payment setup:", paymentSetupError);
+          console.error(
+            "❌ Failed to prepare deputy job payment setup:",
+            paymentSetupError
+          );
           toast.warn(
             paymentSetupError?.response?.data?.message ||
               paymentSetupError?.message ||
@@ -345,7 +422,9 @@ const CreateDeputyJob = () => {
       toast.success(
         paymentSetupPrepared
           ? "Deputy job created. Complete the card step below to activate the job and notify matched musicians."
-          : `Deputy job created. ${res.data?.notifiedCount || 0} musicians notified.`
+          : isEnquiryJob
+            ? `Enquiry deputy job created. ${res.data?.notifiedCount || 0} musicians notified.`
+            : `Deputy job created. ${res.data?.notifiedCount || 0} musicians notified.`
       );
 
       if (paymentSetupPrepared) {
@@ -389,12 +468,12 @@ const CreateDeputyJob = () => {
                   Create a deputy job
                 </h1>
                 <p className="mt-3 text-sm sm:text-base text-gray-600 max-w-3xl leading-7">
-                  Post a deputy opportunity for suitable musicians to apply in one click.
-                  Matching members will be notified automatically.
+                  Post either a booked deputy job or an enquiry-only deputy post.
+                  Matching members can be notified automatically based on the job type.
                 </p>
               </div>
 
-              {isAdminUser ? (
+              {isAdminUser && paymentSetupState.status !== "prepared" ? (
                 <button
                   type="button"
                   onClick={handleLoadExistingPaymentSetup}
@@ -435,7 +514,10 @@ const CreateDeputyJob = () => {
                   }));
 
                   handleCreated(
-                    savedJob || createdPreviewJob || { _id: paymentSetupState.deputyJobId },
+                    savedJob ||
+                      createdPreviewJob || {
+                        _id: paymentSetupState.deputyJobId,
+                      },
                     {
                       paymentSetupPrepared: true,
                     }
@@ -446,11 +528,12 @@ const CreateDeputyJob = () => {
           ) : null
         ) : (
           <DeputyJobCreateForm
-            onSubmit={handleSubmit}
-            isSubmitting={isSubmitting}
-            submitLabel="Create job"
-            authHeaders={authHeaders}
-          />
+  onSubmit={handleSubmit}
+  isSubmitting={isSubmitting}
+  submitLabel="Create job"
+  authHeaders={authHeaders}
+  canCreateEnquiryJob={canCreateEnquiryPost}
+/>
         )}
       </div>
     </div>

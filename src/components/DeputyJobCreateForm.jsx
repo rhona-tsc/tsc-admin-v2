@@ -38,6 +38,11 @@ const normaliseCsvArray = (value = "") =>
     .filter(Boolean);
 
 const buildInitialState = (initialValues = {}) => ({
+  jobType:
+    String(initialValues.jobType || "").trim().toLowerCase() === "enquiry"
+      ? "enquiry"
+      : "booked",
+
   title: initialValues.title || "",
   date: initialValues.date || initialValues.eventDate || "",
   callTime: initialValues.callTime || initialValues.startTime || "",
@@ -51,7 +56,7 @@ const buildInitialState = (initialValues = {}) => ({
   clientPhone: initialValues.clientPhone || "",
   saveClientCard:
     initialValues.saveClientCard === undefined
-      ? true
+      ? String(initialValues.jobType || "").trim().toLowerCase() !== "enquiry"
       : Boolean(initialValues.saveClientCard),
   fee:
     initialValues.fee === 0 || initialValues.fee
@@ -117,10 +122,23 @@ const DeputyJobCreateForm = ({
   submitLabel = "Create job",
   authHeaders = {},
   onCreated,
+  canCreateEnquiryJob = false,
 }) => {
   const [formData, setFormData] = useState(() => buildInitialState(initialValues));
   const [errors, setErrors] = useState({});
   const [submittingAction, setSubmittingAction] = useState("");
+  const [jobType, setJobType] = useState(
+    () => buildInitialState(initialValues).jobType
+  );
+
+  const showEnquiryOption = Boolean(canCreateEnquiryJob);
+  const isEnquiryJob = showEnquiryOption && jobType === "enquiry";
+
+  React.useEffect(() => {
+    if (!showEnquiryOption && jobType === "enquiry") {
+      setJobType("booked");
+    }
+  }, [showEnquiryOption, jobType]);
 
   const parsedPreview = useMemo(
     () => ({
@@ -217,7 +235,7 @@ const DeputyJobCreateForm = ({
       nextErrors.postcode = "Please add a postcode.";
     }
 
-    if (formData.saveClientCard) {
+if (!isEnquiryJob && formData.saveClientCard) {
       if (!String(formData.clientName || "").trim()) {
         nextErrors.clientName = "Please add the client name for card setup.";
       }
@@ -295,7 +313,7 @@ const DeputyJobCreateForm = ({
       clientName: String(formData.clientName || "").trim(),
       clientEmail: String(formData.clientEmail || "").trim().toLowerCase(),
       clientPhone: String(formData.clientPhone || "").trim(),
-      saveClientCard: Boolean(formData.saveClientCard),
+saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
       fee: formData.fee === "" ? 0 : Number(formData.fee),
       notes: String(formData.notes || "").trim(),
       instrument: primaryInstrument,
@@ -305,6 +323,7 @@ const DeputyJobCreateForm = ({
       desiredRoles: mergedDesiredRoles,
       secondaryInstruments,
       genres,
+      jobType: showEnquiryOption ? jobType : "booked",
       tags,
       setLengths,
       whatsIncluded,
@@ -335,20 +354,22 @@ const DeputyJobCreateForm = ({
       });
       console.log("[DeputyJobCreateForm] create response", res.data);
 
-      if (res.data?.success) {
-        if (payload.previewOnly) {
-          toast.success(
-            `Preview ready. ${res.data.matchedCount || 0} musicians matched.`
-          );
-        } else {
-         toast.success(
-  `Deputy job created. ${res.data?.matchedCount || 0} matched, ready to notify them!`
-);
-        }
+     if (res.data?.success) {
+  if (payload.previewOnly) {
+    toast.success(
+      `Preview ready. ${res.data.matchedCount || 0} musicians matched.`
+    );
+  } else if (isEnquiryJob) {
+    toast.success("Enquiry-only deputy post created.");
+  } else {
+    toast.success(
+      `Deputy job created. ${res.data?.matchedCount || 0} matched, ready to notify them!`
+    );
+  }
 
-        onCreated?.(res.data.job || res.data);
-        return;
-      }
+  onCreated?.(res.data.job || res.data);
+  return;
+}
 
       toast.error(res.data?.message || "Failed to create deputy job.");
     } catch (error) {
@@ -377,6 +398,36 @@ const DeputyJobCreateForm = ({
         </div>
 
         <div className="grid grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-2">
+         <div>
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Job type
+  </label>
+  <select
+    value={showEnquiryOption ? jobType : "booked"}
+    onChange={(e) => {
+      const nextJobType = e.target.value;
+      setJobType(nextJobType);
+
+      if (nextJobType === "enquiry") {
+        setFormData((prev) => ({
+          ...prev,
+          saveClientCard: false,
+        }));
+        setErrors((prev) => ({
+          ...prev,
+          clientName: "",
+          clientEmail: "",
+        }));
+      }
+    }}
+    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 outline-none"
+  >
+    <option value="booked">Confirmed booking</option>
+    {showEnquiryOption ? (
+      <option value="enquiry">Enquiry / potential gig</option>
+    ) : null}
+  </select>
+</div>
           <div className="lg:col-span-2">
             <label className={labelClass} htmlFor="title">
               Job title
@@ -519,82 +570,91 @@ const DeputyJobCreateForm = ({
             {errors.location ? <p className="mt-2 text-sm text-red-600">{errors.location}</p> : null}
           </div>
 
-          <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-900">Payment card setup</h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  Save the client’s card details now so payment can be taken automatically when a deputy is allocated.
-                </p>
-              </div>
+         {!isEnquiryJob ? (
+  <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div>
+        <h3 className="text-sm font-semibold text-gray-900">Payment card setup</h3>
+        <p className="text-xs text-gray-500 mt-1">
+          Save the client’s card details now so payment can be taken automatically when a deputy is allocated.
+        </p>
+      </div>
 
-              <label className="inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  name="saveClientCard"
-                  checked={Boolean(formData.saveClientCard)}
-                  onChange={handleChange}
-                  className="h-4 w-4 accent-black"
-                />
-                Save payment card
-              </label>
-            </div>
+      <label className="inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
+        <input
+          type="checkbox"
+          name="saveClientCard"
+          checked={Boolean(formData.saveClientCard)}
+          onChange={handleChange}
+          className="h-4 w-4 accent-black"
+        />
+        Save payment card
+      </label>
+    </div>
 
-            {formData.saveClientCard ? (
-              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div>
-                  <label className={labelClass} htmlFor="clientName">
-                    Payer name
-                  </label>
-                  <input
-                    id="clientName"
-                    name="clientName"
-                    type="text"
-                    value={formData.clientName}
-                    onChange={handleChange}
-                    className={inputClass}
-                    placeholder="Full name"
-                  />
-                  {errors.clientName ? (
-                    <p className="mt-2 text-sm text-red-600">{errors.clientName}</p>
-                  ) : null}
-                </div>
+    {formData.saveClientCard ? (
+      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div>
+          <label className={labelClass} htmlFor="clientName">
+            Payer name
+          </label>
+          <input
+            id="clientName"
+            name="clientName"
+            type="text"
+            value={formData.clientName}
+            onChange={handleChange}
+            className={inputClass}
+            placeholder="Full name"
+          />
+          {errors.clientName ? (
+            <p className="mt-2 text-sm text-red-600">{errors.clientName}</p>
+          ) : null}
+        </div>
 
-                <div>
-                  <label className={labelClass} htmlFor="clientEmail">
-                    Payer email
-                  </label>
-                  <input
-                    id="clientEmail"
-                    name="clientEmail"
-                    type="email"
-                    value={formData.clientEmail}
-                    onChange={handleChange}
-                    className={inputClass}
-                    placeholder="name@example.com"
-                  />
-                  {errors.clientEmail ? (
-                    <p className="mt-2 text-sm text-red-600">{errors.clientEmail}</p>
-                  ) : null}
-                </div>
+        <div>
+          <label className={labelClass} htmlFor="clientEmail">
+            Payer email
+          </label>
+          <input
+            id="clientEmail"
+            name="clientEmail"
+            type="email"
+            value={formData.clientEmail}
+            onChange={handleChange}
+            className={inputClass}
+            placeholder="name@example.com"
+          />
+          {errors.clientEmail ? (
+            <p className="mt-2 text-sm text-red-600">{errors.clientEmail}</p>
+          ) : null}
+        </div>
 
-                <div>
-                  <label className={labelClass} htmlFor="clientPhone">
-                    Payer phone
-                  </label>
-                  <input
-                    id="clientPhone"
-                    name="clientPhone"
-                    type="text"
-                    value={formData.clientPhone}
-                    onChange={handleChange}
-                    className={inputClass}
-                    placeholder="Optional"
-                  />
-                </div>
-              </div>
-            ) : null}
-          </div>
+        <div>
+          <label className={labelClass} htmlFor="clientPhone">
+            Payer phone
+          </label>
+          <input
+            id="clientPhone"
+            name="clientPhone"
+            type="text"
+            value={formData.clientPhone}
+            onChange={handleChange}
+            className={inputClass}
+            placeholder="Optional"
+          />
+        </div>
+      </div>
+    ) : null}
+  </div>
+) : (
+  <div className="lg:col-span-2 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+    <h3 className="text-sm font-semibold text-blue-900">Enquiry-only post</h3>
+    <p className={`${sectionTextClass} mt-1`}>
+      This will create an enquiry-only deputy post for a potential gig. No card details will be collected and no automatic charge flow will be set up.
+    </p>
+  </div>
+)}
 
           <div className="lg:col-span-2">
             <label className={labelClass} htmlFor="requiredInstruments">
@@ -1013,13 +1073,17 @@ const DeputyJobCreateForm = ({
           </button>
         ) : null}
 
-        <button
-          type="submit"
-          disabled={isSubmitting || submittingAction === "create"}
-          className="inline-flex items-center rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {submittingAction === "create" ? "Creating…" : "Create and notify"}
-        </button>
+       <button
+  type="submit"
+  disabled={isSubmitting || submittingAction === "create"}
+  className="inline-flex items-center rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-60"
+>
+{submittingAction === "create"
+  ? "Creating…"
+  : showEnquiryOption && isEnquiryJob
+  ? "Create enquiry post"
+  : "Create and notify"}
+</button>
       </div>
     </form>
   );
