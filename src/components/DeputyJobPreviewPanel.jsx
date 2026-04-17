@@ -518,6 +518,18 @@ const DeputyJobPreviewPanel = ({
     setShowManualAllocateModal(true);
   };
 
+  const handleOpenManualAllocateModal = (event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
+    if (!canManualAllocate) {
+      toast.error("Only admin or agent users can manually allocate musicians.");
+      return;
+    }
+
+    openManualAllocateModal();
+  };
+
   const handleManualAllocateSearch = async (event) => {
     event?.preventDefault?.();
 
@@ -961,15 +973,28 @@ const DeputyJobPreviewPanel = ({
               <h3 className="text-lg font-semibold text-gray-900">
                 Applicants
               </h3>
-              {onRefresh ? (
-                <button
-                  type="button"
-                  onClick={() => onRefresh?.(job)}
-                  className="text-sm font-medium text-gray-500 underline-offset-4 hover:text-black hover:underline"
-                >
-                  Refresh
-                </button>
-              ) : null}
+
+              <div className="flex items-center gap-3">
+                {canManualAllocate ? (
+                  <button
+                    type="button"
+                    onClick={handleOpenManualAllocateModal}
+                    className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:border-black hover:text-black"
+                  >
+                    Manual allocate musician
+                  </button>
+                ) : null}
+
+                {onRefresh ? (
+                  <button
+                    type="button"
+                    onClick={() => onRefresh?.(job)}
+                    className="text-sm font-medium text-gray-500 underline-offset-4 hover:text-black hover:underline"
+                  >
+                    Refresh
+                  </button>
+                ) : null}
+              </div>
             </div>
 
             <DeputyJobApplicantsPanel
@@ -977,7 +1002,7 @@ const DeputyJobPreviewPanel = ({
               job={job}
               onAssignApplicant={onAssignApplicant}
               loadingAssign={loadingAssign || isManualAllocating}
-              onManualAllocate={canManualAllocate ? openManualAllocateModal : undefined}
+              onManualAllocate={canManualAllocate ? handleOpenManualAllocateModal : undefined}
               renderApplicantActions={(applicant) => {
                 const profilePath = buildProfilePath(applicant);
 
