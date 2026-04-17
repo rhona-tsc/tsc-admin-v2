@@ -293,14 +293,24 @@ const DeputyJobApplicantsPanel = ({
 
   const canShowManualAllocate =
     canManageManually && typeof onManualAllocate === "function";
-  const handleManualAllocateClick = () => {
-    if (typeof onManualAllocate !== "function") {
-      toast.error("Manual allocate is not available here.");
-      return;
-    }
+const handleManualAllocateClick = () => {
+  if (typeof onManualAllocate !== "function") {
+    toast.error("Manual allocate is not available here.");
+    return;
+  }
 
-    onManualAllocate(job);
-  };
+  const musicianId = window.prompt(
+    "Paste the musician ID you want to manually allocate:"
+  );
+
+  if (!musicianId) return;
+
+  onManualAllocate({
+    _id: musicianId.trim(),
+    firstName: "Selected",
+    lastName: "musician",
+  });
+};
 
   React.useEffect(() => {
     setLocalApplicants(Array.isArray(applicants) ? applicants : []);
