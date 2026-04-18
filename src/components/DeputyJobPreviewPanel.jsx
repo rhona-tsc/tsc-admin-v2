@@ -269,6 +269,7 @@ const DeputyJobPreviewPanel = ({
   onRefresh,
   loadingApply = false,
   loadingAssign = false,
+  loadingPresent = false,
   loadingClose = false,
   authHeaders = {},
 }) => {
@@ -277,10 +278,12 @@ const DeputyJobPreviewPanel = ({
   const [isChargingJob, setIsChargingJob] = useState(false);
   const [paymentSetupInfo, setPaymentSetupInfo] = useState(null);
   const [isManualAllocating, setIsManualAllocating] = useState(false);
+  const [presentingApplicantId, setPresentingApplicantId] = useState("");
   const [showManualAllocateModal, setShowManualAllocateModal] = useState(false);
   const [manualAllocateQuery, setManualAllocateQuery] = useState("");
   const [manualAllocateResults, setManualAllocateResults] = useState([]);
   const [isSearchingMusicians, setIsSearchingMusicians] = useState(false);
+  const [isPresentingApplicant, setIsPresentingApplicant] = useState(false);
 
   const job = hoveredJob?.job || hoveredJob || null;
 
@@ -574,7 +577,51 @@ const DeputyJobPreviewPanel = ({
     }
   };
 
+
+const handlePresentApplicantToClient = async (applicant) => {
+  const musicianId = String(
+    applicant?._id || applicant?.musicianId || applicant?.id || ""
+  ).trim();
+
+  if (!job?._id || !musicianId) {
+    toast.error("Missing musician ID.");
+    return;
+  }
+
+  try {
+    setIsPresentingApplicant(true);
+
+    const { data } = await axios.post(
+      `${BACKEND_BASE}/api/deputy-jobs/${job._id}/present-applicant`,
+      { musicianId },
+      {
+        headers: authHeaders,
+        withCredentials: true,
+      }
+    );
+
+    if (!data?.success) {
+      throw new Error(data?.message || "Failed to present applicant");
+    }
+
+    toast.success("Applicant presented to client");
+    onRefresh?.(job);
+  } catch (error) {
+    console.error("❌ Failed to present applicant:", error);
+    toast.error(
+      error?.response?.data?.message ||
+        error?.message ||
+        "Failed to present applicant"
+    );
+  } finally {
+    setIsPresentingApplicant(false);
+  }
+};
+
+
   const handleManualAllocate = async (selectedMusician) => {
+  
+    
     const selectedMusicianId = String(
       selectedMusician?._id || selectedMusician?.musicianId || selectedMusician?.id || "",
     ).trim();
@@ -1001,7 +1048,11 @@ const DeputyJobPreviewPanel = ({
               applicants={applicants}
               job={job}
               onAssignApplicant={onAssignApplicant}
+  onPresentApplicant={isEnquiryJob ? handlePresentApplicantToClient : undefined}
+                isEnquiryJob={isEnquiryJob}
               loadingAssign={loadingAssign || isManualAllocating}
+              loadingPresentApplicant={Boolean(presentingApplicantId) || loadingPresent}
+                loadingPresent={isPresentingApplicant}
               onManualAllocate={canManualAllocate ? handleOpenManualAllocateModal : undefined}
               renderApplicantActions={(applicant) => {
                 const profilePath = buildProfilePath(applicant);
@@ -1019,7 +1070,7 @@ const DeputyJobPreviewPanel = ({
                       </Link>
                     ) : null}
 
-                    {job.status === "open" ? (
+                    {job.status === "open" && !isEnquiryJob ? (
                       <button
                         type="button"
                         onClick={() => onAssignApplicant?.(job, applicant)}
@@ -1027,6 +1078,19 @@ const DeputyJobPreviewPanel = ({
                         className="rounded bg-black px-3 py-2 text-sm font-medium text-white transition hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {loadingAssign ? "Allocating..." : "Allocate job"}
+                      </button>
+                    ) : null}
+
+                    {job.status === "open" && isEnquiryJob ? (
+                      <button
+                        type="button"
+                        onClick={() => handlePresentApplicant(applicant)}
+                        disabled={Boolean(presentingApplicantId)}
+                        className="rounded bg-black px-3 py-2 text-sm font-medium text-white transition hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {presentingApplicantId === String(applicant?._id || applicant?.musicianId || applicant?.id || "")
+                          ? "Presenting..."
+                          : "Present to client"}
                       </button>
                     ) : null}
                   </div>
