@@ -512,9 +512,9 @@ const DeputyJobApplicantsPanel = ({
                 typeof onAssigned === "function";
 
               const canPresentToClient =
-                isEnquiryJob &&
-                Boolean(applicantMusicianId) &&
-                typeof onPresentApplicant === "function";
+                isEnquiryJob && typeof onPresentApplicant === "function";
+
+              const isPresented = status === "presented";
 
               const isAssigning = assigningId === applicantMusicianId;
               const isPresenting = presentingId === applicantMusicianId;
@@ -659,12 +659,17 @@ const DeputyJobApplicantsPanel = ({
                       <button
                         type="button"
                         onClick={() => handlePresentApplicant(mergedApplication)}
-                        disabled={loadingPresent || isPresenting}
+                        disabled={loadingPresent || isPresenting || !applicantMusicianId || isPresented}
                         className="inline-flex items-center px-4 py-2 rounded-full border border-blue-200 bg-blue-50 text-blue-700 text-sm font-medium hover:bg-blue-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                        title={!applicantMusicianId ? "This applicant is missing a musician ID" : ""}
                       >
-                        {loadingPresent || isPresenting
-                          ? "Sending…"
-                          : "Present to client"}
+                        {isPresented
+                          ? "Presented"
+                          : loadingPresent || isPresenting
+                            ? "Sending…"
+                            : !applicantMusicianId
+                              ? "Missing musician ID"
+                              : "Present to client"}
                       </button>
                     ) : null}
 
@@ -680,6 +685,11 @@ const DeputyJobApplicantsPanel = ({
                     {isAssigned ? (
                       <span className="inline-flex items-center px-4 py-2 rounded-full bg-green-100 text-green-800 text-sm font-medium">
                         Allocated
+                      </span>
+                    ) : null}
+                    {isPresented && !isAssigned ? (
+                      <span className="inline-flex items-center px-4 py-2 rounded-full bg-indigo-100 text-indigo-800 text-sm font-medium">
+                        Presented to client
                       </span>
                     ) : null}
                   </div>
