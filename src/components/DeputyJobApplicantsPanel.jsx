@@ -263,6 +263,7 @@ const DeputyJobApplicantsPanel = ({
   onAssigned,
   onManualAllocate,
   onPresentApplicant,
+  isEnquiryJob: isEnquiryJobProp = false,
   loadingPresent = false,
 }) => {
   const [assigningId, setAssigningId] = useState("");
@@ -276,7 +277,9 @@ const DeputyJobApplicantsPanel = ({
     currentUser.role === "admin" ||
     currentUser.role === "agent";
 
-  const isEnquiryJob = String(job?.jobType || "").toLowerCase() === "enquiry";
+  const isEnquiryJob =
+    Boolean(isEnquiryJobProp) ||
+    String(job?.jobType || "").toLowerCase() === "enquiry";
 
   const assignedApplicantId = useMemo(() => {
     return String(job?.allocatedMusicianId || job?.assignedMusicianId || "").trim();
@@ -436,6 +439,12 @@ const DeputyJobApplicantsPanel = ({
             </button>
           ) : null}
 
+          {isEnquiryJob ? (
+            <span className="inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-700 border border-indigo-200">
+              Enquiry presentation mode
+            </span>
+          ) : null}
+
           {typeof onClose === "function" && (
             <button
               type="button"
@@ -512,9 +521,21 @@ const DeputyJobApplicantsPanel = ({
                 typeof onAssigned === "function";
 
               const canPresentToClient =
-                isEnquiryJob && typeof onPresentApplicant === "function";
+                isEnquiryJob &&
+                typeof onPresentApplicant === "function" &&
+                !isAssigned;
 
               const isPresented = status === "presented";
+
+              console.log("[DeputyJobApplicantsPanel] applicant action state", {
+                jobId: job?._id,
+                applicantName,
+                applicantMusicianId,
+                isEnquiryJob,
+                hasOnPresentApplicant: typeof onPresentApplicant === "function",
+                isAssigned,
+                isPresented,
+              });
 
               const isAssigning = assigningId === applicantMusicianId;
               const isPresenting = presentingId === applicantMusicianId;
@@ -669,7 +690,7 @@ const DeputyJobApplicantsPanel = ({
                             ? "Sending…"
                             : !applicantMusicianId
                               ? "Missing musician ID"
-                              : "Present to client"}
+                              : "Present applicant"}
                       </button>
                     ) : null}
 
