@@ -277,9 +277,27 @@ const DeputyJobApplicantsPanel = ({
     currentUser.role === "admin" ||
     currentUser.role === "agent";
 
-  const isEnquiryJob =
-    Boolean(isEnquiryJobProp) ||
-    String(job?.jobType || "").toLowerCase() === "enquiry";
+  const isEnquiryJob = useMemo(() => {
+    const explicitProp = Boolean(isEnquiryJobProp);
+    const jobType = String(job?.jobType || job?.type || "")
+      .trim()
+      .toLowerCase();
+    const title = String(job?.title || "")
+      .trim()
+      .toLowerCase();
+    const enquiryFlag =
+      job?.isEnquiry === true ||
+      job?.enquiryOnly === true ||
+      job?.forEnquiry === true;
+
+    return (
+      explicitProp ||
+      enquiryFlag ||
+      jobType === "enquiry" ||
+      title.includes("for enquiry") ||
+      title.includes("enquiry")
+    );
+  }, [isEnquiryJobProp, job]);
 
   const assignedApplicantId = useMemo(() => {
     return String(job?.allocatedMusicianId || job?.assignedMusicianId || "").trim();
@@ -287,6 +305,21 @@ const DeputyJobApplicantsPanel = ({
 
   const canShowManualAllocate =
     canManageManually && typeof onManualAllocate === "function";
+
+  useEffect(() => {
+    console.log("[DeputyJobApplicantsPanel] mode", {
+      jobId: job?._id,
+      title: job?.title,
+      jobType: job?.jobType,
+      type: job?.type,
+      isEnquiry: job?.isEnquiry,
+      enquiryOnly: job?.enquiryOnly,
+      forEnquiry: job?.forEnquiry,
+      isEnquiryJobProp,
+      resolvedIsEnquiryJob: isEnquiryJob,
+      hasOnPresentApplicant: typeof onPresentApplicant === "function",
+    });
+  }, [job, isEnquiryJobProp, isEnquiryJob, onPresentApplicant]);
 
   useEffect(() => {
     setLocalApplicants(Array.isArray(applicants) ? applicants : []);
@@ -522,20 +555,12 @@ const DeputyJobApplicantsPanel = ({
 
               const canPresentToClient =
                 isEnquiryJob &&
+                Boolean(applicantMusicianId) &&
                 typeof onPresentApplicant === "function" &&
                 !isAssigned;
 
               const isPresented = status === "presented";
 
-              console.log("[DeputyJobApplicantsPanel] applicant action state", {
-                jobId: job?._id,
-                applicantName,
-                applicantMusicianId,
-                isEnquiryJob,
-                hasOnPresentApplicant: typeof onPresentApplicant === "function",
-                isAssigned,
-                isPresented,
-              });
 
               const isAssigning = assigningId === applicantMusicianId;
               const isPresenting = presentingId === applicantMusicianId;
@@ -688,9 +713,7 @@ const DeputyJobApplicantsPanel = ({
                           ? "Presented"
                           : loadingPresent || isPresenting
                             ? "Sending…"
-                            : !applicantMusicianId
-                              ? "Missing musician ID"
-                              : "Present applicant"}
+                            : "Present applicant"}
                       </button>
                     ) : null}
 
