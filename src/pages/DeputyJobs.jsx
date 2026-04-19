@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Title from "../components/Title";
 import DeputyJobCard from "../components/DeputyJobCard";
@@ -85,6 +85,8 @@ const DeputyJobs = () => {
   const [sortType, setSortType] = useState("date_asc");
   const [loadingClose, setLoadingClose] = useState(false);
   const [showEnquiryOnly, setShowEnquiryOnly] = useState(false);
+
+  const navigate = useNavigate();
 
 const [filters, setFilters] = useState({
   search: "",
@@ -448,10 +450,11 @@ const filteredJobs = useMemo(() => {
                 >
                   <DeputyJobCard
                     job={job}
-                    isActive={String(hoveredJob?._id || "") === String(job._id)}
+                    isSelected={String(hoveredJob?._id || "") === String(job._id)}
                     onHover={() => setHoveredJob(job)}
                     onRefresh={fetchJobs}
                     subtitle={`${formatDate(job?.date || job?.eventDate)} • ${getFeeLabel(job)}`}
+                    onClick={() => navigate(`/deputy-jobs/${job._id}`)}
                   />
                 </div>
               ))}
