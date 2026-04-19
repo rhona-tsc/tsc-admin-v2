@@ -4,6 +4,20 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import { backendUrl } from "../App";
 
+const parseJwtPayload = (token = "") => {
+  try {
+    const payload = String(token || "").split(".")[1] || "";
+    if (!payload) return {};
+
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const decoded = atob(padded);
+    return JSON.parse(decoded);
+  } catch {
+    return {};
+  }
+};
+
 const normaliseString = (value) => String(value || "").trim();
 
 const formatDateLong = (value) => {
@@ -180,13 +194,42 @@ const DeputyJobDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [applying, setApplying] = useState(false);
+  const [assigningId, setAssigningId] = useState("");
+  const [presentingId, setPresentingId] = useState("");
 
-    const adminToken = localStorage.getItem("adminToken") || "";
+  const adminToken = localStorage.getItem("adminToken") || "";
   const musicianToken = localStorage.getItem("musicianToken") || "";
   const generalToken = localStorage.getItem("token") || "";
 
   const token = generalToken || adminToken || musicianToken || "";
   const hasAnyUserToken = Boolean(token);
+
+  const currentUser = useMemo(() => {
+    const tokenPayload = parseJwtPayload(token);
+
+    return {
+      _id: tokenPayload?._id || tokenPayload?.id || tokenPayload?.userId || "",
+      id: tokenPayload?.id || tokenPayload?._id || tokenPayload?.userId || "",
+      email: String(
+        tokenPayload?.email ||
+          tokenPayload?.useremail ||
+          localStorage.getItem("userEmail") ||
+          sessionStorage.getItem("userEmail") ||
+          "",
+      )
+        .trim()
+        .toLowerCase(),
+      role: String(
+        tokenPayload?.role ||
+          tokenPayload?.userrole ||
+          localStorage.getItem("userRole") ||
+          sessionStorage.getItem("userRole") ||
+          "",
+      )
+        .trim()
+        .toLowerCase(),
+    };
+  }, [token]);
 
   const headers = useMemo(
     () =>
@@ -239,10 +282,44 @@ const DeputyJobDetail = () => {
     currentUserEmail &&
       (currentUserEmail === createdByEmail || currentUserEmail === managerEmail)
   );
+// Who is admin/agent?
+const currentUserRole = String(currentUser?.role || "").trim().toLowerCase();
+const isAdminEmail =
+  String(currentUserEmail || "").trim().toLowerCase() === "hello@thesupremecollective.co.uk";
 
+const canManageThisJob = Boolean(isAdminEmail || currentUserRole === "admin" || currentUserRole === "agent" || isJobManager);
+const canSeeApplicationsSection = canManageThisJob; // your requirement: ONLY poster/manager/admin/agent
+
+// If they can see applications but are NOT admin/agent/admin-email, mask names
+const shouldMaskApplicantNames = !(
+  isAdminEmail ||
+  currentUserRole === "admin" ||
+  currentUserRole === "agent" ||
+  Boolean(adminToken)
+);
+
+const getApplicantFullName = (application = {}) => {
+  const firstName = String(application.firstName || "").trim();
+  const lastName = String(application.lastName || "").trim();
+  return `${firstName} ${lastName}`.trim() || "Unnamed applicant";
+};
+
+const getApplicantShortName = (application = {}) => {
+  const firstName = String(application.firstName || "").trim();
+  const lastName = String(application.lastName || "").trim();
+  const lastInitial = lastName ? `${lastName.charAt(0).toUpperCase()}.` : "";
+  return [firstName, lastInitial].filter(Boolean).join(" ") || getApplicantFullName(application);
+};
+
+// Enquiry vs booked (same logic style as your panel)
+const jobType = String(job?.jobType || job?.type || "").trim().toLowerCase();
+const isEnquiryJob =
+  job?.isEnquiry === true ||
+  job?.enquiryOnly === true ||
+  jobType === "enquiry" ||
+  String(job?.title || "").toLowerCase().includes("enquiry");
   const canViewMatchedMusicians = isAdminViewer;
   const canViewNotifications = isAdminViewer;
-  const canViewApplications = isAdminViewer || isJobManager;
   const applications = toArray(job?.applications);
   const applicationEmails = applications
     .map((application) => normaliseString(application?.email).toLowerCase())
@@ -265,7 +342,77 @@ const DeputyJobDetail = () => {
 
   const matchedMusicians = toArray(job?.matchedMusicians);
   const notifications = toArray(job?.notifications);
+// Booked job allocation (uses your existing route pattern)
+const handleAllocateApplicant = useCallback(
+  async (application) => {
+    const musicianId = String(application?.musicianId || application?._id || "").trim();
+    if (!musicianId) return toast.error("This applicant is missing a musician ID.");
 
+    const confirmed = window.confirm(
+      `Allocate this job to ${getApplicantShortName(application)}?`
+    );
+    if (!confirmed) return;
+
+    try {
+      setAssigningId(musicianId);
+
+      const res = await axios.post(
+        `${backendUrl}/api/deputy-jobs/${id}/manual-allocate`,
+        { musicianId }, // you can add { skipCharge: true } etc if needed
+        { headers, withCredentials: true }
+      );
+
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || "Failed to allocate applicant");
+      }
+
+      toast.success(res.data?.message || "Applicant allocated");
+      await loadJob();
+    } catch (err) {
+      console.error("❌ Failed to allocate applicant:", err);
+      toast.error(err?.response?.data?.message || err?.message || "Failed to allocate applicant");
+    } finally {
+      setAssigningId("");
+    }
+  },
+  [headers, id, loadJob]
+);
+
+// Enquiry job "present to client" (align URL with your backend)
+const handlePresentApplicant = useCallback(
+  async (application) => {
+    const musicianId = String(application?.musicianId || application?._id || "").trim();
+    if (!musicianId) return toast.error("This applicant is missing a musician ID.");
+
+    const confirmed = window.confirm(
+      `Present ${getApplicantShortName(application)} to the client for ${job?.title || "this enquiry"}?`
+    );
+    if (!confirmed) return;
+
+    try {
+      setPresentingId(musicianId);
+
+      const res = await axios.post(
+        `${backendUrl}/api/deputy-jobs/${id}/present-applicant`,
+        { musicianId },
+        { headers, withCredentials: true }
+      );
+
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || "Failed to present applicant");
+      }
+
+      toast.success(res.data?.message || "Applicant presented");
+      await loadJob();
+    } catch (err) {
+      console.error("❌ Failed to present applicant:", err);
+      toast.error(err?.response?.data?.message || err?.message || "Failed to present applicant");
+    } finally {
+      setPresentingId("");
+    }
+  },
+  [headers, id, job?.title, loadJob]
+);
   const fullLocation =
     normaliseString(job?.location) ||
     [job?.venue, job?.locationName, job?.county, job?.postcode]
@@ -534,47 +681,123 @@ const DeputyJobDetail = () => {
             </div>
           )}
 
-          {canViewApplications && (
-            <div className="rounded-2xl bg-white p-6 shadow">
-              <h2 className="mb-4 text-lg font-semibold text-gray-900">Applications</h2>
-              {applications.length ? (
-                <div className="space-y-3">
-                  {applications.map((application, index) => {
-                    const name = [application.firstName, application.lastName]
-                      .filter(Boolean)
-                      .join(" ")
-                      .trim() || "Unnamed applicant";
+         {canSeeApplicationsSection && (
+  <div className="rounded-2xl bg-white p-6 shadow">
+    <div className="mb-4 flex items-center justify-between gap-3">
+      <h2 className="text-lg font-semibold text-gray-900">Applications</h2>
 
-                    return (
-                      <div
-                        key={application.musicianId || `${name}-${index}`}
-                        className="rounded-xl border border-gray-200 p-4"
-                      >
-                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                          <div>
-                            <p className="font-medium text-gray-900">{name}</p>
-                            {application.email && (
-                              <p className="text-sm text-gray-500">{maskEmail(application.email)}</p>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Badge>{getStatusLabel(application.status, "Applied")}</Badge>
-                            {application.appliedAt && (
-                              <span className="text-xs text-gray-500">
-                                Applied {formatDateTime(application.appliedAt)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+      {/* Optional: show a top-level admin/agent button like your panel */}
+      {(isAdminEmail || currentUserRole === "admin" || currentUserRole === "agent" || Boolean(adminToken)) ? (
+        <button
+          type="button"
+          onClick={() => navigate(`/deputy-jobs`)} // or open your modal/panel if you have one
+          className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-black hover:text-black"
+        >
+          Manage applicants
+        </button>
+      ) : null}
+    </div>
+
+    {applications.length ? (
+      <div className="space-y-3">
+        {applications.map((application, index) => {
+          const musicianId = String(application?.musicianId || "").trim();
+          const status = String(application?.status || "applied").toLowerCase();
+
+          const displayName = shouldMaskApplicantNames
+            ? getApplicantShortName(application)
+            : getApplicantFullName(application);
+
+          const isAssigned = ["allocated", "booked", "assigned"].includes(status);
+
+          const canAllocate =
+            !isEnquiryJob &&
+            !isAssigned &&
+            Boolean(musicianId) &&
+            canManageThisJob;
+
+          const canPresent =
+            isEnquiryJob &&
+            !isAssigned &&
+            Boolean(musicianId) &&
+            canManageThisJob;
+
+          const isAllocating = assigningId === musicianId;
+          const isPresenting = presentingId === musicianId;
+
+          return (
+            <div
+              key={application.musicianId || `${displayName}-${index}`}
+              className="rounded-xl border border-gray-200 p-4"
+            >
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900">{displayName}</p>
+
+                  {/* Admin-only contact fields */}
+                  {Boolean(adminToken) && application.email ? (
+                    <p className="text-sm text-gray-500">{maskEmail(application.email)}</p>
+                  ) : null}
                 </div>
-              ) : (
-                <p className="text-sm text-gray-500">No applications yet.</p>
-              )}
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge>{getStatusLabel(application.status, "Applied")}</Badge>
+
+                  {application.appliedAt ? (
+                    <span className="text-xs text-gray-500">
+                      Applied {formatDateTime(application.appliedAt)}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              {/* Action buttons (manager/admin only) */}
+              {canManageThisJob ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {canAllocate ? (
+                    <button
+                      type="button"
+                      onClick={() => handleAllocateApplicant(application)}
+                      disabled={isAllocating}
+                      className="inline-flex items-center rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isAllocating ? "Allocating…" : "Allocate applicant"}
+                    </button>
+                  ) : null}
+
+                  {canPresent ? (
+                    <button
+                      type="button"
+                      onClick={() => handlePresentApplicant(application)}
+                      disabled={isPresenting}
+                      className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isPresenting ? "Sending…" : "Present applicant"}
+                    </button>
+                  ) : null}
+
+                  {!musicianId ? (
+                    <span className="inline-flex items-center rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600">
+                      Missing musician ID
+                    </span>
+                  ) : null}
+
+                  {isAssigned ? (
+                    <span className="inline-flex items-center rounded-full bg-green-100 px-4 py-2 text-sm font-medium text-green-800">
+                      Allocated
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
-          )}
+          );
+        })}
+      </div>
+    ) : (
+      <p className="text-sm text-gray-500">No applications yet.</p>
+    )}
+  </div>
+)}
         </div>
 
         <div className="space-y-6">
