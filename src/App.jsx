@@ -359,6 +359,8 @@ const App = () => {
                       path="/deputy-jobs/create"
                       element={<CreateDeputyJob />}
                     />
+                    <Route path="/deputy-jobs/:id" element={<DeputyJobDetail />} />
+                    
                  <Route path="/deputy-jobs/:id" element={<DeputyJobDetail />} />
                   <Route
                     path="/trash"

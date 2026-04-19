@@ -79,6 +79,7 @@ const DeputyJobCard = ({
   onViewApplicants,
   canManage = false,
   applicationCount = 0,
+  isDimmed = false,
 }) => {
   if (!job) return null;
 
@@ -144,19 +145,25 @@ const statusText =
       onClick={handleCardClick}
       onMouseEnter={handleMouseEnter}
       className={[
-        "w-full rounded-2xl border p-4 text-left shadow-sm transition-all duration-200",
-        isUnavailable
-          ? "border-gray-200 bg-gray-50 opacity-80"
-          : "border-gray-200 bg-white hover:-translate-y-0.5 hover:shadow-md",
-        isSelected ? "border-black ring-1 ring-black/10" : "",
-      ].join(" ")}
+  "w-full rounded-2xl border p-4 text-left shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-black/20",
+  isUnavailable
+    ? "border-gray-200 bg-gray-50 opacity-80"
+    : "border-gray-200 bg-white hover:-translate-y-0.5 hover:shadow-md",
+  isSelected ? "border-black ring-2 ring-black/15 shadow-md" : "",
+  isDimmed ? "opacity-50 saturate-0" : "",
+].join(" ")}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-base font-semibold text-gray-900">
-              {title}
-            </h3>
+           <h3
+  className={[
+    "truncate text-base font-semibold",
+    isSelected ? "text-black" : "text-gray-900",
+  ].join(" ")}
+>
+  {title}
+</h3>
             <span
             className={[
               "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",

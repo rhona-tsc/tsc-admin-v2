@@ -452,6 +452,7 @@ const filteredJobs = useMemo(() => {
                     job={job}
                     isSelected={String(hoveredJob?._id || "") === String(job._id)}
                     onHover={() => setHoveredJob(job)}
+                    isDimmed={Boolean(hoveredJob?._id) && String(hoveredJob?._id || "") !== String(job._id)}
                     onRefresh={fetchJobs}
                     subtitle={`${formatDate(job?.date || job?.eventDate)} • ${getFeeLabel(job)}`}
                     onClick={() => navigate(`/deputy-jobs/${job._id}`)}
