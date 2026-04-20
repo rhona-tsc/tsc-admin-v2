@@ -121,7 +121,7 @@ const statusText =
   const commissionText = commissionApplies
     ? `Net after ${formatMoney(job.commissionAmount || 0, "£0")} commission`
     : "";
-  const jobTypeText = isEnquiryJob ? "Enquiry" : "Booked";
+  const jobTypeText = isEnquiryJob ? "Enquiry" : "Confirmed Booking";
   const postedByLabel = getPostedByLabel(job);
 
   const handleApplicantsClick = (event) => {

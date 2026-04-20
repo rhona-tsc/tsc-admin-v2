@@ -196,7 +196,10 @@ const DeputyJobDetail = () => {
   const [applying, setApplying] = useState(false);
   const [assigningId, setAssigningId] = useState("");
   const [presentingId, setPresentingId] = useState("");
-
+  const [manualAllocating, setManualAllocating] = useState(false);
+const [manualAllocateOpen, setManualAllocateOpen] = useState(false);
+const [manualAllocateQuery, setManualAllocateQuery] = useState("");
+const [manualAllocateSelectedId, setManualAllocateSelectedId] = useState("");
   const adminToken = localStorage.getItem("adminToken") || "";
   const musicianToken = localStorage.getItem("musicianToken") || "";
   const generalToken = localStorage.getItem("token") || "";
@@ -311,6 +314,19 @@ const getApplicantShortName = (application = {}) => {
   return [firstName, lastInitial].filter(Boolean).join(" ") || getApplicantFullName(application);
 };
 
+const handleManualAllocateClick = () => {
+  if (!canManageThisJob) {
+    toast.error("Manual allocate is not available here.");
+    return;
+  }
+
+  // Reset and open the same picker modal used on this page
+  setManualAllocateQuery("");
+  setManualAllocateSelectedId("");
+  setManualAllocateOpen(true);
+};
+
+
 // Enquiry vs booked (same logic style as your panel)
 const jobType = String(job?.jobType || job?.type || "").trim().toLowerCase();
 const isEnquiryJob =
@@ -342,6 +358,148 @@ const isEnquiryJob =
 
   const matchedMusicians = toArray(job?.matchedMusicians);
   const notifications = toArray(job?.notifications);
+
+  // Manual allocate modal helpers
+  const manualAllocateCandidates = useMemo(() => {
+    const list = [];
+
+    const pushCandidate = (candidate = {}) => {
+      const musicianId = String(
+        candidate?.musicianId || candidate?._id || candidate?.id || "",
+      ).trim();
+      if (!musicianId) return;
+
+      // prevent duplicates
+      if (list.some((item) => String(item.musicianId) === musicianId)) return;
+
+      const firstName = String(candidate?.firstName || "").trim();
+      const lastName = String(candidate?.lastName || "").trim();
+      const email = String(candidate?.email || "").trim();
+      const phone = String(candidate?.phone || candidate?.phoneNumber || "").trim();
+
+      list.push({
+        musicianId,
+        firstName,
+        lastName,
+        email,
+        phone,
+      });
+    };
+
+    // Prefer matched musicians if present
+    const matched = Array.isArray(job?.matchedMusicians) ? job.matchedMusicians : [];
+    matched.forEach((m) => {
+      pushCandidate({
+        musicianId: m?.musicianId || m?._id,
+        firstName: m?.firstName,
+        lastName: m?.lastName,
+        email: m?.email,
+        phone: m?.phone || m?.phoneNumber,
+      });
+    });
+
+    // Include applicants as well
+    const apps = Array.isArray(job?.applications) ? job.applications : [];
+    apps.forEach((a) => {
+      pushCandidate({
+        musicianId: a?.musicianId,
+        firstName: a?.firstName,
+        lastName: a?.lastName,
+        email: a?.email,
+        phone: a?.phone,
+      });
+    });
+
+    return list;
+  }, [job]);
+
+  const filteredManualAllocateCandidates = useMemo(() => {
+    const q = String(manualAllocateQuery || "").trim().toLowerCase();
+    if (!q) return manualAllocateCandidates;
+
+    return manualAllocateCandidates.filter((m) => {
+      const haystack = [
+        m.firstName,
+        m.lastName,
+        m.email,
+        m.phone,
+        m.musicianId,
+      ]
+        .map((v) => String(v || "").toLowerCase())
+        .join(" ");
+
+      return haystack.includes(q);
+    });
+  }, [manualAllocateCandidates, manualAllocateQuery]);
+
+  const isValidObjectId = (value = "") => /^[a-f\d]{24}$/i.test(String(value || "").trim());
+
+  const getCandidateDisplayName = (candidate = {}) => {
+    const firstName = String(candidate?.firstName || "").trim();
+    const lastName = String(candidate?.lastName || "").trim();
+
+    if (!shouldMaskApplicantNames) {
+      return `${firstName} ${lastName}`.trim() || "Unnamed musician";
+    }
+
+    const lastInitial = lastName ? `${lastName.charAt(0).toUpperCase()}.` : "";
+    return [firstName, lastInitial].filter(Boolean).join(" ") || "Unnamed musician";
+  };
+
+
+  const submitManualAllocate = useCallback(async () => {
+    if (!canManageThisJob) {
+      toast.error("Manual allocate is not available here.");
+      return;
+    }
+
+    const musicianId = String(manualAllocateSelectedId || "").trim();
+
+    if (!isValidObjectId(musicianId)) {
+      toast.error("Please select a musician (or enter a valid 24-character musicianId).");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Manually allocate this job to musicianId: ${musicianId}?`,
+    );
+    if (!confirmed) return;
+
+    try {
+      setManualAllocating(true);
+
+      const res = await axios.post(
+        `${backendUrl}/api/deputy-jobs/${id}/manual-allocate`,
+        { musicianId },
+        { headers, withCredentials: true },
+      );
+
+      if (!res.data?.success) {
+        throw new Error(
+          res.data?.message || "Failed to manually allocate musician",
+        );
+      }
+
+      toast.success(res.data?.message || "Manual allocation sent");
+      setManualAllocateOpen(false);
+      await loadJob();
+    } catch (err) {
+      console.error("❌ Failed to manually allocate musician:", err);
+      toast.error(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to manually allocate musician",
+      );
+    } finally {
+      setManualAllocating(false);
+    }
+  }, [
+    canManageThisJob,
+    manualAllocateSelectedId,
+    headers,
+    id,
+    loadJob,
+  ]);
 // Booked job allocation (uses your existing route pattern)
 const handleAllocateApplicant = useCallback(
   async (application) => {
@@ -543,7 +701,7 @@ const handlePresentApplicant = useCallback(
             <Badge tone={statusTone}>{getStatusLabel(job.status, "Unknown")}</Badge>
             <Badge tone={workflowTone}>{formatLabel(job.workflowStage)}</Badge>
 
-                        {hasApplied ? (
+            {hasApplied ? (
               <span className="inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
                 Applied
               </span>
@@ -558,7 +716,16 @@ const handlePresentApplicant = useCallback(
               </button>
             ) : null}
 
-            
+           {canManageThisJob ? (
+  <button
+    type="button"
+    onClick={handleManualAllocateClick}
+    disabled={manualAllocating}
+    className="inline-flex items-center rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+  >
+    {manualAllocating ? "Allocating…" : "Manual allocate musician"}
+  </button>
+) : null}
 
             <button
               type="button"
@@ -872,6 +1039,108 @@ const handlePresentApplicant = useCallback(
           )}
         </div>
       </div>
+      {/* Manual allocate modal */}
+      {manualAllocateOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-xl rounded-2xl bg-white shadow-xl">
+            <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Manual allocate musician</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Pick a musician below, or paste a 24-character musicianId.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setManualAllocateOpen(false)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-800"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="px-6 py-5">
+              <input
+                value={manualAllocateQuery}
+                onChange={(e) => setManualAllocateQuery(e.target.value)}
+                placeholder="Search by name, email, phone, or musicianId"
+                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-black"
+              />
+
+              <div className="mt-4 max-h-[320px] overflow-y-auto rounded-xl border border-gray-200">
+                {filteredManualAllocateCandidates.length ? (
+                  <div className="divide-y divide-gray-100">
+                    {filteredManualAllocateCandidates.map((m) => {
+                      const selected = String(manualAllocateSelectedId) === String(m.musicianId);
+                      return (
+                        <button
+                          key={m.musicianId}
+                          type="button"
+                          onClick={() => setManualAllocateSelectedId(m.musicianId)}
+                          className={[
+                            "w-full px-4 py-3 text-left transition",
+                            selected ? "bg-gray-50" : "hover:bg-gray-50",
+                          ].join(" ")}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-gray-900">
+                                {getCandidateDisplayName(m)}
+                              </p>
+                              <p className="truncate text-xs text-gray-500">
+                                {m.email || m.phone || m.musicianId}
+                              </p>
+                            </div>
+                            {selected ? (
+                              <span className="rounded-full bg-black px-2.5 py-1 text-xs font-medium text-white">
+                                Selected
+                              </span>
+                            ) : null}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 text-sm text-gray-500">No matches.</div>
+                )}
+              </div>
+
+              <div className="mt-4">
+                <label className="mb-2 block text-xs font-medium text-gray-600">Or paste musicianId</label>
+                <input
+                  value={manualAllocateSelectedId}
+                  onChange={(e) => setManualAllocateSelectedId(e.target.value)}
+                  placeholder="e.g. 507f191e810c19729de860ea"
+                  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-black"
+                />
+                {manualAllocateSelectedId && !isValidObjectId(manualAllocateSelectedId) ? (
+                  <p className="mt-2 text-xs text-red-600">That doesn’t look like a valid 24-character Mongo ObjectId.</p>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t border-gray-200 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setManualAllocateOpen(false)}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={submitManualAllocate}
+                disabled={manualAllocating}
+                className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {manualAllocating ? "Allocating…" : "Send allocation"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };
