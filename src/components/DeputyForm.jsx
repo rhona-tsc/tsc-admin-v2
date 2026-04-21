@@ -1,5 +1,5 @@
 import { useParams, useLocation, useNavigate } from "react-router-dom";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import DeputyStepOne from "./DeputyStepOne";
 import DeputyStepTwo from "./DeputyStepTwo";
 import DeputyStepThree from "./DeputyStepThree";
@@ -70,12 +70,14 @@ const DeputyForm = ({
     localStorage.getItem("musicianToken") ||
     "";
 
-  const authHeaders = authToken
+const authHeaders = useMemo(() => {
+  return authToken
     ? {
         Authorization: `Bearer ${authToken}`,
         token: authToken, // ✅ covers backends that expect req.headers.token
       }
     : {};
+}, [authToken]);
 
   const isModerationMode =
     location.pathname.includes("moderate-deputy") ||
@@ -346,6 +348,12 @@ const DeputyForm = ({
   // Track if autosave was restored to prevent overwrites
   const [hasRestoredAutosave, setHasRestoredAutosave] = useState(false);
   const [hasHydratedFromBackend, setHasHydratedFromBackend] = useState(false);
+// Prevent repeated backend hydration overwriting user typing
+const hasHydratedRef = useRef(false);
+const hydratedIdRef = useRef(null);
+
+// Prevent backend autosave spamming the server with identical payloads
+const lastAutosaveHashRef = useRef(null);
 
   /* ------------------------------ formData state ----------------------------- */
   const [formData, setFormData] = useState({
@@ -616,19 +624,24 @@ const DeputyForm = ({
   }, [authToken]);
 
   // Backend hydration
-  useEffect(() => {
-    if (!deputyId) {
-      console.warn("⚠️ No valid deputyId; skipping hydration");
-      return;
-    }
+useEffect(() => {
+  if (!deputyId) {
+    console.warn("⚠️ No valid deputyId; skipping hydration");
+    return;
+  }
 
-    (async () => {
-      try {
-const url = `${backendUrl}/api/musician/moderation/deputy/${deputyId}`;
-        const res = await axios.get(url, {
-          headers: authHeaders,
-          withCredentials: true,
-        });
+  // If we've already hydrated this deputyId, don't hydrate again
+  if (hasHydratedRef.current && hydratedIdRef.current === deputyId) {
+    return;
+  }
+
+  (async () => {
+    try {
+      const url = `${backendUrl}/api/musician/moderation/deputy/${deputyId}`;
+      const res = await axios.get(url, {
+        headers: authHeaders,
+        withCredentials: true,
+      });
 
         const deputy = res.data?.deputy || res.data?.musician || null;
 
@@ -722,7 +735,12 @@ const url = `${backendUrl}/api/musician/moderation/deputy/${deputyId}`;
         setTscApprovedBio(deputy.tscApprovedBio || "");
         if (deputy.deputy_contract_signed) setHasDrawnSignature(true);
         if (deputy._id) localStorage.setItem("musicianId", deputy._id);
-        setHasHydratedFromBackend(true);
+
+// mark hydration complete so we don't overwrite local edits
+hydratedIdRef.current = deputyId;
+hasHydratedRef.current = true;
+
+setHasHydratedFromBackend(true);
       } catch (err) {
         console.error("❌ Failed to fetch deputy:", err);
       }
@@ -975,7 +993,7 @@ useEffect(() => {
     });
 
     setCanSubmit(canSubmitNow);
-  }, [step, hasDrawnSignature, formData.agreementCheckboxes, isModerationMode]);
+}, [step, formData.signature, formData.agreementCheckboxes, isModerationMode]);
 
   console.log("🎼 SUBMITTING MP3S:");
   console.log("🎧 coverMp3s:", formData.coverMp3s);
@@ -1035,20 +1053,27 @@ useEffect(() => {
               hash = (hash * 31 + snapshotStr.charCodeAt(i)) | 0;
             }
 
-            await axios.post(
-              `${backendUrl}/api/musician/autosave`,
-              {
-                musicianId: deputyId,
-                formKey: "deputy",
-                snapshot: safe,
-                snapshotHash: String(hash),
-                updatedAtIso: new Date().toISOString(),
-              },
-              {
-                headers: authHeaders,
-                withCredentials: true, // ✅ safe even if you’re not using cookies
-              },
-            );
+          const nextHash = String(hash);
+
+// Skip if nothing changed since last successful autosave
+if (lastAutosaveHashRef.current === nextHash) return;
+
+await axios.post(
+  `${backendUrl}/api/musician/autosave`,
+  {
+    musicianId: deputyId,
+    formKey: "deputy",
+    snapshot: safe,
+    snapshotHash: nextHash,
+    updatedAtIso: new Date().toISOString(),
+  },
+  {
+    headers: authHeaders,
+    withCredentials: true,
+  },
+);
+
+lastAutosaveHashRef.current = nextHash;
           } catch (e) {
             console.warn(
               "⚠️ Backend autosave failed (non-blocking):",
@@ -1070,10 +1095,10 @@ useEffect(() => {
   formData,
   tscApprovedBio,
   deputyId,
-  authToken,
   backendUrl,
   isEdit,
   hasHydratedFromBackend,
+  authHeaders,
 ]);
 
   /* ---------------------------- DEBUG: track changes -------------------------- */

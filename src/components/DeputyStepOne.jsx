@@ -245,12 +245,13 @@ const handleSaveCoverCroppedImage = async (blob) => {
     console.log("🟧 Running PREVIEW PREFILL effect");
 
     // Profile pic preview
-    if (!previewUrl && formData.profilePicture) {
-      if (formData.profilePicture instanceof Blob) {
-        const url = URL.createObjectURL(formData.profilePicture);
+    const profilePrefill = formData.profilePicture || formData.profilePhoto;
+    if (!previewUrl && profilePrefill) {
+      if (profilePrefill instanceof Blob) {
+        const url = URL.createObjectURL(profilePrefill);
         setPreviewUrl(url);
-      } else if (typeof formData.profilePicture === "string") {
-        setPreviewUrl(formData.profilePicture);
+      } else if (typeof profilePrefill === "string") {
+        setPreviewUrl(profilePrefill);
       }
     }
 
@@ -263,7 +264,13 @@ const handleSaveCoverCroppedImage = async (blob) => {
         setCoverHeroPreviewUrl(formData.coverHeroImage);
       }
     }
-  }, [formData]);
+  }, [
+    formData.profilePicture,
+    formData.profilePhoto,
+    formData.coverHeroImage,
+    previewUrl,
+    coverHeroPreviewUrl,
+  ]);
 
   // -------------------------------------
   // CLEANUP URLs
