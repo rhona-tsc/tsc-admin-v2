@@ -159,7 +159,7 @@ const handleCloseJob = async (job) => {
 
   try {
     setLoadingClose(true);
-
+console.count("fetchJobs called");
     const { data } = await axios.post(
       `${BACKEND_URL}/api/deputy-jobs/${job._id}/close`,
       {},
@@ -187,33 +187,40 @@ const handleCloseJob = async (job) => {
   }
 };
 
-  const fetchJobs = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError("");
+const fetchJobs = useCallback(async () => {
+  try {
+    setLoading(true);
+    setError("");
 
-      const { data } = await axios.get(`${BACKEND_URL}/api/deputy-jobs`, {
-        headers: authHeaders,
-        withCredentials: true,
-      });
+    const headers = authToken
+      ? { Authorization: `Bearer ${authToken}`, token: authToken }
+      : {};
 
-      const nextJobs = Array.isArray(data?.jobs) ? data.jobs : [];
-      setJobs(nextJobs);
+    const { data } = await axios.get(`${BACKEND_URL}/api/deputy-jobs`, {
+      headers,
+      withCredentials: true,
+    });
 
-      setHoveredJob((prev) => {
-        if (!nextJobs.length) return null;
-        if (!prev?._id) return nextJobs[0];
-        return nextJobs.find((job) => String(job._id) === String(prev._id)) || nextJobs[0];
-      });
-    } catch (err) {
-      console.error("❌ Failed to fetch deputy jobs:", err);
-      setError(err?.response?.data?.message || "Could not load deputy jobs.");
-      setJobs([]);
-      setHoveredJob(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [authHeaders]);
+    const nextJobs = Array.isArray(data?.jobs) ? data.jobs : [];
+    setJobs(nextJobs);
+
+    setHoveredJob((prev) => {
+      if (!nextJobs.length) return null;
+      if (!prev?._id) return nextJobs[0];
+      return (
+        nextJobs.find((job) => String(job._id) === String(prev._id)) ||
+        nextJobs[0]
+      );
+    });
+  } catch (err) {
+    console.error("❌ Failed to fetch deputy jobs:", err);
+    setError(err?.response?.data?.message || "Could not load deputy jobs.");
+    setJobs([]);
+    setHoveredJob(null);
+  } finally {
+    setLoading(false);
+  }
+}, [authToken]);
 
   useEffect(() => {
     fetchJobs();

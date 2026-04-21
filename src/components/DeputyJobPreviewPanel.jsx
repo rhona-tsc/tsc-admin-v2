@@ -1084,7 +1084,7 @@ const handlePresentApplicantToClient = async (applicant) => {
                     {job.status === "open" && isEnquiryJob ? (
                       <button
                         type="button"
-                        onClick={() => handlePresentApplicant(applicant)}
+                        onClick={() => handlePresentApplicantToClient(applicant)}
                         disabled={Boolean(presentingApplicantId)}
                         className="rounded bg-black px-3 py-2 text-sm font-medium text-white transition hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
                       >
