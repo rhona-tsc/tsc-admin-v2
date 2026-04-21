@@ -1,79 +1,114 @@
 // src/components/DragAndDropImageUploader.jsx
-import React, { useRef, useEffect } from "react";
+import React, { useMemo, useRef } from "react";
 import assets from "../assets/assets";
 
-const DragAndDropImageUploader = ({ label, files, setFiles }) => {
-  const inputRef = useRef();
+const isFile = (v) => typeof File !== "undefined" && v instanceof File;
 
-  // Log rendering with files
+const DragAndDropImageUploader = ({ label, files = [], setFiles }) => {
+  const inputRef = useRef(null);
+
+  const safeFiles = Array.isArray(files) ? files : [];
+
+  const previews = useMemo(() => {
+    // build previews for both URLs and File objects
+    return safeFiles.map((f) => {
+      if (typeof f === "string") return { kind: "url", src: f };
+      if (isFile(f)) return { kind: "file", src: URL.createObjectURL(f) };
+      return { kind: "none", src: "" };
+    });
+    // NOTE: we revoke File previews in onLoad below
+  }, [safeFiles]);
 
   const handleFiles = (incomingFiles) => {
-    console.log("Incoming files:", incomingFiles);
-    console.log("Files array after formatting:", Array.from(incomingFiles || []));
-    const newFiles = Array.from(incomingFiles || []);
-    setFiles(prev => {
-      const resolvedPrev = typeof prev === "function" ? prev([]) : prev;
-      const updated = Array.isArray(resolvedPrev) ? [...resolvedPrev, ...newFiles] : [...newFiles];
-      console.log("Updated files state:", updated);
-      return updated;
+    const newFiles = Array.from(incomingFiles || []).filter(Boolean);
+
+    // IMPORTANT: parent expects we pass either an array OR an updater fn
+    setFiles((prev = []) => {
+      const prevArr = Array.isArray(prev) ? prev : [];
+      return [...prevArr, ...newFiles];
     });
   };
 
   const handleDeleteImage = (indexToRemove) => {
-    setFiles(prev => (prev || []).filter((_, index) => index !== indexToRemove));
+    setFiles((prev = []) => (Array.isArray(prev) ? prev : []).filter((_, i) => i !== indexToRemove));
+  };
+
+  const openPicker = () => {
+    // user gesture → safe
+    inputRef.current?.click();
   };
 
   return (
     <div
+      className="relative rounded border-2 border-dashed border-gray-400 bg-gray-50 p-4 text-center"
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
       onDrop={(e) => {
         e.preventDefault();
-        console.log("Dropped files:", e.dataTransfer.files);
+        e.stopPropagation();
         handleFiles(e.dataTransfer.files);
       }}
-      onDragOver={(e) => e.preventDefault()}
-      className="border-2 border-dashed border-gray-400 p-4 rounded text-center cursor-pointer bg-gray-50"
-      onClick={(e) => {
-        if (e.target.closest("button")) return;
-        inputRef.current.click();
-      }}
     >
-      <p className="text-sm text-gray-500">{label} — Click or drag and drop images here</p>
+      <p className="text-sm text-gray-500">
+        {label} — Click to upload or drag and drop images here
+      </p>
+
+      <div className="mt-3 flex justify-center">
+        <button
+          type="button"
+          onClick={openPicker}
+          className="rounded-lg bg-black px-3 py-2 text-sm font-medium text-white hover:bg-[#ff6667]"
+        >
+          Choose images
+        </button>
+      </div>
+
       <input
         ref={inputRef}
         type="file"
         accept="image/*"
         multiple
-        className="hidden"
+        className="sr-only"
         onChange={(e) => {
-          console.log("Selected files:", e.target.files);
           handleFiles(e.target.files);
           e.target.value = "";
         }}
       />
 
-      {Array.isArray(files) && files.length > 0 && (
-        <div className="flex flex-wrap mt-2 gap-2">
-          {files.map((file, idx) => {
-            // Only use string URLs for preview, since upload is immediate
-            const preview = typeof file === "string" ? file : undefined;
-            return (
-              <div key={idx} className="relative w-20 h-20">
-                {preview ? (
-                  <img src={preview} alt={`preview-${idx}`} className="w-full h-full object-cover rounded" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-200 rounded">No preview</div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => handleDeleteImage(idx)}
-                  className="absolute top-1 right-1 p-1 rounded-full bg-white bg-opacity-75 hover:bg-opacity-100 shadow"
-                  title="Remove image"
-                >
-                  <img src={assets.black_bin_icon} alt="Delete" className="w-4 h-4" />
-                </button>
-              </div>
-            );
-          })}
+      {safeFiles.length > 0 && (
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          {previews.map((p, idx) => (
+            <div key={idx} className="relative h-20 w-20">
+              {p.src ? (
+                <img
+                  src={p.src}
+                  alt={`preview-${idx}`}
+                  className="h-full w-full rounded object-cover"
+                  onLoad={() => {
+                    // revoke object URLs to avoid memory leaks
+                    if (p.kind === "file") {
+                      try { URL.revokeObjectURL(p.src); } catch {}
+                    }
+                  }}
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center rounded bg-gray-200 text-xs text-gray-600">
+                  No preview
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => handleDeleteImage(idx)}
+                className="absolute right-1 top-1 rounded-full bg-white/80 p-1 shadow hover:bg-white"
+                title="Remove image"
+              >
+                <img src={assets.black_bin_icon} alt="Delete" className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>

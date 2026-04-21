@@ -319,56 +319,56 @@ const handleSaveCoverCroppedImage = async (blob) => {
 
       <p>Let's gather all the information needed to get you matched with the best gigs!</p>
 
-      <div className="flex gap-8 mt-4">
+      <div className="mt-4 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-5">
         {/* -------------------------------------------------------
             PROFILE PICTURE
         -------------------------------------------------------- */}
-       <div className="flex flex-col gap-2 w-1/3">
-    <label className="block font-semibold mb-1">Profile Picture</label>
+        <div className="flex flex-col gap-2 md:col-span-1 lg:col-span-1">
+          <label className="block font-semibold mb-1">Profile Picture</label>
 
-    <label
-      htmlFor="profilePictureUpload"
-      className="bg-black text-white px-3 py-2 rounded cursor-pointer w-full text-center hover:bg-[#ff6667]"
-    >
-      {(formData.profilePicture || formData.profilePhoto)
-        ? "Change Profile Picture"
-        : "Choose Profile Picture"}
-    </label>
+          <label
+            htmlFor="profilePictureUpload"
+            className="bg-black text-white px-3 py-2 rounded cursor-pointer w-full text-center hover:bg-[#ff6667]"
+          >
+            {(formData.profilePicture || formData.profilePhoto)
+              ? "Change Profile Picture"
+              : "Choose Profile Picture"}
+          </label>
 
-    <input
-      id="profilePictureUpload"
-      type="file"
-      accept="image/*"
-      onChange={handleImageChange}
-      className="hidden"
-    />
+          <input
+            id="profilePictureUpload"
+            type="file"
+            accept="image/*"
+            onChange={handleImageChange}
+            className="hidden"
+          />
 
-    {profileSrc ? (
-      <img
-        src={profileSrc}
-        alt="Profile"
-        className="mt-2 w-32 h-32 object-cover rounded-full mx-auto"
-      />
-    ) : (
-      <img
-        src={assets.profile_placeholder}
-        alt="Placeholder"
-        className="mt-2 w-32 h-32 object-cover rounded-full mx-auto"
-      />
-    )}
-  </div>
+          {profileSrc ? (
+            <img
+              src={profileSrc}
+              alt="Profile"
+              className="mt-2 w-32 h-32 object-cover rounded-full mx-auto"
+            />
+          ) : (
+            <img
+              src={assets.profile_placeholder}
+              alt="Placeholder"
+              className="mt-2 w-32 h-32 object-cover rounded-full mx-auto"
+            />
+          )}
+        </div>
 
         {/* -------------------------------------------------------
             COVER HERO IMAGE
         -------------------------------------------------------- */}
-        <div className="flex flex-col gap-2 w-1/3">
+        <div className="flex flex-col gap-2 md:col-span-1 lg:col-span-1">
           <label className="block font-semibold mb-1">Cover Hero Image</label>
 
           <label
             htmlFor="coverHeroUpload"
             className="bg-black text-white px-3 py-2 rounded cursor-pointer w-full text-center hover:bg-[#ff6667]"
           >
-{coverHeroSrc ? "Change Cover Image" : "Choose Cover Image"}
+            {coverHeroSrc ? "Change Cover Image" : "Choose Cover Image"}
           </label>
 
           <input
@@ -380,23 +380,23 @@ const handleSaveCoverCroppedImage = async (blob) => {
             className="hidden"
           />
 
-       {coverHeroSrc ? (
-  <img
-    src={coverHeroSrc}
-    alt="Cover Hero"
-    className="mt-2 w-full aspect-video object-cover rounded-md border"
-  />
-) : (
-  <img
-    src={assets.cover_placeholder}
-    alt="Cover Placeholder"
-    className="mt-2 w-full aspect-video object-cover rounded-md border"
-  />
-)}
+          {coverHeroSrc ? (
+            <img
+              src={coverHeroSrc}
+              alt="Cover Hero"
+              className="mt-2 w-full aspect-video object-cover rounded-md border"
+            />
+          ) : (
+            <img
+              src={assets.cover_placeholder}
+              alt="Cover Placeholder"
+              className="mt-2 w-full aspect-video object-cover rounded-md border"
+            />
+          )}
         </div>
 
         {/* Address Section */}
-        <div className="flex flex-col gap-3 w-2/3">
+        <div className="relative z-10 flex flex-col gap-3 md:col-span-2 lg:col-span-3">
           <h2 className="font-semibold text-lg mb-2">Your Address</h2>
 
           <input
