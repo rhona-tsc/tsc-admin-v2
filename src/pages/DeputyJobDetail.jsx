@@ -187,6 +187,25 @@ const Badge = ({ children, tone = "default" }) => {
   );
 };
 
+const INITIAL_MATCHED_VISIBLE = 20;
+const INITIAL_APPLICATIONS_VISIBLE = 20;
+const INITIAL_NOTIFICATIONS_VISIBLE = 20;
+
+const SectionToggleButton = ({ open, onClick, label, count }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-black hover:text-black"
+  >
+    <span>{open ? "Hide" : "Show"} {label}</span>
+    {typeof count === "number" ? (
+      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">
+        {count}
+      </span>
+    ) : null}
+  </button>
+);
+
 const DeputyJobDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -196,10 +215,16 @@ const DeputyJobDetail = () => {
   const [applying, setApplying] = useState(false);
   const [assigningId, setAssigningId] = useState("");
   const [presentingId, setPresentingId] = useState("");
-  const [manualAllocating, setManualAllocating] = useState(false);
+ const [manualAllocating, setManualAllocating] = useState(false);
 const [manualAllocateOpen, setManualAllocateOpen] = useState(false);
 const [manualAllocateQuery, setManualAllocateQuery] = useState("");
 const [manualAllocateSelectedId, setManualAllocateSelectedId] = useState("");
+const [showMatchedMusicians, setShowMatchedMusicians] = useState(false);
+const [showApplications, setShowApplications] = useState(true);
+const [showNotifications, setShowNotifications] = useState(false);
+const [visibleMatchedCount, setVisibleMatchedCount] = useState(INITIAL_MATCHED_VISIBLE);
+const [visibleApplicationsCount, setVisibleApplicationsCount] = useState(INITIAL_APPLICATIONS_VISIBLE);
+const [visibleNotificationsCount, setVisibleNotificationsCount] = useState(INITIAL_NOTIFICATIONS_VISIBLE);
   const adminToken = localStorage.getItem("adminToken") || "";
   const musicianToken = localStorage.getItem("musicianToken") || "";
   const generalToken = localStorage.getItem("token") || "";
@@ -276,6 +301,12 @@ const [manualAllocateSelectedId, setManualAllocateSelectedId] = useState("");
     loadJob();
   }, [loadJob]);
 
+  useEffect(() => {
+  setVisibleMatchedCount(INITIAL_MATCHED_VISIBLE);
+  setVisibleApplicationsCount(INITIAL_APPLICATIONS_VISIBLE);
+  setVisibleNotificationsCount(INITIAL_NOTIFICATIONS_VISIBLE);
+}, [job?._id]);
+
   const currentUserEmail = useMemo(() => getStoredUserEmail(), []);
   const createdByEmail = normaliseString(job?.createdByEmail).toLowerCase();
   const managerEmail = normaliseString(job?.managerEmail || job?.createdBy?.email).toLowerCase();
@@ -336,7 +367,7 @@ const isEnquiryJob =
   String(job?.title || "").toLowerCase().includes("enquiry");
   const canViewMatchedMusicians = isAdminViewer;
   const canViewNotifications = isAdminViewer;
-  const applications = toArray(job?.applications);
+  const applications = useMemo(() => toArray(job?.applications), [job?.applications]);
   const applicationEmails = applications
     .map((application) => normaliseString(application?.email).toLowerCase())
     .filter(Boolean);
@@ -356,9 +387,23 @@ const isEnquiryJob =
       )
   );
 
-  const matchedMusicians = toArray(job?.matchedMusicians);
-  const notifications = toArray(job?.notifications);
+const matchedMusicians = useMemo(() => toArray(job?.matchedMusicians), [job?.matchedMusicians]);
+const notifications = useMemo(() => toArray(job?.notifications), [job?.notifications]);
 
+const visibleMatchedMusicians = useMemo(
+  () => matchedMusicians.slice(0, visibleMatchedCount),
+  [matchedMusicians, visibleMatchedCount]
+);
+
+const visibleApplications = useMemo(
+  () => applications.slice(0, visibleApplicationsCount),
+  [applications, visibleApplicationsCount]
+);
+
+const visibleNotifications = useMemo(
+  () => notifications.slice(0, visibleNotificationsCount),
+  [notifications, visibleNotificationsCount]
+);
   // Manual allocate modal helpers
   const manualAllocateCandidates = useMemo(() => {
     const list = [];
@@ -810,41 +855,67 @@ const handlePresentApplicant = useCallback(
 
           {canViewMatchedMusicians && (
             <div className="rounded-2xl bg-white p-6 shadow">
-              <h2 className="mb-4 text-lg font-semibold text-gray-900">Matched musicians</h2>
-              {matchedMusicians.length ? (
-                <div className="space-y-3">
-                  {matchedMusicians.map((musician, index) => {
-                    const name = [musician.firstName, musician.lastName]
-                      .filter(Boolean)
-                      .join(" ")
-                      .trim() || "Unnamed musician";
+<div className="mb-4 flex items-center justify-between gap-3">
+  <h2 className="text-lg font-semibold text-gray-900">Matched musicians</h2>
+  <SectionToggleButton
+    open={showMatchedMusicians}
+    onClick={() => setShowMatchedMusicians((prev) => !prev)}
+    label="matched"
+    count={matchedMusicians.length}
+  />
+</div>
+             {!showMatchedMusicians ? (
+  <p className="text-sm text-gray-500">
+    Matched musicians are hidden to keep this page fast. Expand to view them.
+  </p>
+) : matchedMusicians.length ? (
+  <>
+    <div className="space-y-3">
+      {visibleMatchedMusicians.map((musician, index) => {
+        const name = [musician.firstName, musician.lastName]
+          .filter(Boolean)
+          .join(" ")
+          .trim() || "Unnamed musician";
 
-                    return (
-                      <div
-                        key={musician.musicianId || musician._id || `${name}-${index}`}
-                        className="rounded-xl border border-gray-200 p-4"
-                      >
-                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                          <div>
-                            <p className="font-medium text-gray-900">{name}</p>
-                            {musician.email && (
-                              <p className="text-sm text-gray-500">{maskEmail(musician.email)}</p>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {typeof musician.matchPct === "number" && (
-                              <Badge>{musician.matchPct}% match</Badge>
-                            )}
-                            {musician.notified && <Badge tone="green">Notified</Badge>}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500">No matched musicians stored on this job yet.</p>
-              )}
+        return (
+          <div
+            key={musician.musicianId || musician._id || `${name}-${index}`}
+            className="rounded-xl border border-gray-200 p-4"
+          >
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="font-medium text-gray-900">{name}</p>
+                {musician.email && (
+                  <p className="text-sm text-gray-500">{maskEmail(musician.email)}</p>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {typeof musician.matchPct === "number" && (
+                  <Badge>{musician.matchPct}% match</Badge>
+                )}
+                {musician.notified && <Badge tone="green">Notified</Badge>}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+
+    {matchedMusicians.length > visibleMatchedCount ? (
+      <div className="mt-4 flex justify-center">
+        <button
+          type="button"
+          onClick={() => setVisibleMatchedCount((prev) => prev + INITIAL_MATCHED_VISIBLE)}
+          className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+        >
+          Show more matched musicians
+        </button>
+      </div>
+    ) : null}
+  </>
+) : (
+  <p className="text-sm text-gray-500">No matched musicians stored on this job yet.</p>
+)}
             </div>
           )}
 
@@ -853,113 +924,137 @@ const handlePresentApplicant = useCallback(
     <div className="mb-4 flex items-center justify-between gap-3">
       <h2 className="text-lg font-semibold text-gray-900">Applications</h2>
 
-      {/* Optional: show a top-level admin/agent button like your panel */}
-      {(isAdminEmail || currentUserRole === "admin" || currentUserRole === "agent" || Boolean(adminToken)) ? (
-        <button
-          type="button"
-          onClick={() => navigate(`/deputy-jobs`)} // or open your modal/panel if you have one
-          className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-black hover:text-black"
-        >
-          Manage applicants
-        </button>
-      ) : null}
+      <div className="flex items-center gap-2">
+        <SectionToggleButton
+          open={showApplications}
+          onClick={() => setShowApplications((prev) => !prev)}
+          label="applications"
+          count={applications.length}
+        />
+
+        {(isAdminEmail || currentUserRole === "admin" || currentUserRole === "agent" || Boolean(adminToken)) ? (
+          <button
+            type="button"
+            onClick={() => navigate(`/deputy-jobs`)}
+            className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-black hover:text-black"
+          >
+            Manage applicants
+          </button>
+        ) : null}
+      </div>
     </div>
 
-    {applications.length ? (
-      <div className="space-y-3">
-        {applications.map((application, index) => {
-          const musicianId = String(application?.musicianId || "").trim();
-          const status = String(application?.status || "applied").toLowerCase();
+    {!showApplications ? (
+      <p className="text-sm text-gray-500">
+        Applications are hidden to keep this page fast. Expand to view them.
+      </p>
+    ) : applications.length ? (
+      <>
+        <div className="space-y-3">
+          {visibleApplications.map((application, index) => {
+            const musicianId = String(application?.musicianId || "").trim();
+            const status = String(application?.status || "applied").toLowerCase();
 
-          const displayName = shouldMaskApplicantNames
-            ? getApplicantShortName(application)
-            : getApplicantFullName(application);
+            const displayName = shouldMaskApplicantNames
+              ? getApplicantShortName(application)
+              : getApplicantFullName(application);
 
-          const isAssigned = ["allocated", "booked", "assigned"].includes(status);
+            const isAssigned = ["allocated", "booked", "assigned"].includes(status);
 
-          const canAllocate =
-            !isEnquiryJob &&
-            !isAssigned &&
-            Boolean(musicianId) &&
-            canManageThisJob;
+            const canAllocate =
+              !isEnquiryJob &&
+              !isAssigned &&
+              Boolean(musicianId) &&
+              canManageThisJob;
 
-          const canPresent =
-            isEnquiryJob &&
-            !isAssigned &&
-            Boolean(musicianId) &&
-            canManageThisJob;
+            const canPresent =
+              isEnquiryJob &&
+              !isAssigned &&
+              Boolean(musicianId) &&
+              canManageThisJob;
 
-          const isAllocating = assigningId === musicianId;
-          const isPresenting = presentingId === musicianId;
+            const isAllocating = assigningId === musicianId;
+            const isPresenting = presentingId === musicianId;
 
-          return (
-            <div
-              key={application.musicianId || `${displayName}-${index}`}
-              className="rounded-xl border border-gray-200 p-4"
-            >
-              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                <div className="min-w-0">
-                  <p className="font-medium text-gray-900">{displayName}</p>
+            return (
+              <div
+                key={application.musicianId || `${displayName}-${index}`}
+                className="rounded-xl border border-gray-200 p-4"
+              >
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900">{displayName}</p>
 
-                  {/* Admin-only contact fields */}
-                  {Boolean(adminToken) && application.email ? (
-                    <p className="text-sm text-gray-500">{maskEmail(application.email)}</p>
-                  ) : null}
+                    {Boolean(adminToken) && application.email ? (
+                      <p className="text-sm text-gray-500">{maskEmail(application.email)}</p>
+                    ) : null}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge>{getStatusLabel(application.status, "Applied")}</Badge>
+
+                    {application.appliedAt ? (
+                      <span className="text-xs text-gray-500">
+                        Applied {formatDateTime(application.appliedAt)}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge>{getStatusLabel(application.status, "Applied")}</Badge>
+                {canManageThisJob ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {canAllocate ? (
+                      <button
+                        type="button"
+                        onClick={() => handleAllocateApplicant(application)}
+                        disabled={isAllocating}
+                        className="inline-flex items-center rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isAllocating ? "Allocating…" : "Allocate applicant"}
+                      </button>
+                    ) : null}
 
-                  {application.appliedAt ? (
-                    <span className="text-xs text-gray-500">
-                      Applied {formatDateTime(application.appliedAt)}
-                    </span>
-                  ) : null}
-                </div>
+                    {canPresent ? (
+                      <button
+                        type="button"
+                        onClick={() => handlePresentApplicant(application)}
+                        disabled={isPresenting}
+                        className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isPresenting ? "Sending…" : "Present applicant"}
+                      </button>
+                    ) : null}
+
+                    {!musicianId ? (
+                      <span className="inline-flex items-center rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600">
+                        Missing musician ID
+                      </span>
+                    ) : null}
+
+                    {isAssigned ? (
+                      <span className="inline-flex items-center rounded-full bg-green-100 px-4 py-2 text-sm font-medium text-green-800">
+                        Allocated
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
+            );
+          })}
+        </div>
 
-              {/* Action buttons (manager/admin only) */}
-              {canManageThisJob ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {canAllocate ? (
-                    <button
-                      type="button"
-                      onClick={() => handleAllocateApplicant(application)}
-                      disabled={isAllocating}
-                      className="inline-flex items-center rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isAllocating ? "Allocating…" : "Allocate applicant"}
-                    </button>
-                  ) : null}
-
-                  {canPresent ? (
-                    <button
-                      type="button"
-                      onClick={() => handlePresentApplicant(application)}
-                      disabled={isPresenting}
-                      className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isPresenting ? "Sending…" : "Present applicant"}
-                    </button>
-                  ) : null}
-
-                  {!musicianId ? (
-                    <span className="inline-flex items-center rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600">
-                      Missing musician ID
-                    </span>
-                  ) : null}
-
-                  {isAssigned ? (
-                    <span className="inline-flex items-center rounded-full bg-green-100 px-4 py-2 text-sm font-medium text-green-800">
-                      Allocated
-                    </span>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
-      </div>
+        {applications.length > visibleApplicationsCount ? (
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              onClick={() => setVisibleApplicationsCount((prev) => prev + INITIAL_APPLICATIONS_VISIBLE)}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              Show more applications
+            </button>
+          </div>
+        ) : null}
+      </>
     ) : (
       <p className="text-sm text-gray-500">No applications yet.</p>
     )}
@@ -997,40 +1092,71 @@ const handlePresentApplicant = useCallback(
 
           {canViewNotifications && (
             <div className="rounded-2xl bg-white p-6 shadow">
-              <h2 className="mb-4 text-lg font-semibold text-gray-900">Notifications</h2>
-              {notifications.length ? (
+<div className="mb-4 flex items-center justify-between gap-3">
+  <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
+  <SectionToggleButton
+    open={showNotifications}
+    onClick={() => setShowNotifications((prev) => !prev)}
+    label="notifications"
+    count={notifications.length}
+  />
+</div>              {notifications.length ? (
                 <div className="space-y-3">
-                  {notifications.map((notification, index) => (
-                    <div
-                      key={`${notification.type || "notification"}-${notification.providerMessageId || index}`}
-                      className="rounded-xl border border-gray-200 p-4"
-                    >
-                      <div className="mb-2 flex flex-wrap items-center gap-2">
-                        <Badge>{formatLabel(notification.type, "Notification")}</Badge>
-                        <Badge
-                          tone={
-                            notification.status === "sent"
-                              ? "green"
-                              : notification.status === "failed"
-                              ? "red"
-                              : "default"
-                          }
-                        >
-                          {formatLabel(notification.status, "Unknown")}
-                        </Badge>
-                      </div>
-                      <p className="text-sm font-medium text-gray-900">{notification.subject || "No subject"}</p>
-                      <p className="mt-1 text-xs text-gray-500">
-                        {formatLabel(notification.channel)} · {formatDateTime(notification.sentAt)}
-                      </p>
-                      {notification.email && (
-                        <p className="mt-1 text-sm text-gray-600">{maskEmail(notification.email)}</p>
-                      )}
-                      {notification.error && (
-                        <p className="mt-2 text-sm text-red-600">{notification.error}</p>
-                      )}
-                    </div>
-                  ))}
+                 {!showNotifications ? (
+  <p className="text-sm text-gray-500">
+    Notifications are hidden to keep this page fast. Expand to view them.
+  </p>
+) : notifications.length ? (
+  <>
+    <div className="space-y-3">
+      {visibleNotifications.map((notification, index) => (
+        <div
+          key={`${notification.type || "notification"}-${notification.providerMessageId || index}`}
+          className="rounded-xl border border-gray-200 p-4"
+        >
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <Badge>{formatLabel(notification.type, "Notification")}</Badge>
+            <Badge
+              tone={
+                notification.status === "sent"
+                  ? "green"
+                  : notification.status === "failed"
+                  ? "red"
+                  : "default"
+              }
+            >
+              {formatLabel(notification.status, "Unknown")}
+            </Badge>
+          </div>
+          <p className="text-sm font-medium text-gray-900">{notification.subject || "No subject"}</p>
+          <p className="mt-1 text-xs text-gray-500">
+            {formatLabel(notification.channel)} · {formatDateTime(notification.sentAt)}
+          </p>
+          {notification.email && (
+            <p className="mt-1 text-sm text-gray-600">{maskEmail(notification.email)}</p>
+          )}
+          {notification.error && (
+            <p className="mt-2 text-sm text-red-600">{notification.error}</p>
+          )}
+        </div>
+      ))}
+    </div>
+
+    {notifications.length > visibleNotificationsCount ? (
+      <div className="mt-4 flex justify-center">
+        <button
+          type="button"
+          onClick={() => setVisibleNotificationsCount((prev) => prev + INITIAL_NOTIFICATIONS_VISIBLE)}
+          className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+        >
+          Show more notifications
+        </button>
+      </div>
+    ) : null}
+  </>
+) : (
+  <p className="text-sm text-gray-500">No notifications recorded yet.</p>
+)}
                 </div>
               ) : (
                 <p className="text-sm text-gray-500">No notifications recorded yet.</p>
