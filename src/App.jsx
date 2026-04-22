@@ -32,6 +32,7 @@ import DeputyJobs from "./pages/DeputyJobs";
 import CreateDeputyJob from "./pages/CreateDeputyJob";
 import PayoutSettings from "./pages/PayoutSettings";
 import DeputyJobDetail from "./pages/DeputyJobDetail";
+import ManageDeputyApplications from "./pages/ManageDeputyApplications";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -351,17 +352,28 @@ const App = () => {
                     element={<Messages token={token} />}
                   />
                   <Route path="/musician/:slug" element={<Musician />} />
-                  
-                    <Route path="/deputy-jobs" element={<DeputyJobs />} />
-                
-                  
-                    <Route
-                      path="/deputy-jobs/create"
-                      element={<CreateDeputyJob />}
-                    />
-                    <Route path="/deputy-jobs/:id" element={<DeputyJobDetail />} />
-                    
-                 <Route path="/deputy-jobs/:id" element={<DeputyJobDetail />} />
+
+                  <Route path="/deputy-jobs" element={<DeputyJobs />} />
+
+                  <Route
+                    path="/deputy-jobs/create"
+                    element={<CreateDeputyJob />}
+                  />
+                  <Route
+                    path="/deputy-jobs/:id"
+                    element={<DeputyJobDetail />}
+                  />
+
+                  <Route
+                    path="/deputy-jobs/:id"
+                    element={<DeputyJobDetail />}
+                  />
+
+                  <Route
+                    path="/deputy-jobs/:id/applications"
+                    element={<ManageDeputyApplications />}
+                  />
+
                   <Route
                     path="/trash"
                     element={<TrashedActs token={token} />}

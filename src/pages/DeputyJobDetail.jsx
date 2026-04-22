@@ -20,6 +20,29 @@ const parseJwtPayload = (token = "") => {
 
 const normaliseString = (value) => String(value || "").trim();
 
+const toArray = (value) => (Array.isArray(value) ? value.filter(Boolean) : []);
+
+const normaliseArray = (value) => {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (typeof value === "string" && value.trim()) {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+  return [];
+};
+
+const formatLabel = (value, fallback = "—") => {
+  const text = normaliseString(value);
+  if (!text) return fallback;
+
+  return text
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
 const formatDateLong = (value) => {
   if (!value) return "TBC";
   const date = new Date(value);
@@ -79,20 +102,6 @@ const formatDateTime = (value) => {
   });
 };
 
-
-const toArray = (value) => (Array.isArray(value) ? value.filter(Boolean) : []);
-
-const normaliseArray = (value) => {
-  if (Array.isArray(value)) return value.filter(Boolean);
-  if (typeof value === "string" && value.trim()) {
-    return value
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-  return [];
-};
-
 const statusToneMap = {
   open: "default",
   preview: "yellow",
@@ -114,16 +123,6 @@ const getStatusLabel = (value, fallback = "—") => {
   if (status === "open") return "Open";
 
   return formatLabel(status, fallback);
-};
-
-const formatLabel = (value, fallback = "—") => {
-  const text = normaliseString(value);
-  if (!text) return fallback;
-
-  return text
-    .replace(/_/g, " ")
-    .replace(/\s+/g, " ")
-    .replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
 const getStoredUserEmail = () => {
@@ -181,7 +180,9 @@ const Badge = ({ children, tone = "default" }) => {
       : "bg-gray-100 text-gray-800";
 
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${toneClass}`}>
+    <span
+      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${toneClass}`}
+    >
       {children}
     </span>
   );
@@ -197,7 +198,9 @@ const SectionToggleButton = ({ open, onClick, label, count }) => (
     onClick={onClick}
     className="inline-flex items-center gap-2 rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-black hover:text-black"
   >
-    <span>{open ? "Hide" : "Show"} {label}</span>
+    <span>
+      {open ? "Hide" : "Show"} {label}
+    </span>
     {typeof count === "number" ? (
       <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">
         {count}
@@ -209,22 +212,30 @@ const SectionToggleButton = ({ open, onClick, label, count }) => (
 const DeputyJobDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [applying, setApplying] = useState(false);
   const [assigningId, setAssigningId] = useState("");
   const [presentingId, setPresentingId] = useState("");
- const [manualAllocating, setManualAllocating] = useState(false);
-const [manualAllocateOpen, setManualAllocateOpen] = useState(false);
-const [manualAllocateQuery, setManualAllocateQuery] = useState("");
-const [manualAllocateSelectedId, setManualAllocateSelectedId] = useState("");
-const [showMatchedMusicians, setShowMatchedMusicians] = useState(false);
-const [showApplications, setShowApplications] = useState(true);
-const [showNotifications, setShowNotifications] = useState(false);
-const [visibleMatchedCount, setVisibleMatchedCount] = useState(INITIAL_MATCHED_VISIBLE);
-const [visibleApplicationsCount, setVisibleApplicationsCount] = useState(INITIAL_APPLICATIONS_VISIBLE);
-const [visibleNotificationsCount, setVisibleNotificationsCount] = useState(INITIAL_NOTIFICATIONS_VISIBLE);
+  const [manualAllocating, setManualAllocating] = useState(false);
+  const [manualAllocateOpen, setManualAllocateOpen] = useState(false);
+  const [manualAllocateQuery, setManualAllocateQuery] = useState("");
+  const [manualAllocateSelectedId, setManualAllocateSelectedId] = useState("");
+  const [showMatchedMusicians, setShowMatchedMusicians] = useState(false);
+  const [showApplications, setShowApplications] = useState(true);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [visibleMatchedCount, setVisibleMatchedCount] = useState(
+    INITIAL_MATCHED_VISIBLE,
+  );
+  const [visibleApplicationsCount, setVisibleApplicationsCount] = useState(
+    INITIAL_APPLICATIONS_VISIBLE,
+  );
+  const [visibleNotificationsCount, setVisibleNotificationsCount] = useState(
+    INITIAL_NOTIFICATIONS_VISIBLE,
+  );
+
   const adminToken = localStorage.getItem("adminToken") || "";
   const musicianToken = localStorage.getItem("musicianToken") || "";
   const generalToken = localStorage.getItem("token") || "";
@@ -267,7 +278,7 @@ const [visibleNotificationsCount, setVisibleNotificationsCount] = useState(INITI
             token,
           }
         : {},
-    [token]
+    [token],
   );
 
   const loadJob = useCallback(async () => {
@@ -290,7 +301,7 @@ const [visibleNotificationsCount, setVisibleNotificationsCount] = useState(INITI
       setError(
         err?.response?.data?.message ||
           err?.message ||
-          "Failed to load deputy job"
+          "Failed to load deputy job",
       );
     } finally {
       setLoading(false);
@@ -302,78 +313,86 @@ const [visibleNotificationsCount, setVisibleNotificationsCount] = useState(INITI
   }, [loadJob]);
 
   useEffect(() => {
-  setVisibleMatchedCount(INITIAL_MATCHED_VISIBLE);
-  setVisibleApplicationsCount(INITIAL_APPLICATIONS_VISIBLE);
-  setVisibleNotificationsCount(INITIAL_NOTIFICATIONS_VISIBLE);
-}, [job?._id]);
+    setVisibleMatchedCount(INITIAL_MATCHED_VISIBLE);
+    setVisibleApplicationsCount(INITIAL_APPLICATIONS_VISIBLE);
+    setVisibleNotificationsCount(INITIAL_NOTIFICATIONS_VISIBLE);
+  }, [job?._id]);
 
   const currentUserEmail = useMemo(() => getStoredUserEmail(), []);
   const createdByEmail = normaliseString(job?.createdByEmail).toLowerCase();
-  const managerEmail = normaliseString(job?.managerEmail || job?.createdBy?.email).toLowerCase();
+  const managerEmail = normaliseString(
+    job?.managerEmail || job?.createdBy?.email,
+  ).toLowerCase();
 
   const isAdminViewer = Boolean(adminToken);
   const isJobManager = Boolean(
     currentUserEmail &&
-      (currentUserEmail === createdByEmail || currentUserEmail === managerEmail)
+      (currentUserEmail === createdByEmail || currentUserEmail === managerEmail),
   );
-// Who is admin/agent?
-const currentUserRole = String(currentUser?.role || "").trim().toLowerCase();
-const isAdminEmail =
-  String(currentUserEmail || "").trim().toLowerCase() === "hello@thesupremecollective.co.uk";
 
-const canManageThisJob = Boolean(isAdminEmail || currentUserRole === "admin" || currentUserRole === "agent" || isJobManager);
-const canSeeApplicationsSection = canManageThisJob; // your requirement: ONLY poster/manager/admin/agent
+  const currentUserRole = String(currentUser?.role || "").trim().toLowerCase();
+  const isAdminEmail =
+    String(currentUserEmail || "").trim().toLowerCase() ===
+    "hello@thesupremecollective.co.uk";
 
-// If they can see applications but are NOT admin/agent/admin-email, mask names
-const shouldMaskApplicantNames = !(
-  isAdminEmail ||
-  currentUserRole === "admin" ||
-  currentUserRole === "agent" ||
-  Boolean(adminToken)
-);
+  const canManageThisJob = Boolean(
+    isAdminEmail ||
+      currentUserRole === "admin" ||
+      currentUserRole === "agent" ||
+      isJobManager,
+  );
 
-const getApplicantFullName = (application = {}) => {
-  const firstName = String(application.firstName || "").trim();
-  const lastName = String(application.lastName || "").trim();
-  return `${firstName} ${lastName}`.trim() || "Unnamed applicant";
-};
+  const canSeeApplicationsSection = canManageThisJob;
 
-const getApplicantShortName = (application = {}) => {
-  const firstName = String(application.firstName || "").trim();
-  const lastName = String(application.lastName || "").trim();
-  const lastInitial = lastName ? `${lastName.charAt(0).toUpperCase()}.` : "";
-  return [firstName, lastInitial].filter(Boolean).join(" ") || getApplicantFullName(application);
-};
+  const shouldMaskApplicantNames = !(
+    isAdminEmail ||
+    currentUserRole === "admin" ||
+    currentUserRole === "agent" ||
+    Boolean(adminToken)
+  );
 
-const handleManualAllocateClick = () => {
-  if (!canManageThisJob) {
-    toast.error("Manual allocate is not available here.");
-    return;
-  }
+  const getApplicantFullName = (application = {}) => {
+    const firstName = String(application.firstName || "").trim();
+    const lastName = String(application.lastName || "").trim();
+    return `${firstName} ${lastName}`.trim() || "Unnamed applicant";
+  };
 
-  // Reset and open the same picker modal used on this page
-  setManualAllocateQuery("");
-  setManualAllocateSelectedId("");
-  setManualAllocateOpen(true);
-};
+  const getApplicantShortName = (application = {}) => {
+    const firstName = String(application.firstName || "").trim();
+    const lastName = String(application.lastName || "").trim();
+    const lastInitial = lastName ? `${lastName.charAt(0).toUpperCase()}.` : "";
+    return [firstName, lastInitial].filter(Boolean).join(" ") || "Unnamed applicant";
+  };
 
+  const handleManualAllocateClick = () => {
+    if (!canManageThisJob) {
+      toast.error("Manual allocate is not available here.");
+      return;
+    }
 
-// Enquiry vs booked (same logic style as your panel)
-const jobType = String(job?.jobType || job?.type || "").trim().toLowerCase();
-const isEnquiryJob =
-  job?.isEnquiry === true ||
-  job?.enquiryOnly === true ||
-  jobType === "enquiry" ||
-  String(job?.title || "").toLowerCase().includes("enquiry");
+    setManualAllocateQuery("");
+    setManualAllocateSelectedId("");
+    setManualAllocateOpen(true);
+  };
+
+  const jobType = String(job?.jobType || job?.type || "").trim().toLowerCase();
+  const isEnquiryJob =
+    job?.isEnquiry === true ||
+    job?.enquiryOnly === true ||
+    jobType === "enquiry" ||
+    String(job?.title || "").toLowerCase().includes("enquiry");
+
   const canViewMatchedMusicians = isAdminViewer;
   const canViewNotifications = isAdminViewer;
+
   const applications = useMemo(() => toArray(job?.applications), [job?.applications]);
+
   const applicationEmails = applications
     .map((application) => normaliseString(application?.email).toLowerCase())
     .filter(Boolean);
 
   const hasApplied = Boolean(
-    currentUserEmail && applicationEmails.includes(currentUserEmail)
+    currentUserEmail && applicationEmails.includes(currentUserEmail),
   );
 
   const canApplyToJob = Boolean(
@@ -383,28 +402,35 @@ const isEnquiryJob =
       !hasApplied &&
       !isJobManager &&
       !["allocated", "filled", "closed", "cancelled"].includes(
-        normaliseString(job.status).toLowerCase()
-      )
+        normaliseString(job?.status).toLowerCase(),
+      ),
   );
 
-const matchedMusicians = useMemo(() => toArray(job?.matchedMusicians), [job?.matchedMusicians]);
-const notifications = useMemo(() => toArray(job?.notifications), [job?.notifications]);
+  const matchedMusicians = useMemo(
+    () => toArray(job?.matchedMusicians),
+    [job?.matchedMusicians],
+  );
 
-const visibleMatchedMusicians = useMemo(
-  () => matchedMusicians.slice(0, visibleMatchedCount),
-  [matchedMusicians, visibleMatchedCount]
-);
+  const notifications = useMemo(
+    () => toArray(job?.notifications),
+    [job?.notifications],
+  );
 
-const visibleApplications = useMemo(
-  () => applications.slice(0, visibleApplicationsCount),
-  [applications, visibleApplicationsCount]
-);
+  const visibleMatchedMusicians = useMemo(
+    () => matchedMusicians.slice(0, visibleMatchedCount),
+    [matchedMusicians, visibleMatchedCount],
+  );
 
-const visibleNotifications = useMemo(
-  () => notifications.slice(0, visibleNotificationsCount),
-  [notifications, visibleNotificationsCount]
-);
-  // Manual allocate modal helpers
+  const visibleApplications = useMemo(
+    () => applications.slice(0, visibleApplicationsCount),
+    [applications, visibleApplicationsCount],
+  );
+
+  const visibleNotifications = useMemo(
+    () => notifications.slice(0, visibleNotificationsCount),
+    [notifications, visibleNotificationsCount],
+  );
+
   const manualAllocateCandidates = useMemo(() => {
     const list = [];
 
@@ -412,28 +438,20 @@ const visibleNotifications = useMemo(
       const musicianId = String(
         candidate?.musicianId || candidate?._id || candidate?.id || "",
       ).trim();
+
       if (!musicianId) return;
-
-      // prevent duplicates
       if (list.some((item) => String(item.musicianId) === musicianId)) return;
-
-      const firstName = String(candidate?.firstName || "").trim();
-      const lastName = String(candidate?.lastName || "").trim();
-      const email = String(candidate?.email || "").trim();
-      const phone = String(candidate?.phone || candidate?.phoneNumber || "").trim();
 
       list.push({
         musicianId,
-        firstName,
-        lastName,
-        email,
-        phone,
+        firstName: String(candidate?.firstName || "").trim(),
+        lastName: String(candidate?.lastName || "").trim(),
+        email: String(candidate?.email || "").trim(),
+        phone: String(candidate?.phone || candidate?.phoneNumber || "").trim(),
       });
     };
 
-    // Prefer matched musicians if present
-    const matched = Array.isArray(job?.matchedMusicians) ? job.matchedMusicians : [];
-    matched.forEach((m) => {
+    matchedMusicians.forEach((m) => {
       pushCandidate({
         musicianId: m?.musicianId || m?._id,
         firstName: m?.firstName,
@@ -443,9 +461,7 @@ const visibleNotifications = useMemo(
       });
     });
 
-    // Include applicants as well
-    const apps = Array.isArray(job?.applications) ? job.applications : [];
-    apps.forEach((a) => {
+    applications.forEach((a) => {
       pushCandidate({
         musicianId: a?.musicianId,
         firstName: a?.firstName,
@@ -456,7 +472,7 @@ const visibleNotifications = useMemo(
     });
 
     return list;
-  }, [job]);
+  }, [applications, matchedMusicians]);
 
   const filteredManualAllocateCandidates = useMemo(() => {
     const q = String(manualAllocateQuery || "").trim().toLowerCase();
@@ -477,7 +493,8 @@ const visibleNotifications = useMemo(
     });
   }, [manualAllocateCandidates, manualAllocateQuery]);
 
-  const isValidObjectId = (value = "") => /^[a-f\d]{24}$/i.test(String(value || "").trim());
+  const isValidObjectId = (value = "") =>
+    /^[a-f\d]{24}$/i.test(String(value || "").trim());
 
   const getCandidateDisplayName = (candidate = {}) => {
     const firstName = String(candidate?.firstName || "").trim();
@@ -491,7 +508,6 @@ const visibleNotifications = useMemo(
     return [firstName, lastInitial].filter(Boolean).join(" ") || "Unnamed musician";
   };
 
-
   const submitManualAllocate = useCallback(async () => {
     if (!canManageThisJob) {
       toast.error("Manual allocate is not available here.");
@@ -501,7 +517,9 @@ const visibleNotifications = useMemo(
     const musicianId = String(manualAllocateSelectedId || "").trim();
 
     if (!isValidObjectId(musicianId)) {
-      toast.error("Please select a musician (or enter a valid 24-character musicianId).");
+      toast.error(
+        "Please select a musician (or enter a valid 24-character musicianId).",
+      );
       return;
     }
 
@@ -538,84 +556,100 @@ const visibleNotifications = useMemo(
     } finally {
       setManualAllocating(false);
     }
-  }, [
-    canManageThisJob,
-    manualAllocateSelectedId,
-    headers,
-    id,
-    loadJob,
-  ]);
-// Booked job allocation (uses your existing route pattern)
-const handleAllocateApplicant = useCallback(
-  async (application) => {
-    const musicianId = String(application?.musicianId || application?._id || "").trim();
-    if (!musicianId) return toast.error("This applicant is missing a musician ID.");
+  }, [canManageThisJob, manualAllocateSelectedId, headers, id, loadJob]);
 
-    const confirmed = window.confirm(
-      `Allocate this job to ${getApplicantShortName(application)}?`
-    );
-    if (!confirmed) return;
+  const handleAllocateApplicant = useCallback(
+    async (application) => {
+      const musicianId = String(
+        application?.musicianId || application?._id || "",
+      ).trim();
 
-    try {
-      setAssigningId(musicianId);
-
-      const res = await axios.post(
-        `${backendUrl}/api/deputy-jobs/${id}/manual-allocate`,
-        { musicianId }, // you can add { skipCharge: true } etc if needed
-        { headers, withCredentials: true }
-      );
-
-      if (!res.data?.success) {
-        throw new Error(res.data?.message || "Failed to allocate applicant");
+      if (!musicianId) {
+        toast.error("This applicant is missing a musician ID.");
+        return;
       }
 
-      toast.success(res.data?.message || "Applicant allocated");
-      await loadJob();
-    } catch (err) {
-      console.error("❌ Failed to allocate applicant:", err);
-      toast.error(err?.response?.data?.message || err?.message || "Failed to allocate applicant");
-    } finally {
-      setAssigningId("");
-    }
-  },
-  [headers, id, loadJob]
-);
-
-// Enquiry job "present to client" (align URL with your backend)
-const handlePresentApplicant = useCallback(
-  async (application) => {
-    const musicianId = String(application?.musicianId || application?._id || "").trim();
-    if (!musicianId) return toast.error("This applicant is missing a musician ID.");
-
-    const confirmed = window.confirm(
-      `Present ${getApplicantShortName(application)} to the client for ${job?.title || "this enquiry"}?`
-    );
-    if (!confirmed) return;
-
-    try {
-      setPresentingId(musicianId);
-
-      const res = await axios.post(
-        `${backendUrl}/api/deputy-jobs/${id}/present-applicant`,
-        { musicianId },
-        { headers, withCredentials: true }
+      const confirmed = window.confirm(
+        `Allocate this job to ${getApplicantShortName(application)}?`,
       );
+      if (!confirmed) return;
 
-      if (!res.data?.success) {
-        throw new Error(res.data?.message || "Failed to present applicant");
+      try {
+        setAssigningId(musicianId);
+
+        const res = await axios.post(
+          `${backendUrl}/api/deputy-jobs/${id}/manual-allocate`,
+          { musicianId },
+          { headers, withCredentials: true },
+        );
+
+        if (!res.data?.success) {
+          throw new Error(res.data?.message || "Failed to allocate applicant");
+        }
+
+        toast.success(res.data?.message || "Applicant allocated");
+        await loadJob();
+      } catch (err) {
+        console.error("❌ Failed to allocate applicant:", err);
+        toast.error(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Failed to allocate applicant",
+        );
+      } finally {
+        setAssigningId("");
+      }
+    },
+    [headers, id, loadJob],
+  );
+
+  const handlePresentApplicant = useCallback(
+    async (application) => {
+      const musicianId = String(
+        application?.musicianId || application?._id || "",
+      ).trim();
+
+      if (!musicianId) {
+        toast.error("This applicant is missing a musician ID.");
+        return;
       }
 
-      toast.success(res.data?.message || "Applicant presented");
-      await loadJob();
-    } catch (err) {
-      console.error("❌ Failed to present applicant:", err);
-      toast.error(err?.response?.data?.message || err?.message || "Failed to present applicant");
-    } finally {
-      setPresentingId("");
-    }
-  },
-  [headers, id, job?.title, loadJob]
-);
+      const confirmed = window.confirm(
+        `Present ${getApplicantShortName(application)} to the client for ${
+          job?.title || "this enquiry"
+        }?`,
+      );
+      if (!confirmed) return;
+
+      try {
+        setPresentingId(musicianId);
+
+        const res = await axios.post(
+          `${backendUrl}/api/deputy-jobs/${id}/present-applicant`,
+          { musicianId },
+          { headers, withCredentials: true },
+        );
+
+        if (!res.data?.success) {
+          throw new Error(res.data?.message || "Failed to present applicant");
+        }
+
+        toast.success(res.data?.message || "Applicant presented");
+        await loadJob();
+      } catch (err) {
+        console.error("❌ Failed to present applicant:", err);
+        toast.error(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Failed to present applicant",
+        );
+      } finally {
+        setPresentingId("");
+      }
+    },
+    [headers, id, job?.title, loadJob],
+  );
+
   const fullLocation =
     normaliseString(job?.location) ||
     [job?.venue, job?.locationName, job?.county, job?.postcode]
@@ -624,11 +658,7 @@ const handlePresentApplicant = useCallback(
       .join(", ") ||
     "Location TBC";
 
-  const feeText = formatMoney(
-    job?.deputyNetAmount || job?.fee || 0,
-    job?.currency || "GBP"
-  );
-
+  const feeText = formatMoney(job?.deputyNetAmount || job?.fee || 0, job?.currency || "GBP");
 
   const statusTone =
     statusToneMap[normaliseString(job?.status).toLowerCase()] || "default";
@@ -637,8 +667,8 @@ const handlePresentApplicant = useCallback(
     job?.workflowStage === "booking_confirmed"
       ? "green"
       : job?.workflowStage === "allocated"
-      ? "yellow"
-      : "default";
+        ? "yellow"
+        : "default";
 
   const handleCopyLink = async () => {
     try {
@@ -665,7 +695,7 @@ const handlePresentApplicant = useCallback(
         {
           headers,
           withCredentials: true,
-        }
+        },
       );
 
       if (!res.data?.success) {
@@ -679,7 +709,7 @@ const handlePresentApplicant = useCallback(
       toast.error(
         err?.response?.data?.message ||
           err?.message ||
-          "Failed to apply for deputy job"
+          "Failed to apply for deputy job",
       );
     } finally {
       setApplying(false);
@@ -738,7 +768,9 @@ const handlePresentApplicant = useCallback(
             <h1 className="text-2xl font-semibold text-gray-900">
               {job.title || job.instrument || "Deputy job"}
             </h1>
-            <p className="mt-2 text-sm text-gray-600">{formatDateLong(job.eventDate || job.date)}</p>
+            <p className="mt-2 text-sm text-gray-600">
+              {formatDateLong(job.eventDate || job.date)}
+            </p>
             <p className="mt-1 text-sm text-gray-600">{fullLocation}</p>
           </div>
 
@@ -761,16 +793,16 @@ const handlePresentApplicant = useCallback(
               </button>
             ) : null}
 
-           {canManageThisJob ? (
-  <button
-    type="button"
-    onClick={handleManualAllocateClick}
-    disabled={manualAllocating}
-    className="inline-flex items-center rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-  >
-    {manualAllocating ? "Allocating…" : "Manual allocate musician"}
-  </button>
-) : null}
+            {canManageThisJob ? (
+              <button
+                type="button"
+                onClick={handleManualAllocateClick}
+                disabled={manualAllocating}
+                className="inline-flex items-center rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {manualAllocating ? "Allocating…" : "Manual allocate musician"}
+              </button>
+            ) : null}
 
             <button
               type="button"
@@ -779,6 +811,7 @@ const handlePresentApplicant = useCallback(
             >
               Copy link
             </button>
+
             <button
               type="button"
               onClick={loadJob}
@@ -810,7 +843,9 @@ const handlePresentApplicant = useCallback(
                   {applying ? "Applying…" : "One-click apply"}
                 </button>
               </div>
-            ) : null}            <div>
+            ) : null}
+
+            <div>
               <DetailRow label="Job title" value={job.title || job.instrument || "—"} />
               <DetailRow label="Date" value={formatDateLong(job.eventDate || job.date)} />
               <DetailRow label="Call time" value={job.callTime || job.startTime || "TBC"} />
@@ -819,19 +854,35 @@ const handlePresentApplicant = useCallback(
               <DetailRow label="Instrument" value={job.instrument || "—"} />
               <DetailRow
                 label="Required instruments"
-                value={toArray(job.requiredInstruments).length ? toArray(job.requiredInstruments).join(", ") : "—"}
+                value={
+                  toArray(job.requiredInstruments).length
+                    ? toArray(job.requiredInstruments).join(", ")
+                    : "—"
+                }
               />
               <DetailRow
                 label="Essential roles"
-                value={toArray(job.essentialRoles).length ? toArray(job.essentialRoles).join(", ") : "—"}
+                value={
+                  toArray(job.essentialRoles).length
+                    ? toArray(job.essentialRoles).join(", ")
+                    : "—"
+                }
               />
               <DetailRow
                 label="Required skills"
-                value={toArray(job.requiredSkills).length ? toArray(job.requiredSkills).join(", ") : "—"}
+                value={
+                  toArray(job.requiredSkills).length
+                    ? toArray(job.requiredSkills).join(", ")
+                    : "—"
+                }
               />
               <DetailRow
                 label="Desired roles"
-                value={toArray(job.desiredRoles).length ? toArray(job.desiredRoles).join(", ") : "—"}
+                value={
+                  toArray(job.desiredRoles).length
+                    ? toArray(job.desiredRoles).join(", ")
+                    : "—"
+                }
               />
               <DetailRow
                 label="Genres"
@@ -839,227 +890,280 @@ const handlePresentApplicant = useCallback(
               />
               <DetailRow
                 label="Set lengths"
-                value={toArray(job.setLengths).length ? toArray(job.setLengths).join(", ") : "—"}
+                value={
+                  toArray(job.setLengths).length
+                    ? toArray(job.setLengths).join(", ")
+                    : "—"
+                }
               />
               <DetailRow
                 label="What's included"
-                value={toArray(job.whatsIncluded).length ? toArray(job.whatsIncluded).join(", ") : "—"}
+                value={
+                  toArray(job.whatsIncluded).length
+                    ? toArray(job.whatsIncluded).join(", ")
+                    : "—"
+                }
               />
               <DetailRow
                 label="Claimable expenses"
-                value={toArray(job.claimableExpenses).length ? toArray(job.claimableExpenses).join(", ") : "—"}
+                value={
+                  toArray(job.claimableExpenses).length
+                    ? toArray(job.claimableExpenses).join(", ")
+                    : "—"
+                }
               />
               <DetailRow label="Notes" value={job.notes || "—"} />
             </div>
           </div>
 
-          {canViewMatchedMusicians && (
+          {canViewMatchedMusicians ? (
             <div className="rounded-2xl bg-white p-6 shadow">
-<div className="mb-4 flex items-center justify-between gap-3">
-  <h2 className="text-lg font-semibold text-gray-900">Matched musicians</h2>
-  <SectionToggleButton
-    open={showMatchedMusicians}
-    onClick={() => setShowMatchedMusicians((prev) => !prev)}
-    label="matched"
-    count={matchedMusicians.length}
-  />
-</div>
-             {!showMatchedMusicians ? (
-  <p className="text-sm text-gray-500">
-    Matched musicians are hidden to keep this page fast. Expand to view them.
-  </p>
-) : matchedMusicians.length ? (
-  <>
-    <div className="space-y-3">
-      {visibleMatchedMusicians.map((musician, index) => {
-        const name = [musician.firstName, musician.lastName]
-          .filter(Boolean)
-          .join(" ")
-          .trim() || "Unnamed musician";
-
-        return (
-          <div
-            key={musician.musicianId || musician._id || `${name}-${index}`}
-            className="rounded-xl border border-gray-200 p-4"
-          >
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="font-medium text-gray-900">{name}</p>
-                {musician.email && (
-                  <p className="text-sm text-gray-500">{maskEmail(musician.email)}</p>
-                )}
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-gray-900">Matched musicians</h2>
+                <SectionToggleButton
+                  open={showMatchedMusicians}
+                  onClick={() => setShowMatchedMusicians((prev) => !prev)}
+                  label="matched"
+                  count={matchedMusicians.length}
+                />
               </div>
-              <div className="flex flex-wrap gap-2">
-                {typeof musician.matchPct === "number" && (
-                  <Badge>{musician.matchPct}% match</Badge>
-                )}
-                {musician.notified && <Badge tone="green">Notified</Badge>}
-              </div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
 
-    {matchedMusicians.length > visibleMatchedCount ? (
-      <div className="mt-4 flex justify-center">
-        <button
-          type="button"
-          onClick={() => setVisibleMatchedCount((prev) => prev + INITIAL_MATCHED_VISIBLE)}
-          className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-        >
-          Show more matched musicians
-        </button>
-      </div>
-    ) : null}
-  </>
-) : (
-  <p className="text-sm text-gray-500">No matched musicians stored on this job yet.</p>
-)}
-            </div>
-          )}
+              {!showMatchedMusicians ? (
+                <p className="text-sm text-gray-500">
+                  Matched musicians are hidden to keep this page fast. Expand to
+                  view them.
+                </p>
+              ) : matchedMusicians.length ? (
+                <>
+                  <div className="space-y-3">
+                    {visibleMatchedMusicians.map((musician, index) => {
+                      const name =
+                        [musician.firstName, musician.lastName]
+                          .filter(Boolean)
+                          .join(" ")
+                          .trim() || "Unnamed musician";
 
-         {canSeeApplicationsSection && (
-  <div className="rounded-2xl bg-white p-6 shadow">
-    <div className="mb-4 flex items-center justify-between gap-3">
-      <h2 className="text-lg font-semibold text-gray-900">Applications</h2>
-
-      <div className="flex items-center gap-2">
-        <SectionToggleButton
-          open={showApplications}
-          onClick={() => setShowApplications((prev) => !prev)}
-          label="applications"
-          count={applications.length}
-        />
-
-        {(isAdminEmail || currentUserRole === "admin" || currentUserRole === "agent" || Boolean(adminToken)) ? (
-          <button
-            type="button"
-            onClick={() => navigate(`/deputy-jobs`)}
-            className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-black hover:text-black"
-          >
-            Manage applicants
-          </button>
-        ) : null}
-      </div>
-    </div>
-
-    {!showApplications ? (
-      <p className="text-sm text-gray-500">
-        Applications are hidden to keep this page fast. Expand to view them.
-      </p>
-    ) : applications.length ? (
-      <>
-        <div className="space-y-3">
-          {visibleApplications.map((application, index) => {
-            const musicianId = String(application?.musicianId || "").trim();
-            const status = String(application?.status || "applied").toLowerCase();
-
-            const displayName = shouldMaskApplicantNames
-              ? getApplicantShortName(application)
-              : getApplicantFullName(application);
-
-            const isAssigned = ["allocated", "booked", "assigned"].includes(status);
-
-            const canAllocate =
-              !isEnquiryJob &&
-              !isAssigned &&
-              Boolean(musicianId) &&
-              canManageThisJob;
-
-            const canPresent =
-              isEnquiryJob &&
-              !isAssigned &&
-              Boolean(musicianId) &&
-              canManageThisJob;
-
-            const isAllocating = assigningId === musicianId;
-            const isPresenting = presentingId === musicianId;
-
-            return (
-              <div
-                key={application.musicianId || `${displayName}-${index}`}
-                className="rounded-xl border border-gray-200 p-4"
-              >
-                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                  <div className="min-w-0">
-                    <p className="font-medium text-gray-900">{displayName}</p>
-
-                    {Boolean(adminToken) && application.email ? (
-                      <p className="text-sm text-gray-500">{maskEmail(application.email)}</p>
-                    ) : null}
+                      return (
+                        <div
+                          key={musician.musicianId || musician._id || `${name}-${index}`}
+                          className="rounded-xl border border-gray-200 p-4"
+                        >
+                          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                            <div>
+                              <p className="font-medium text-gray-900">{name}</p>
+                              {musician.email ? (
+                                <p className="text-sm text-gray-500">
+                                  {maskEmail(musician.email)}
+                                </p>
+                              ) : null}
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {typeof musician.matchPct === "number" ? (
+                                <Badge>{musician.matchPct}% match</Badge>
+                              ) : null}
+                              {musician.notified ? <Badge tone="green">Notified</Badge> : null}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge>{getStatusLabel(application.status, "Applied")}</Badge>
+                  {matchedMusicians.length > visibleMatchedCount ? (
+                    <div className="mt-4 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setVisibleMatchedCount(
+                            (prev) => prev + INITIAL_MATCHED_VISIBLE,
+                          )
+                        }
+                        className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        Show more matched musicians
+                      </button>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  No matched musicians stored on this job yet.
+                </p>
+              )}
+            </div>
+          ) : null}
 
-                    {application.appliedAt ? (
-                      <span className="text-xs text-gray-500">
-                        Applied {formatDateTime(application.appliedAt)}
-                      </span>
-                    ) : null}
-                  </div>
+          {canSeeApplicationsSection ? (
+            <div className="rounded-2xl bg-white p-6 shadow">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-gray-900">Applications</h2>
+
+                <div className="flex items-center gap-2">
+                  <SectionToggleButton
+                    open={showApplications}
+                    onClick={() => setShowApplications((prev) => !prev)}
+                    label="applications"
+                    count={applications.length}
+                  />
+
+                  {isAdminEmail ||
+                  currentUserRole === "admin" ||
+                  currentUserRole === "agent" ||
+                  Boolean(adminToken) ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/deputy-jobs/${id}/applications`)}
+                      className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-black hover:text-black"
+                    >
+                      Manage applicants
+                    </button>
+                  ) : null}
                 </div>
-
-                {canManageThisJob ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {canAllocate ? (
-                      <button
-                        type="button"
-                        onClick={() => handleAllocateApplicant(application)}
-                        disabled={isAllocating}
-                        className="inline-flex items-center rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {isAllocating ? "Allocating…" : "Allocate applicant"}
-                      </button>
-                    ) : null}
-
-                    {canPresent ? (
-                      <button
-                        type="button"
-                        onClick={() => handlePresentApplicant(application)}
-                        disabled={isPresenting}
-                        className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {isPresenting ? "Sending…" : "Present applicant"}
-                      </button>
-                    ) : null}
-
-                    {!musicianId ? (
-                      <span className="inline-flex items-center rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600">
-                        Missing musician ID
-                      </span>
-                    ) : null}
-
-                    {isAssigned ? (
-                      <span className="inline-flex items-center rounded-full bg-green-100 px-4 py-2 text-sm font-medium text-green-800">
-                        Allocated
-                      </span>
-                    ) : null}
-                  </div>
-                ) : null}
               </div>
-            );
-          })}
-        </div>
 
-        {applications.length > visibleApplicationsCount ? (
-          <div className="mt-4 flex justify-center">
-            <button
-              type="button"
-              onClick={() => setVisibleApplicationsCount((prev) => prev + INITIAL_APPLICATIONS_VISIBLE)}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-            >
-              Show more applications
-            </button>
-          </div>
-        ) : null}
-      </>
-    ) : (
-      <p className="text-sm text-gray-500">No applications yet.</p>
-    )}
-  </div>
-)}
+              {!showApplications ? (
+                <p className="text-sm text-gray-500">
+                  Applications are hidden to keep this page fast. Expand to view
+                  them.
+                </p>
+              ) : applications.length ? (
+                <>
+                  <div className="space-y-3">
+                    {visibleApplications.map((application, index) => {
+                      const musicianId = String(application?.musicianId || "").trim();
+                      const status = String(
+                        application?.status || "applied",
+                      ).toLowerCase();
+
+                      const displayName = shouldMaskApplicantNames
+                        ? getApplicantShortName(application)
+                        : getApplicantFullName(application);
+
+                      const isAssigned = ["allocated", "booked", "assigned"].includes(
+                        status,
+                      );
+
+                      const canAllocate =
+                        !isEnquiryJob &&
+                        !isAssigned &&
+                        Boolean(musicianId) &&
+                        canManageThisJob;
+
+                      const canPresent =
+                        isEnquiryJob &&
+                        !isAssigned &&
+                        Boolean(musicianId) &&
+                        canManageThisJob;
+
+                      const isAllocating = assigningId === musicianId;
+                      const isPresenting = presentingId === musicianId;
+
+                      return (
+                        <div
+                          key={application.musicianId || `${displayName}-${index}`}
+                          className="rounded-xl border border-gray-200 p-4"
+                        >
+                          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                            <div className="min-w-0">
+                              <p className="font-medium text-gray-900">{displayName}</p>
+
+                              {Boolean(adminToken) && application.email ? (
+                                <p className="text-sm text-gray-500">
+                                  {maskEmail(application.email)}
+                                </p>
+                              ) : null}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge>
+                                {getStatusLabel(application.status, "Applied")}
+                              </Badge>
+
+                              {application.appliedAt ? (
+                                <span className="text-xs text-gray-500">
+                                  Applied {formatDateTime(application.appliedAt)}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+
+                          {canManageThisJob ? (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {canAllocate ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleAllocateApplicant(application)}
+                                  disabled={isAllocating}
+                                  className="inline-flex items-center rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {isAllocating
+                                    ? "Allocating…"
+                                    : "Allocate applicant"}
+                                </button>
+                              ) : null}
+
+                              {canPresent ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handlePresentApplicant(application)}
+                                  disabled={isPresenting}
+                                  className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {isPresenting ? "Sending…" : "Present applicant"}
+                                </button>
+                              ) : null}
+
+                              {canSeeApplicationsSection ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    navigate(`/deputy-jobs/${id}/applications`)
+                                  }
+                                  className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                >
+                                  Manage applications
+                                </button>
+                              ) : null}
+
+                              {!musicianId ? (
+                                <span className="inline-flex items-center rounded-full bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600">
+                                  Missing musician ID
+                                </span>
+                              ) : null}
+
+                              {isAssigned ? (
+                                <span className="inline-flex items-center rounded-full bg-green-100 px-4 py-2 text-sm font-medium text-green-800">
+                                  Allocated
+                                </span>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {applications.length > visibleApplicationsCount ? (
+                    <div className="mt-4 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setVisibleApplicationsCount(
+                            (prev) => prev + INITIAL_APPLICATIONS_VISIBLE,
+                          )
+                        }
+                        className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        Show more applications
+                      </button>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <p className="text-sm text-gray-500">No applications yet.</p>
+              )}
+            </div>
+          ) : null}
         </div>
 
         <div className="space-y-6">
@@ -1068,15 +1172,21 @@ const handlePresentApplicant = useCallback(
             <div className="space-y-3 text-sm text-gray-700">
               <div className="flex items-center justify-between">
                 <span>Matched</span>
-                <span className="font-medium text-gray-900">{job.matchedCount || matchedMusicians.length || 0}</span>
+                <span className="font-medium text-gray-900">
+                  {job.matchedCount || matchedMusicians.length || 0}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Notified</span>
-                <span className="font-medium text-gray-900">{job.notifiedCount || notifications.length || 0}</span>
+                <span className="font-medium text-gray-900">
+                  {job.notifiedCount || notifications.length || 0}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Applications</span>
-                <span className="font-medium text-gray-900">{normaliseArray(job?.applications).length || applications.length}</span>
+                <span className="font-medium text-gray-900">
+                  {normaliseArray(job?.applications).length || applications.length}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span>Deputy net</span>
@@ -1084,98 +1194,120 @@ const handlePresentApplicant = useCallback(
               </div>
               <div className="flex items-center justify-between">
                 <span>Release on</span>
-                <span className="font-medium text-gray-900">{formatDateLong(job.releaseOn)}</span>
+                <span className="font-medium text-gray-900">
+                  {formatDateLong(job.releaseOn)}
+                </span>
               </div>
             </div>
           </div>
 
-
-          {canViewNotifications && (
+          {canViewNotifications ? (
             <div className="rounded-2xl bg-white p-6 shadow">
-<div className="mb-4 flex items-center justify-between gap-3">
-  <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
-  <SectionToggleButton
-    open={showNotifications}
-    onClick={() => setShowNotifications((prev) => !prev)}
-    label="notifications"
-    count={notifications.length}
-  />
-</div>              {notifications.length ? (
-                <div className="space-y-3">
-                 {!showNotifications ? (
-  <p className="text-sm text-gray-500">
-    Notifications are hidden to keep this page fast. Expand to view them.
-  </p>
-) : notifications.length ? (
-  <>
-    <div className="space-y-3">
-      {visibleNotifications.map((notification, index) => (
-        <div
-          key={`${notification.type || "notification"}-${notification.providerMessageId || index}`}
-          className="rounded-xl border border-gray-200 p-4"
-        >
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <Badge>{formatLabel(notification.type, "Notification")}</Badge>
-            <Badge
-              tone={
-                notification.status === "sent"
-                  ? "green"
-                  : notification.status === "failed"
-                  ? "red"
-                  : "default"
-              }
-            >
-              {formatLabel(notification.status, "Unknown")}
-            </Badge>
-          </div>
-          <p className="text-sm font-medium text-gray-900">{notification.subject || "No subject"}</p>
-          <p className="mt-1 text-xs text-gray-500">
-            {formatLabel(notification.channel)} · {formatDateTime(notification.sentAt)}
-          </p>
-          {notification.email && (
-            <p className="mt-1 text-sm text-gray-600">{maskEmail(notification.email)}</p>
-          )}
-          {notification.error && (
-            <p className="mt-2 text-sm text-red-600">{notification.error}</p>
-          )}
-        </div>
-      ))}
-    </div>
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
+                <SectionToggleButton
+                  open={showNotifications}
+                  onClick={() => setShowNotifications((prev) => !prev)}
+                  label="notifications"
+                  count={notifications.length}
+                />
+              </div>
 
-    {notifications.length > visibleNotificationsCount ? (
-      <div className="mt-4 flex justify-center">
-        <button
-          type="button"
-          onClick={() => setVisibleNotificationsCount((prev) => prev + INITIAL_NOTIFICATIONS_VISIBLE)}
-          className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-        >
-          Show more notifications
-        </button>
-      </div>
-    ) : null}
-  </>
-) : (
-  <p className="text-sm text-gray-500">No notifications recorded yet.</p>
-)}
-                </div>
+              {!showNotifications ? (
+                <p className="text-sm text-gray-500">
+                  Notifications are hidden to keep this page fast. Expand to
+                  view them.
+                </p>
+              ) : notifications.length ? (
+                <>
+                  <div className="space-y-3">
+                    {visibleNotifications.map((notification, index) => (
+                      <div
+                        key={`${
+                          notification.type || "notification"
+                        }-${notification.providerMessageId || index}`}
+                        className="rounded-xl border border-gray-200 p-4"
+                      >
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <Badge>
+                            {formatLabel(notification.type, "Notification")}
+                          </Badge>
+                          <Badge
+                            tone={
+                              notification.status === "sent"
+                                ? "green"
+                                : notification.status === "failed"
+                                  ? "red"
+                                  : "default"
+                            }
+                          >
+                            {formatLabel(notification.status, "Unknown")}
+                          </Badge>
+                        </div>
+
+                        <p className="text-sm font-medium text-gray-900">
+                          {notification.subject || "No subject"}
+                        </p>
+
+                        <p className="mt-1 text-xs text-gray-500">
+                          {formatLabel(notification.channel)} ·{" "}
+                          {formatDateTime(notification.sentAt)}
+                        </p>
+
+                        {notification.email ? (
+                          <p className="mt-1 text-sm text-gray-600">
+                            {maskEmail(notification.email)}
+                          </p>
+                        ) : null}
+
+                        {notification.error ? (
+                          <p className="mt-2 text-sm text-red-600">
+                            {notification.error}
+                          </p>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+
+                  {notifications.length > visibleNotificationsCount ? (
+                    <div className="mt-4 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setVisibleNotificationsCount(
+                            (prev) => prev + INITIAL_NOTIFICATIONS_VISIBLE,
+                          )
+                        }
+                        className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        Show more notifications
+                      </button>
+                    </div>
+                  ) : null}
+                </>
               ) : (
-                <p className="text-sm text-gray-500">No notifications recorded yet.</p>
+                <p className="text-sm text-gray-500">
+                  No notifications recorded yet.
+                </p>
               )}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
-      {/* Manual allocate modal */}
+
       {manualAllocateOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-xl rounded-2xl bg-white shadow-xl">
             <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Manual allocate musician</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Manual allocate musician
+                </h3>
                 <p className="mt-1 text-sm text-gray-500">
                   Pick a musician below, or paste a 24-character musicianId.
                 </p>
               </div>
+
               <button
                 type="button"
                 onClick={() => setManualAllocateOpen(false)}
@@ -1198,7 +1330,9 @@ const handlePresentApplicant = useCallback(
                 {filteredManualAllocateCandidates.length ? (
                   <div className="divide-y divide-gray-100">
                     {filteredManualAllocateCandidates.map((m) => {
-                      const selected = String(manualAllocateSelectedId) === String(m.musicianId);
+                      const selected =
+                        String(manualAllocateSelectedId) === String(m.musicianId);
+
                       return (
                         <button
                           key={m.musicianId}
@@ -1218,6 +1352,7 @@ const handlePresentApplicant = useCallback(
                                 {m.email || m.phone || m.musicianId}
                               </p>
                             </div>
+
                             {selected ? (
                               <span className="rounded-full bg-black px-2.5 py-1 text-xs font-medium text-white">
                                 Selected
@@ -1234,15 +1369,20 @@ const handlePresentApplicant = useCallback(
               </div>
 
               <div className="mt-4">
-                <label className="mb-2 block text-xs font-medium text-gray-600">Or paste musicianId</label>
+                <label className="mb-2 block text-xs font-medium text-gray-600">
+                  Or paste musicianId
+                </label>
                 <input
                   value={manualAllocateSelectedId}
                   onChange={(e) => setManualAllocateSelectedId(e.target.value)}
                   placeholder="e.g. 507f191e810c19729de860ea"
                   className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition focus:border-black"
                 />
-                {manualAllocateSelectedId && !isValidObjectId(manualAllocateSelectedId) ? (
-                  <p className="mt-2 text-xs text-red-600">That doesn’t look like a valid 24-character Mongo ObjectId.</p>
+                {manualAllocateSelectedId &&
+                !isValidObjectId(manualAllocateSelectedId) ? (
+                  <p className="mt-2 text-xs text-red-600">
+                    That doesn’t look like a valid 24-character Mongo ObjectId.
+                  </p>
                 ) : null}
               </div>
             </div>
@@ -1255,6 +1395,7 @@ const handlePresentApplicant = useCallback(
               >
                 Cancel
               </button>
+
               <button
                 type="button"
                 onClick={submitManualAllocate}

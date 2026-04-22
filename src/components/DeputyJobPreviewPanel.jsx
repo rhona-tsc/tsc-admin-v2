@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import DeputyJobApplyButton from "./DeputyJobApplyButton";
-import DeputyJobApplicantsPanel from "./DeputyJobApplicantsPanel";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   Elements,
@@ -135,30 +134,6 @@ const normaliseArray = (value) => {
   return [];
 };
 
-const buildProfilePath = (applicant = {}) => {
-  const slug = String(applicant.musicianSlug || "").trim();
-  if (slug) return `/musician/${slug}`;
-
-  const id = String(applicant.musicianId || applicant._id || "").trim();
-  if (id) return `/musician/${id}`;
-
-  const direct = String(applicant.profileUrl || "").trim();
-  if (!direct) return "";
-
-  if (direct.startsWith("/musician/")) return direct;
-
-  try {
-    const parsed = new URL(direct, window.location.origin);
-    if (parsed.pathname.startsWith("/musician/")) {
-      return parsed.pathname;
-    }
-  } catch {
-    // ignore malformed URLs and fall through
-  }
-
-  return "";
-};
-
 const getPostedByLabel = (job) => {
   const createdByEmail = String(job?.createdByEmail || "")
     .trim()
@@ -264,26 +239,21 @@ const DeputyJobPreviewPanel = ({
   hoveredJob,
   currentUser,
   onApply,
-  onAssignApplicant,
   onCloseJob,
   onRefresh,
   loadingApply = false,
-  loadingAssign = false,
-  loadingPresent = false,
   loadingClose = false,
   authHeaders = {},
 }) => {
-  const [showApplicants, setShowApplicants] = useState(false);
+  const navigate = useNavigate();
   const [isPreparingPaymentSetup, setIsPreparingPaymentSetup] = useState(false);
   const [isChargingJob, setIsChargingJob] = useState(false);
   const [paymentSetupInfo, setPaymentSetupInfo] = useState(null);
   const [isManualAllocating, setIsManualAllocating] = useState(false);
-  const [presentingApplicantId, setPresentingApplicantId] = useState("");
   const [showManualAllocateModal, setShowManualAllocateModal] = useState(false);
   const [manualAllocateQuery, setManualAllocateQuery] = useState("");
   const [manualAllocateResults, setManualAllocateResults] = useState([]);
   const [isSearchingMusicians, setIsSearchingMusicians] = useState(false);
-  const [isPresentingApplicant, setIsPresentingApplicant] = useState(false);
 
   const job = hoveredJob?.job || hoveredJob || null;
 
@@ -325,7 +295,9 @@ const DeputyJobPreviewPanel = ({
   const requiredInstruments = normaliseArray(job?.requiredInstruments);
   const requiredSkills = normaliseArray(job?.requiredSkills);
   const tags = normaliseArray(job?.tags);
-  const applicants = Array.isArray(job?.applications) ? job.applications : [];
+  const applicantsCount = Array.isArray(job?.applications)
+    ? job.applications.length
+    : Number(job?.applicationsCount || 0);
   const postedByLabel = getPostedByLabel(job);
   const venueDisplay =
     job?.venue || job?.locationName || job?.location || "TBC";
@@ -577,53 +549,12 @@ const DeputyJobPreviewPanel = ({
     }
   };
 
-
-const handlePresentApplicantToClient = async (applicant) => {
-  const musicianId = String(
-    applicant?._id || applicant?.musicianId || applicant?.id || ""
-  ).trim();
-
-  if (!job?._id || !musicianId) {
-    toast.error("Missing musician ID.");
-    return;
-  }
-
-  try {
-    setIsPresentingApplicant(true);
-
-    const { data } = await axios.post(
-      `${BACKEND_BASE}/api/deputy-jobs/${job._id}/present-applicant`,
-      { musicianId },
-      {
-        headers: authHeaders,
-        withCredentials: true,
-      }
-    );
-
-    if (!data?.success) {
-      throw new Error(data?.message || "Failed to present applicant");
-    }
-
-    toast.success("Applicant presented to client");
-    onRefresh?.(job);
-  } catch (error) {
-    console.error("❌ Failed to present applicant:", error);
-    toast.error(
-      error?.response?.data?.message ||
-        error?.message ||
-        "Failed to present applicant"
-    );
-  } finally {
-    setIsPresentingApplicant(false);
-  }
-};
-
-
   const handleManualAllocate = async (selectedMusician) => {
-  
-    
     const selectedMusicianId = String(
-      selectedMusician?._id || selectedMusician?.musicianId || selectedMusician?.id || "",
+      selectedMusician?._id ||
+        selectedMusician?.musicianId ||
+        selectedMusician?.id ||
+        "",
     ).trim();
 
     if (!selectedMusicianId) {
@@ -666,7 +597,6 @@ const handlePresentApplicantToClient = async (applicant) => {
       setManualAllocateQuery("");
       setManualAllocateResults([]);
       onRefresh?.(job);
-      setShowApplicants(false);
     } catch (error) {
       console.error("❌ Failed to manually allocate deputy:", error);
       toast.error(
@@ -752,15 +682,19 @@ const handlePresentApplicantToClient = async (applicant) => {
           <div className="space-y-2 text-gray-600">
             <p>
               <span className="font-medium text-gray-900">Venue:</span>{" "}
-              {venueDisplay}{" "}
+              {venueDisplay}
             </p>
             <p>
               <span className="font-medium text-gray-900">Location:</span>{" "}
-              {locationDisplay}{" "}
+              {locationDisplay}
             </p>
             <p>
               <span className="font-medium text-gray-900">Posted by:</span>{" "}
               {postedByLabel}
+            </p>
+            <p>
+              <span className="font-medium text-gray-900">Applications:</span>{" "}
+              {applicantsCount}
             </p>
             {job.allocatedMusicianName || job.assignedMusicianName ? (
               <p>
@@ -966,6 +900,19 @@ const handlePresentApplicantToClient = async (applicant) => {
               ) : null}
 
               <div className="mt-5 flex flex-wrap gap-3">
+                {canPreparePaymentSetup ? (
+                  <button
+                    type="button"
+                    onClick={handlePreparePaymentSetup}
+                    disabled={isPreparingPaymentSetup}
+                    className="rounded border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-800 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isPreparingPaymentSetup
+                      ? "Preparing payment setup…"
+                      : "Prepare payment setup"}
+                  </button>
+                ) : null}
+
                 {canChargeNow ? (
                   <button
                     type="button"
@@ -992,12 +939,20 @@ const handlePresentApplicantToClient = async (applicant) => {
             {canManage ? (
               <button
                 type="button"
-                onClick={() => setShowApplicants((prev) => !prev)}
+                onClick={() => navigate(`/deputy-jobs/${job._id}/applications`)}
                 className="rounded bg-gray-100 px-5 py-3 text-sm font-medium text-gray-800 transition hover:bg-gray-200"
               >
-                {showApplicants
-                  ? "Hide applicants"
-                  : `View applicants (${applicants.length})`}
+                Manage applications ({applicantsCount})
+              </button>
+            ) : null}
+
+            {canManualAllocate ? (
+              <button
+                type="button"
+                onClick={handleOpenManualAllocateModal}
+                className="rounded border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-800 transition hover:bg-gray-100"
+              >
+                Manual allocate musician
               </button>
             ) : null}
 
@@ -1013,93 +968,8 @@ const handlePresentApplicantToClient = async (applicant) => {
             ) : null}
           </div>
         </section>
-
-        {canManage && showApplicants ? (
-          <section>
-            <div className="mb-3 flex items-center justify-between gap-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Applicants
-              </h3>
-
-              <div className="flex items-center gap-3">
-                {canManualAllocate ? (
-                  <button
-                    type="button"
-                    onClick={handleOpenManualAllocateModal}
-                    className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 hover:border-black hover:text-black"
-                  >
-                    Manual allocate musician
-                  </button>
-                ) : null}
-
-                {onRefresh ? (
-                  <button
-                    type="button"
-                    onClick={() => onRefresh?.(job)}
-                    className="text-sm font-medium text-gray-500 underline-offset-4 hover:text-black hover:underline"
-                  >
-                    Refresh
-                  </button>
-                ) : null}
-              </div>
-            </div>
-
-            <DeputyJobApplicantsPanel
-              applicants={applicants}
-              job={job}
-              onAssignApplicant={onAssignApplicant}
-  onPresentApplicant={isEnquiryJob ? handlePresentApplicantToClient : undefined}
-                isEnquiryJob={isEnquiryJob}
-              loadingAssign={loadingAssign || isManualAllocating}
-              loadingPresentApplicant={Boolean(presentingApplicantId) || loadingPresent}
-                loadingPresent={isPresentingApplicant}
-              onManualAllocate={canManualAllocate ? handleOpenManualAllocateModal : undefined}
-              renderApplicantActions={(applicant) => {
-                const profilePath = buildProfilePath(applicant);
-
-                return (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {profilePath ? (
-                      <Link
-                        to={profilePath}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="rounded bg-gray-100 px-3 py-2 text-sm font-medium text-gray-800 transition hover:bg-gray-200"
-                      >
-                        View profile
-                      </Link>
-                    ) : null}
-
-                    {job.status === "open" && !isEnquiryJob ? (
-                      <button
-                        type="button"
-                        onClick={() => onAssignApplicant?.(job, applicant)}
-                        disabled={loadingAssign}
-                        className="rounded bg-black px-3 py-2 text-sm font-medium text-white transition hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {loadingAssign ? "Allocating..." : "Allocate job"}
-                      </button>
-                    ) : null}
-
-                    {job.status === "open" && isEnquiryJob ? (
-                      <button
-                        type="button"
-                        onClick={() => handlePresentApplicantToClient(applicant)}
-                        disabled={Boolean(presentingApplicantId)}
-                        className="rounded bg-black px-3 py-2 text-sm font-medium text-white transition hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {presentingApplicantId === String(applicant?._id || applicant?.musicianId || applicant?.id || "")
-                          ? "Presenting..."
-                          : "Present to client"}
-                      </button>
-                    ) : null}
-                  </div>
-                );
-              }}
-            />
-          </section>
-        ) : null}
       </div>
+
       {showManualAllocateModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-xl">
@@ -1109,7 +979,8 @@ const handlePresentApplicantToClient = async (applicant) => {
                   Manual allocate musician
                 </h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  Search for a musician, then choose who should receive the allocation request for this job.
+                  Search for a musician, then choose who should receive the
+                  allocation request for this job.
                 </p>
               </div>
 
@@ -1122,7 +993,10 @@ const handlePresentApplicantToClient = async (applicant) => {
               </button>
             </div>
 
-            <form onSubmit={handleManualAllocateSearch} className="mt-5 flex gap-3">
+            <form
+              onSubmit={handleManualAllocateSearch}
+              className="mt-5 flex gap-3"
+            >
               <input
                 type="text"
                 value={manualAllocateQuery}
@@ -1142,10 +1016,17 @@ const handlePresentApplicantToClient = async (applicant) => {
             <div className="mt-5 max-h-96 overflow-y-auto rounded-2xl border border-gray-200">
               {manualAllocateResults.length ? (
                 manualAllocateResults.map((musician) => {
-                  const musicianId = String(musician?._id || musician?.id || musician?.musicianId || "").trim();
+                  const musicianId = String(
+                    musician?._id || musician?.id || musician?.musicianId || "",
+                  ).trim();
                   const name = getMusicianDisplayName(musician);
-                  const email = musician?.email || musician?.basicInfo?.email || "";
-                  const phone = musician?.phone || musician?.phoneNumber || musician?.basicInfo?.phone || "";
+                  const email =
+                    musician?.email || musician?.basicInfo?.email || "";
+                  const phone =
+                    musician?.phone ||
+                    musician?.phoneNumber ||
+                    musician?.basicInfo?.phone ||
+                    "";
                   const profileImage =
                     musician?.profilePhoto ||
                     musician?.profilePicture ||
@@ -1181,7 +1062,8 @@ const handlePresentApplicantToClient = async (applicant) => {
                             {name}
                           </p>
                           <p className="truncate text-xs text-gray-500">
-                            {[email, phone].filter(Boolean).join(" • ") || "No contact details shown"}
+                            {[email, phone].filter(Boolean).join(" • ") ||
+                              "No contact details shown"}
                           </p>
                           {instruments.length ? (
                             <p className="mt-1 truncate text-xs text-gray-400">
