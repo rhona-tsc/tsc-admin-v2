@@ -52,7 +52,7 @@ const Login = ({
 
     if (!payload.email || !payload.password) {
       toast(
-        <CustomToast type="error" message="Email and password are required." />
+        <CustomToast type="error" message="Email and password are required." />,
       );
       return;
     }
@@ -145,7 +145,7 @@ const Login = ({
         <CustomToast
           type="info"
           message="Enter your email above, then click ‘Forgot your password?’"
-        />
+        />,
       );
       return;
     }
@@ -154,14 +154,14 @@ const Login = ({
       await axios.post(
         `${backendUrl}/api/musician-login/forgot-password`,
         { email: normEmail },
-        { headers: { "Content-Type": "application/json" }, timeout: 15000 }
+        { headers: { "Content-Type": "application/json" }, timeout: 15000 },
       );
 
       toast(
         <CustomToast
           type="success"
           message="If that email exists, we’ve sent a reset link."
-        />
+        />,
       );
     } catch (err) {
       console.error("Forgot password error:", err?.response?.data || err);
@@ -169,7 +169,7 @@ const Login = ({
         <CustomToast
           type="error"
           message="Couldn’t start password reset. Please try again."
-        />
+        />,
       );
     }
   };
@@ -184,11 +184,10 @@ const Login = ({
         />
       </div>
 
-    <form
-
-  onSubmit={onSubmitHandler}
-  className="flex flex-col items-center w-full px-4 sm:max-w-96 sm:px-0 m-auto gap-3 text-gray-800"
->
+      <form
+        onSubmit={onSubmitHandler}
+        className="flex flex-col items-center w-full px-4 sm:max-w-96 sm:px-0 m-auto gap-3 text-gray-800"
+      >
         <div className="inline-flex items-center gap-2 mb-2 mt-10">
           <p className="prata-regular text-3xl">{currentState}</p>
           <hr className="border-none h-[1.5px] w-8 bg-gray-800" />
@@ -239,7 +238,10 @@ const Login = ({
         />
 
         <div className="w-full flex justify-between text-sm mt-[-8px]">
-          <p className="cursor-pointer underline" onClick={handleForgotPassword}>
+          <p
+            className="cursor-pointer underline"
+            onClick={handleForgotPassword}
+          >
             Forgot your password?
           </p>
 
