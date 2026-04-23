@@ -176,13 +176,13 @@ const Login = ({
 
   return (
     <>
-      <div className="flex flex-col items-center mb-4">
-        <img
-          className="w-full"
-          src={assets.hero_w_TSC_logo}
-          alt="The Supreme Collective Logo"
-        />
-      </div>
+  <div className="w-full overflow-hidden">
+  <img
+    src={assets.hero_w_TSC_logo}
+    alt="The Supreme Collective Logo"
+    className="w-full h-28 sm:h-auto object-cover object-center"
+  />
+</div>
 
       <form
         onSubmit={onSubmitHandler}
