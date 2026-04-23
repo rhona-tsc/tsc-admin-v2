@@ -107,7 +107,7 @@ const timeText = formatTimeRange(
 
 const statusText =
   status === "allocated"
-    ? "Allocation Requested"
+    ? "Allocated"
     : status === "filled"
     ? "Filled"
     : status === "closed"
