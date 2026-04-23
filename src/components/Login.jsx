@@ -176,19 +176,26 @@ const Login = ({
 
   return (
     <>
-  <div className="w-full overflow-hidden">
-  <img
-    src={assets.hero_w_TSC_logo}
-    alt="The Supreme Collective Logo"
-    className="w-full h-28 sm:h-auto object-cover object-center"
-  />
-</div>
+      <div className="w-full overflow-hidden">
 
-      <form
+        <img
+
+          src={assets.hero_w_TSC_logo}
+
+          alt="The Supreme Collective Logo"
+
+          className="w-full h-32 md:h-auto object-cover object-center"
+
+        />
+
+      </div>
+
+           <form
         onSubmit={onSubmitHandler}
-className="flex flex-col items-center w-full max-w-[420px] px-4 mx-auto gap-3 text-gray-800"      >
-        <div className="inline-flex items-center gap-2 mb-2 mt-10">
-          <p className="prata-regular text-3xl">{currentState}</p>
+        className="flex flex-col items-center w-full max-w-[560px] px-5 mx-auto gap-3 text-gray-800"
+      >
+        <div className="inline-flex items-center gap-2 mb-2 mt-8 md:mt-10">
+                    <p className="prata-regular text-3xl">{currentState}</p>
           <hr className="border-none h-[1.5px] w-8 bg-gray-800" />
         </div>
 
@@ -199,21 +206,21 @@ className="flex flex-col items-center w-full max-w-[420px] px-4 mx-auto gap-3 te
               onChange={(e) => setFirstName(e.target.value)}
               placeholder="First name"
               required
-              className="w-full px-3 py-2 border border-gray-800"
+              className="w-full px-4 py-3 border border-gray-800 bg-white"
             />
             <input
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               placeholder="Last Name"
               required
-              className="w-full px-3 py-2 border border-gray-800"
+             className="w-full px-4 py-3 border border-gray-800 bg-white"
             />
             <input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="Phone number"
               required
-              className="w-full px-3 py-2 border border-gray-800"
+            className="w-full px-4 py-3 border border-gray-800 bg-white"
             />
           </>
         )}
@@ -236,8 +243,8 @@ className="flex flex-col items-center w-full max-w-[420px] px-4 mx-auto gap-3 te
           className="w-full px-3 py-2 border border-gray-800"
         />
 
-<div className="w-full flex justify-between gap-3 text-[12px] sm:text-sm mt-[-8px]">          <p
-            className="cursor-pointer underline"
+        <div className="w-full flex justify-between gap-3 text-[12px] md:text-sm mt-[-6px]">
+          <p            className="cursor-pointer underline"
             onClick={handleForgotPassword}
           >
             Forgot your password?
@@ -260,8 +267,8 @@ className="flex flex-col items-center w-full max-w-[420px] px-4 mx-auto gap-3 te
           )}
         </div>
 
-<button className="bg-black text-white font-light px-8 py-2 mt-4 min-w-[140px]">          {currentState === "Login" ? "Sign In" : "Sign Up"}
-        </button>
+        <button className="bg-black text-white font-light px-8 py-3 mt-4 min-w-[160px]">
+          {currentState === "Login" ? "Sign In" : "Sign Up"}        </button>
       </form>
     </>
   );
