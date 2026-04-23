@@ -133,7 +133,7 @@ const App = () => {
   }, [token]);
 
   return (
-    <div className="bg-gray-50 min-h-screen">
+    <div className="w-full min-h-screen overflow-x-hidden bg-gray-50">
       <ToastContainer
         position="bottom-right"
         autoClose={3000}
@@ -145,29 +145,31 @@ const App = () => {
       />
 
       {token === "" ? (
-        <Routes>
-          <Route
-            path="/login"
-            element={
-              <Login
-                setToken={setToken}
-                setUserEmail={setEmail}
-                setUserRole={setUserRole}
-                setUserFirstName={setFirstName}
-                setUserLastName={setLastName}
-                setUserPhone={setPhone}
-                setUserPassword={setPassword}
-              />
-            }
-          />
+        <div className="w-full min-h-screen">
+          <Routes>
+            <Route
+              path="/login"
+              element={
+                <Login
+                  setToken={setToken}
+                  setUserEmail={setEmail}
+                  setUserRole={setUserRole}
+                  setUserFirstName={setFirstName}
+                  setUserLastName={setLastName}
+                  setUserPhone={setPhone}
+                  setUserPassword={setPassword}
+                />
+              }
+            />
 
-          {/* ✅ Public password setup/reset pages */}
-          <Route path="/set-password" element={<SetPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
+            {/* ✅ Public password setup/reset pages */}
+            <Route path="/set-password" element={<SetPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
 
-          {/* Default when logged out */}
-          <Route path="*" element={<RequireLoginRedirect />} />
-        </Routes>
+            {/* Default when logged out */}
+            <Route path="*" element={<RequireLoginRedirect />} />
+          </Routes>
+        </div>
       ) : (
         // 👇 optional: gate UI until hydrated to prevent flicker
         hydrated && (
