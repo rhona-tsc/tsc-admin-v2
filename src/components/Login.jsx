@@ -186,8 +186,7 @@ const Login = ({
 
       <form
         onSubmit={onSubmitHandler}
-        className="flex flex-col items-center w-full px-4 sm:max-w-96 sm:px-0 m-auto gap-3 text-gray-800"
-      >
+className="flex flex-col items-center w-full max-w-[420px] px-4 mx-auto gap-3 text-gray-800"      >
         <div className="inline-flex items-center gap-2 mb-2 mt-10">
           <p className="prata-regular text-3xl">{currentState}</p>
           <hr className="border-none h-[1.5px] w-8 bg-gray-800" />
@@ -237,8 +236,7 @@ const Login = ({
           className="w-full px-3 py-2 border border-gray-800"
         />
 
-        <div className="w-full flex justify-between text-sm mt-[-8px]">
-          <p
+<div className="w-full flex justify-between gap-3 text-[12px] sm:text-sm mt-[-8px]">          <p
             className="cursor-pointer underline"
             onClick={handleForgotPassword}
           >
@@ -262,8 +260,7 @@ const Login = ({
           )}
         </div>
 
-        <button className="bg-black text-white font-light px-8 py-2 mt-4">
-          {currentState === "Login" ? "Sign In" : "Sign Up"}
+<button className="bg-black text-white font-light px-8 py-2 mt-4 min-w-[140px]">          {currentState === "Login" ? "Sign In" : "Sign Up"}
         </button>
       </form>
     </>
