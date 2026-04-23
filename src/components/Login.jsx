@@ -184,10 +184,11 @@ const Login = ({
         />
       </div>
 
-      <form
-        onSubmit={onSubmitHandler}
-        className="flex flex-col items-center w-[90%] sm:max-w-96 m-auto gap-3 text-gray-800"
-      >
+    <form
+
+  onSubmit={onSubmitHandler}
+  className="flex flex-col items-center w-full px-4 sm:max-w-96 sm:px-0 m-auto gap-3 text-gray-800"
+>
         <div className="inline-flex items-center gap-2 mb-2 mt-10">
           <p className="prata-regular text-3xl">{currentState}</p>
           <hr className="border-none h-[1.5px] w-8 bg-gray-800" />
