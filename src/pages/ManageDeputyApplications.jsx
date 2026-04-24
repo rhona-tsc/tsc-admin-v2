@@ -64,6 +64,36 @@ const parseJwtPayload = (token = "") => {
   }
 };
 
+const getApplicantShortDisplayName = (application = {}) => {
+  const firstName = normaliseString(application?.firstName || "");
+  const lastName = normaliseString(application?.lastName || "");
+  const fallbackFullName = normaliseString(application?.fullName || "");
+
+  if (firstName) {
+    return `${firstName}${lastName ? ` ${lastName.charAt(0).toUpperCase()}.` : ""}`;
+  }
+
+  if (fallbackFullName) {
+    const parts = fallbackFullName.split(/\s+/).filter(Boolean);
+    if (!parts.length) return "Unnamed applicant";
+    const fallbackFirstName = parts[0];
+    const fallbackLastName = parts.length > 1 ? parts[parts.length - 1] : "";
+    return `${fallbackFirstName}${fallbackLastName ? ` ${fallbackLastName.charAt(0).toUpperCase()}.` : ""}`;
+  }
+
+  return "Unnamed applicant";
+};
+
+const getApplicantProfileLink = (application = {}) => {
+  const slug = normaliseString(application?.musicianSlug || "");
+  if (slug) return `https://thesupremecollective.co.uk/musician/${slug}`;
+
+  const musicianId = normaliseString(application?.musicianId || application?._id || "");
+  if (musicianId) return `https://thesupremecollective.co.uk/musician/${musicianId}`;
+
+  return "";
+};
+
 const Badge = ({ children, tone = "default" }) => {
   const toneClass =
     tone === "green"
@@ -92,6 +122,7 @@ const ManageDeputyApplications = () => {
   const [assigningId, setAssigningId] = useState("");
   const [presentingId, setPresentingId] = useState("");
   const [query, setQuery] = useState("");
+  const [copyingPresented, setCopyingPresented] = useState(false);
 
   const adminToken = localStorage.getItem("adminToken") || "";
   const musicianToken = localStorage.getItem("musicianToken") || "";
@@ -152,6 +183,12 @@ const ManageDeputyApplications = () => {
 
   const isEnquiryJob = String(job?.jobType || "").trim().toLowerCase() === "enquiry";
 
+  const presentedApplications = useMemo(() => {
+    return applications.filter(
+      (application) => String(application?.status || "").trim().toLowerCase() === "presented"
+    );
+  }, [applications]);
+
   const filteredApplications = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return applications;
@@ -169,6 +206,32 @@ const ManageDeputyApplications = () => {
       return haystack.includes(q);
     });
   }, [applications, query]);
+
+  const handleCopyPresentedApplicants = useCallback(async () => {
+    if (!presentedApplications.length) {
+      toast.info("There are no presented applicants to copy.");
+      return;
+    }
+
+    const lines = presentedApplications.map((application) => {
+      const shortName = getApplicantShortDisplayName(application);
+      const profileLink = getApplicantProfileLink(application);
+      return profileLink ? `${shortName} – ${profileLink}` : shortName;
+    });
+
+    const text = lines.join("\n");
+
+    try {
+      setCopyingPresented(true);
+      await navigator.clipboard.writeText(text);
+      toast.success("Presented applicants copied to clipboard.");
+    } catch (err) {
+      console.error("❌ Failed to copy presented applicants:", err);
+      toast.error("Could not copy presented applicants.");
+    } finally {
+      setCopyingPresented(false);
+    }
+  }, [presentedApplications]);
 
   const handleAllocateApplicant = useCallback(
     async (application) => {
@@ -299,6 +362,17 @@ const ManageDeputyApplications = () => {
 
             <button
               type="button"
+              onClick={handleCopyPresentedApplicants}
+              disabled={!presentedApplications.length || copyingPresented}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {copyingPresented
+                ? "Copying…"
+                : `Copy presented list${presentedApplications.length ? ` (${presentedApplications.length})` : ""}`}
+            </button>
+
+            <button
+              type="button"
               onClick={loadApplications}
               className="rounded-lg bg-black px-4 py-2 text-sm text-white hover:bg-[#ff6667]"
             >
@@ -326,6 +400,7 @@ const ManageDeputyApplications = () => {
               const musicianId = String(application?.musicianId || "");
               const status = String(application?.status || "applied").toLowerCase();
               const isAssigned = ["allocated", "booked", "assigned"].includes(status);
+              const profileLink = getApplicantProfileLink(application);
 
               return (
                 <div
@@ -337,6 +412,17 @@ const ManageDeputyApplications = () => {
                       <p className="font-medium text-gray-900">
                         {application.fullName || "Unnamed applicant"}
                       </p>
+
+                      {profileLink ? (
+                        <a
+                          href={profileLink}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-1 inline-block text-sm text-[#ff6667] hover:underline"
+                        >
+                          View profile
+                        </a>
+                      ) : null}
 
                       {application.email ? (
                         <p className="text-sm text-gray-500">{application.email}</p>
@@ -391,6 +477,17 @@ const ManageDeputyApplications = () => {
                           className="rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-60"
                         >
                           {presentingId === musicianId ? "Sending…" : "Present applicant"}
+                        </button>
+                      ) : null}
+
+                      {status === "presented" ? (
+                        <button
+                          type="button"
+                          onClick={handleCopyPresentedApplicants}
+                          disabled={copyingPresented}
+                          className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                        >
+                          {copyingPresented ? "Copying…" : "Copy presented list"}
                         </button>
                       ) : null}
                     </div>
