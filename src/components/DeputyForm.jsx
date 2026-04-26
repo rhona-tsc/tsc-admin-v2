@@ -70,14 +70,14 @@ const DeputyForm = ({
     localStorage.getItem("musicianToken") ||
     "";
 
-const authHeaders = useMemo(() => {
-  return authToken
-    ? {
-        Authorization: `Bearer ${authToken}`,
-        token: authToken, // ✅ covers backends that expect req.headers.token
-      }
-    : {};
-}, [authToken]);
+  const authHeaders = useMemo(() => {
+    return authToken
+      ? {
+          Authorization: `Bearer ${authToken}`,
+          token: authToken, // ✅ covers backends that expect req.headers.token
+        }
+      : {};
+  }, [authToken]);
 
   const isModerationMode =
     location.pathname.includes("moderate-deputy") ||
@@ -246,19 +246,26 @@ const authHeaders = useMemo(() => {
 
       // image URL strings (when you already uploaded to Cloudinary client-side)
       const profileUrl =
-        (typeof formData.profilePhoto === "string" && formData.profilePhoto) ||
+        (typeof formData.profilePhoto === "string" &&
+          formData.profilePhoto.trim()) ||
         (typeof formData.profilePicture === "string" &&
-          formData.profilePicture) ||
+          formData.profilePicture.trim()) ||
         "";
 
       const coverUrl =
         (typeof formData.coverHeroImage === "string" &&
-          formData.coverHeroImage) ||
+          formData.coverHeroImage.trim()) ||
         "";
 
-      if (profileUrl) fd.append("profilePhoto", profileUrl); // matches mongoose schema
-      if (coverUrl) fd.append("coverHeroImage", coverUrl); // matches mongoose schema
+      // send both profile keys so backend can accept either
+      if (profileUrl) {
+        fd.append("profilePhoto", profileUrl);
+        fd.append("profilePicture", profileUrl);
+      }
 
+      if (coverUrl) {
+        fd.append("coverHeroImage", coverUrl);
+      }
       const res = await axios.post(
         `${backendUrl}/api/musician/moderation/register-deputy`,
         fd,
@@ -348,12 +355,12 @@ const authHeaders = useMemo(() => {
   // Track if autosave was restored to prevent overwrites
   const [hasRestoredAutosave, setHasRestoredAutosave] = useState(false);
   const [hasHydratedFromBackend, setHasHydratedFromBackend] = useState(false);
-// Prevent repeated backend hydration overwriting user typing
-const hasHydratedRef = useRef(false);
-const hydratedIdRef = useRef(null);
+  // Prevent repeated backend hydration overwriting user typing
+  const hasHydratedRef = useRef(false);
+  const hydratedIdRef = useRef(null);
 
-// Prevent backend autosave spamming the server with identical payloads
-const lastAutosaveHashRef = useRef(null);
+  // Prevent backend autosave spamming the server with identical payloads
+  const lastAutosaveHashRef = useRef(null);
 
   /* ------------------------------ formData state ----------------------------- */
   const [formData, setFormData] = useState({
@@ -624,24 +631,24 @@ const lastAutosaveHashRef = useRef(null);
   }, [authToken]);
 
   // Backend hydration
-useEffect(() => {
-  if (!deputyId) {
-    console.warn("⚠️ No valid deputyId; skipping hydration");
-    return;
-  }
+  useEffect(() => {
+    if (!deputyId) {
+      console.warn("⚠️ No valid deputyId; skipping hydration");
+      return;
+    }
 
-  // If we've already hydrated this deputyId, don't hydrate again
-  if (hasHydratedRef.current && hydratedIdRef.current === deputyId) {
-    return;
-  }
+    // If we've already hydrated this deputyId, don't hydrate again
+    if (hasHydratedRef.current && hydratedIdRef.current === deputyId) {
+      return;
+    }
 
-  (async () => {
-    try {
-      const url = `${backendUrl}/api/musician/moderation/deputy/${deputyId}`;
-      const res = await axios.get(url, {
-        headers: authHeaders,
-        withCredentials: true,
-      });
+    (async () => {
+      try {
+        const url = `${backendUrl}/api/musician/moderation/deputy/${deputyId}`;
+        const res = await axios.get(url, {
+          headers: authHeaders,
+          withCredentials: true,
+        });
 
         const deputy = res.data?.deputy || res.data?.musician || null;
 
@@ -736,25 +743,25 @@ useEffect(() => {
         if (deputy.deputy_contract_signed) setHasDrawnSignature(true);
         if (deputy._id) localStorage.setItem("musicianId", deputy._id);
 
-// mark hydration complete so we don't overwrite local edits
-hydratedIdRef.current = deputyId;
-hasHydratedRef.current = true;
+        // mark hydration complete so we don't overwrite local edits
+        hydratedIdRef.current = deputyId;
+        hasHydratedRef.current = true;
 
-setHasHydratedFromBackend(true);
+        setHasHydratedFromBackend(true);
       } catch (err) {
         console.error("❌ Failed to fetch deputy:", err);
       }
     })();
-}, [deputyId, authHeaders]);
+  }, [deputyId, authHeaders]);
 
-// Autosave hydration
-useEffect(() => {
-  if (isEdit) {
-    console.warn("⏸️ Edit mode: skipping local autosave restore");
-    return;
-  }
+  // Autosave hydration
+  useEffect(() => {
+    if (isEdit) {
+      console.warn("⏸️ Edit mode: skipping local autosave restore");
+      return;
+    }
 
-  if (hasHydratedFromBackend) return;
+    if (hasHydratedFromBackend) return;
     try {
       const saved = localStorage.getItem("deputyAutosave");
       if (saved) {
@@ -993,22 +1000,27 @@ useEffect(() => {
     });
 
     setCanSubmit(canSubmitNow);
-}, [step, formData.signature, formData.agreementCheckboxes, isModerationMode]);
+  }, [
+    step,
+    formData.signature,
+    formData.agreementCheckboxes,
+    isModerationMode,
+  ]);
 
   console.log("🎼 SUBMITTING MP3S:");
   console.log("🎧 coverMp3s:", formData.coverMp3s);
   console.log("🎧 originalMp3s:", formData.originalMp3s);
 
-/* ----------------------- AUTOSAVE to localStorage (debounced) -------------- */
-useEffect(() => {
-  if (isEdit && !hasHydratedFromBackend) {
-    console.warn("⏸️ Skipping autosave until backend profile has hydrated");
-    return;
-  }
+  /* ----------------------- AUTOSAVE to localStorage (debounced) -------------- */
+  useEffect(() => {
+    if (isEdit && !hasHydratedFromBackend) {
+      console.warn("⏸️ Skipping autosave until backend profile has hydrated");
+      return;
+    }
 
-  const handler = setTimeout(() => {
-    try {
-      // keep all your existing autosave code here
+    const handler = setTimeout(() => {
+      try {
+        // keep all your existing autosave code here
         const safe = JSON.parse(
           JSON.stringify(formData, (key, value) => {
             if (value instanceof File) return undefined;
@@ -1053,27 +1065,27 @@ useEffect(() => {
               hash = (hash * 31 + snapshotStr.charCodeAt(i)) | 0;
             }
 
-          const nextHash = String(hash);
+            const nextHash = String(hash);
 
-// Skip if nothing changed since last successful autosave
-if (lastAutosaveHashRef.current === nextHash) return;
+            // Skip if nothing changed since last successful autosave
+            if (lastAutosaveHashRef.current === nextHash) return;
 
-await axios.post(
-  `${backendUrl}/api/musician/autosave`,
-  {
-    musicianId: deputyId,
-    formKey: "deputy",
-    snapshot: safe,
-    snapshotHash: nextHash,
-    updatedAtIso: new Date().toISOString(),
-  },
-  {
-    headers: authHeaders,
-    withCredentials: true,
-  },
-);
+            await axios.post(
+              `${backendUrl}/api/musician/autosave`,
+              {
+                musicianId: deputyId,
+                formKey: "deputy",
+                snapshot: safe,
+                snapshotHash: nextHash,
+                updatedAtIso: new Date().toISOString(),
+              },
+              {
+                headers: authHeaders,
+                withCredentials: true,
+              },
+            );
 
-lastAutosaveHashRef.current = nextHash;
+            lastAutosaveHashRef.current = nextHash;
           } catch (e) {
             console.warn(
               "⚠️ Backend autosave failed (non-blocking):",
@@ -1091,15 +1103,15 @@ lastAutosaveHashRef.current = nextHash;
     }, 800);
 
     return () => clearTimeout(handler);
-}, [
-  formData,
-  tscApprovedBio,
-  deputyId,
-  backendUrl,
-  isEdit,
-  hasHydratedFromBackend,
-  authHeaders,
-]);
+  }, [
+    formData,
+    tscApprovedBio,
+    deputyId,
+    backendUrl,
+    isEdit,
+    hasHydratedFromBackend,
+    authHeaders,
+  ]);
 
   /* ---------------------------- DEBUG: track changes -------------------------- */
   useEffect(() => {

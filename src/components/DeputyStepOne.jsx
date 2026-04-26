@@ -36,38 +36,40 @@ const DeputyStepOne = ({
   const [coverMp3s, setCoverMp3s] = useState([]);
 
   const asArray = (v) => {
-  if (Array.isArray(v)) return v;
-  if (!v) return [];
-  // allow single string url / single object to still show
-  return [v];
-};
+    if (Array.isArray(v)) return v;
+    if (!v) return [];
+    // allow single string url / single object to still show
+    return [v];
+  };
 
-const asUrlArray = (v) => {
-  const arr = asArray(v);
-  // keep only strings (image urls)
-  return arr.filter((x) => typeof x === "string" && x.trim());
-};
+  const asUrlArray = (v) => {
+    const arr = asArray(v);
+    // keep only strings (image urls)
+    return arr.filter((x) => typeof x === "string" && x.trim());
+  };
 
-const asVideoLinksArray = (v) => {
-  const arr = asArray(v);
-  return arr.map((x) => {
-    if (typeof x === "string") return { title: "", url: x };
-    return {
-      title: typeof x?.title === "string" ? x.title : "",
-      url: typeof x?.url === "string" ? x.url : "",
-    };
-  });
-};
+  const asVideoLinksArray = (v) => {
+    const arr = asArray(v);
+    return arr.map((x) => {
+      if (typeof x === "string") return { title: "", url: x };
+      return {
+        title: typeof x?.title === "string" ? x.title : "",
+        url: typeof x?.url === "string" ? x.url : "",
+      };
+    });
+  };
 
-const asMp3Array = (v) => {
-  const arr = asArray(v);
-  // normalize to [{title,url}]
-  return arr
-    .map((x) =>
-      typeof x === "string" ? { title: "", url: x } : { title: x?.title || "", url: x?.url || "" }
-    )
-    .filter((x) => x.url);
-};
+  const asMp3Array = (v) => {
+    const arr = asArray(v);
+    // normalize to [{title,url}]
+    return arr
+      .map((x) =>
+        typeof x === "string"
+          ? { title: "", url: x }
+          : { title: x?.title || "", url: x?.url || "" },
+      )
+      .filter((x) => x.url);
+  };
 
   // -------------------------------------
   // PREFILL MP3s WHEN EDITING
@@ -78,8 +80,8 @@ const asMp3Array = (v) => {
       cover: formData.coverMp3s,
     });
 
-setOriginalMp3s(asMp3Array(formData.originalMp3s));
-setCoverMp3s(asMp3Array(formData.coverMp3s));
+    setOriginalMp3s(asMp3Array(formData.originalMp3s));
+    setCoverMp3s(asMp3Array(formData.coverMp3s));
   }, [formData.originalMp3s, formData.coverMp3s]);
 
   // -------------------------------------
@@ -95,12 +97,11 @@ setCoverMp3s(asMp3Array(formData.coverMp3s));
     }));
   };
 
-
   const blobToFile = (blob, filename) => {
-  if (!blob) return null;
-  if (blob instanceof File) return blob;
-  return new File([blob], filename, { type: blob.type || "image/jpeg" });
-};
+    if (!blob) return null;
+    if (blob instanceof File) return blob;
+    return new File([blob], filename, { type: blob.type || "image/jpeg" });
+  };
 
   // -------------------------------------
   // PROFILE IMAGE
@@ -118,49 +119,49 @@ setCoverMp3s(asMp3Array(formData.coverMp3s));
     reader.readAsDataURL(file);
   };
 
- const handleSaveCroppedImage = async (blob) => {
-  setIsUploadingImages(true);
-  try {
-    const file = blobToFile(blob, `profile-${Date.now()}.jpg`);
-    const [url] = await renameAndCompressImage({
-      images: [file],
-      address: formData.address || {},
-    });
+  const handleSaveCroppedImage = async (blob) => {
+    setIsUploadingImages(true);
+    try {
+      const file = blobToFile(blob, `profile-${Date.now()}.jpg`);
+      const [url] = await renameAndCompressImage({
+        images: [file],
+        address: formData.address || {},
+      });
 
-    setFormData((prev) => {
-      const updated = {
-        ...prev,
-        profilePicture: url, // ✅ for your current UI
-        profilePhoto: url,   // ✅ matches musicianModel.js
-      };
+      setFormData((prev) => {
+        const updated = {
+          ...prev,
+          profilePicture: url, // ✅ for your current UI
+          profilePhoto: url, // ✅ matches musicianModel.js
+        };
 
-      try {
-        const safe = JSON.parse(
-          JSON.stringify(updated, (key, value) => {
-            if (value instanceof File) return undefined;
-            if (value instanceof Blob) return undefined;
-            if (typeof value === "function") return undefined;
-            if (value === window) return undefined;
-            return value;
-          })
-        );
-        localStorage.setItem("deputyAutosave", JSON.stringify(safe));
-      } catch (e) {
-        console.error("❌ Autosave failed after crop:", e);
-      }
+        try {
+          const safe = JSON.parse(
+            JSON.stringify(updated, (key, value) => {
+              if (value instanceof File) return undefined;
+              if (value instanceof Blob) return undefined;
+              if (typeof value === "function") return undefined;
+              if (value === window) return undefined;
+              return value;
+            }),
+          );
+          localStorage.setItem("deputyAutosave", JSON.stringify(safe));
+        } catch (e) {
+          console.error("❌ Autosave failed after crop:", e);
+        }
 
-      return updated;
-    });
+        return updated;
+      });
 
-    setPreviewUrl(url);
-    setModalOpen(false);
-  } catch (err) {
-    console.error("Failed to upload cropped profile picture", err);
-    alert("Failed to upload cropped profile picture. Please try again.");
-  } finally {
-    setIsUploadingImages(false);
-  }
-};
+      setPreviewUrl(url);
+      setModalOpen(false);
+    } catch (err) {
+      console.error("Failed to upload cropped profile picture", err);
+      alert("Failed to upload cropped profile picture. Please try again.");
+    } finally {
+      setIsUploadingImages(false);
+    }
+  };
 
   // -------------------------------------
   // COVER HERO IMAGE
@@ -178,45 +179,45 @@ setCoverMp3s(asMp3Array(formData.coverMp3s));
     reader.readAsDataURL(file);
   };
 
-const handleSaveCoverCroppedImage = async (blob) => {
-  setIsUploadingImages(true);
-  try {
-    const file = blobToFile(blob, `cover-hero-${Date.now()}.jpg`);
-    const [url] = await renameAndCompressImage({
-      images: [file],
-      address: formData.address || {},
-    });
+  const handleSaveCoverCroppedImage = async (blob) => {
+    setIsUploadingImages(true);
+    try {
+      const file = blobToFile(blob, `cover-hero-${Date.now()}.jpg`);
+      const [url] = await renameAndCompressImage({
+        images: [file],
+        address: formData.address || {},
+      });
 
-    setFormData((prev) => {
-      const updated = { ...prev, coverHeroImage: url };
+      setFormData((prev) => {
+        const updated = { ...prev, coverHeroImage: url };
 
-      try {
-        const safe = JSON.parse(
-          JSON.stringify(updated, (key, value) => {
-            if (value instanceof File) return undefined;
-            if (value instanceof Blob) return undefined;
-            if (typeof value === "function") return undefined;
-            if (value === window) return undefined;
-            return value;
-          })
-        );
-        localStorage.setItem("deputyAutosave", JSON.stringify(safe));
-      } catch (e) {
-        console.error("❌ Autosave failed after crop:", e);
-      }
+        try {
+          const safe = JSON.parse(
+            JSON.stringify(updated, (key, value) => {
+              if (value instanceof File) return undefined;
+              if (value instanceof Blob) return undefined;
+              if (typeof value === "function") return undefined;
+              if (value === window) return undefined;
+              return value;
+            }),
+          );
+          localStorage.setItem("deputyAutosave", JSON.stringify(safe));
+        } catch (e) {
+          console.error("❌ Autosave failed after crop:", e);
+        }
 
-      return updated;
-    });
+        return updated;
+      });
 
-    setCoverHeroPreviewUrl(url);
-    setCoverModalOpen(false);
-  } catch (err) {
-    console.error("Failed to upload cropped cover hero image", err);
-    alert("Failed to upload cropped cover hero image. Please try again.");
-  } finally {
-    setIsUploadingImages(false);
-  }
-};
+      setCoverHeroPreviewUrl(url);
+      setCoverModalOpen(false);
+    } catch (err) {
+      console.error("Failed to upload cropped cover hero image", err);
+      alert("Failed to upload cropped cover hero image. Please try again.");
+    } finally {
+      setIsUploadingImages(false);
+    }
+  };
 
   // Helper for wardrobe/additional images
   const handleWardrobeImageUpload = async (updated, wardrobeKey) => {
@@ -225,11 +226,16 @@ const handleSaveCoverCroppedImage = async (blob) => {
     const uploaded = await Promise.all(
       (updated || []).map(async (img) => {
         if (typeof img === "string") return img;
-        const [url] = await renameAndCompressImage({ images: [img], address: formData.address });
+        const [url] = await renameAndCompressImage({
+          images: [img],
+          address: formData.address,
+        });
         return url;
-      })
+      }),
     );
-    const deleted = previous.filter((f) => !uploaded.includes(f) && typeof f === "string");
+    const deleted = previous.filter(
+      (f) => !uploaded.includes(f) && typeof f === "string",
+    );
     setFormData((prev) => ({
       ...prev,
       [wardrobeKey]: uploaded,
@@ -304,18 +310,17 @@ const handleSaveCoverCroppedImage = async (blob) => {
       coverMp3s: updated,
     }));
   };
-  
+
   const profileSrc =
-  previewUrl ||
-  (typeof formData.profilePicture === "string" && formData.profilePicture) ||
-  (typeof formData.profilePhoto === "string" && formData.profilePhoto) ||
-  "";
+    previewUrl ||
+    (typeof formData.profilePicture === "string" && formData.profilePicture) ||
+    (typeof formData.profilePhoto === "string" && formData.profilePhoto) ||
+    "";
 
   const coverHeroSrc =
-  coverHeroPreviewUrl ||
-  (typeof formData.coverHeroImage === "string" && formData.coverHeroImage) ||
-  "";
-  
+    coverHeroPreviewUrl ||
+    (typeof formData.coverHeroImage === "string" && formData.coverHeroImage) ||
+    "";
 
   // ===================================================================
   // UI
@@ -324,7 +329,10 @@ const handleSaveCoverCroppedImage = async (blob) => {
     <div className="flex flex-col gap-4">
       <h2 className="font-semibold text-xl">Welcome {userFirstName}!</h2>
 
-      <p>Let's gather all the information needed to get you matched with the best gigs!</p>
+      <p>
+        Let's gather all the information needed to get you matched with the best
+        gigs!
+      </p>
 
       <div className="mt-4 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-5">
         {/* -------------------------------------------------------
@@ -337,7 +345,7 @@ const handleSaveCoverCroppedImage = async (blob) => {
             htmlFor="profilePictureUpload"
             className="bg-black text-white px-3 py-2 rounded cursor-pointer w-full text-center hover:bg-[#ff6667]"
           >
-            {(formData.profilePicture || formData.profilePhoto)
+            {formData.profilePicture || formData.profilePhoto
               ? "Change Profile Picture"
               : "Choose Profile Picture"}
           </label>
@@ -474,7 +482,9 @@ const handleSaveCoverCroppedImage = async (blob) => {
               <option value="Benin">Benin</option>
               <option value="Bhutan">Bhutan</option>
               <option value="Bolivia">Bolivia</option>
-              <option value="Bosnia and Herzegovina">Bosnia and Herzegovina</option>
+              <option value="Bosnia and Herzegovina">
+                Bosnia and Herzegovina
+              </option>
               <option value="Botswana">Botswana</option>
               <option value="Brazil">Brazil</option>
               <option value="Brunei">Brunei</option>
@@ -485,7 +495,9 @@ const handleSaveCoverCroppedImage = async (blob) => {
               <option value="Cameroon">Cameroon</option>
               <option value="Canada">Canada</option>
               <option value="Cape Verde">Cape Verde</option>
-              <option value="Central African Republic">Central African Republic</option>
+              <option value="Central African Republic">
+                Central African Republic
+              </option>
               <option value="Chad">Chad</option>
               <option value="Chile">Chile</option>
               <option value="China">China</option>
@@ -496,7 +508,9 @@ const handleSaveCoverCroppedImage = async (blob) => {
               <option value="Cuba">Cuba</option>
               <option value="Cyprus">Cyprus</option>
               <option value="Czech Republic">Czech Republic</option>
-              <option value="Democratic Republic of the Congo">Democratic Republic of the Congo</option>
+              <option value="Democratic Republic of the Congo">
+                Democratic Republic of the Congo
+              </option>
               <option value="Denmark">Denmark</option>
               <option value="Djibouti">Djibouti</option>
               <option value="Dominica">Dominica</option>
@@ -593,16 +607,24 @@ const handleSaveCoverCroppedImage = async (blob) => {
               <option value="Poland">Poland</option>
               <option value="Portugal">Portugal</option>
               <option value="Qatar">Qatar</option>
-              <option value="Republic of the Congo">Republic of the Congo</option>
+              <option value="Republic of the Congo">
+                Republic of the Congo
+              </option>
               <option value="Romania">Romania</option>
               <option value="Russia">Russia</option>
               <option value="Rwanda">Rwanda</option>
-              <option value="Saint Kitts and Nevis">Saint Kitts and Nevis</option>
+              <option value="Saint Kitts and Nevis">
+                Saint Kitts and Nevis
+              </option>
               <option value="Saint Lucia">Saint Lucia</option>
-              <option value="Saint Vincent and the Grenadines">Saint Vincent and the Grenadines</option>
+              <option value="Saint Vincent and the Grenadines">
+                Saint Vincent and the Grenadines
+              </option>
               <option value="Samoa">Samoa</option>
               <option value="San Marino">San Marino</option>
-              <option value="Sao Tome and Principe">Sao Tome and Principe</option>
+              <option value="Sao Tome and Principe">
+                Sao Tome and Principe
+              </option>
               <option value="Saudi Arabia">Saudi Arabia</option>
               <option value="Senegal">Senegal</option>
               <option value="Serbia">Serbia</option>
@@ -657,16 +679,19 @@ const handleSaveCoverCroppedImage = async (blob) => {
       <div className="mt-4 space-y-2">
         <label className="block font-semibold mb-1">Digital Wardrobe</label>
         <p>
-          Kindly add photos that showcase you in the following standard gig attire,
-          i.e. Black Tie, Formal, Smart-Casual, and Session Black
+          Kindly add photos that showcase you in the following standard gig
+          attire, i.e. Black Tie, Formal, Smart-Casual, and Session Black
         </p>
 
         {/* BLACK TIE */}
         <div>
           <label className="block font-semibold mb-1">
-            Black Tie Attire (i.e. elegant long dresses, tuxedos with bow tie, etc.)
+            Black Tie Attire (i.e. elegant long dresses, tuxedos with bow tie,
+            etc.)
           </label>
-          <p className={`text-sm ${isUploadingImages ? "text-gray-500 animate-pulse" : "text-gray-500"}`}>
+          <p
+            className={`text-sm ${isUploadingImages ? "text-gray-500 animate-pulse" : "text-gray-500"}`}
+          >
             {isUploadingImages ? "Uploading your images..." : ""}
           </p>
 
@@ -675,8 +700,14 @@ const handleSaveCoverCroppedImage = async (blob) => {
             files={asUrlArray(formData.digitalWardrobeBlackTie)}
             setFiles={async (updatedFn) => {
               const previous = formData.digitalWardrobeBlackTie || [];
-              const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
-              await handleWardrobeImageUpload(updated, "digitalWardrobeBlackTie");
+              const updated =
+                typeof updatedFn === "function"
+                  ? updatedFn(previous)
+                  : updatedFn;
+              await handleWardrobeImageUpload(
+                updated,
+                "digitalWardrobeBlackTie",
+              );
             }}
           />
         </div>
@@ -684,7 +715,9 @@ const handleSaveCoverCroppedImage = async (blob) => {
         {/* FORMAL */}
         <div>
           <label className="block font-semibold mb-1">Formal Attire</label>
-          <p className={`text-sm ${isUploadingImages ? "text-gray-500 animate-pulse" : "text-gray-500"}`}>
+          <p
+            className={`text-sm ${isUploadingImages ? "text-gray-500 animate-pulse" : "text-gray-500"}`}
+          >
             {isUploadingImages ? "Uploading your images..." : ""}
           </p>
 
@@ -693,7 +726,10 @@ const handleSaveCoverCroppedImage = async (blob) => {
             files={asUrlArray(formData.digitalWardrobeFormal)}
             setFiles={async (updatedFn) => {
               const previous = formData.digitalWardrobeFormal || [];
-              const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
+              const updated =
+                typeof updatedFn === "function"
+                  ? updatedFn(previous)
+                  : updatedFn;
               await handleWardrobeImageUpload(updated, "digitalWardrobeFormal");
             }}
           />
@@ -701,8 +737,12 @@ const handleSaveCoverCroppedImage = async (blob) => {
 
         {/* SMART CASUAL */}
         <div>
-          <label className="block font-semibold mb-1">Smart Casual Attire</label>
-          <p className={`text-sm ${isUploadingImages ? "text-gray-500 animate-pulse" : "text-gray-500"}`}>
+          <label className="block font-semibold mb-1">
+            Smart Casual Attire
+          </label>
+          <p
+            className={`text-sm ${isUploadingImages ? "text-gray-500 animate-pulse" : "text-gray-500"}`}
+          >
             {isUploadingImages ? "Uploading your images..." : ""}
           </p>
 
@@ -711,8 +751,14 @@ const handleSaveCoverCroppedImage = async (blob) => {
             files={asUrlArray(formData.digitalWardrobeSmartCasual)}
             setFiles={async (updatedFn) => {
               const previous = formData.digitalWardrobeSmartCasual || [];
-              const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
-              await handleWardrobeImageUpload(updated, "digitalWardrobeSmartCasual");
+              const updated =
+                typeof updatedFn === "function"
+                  ? updatedFn(previous)
+                  : updatedFn;
+              await handleWardrobeImageUpload(
+                updated,
+                "digitalWardrobeSmartCasual",
+              );
             }}
           />
         </div>
@@ -720,7 +766,9 @@ const handleSaveCoverCroppedImage = async (blob) => {
         {/* Session All Black */}
         <div>
           <label className="block font-semibold mb-1">Session All Black</label>
-          <p className={`text-sm ${isUploadingImages ? "text-gray-500 animate-pulse" : "text-gray-500"}`}>
+          <p
+            className={`text-sm ${isUploadingImages ? "text-gray-500 animate-pulse" : "text-gray-500"}`}
+          >
             {isUploadingImages ? "Uploading your images..." : ""}
           </p>
           <DragAndDropImageUploader
@@ -728,8 +776,14 @@ const handleSaveCoverCroppedImage = async (blob) => {
             files={asUrlArray(formData.digitalWardrobeSessionAllBlack)}
             setFiles={async (updatedFn) => {
               const previous = formData.digitalWardrobeSessionAllBlack || [];
-              const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
-              await handleWardrobeImageUpload(updated, "digitalWardrobeSessionAllBlack");
+              const updated =
+                typeof updatedFn === "function"
+                  ? updatedFn(previous)
+                  : updatedFn;
+              await handleWardrobeImageUpload(
+                updated,
+                "digitalWardrobeSessionAllBlack",
+              );
             }}
           />
         </div>
@@ -738,17 +792,22 @@ const handleSaveCoverCroppedImage = async (blob) => {
       {/* Additional Images */}
       <div>
         <label className="block font-semibold">Additional Images</label>
-        <p className="text-sm text-gray-500">Please include any action shots or professional studio shots of you</p>
-        <p className={`text-sm ${isUploadingImages ? "text-gray-500 animate-pulse" : "text-gray-500"}`}>
+        <p className="text-sm text-gray-500">
+          Please include any action shots or professional studio shots of you
+        </p>
+        <p
+          className={`text-sm ${isUploadingImages ? "text-gray-500 animate-pulse" : "text-gray-500"}`}
+        >
           {isUploadingImages ? "Uploading your images..." : ""}
         </p>
 
         <DragAndDropImageUploader
           label="Additional Images"
-          files={formData.additionalImages}
+          files={asUrlArray(formData.additionalImages)}
           setFiles={async (updatedFn) => {
             const previous = formData.additionalImages || [];
-            const updated = typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
+            const updated =
+              typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
             await handleWardrobeImageUpload(updated, "additionalImages");
           }}
         />
@@ -756,14 +815,18 @@ const handleSaveCoverCroppedImage = async (blob) => {
 
       {/* Function Band Video Links */}
       <div className="mt-4">
-        <label className="block font-semibold mb-1">Function Band Video Links</label>
+        <label className="block font-semibold mb-1">
+          Function Band Video Links
+        </label>
         <p className="text-sm text-gray-500">
-          Add links to your cover band videos here. Please note unbranded footage is preferred. If branded footage is
-          supplied we may not include this in your profile, or we may edit the video to remove branding.
+          Add links to your cover band videos here. Please note unbranded
+          footage is preferred. If branded footage is supplied we may not
+          include this in your profile, or we may edit the video to remove
+          branding.
         </p>
 
         <SortableVideoLinkList
-links={asVideoLinksArray(formData.functionBandVideoLinks)}
+          links={asVideoLinksArray(formData.functionBandVideoLinks)}
           setLinks={(updated) => {
             console.log("🎥 [VID-FUNCTION] UPDATE", {
               previous: formData.functionBandVideoLinks,
@@ -780,7 +843,9 @@ links={asVideoLinksArray(formData.functionBandVideoLinks)}
 
         {userRole?.includes?.("agent") && (
           <SortableVideoLinkList
-links={asVideoLinksArray(formData.tscApprovedFunctionBandVideoLinks)}
+            links={asVideoLinksArray(
+              formData.tscApprovedFunctionBandVideoLinks,
+            )}
             setLinks={(updated) => {
               console.log("🎥 [VID-FUNCTION-TSC] UPDATE", {
                 previous: formData.tscApprovedFunctionBandVideoLinks,
@@ -799,11 +864,15 @@ links={asVideoLinksArray(formData.tscApprovedFunctionBandVideoLinks)}
 
       {/* Original Band Video Links */}
       <div className="mt-4">
-        <label className="block font-semibold mb-1">Original Band Video Links</label>
-        <p className="text-sm text-gray-500">Add links to your original band videos here.</p>
+        <label className="block font-semibold mb-1">
+          Original Band Video Links
+        </label>
+        <p className="text-sm text-gray-500">
+          Add links to your original band videos here.
+        </p>
 
         <SortableVideoLinkList
-links={asVideoLinksArray(formData.originalBandVideoLinks)}
+          links={asVideoLinksArray(formData.originalBandVideoLinks)}
           setLinks={(updated) => {
             console.log("🎥 [VID-ORIGINAL] UPDATE", {
               previous: formData.originalBandVideoLinks,
@@ -842,7 +911,9 @@ links={asVideoLinksArray(formData.originalBandVideoLinks)}
         <label className="block font-semibold mb-1">Cover MP3s</label>
         <p className="text-sm text-gray-500">Add your cover recordings here.</p>
 
-        {isUploadingMp3s && <p className="text-xs text-gray-500 italic">Uploading MP3s...</p>}
+        {isUploadingMp3s && (
+          <p className="text-xs text-gray-500 italic">Uploading MP3s...</p>
+        )}
 
         <Mp3Uploader
           label="Cover MP3s"
@@ -864,9 +935,13 @@ links={asVideoLinksArray(formData.originalBandVideoLinks)}
       {/* ORIGINAL MP3s */}
       <div className="mt-4">
         <label className="block font-semibold mb-1">Original MP3s</label>
-        <p className="text-sm text-gray-500">Add your original recordings here.</p>
+        <p className="text-sm text-gray-500">
+          Add your original recordings here.
+        </p>
 
-        {isUploadingMp3s && <p className="text-xs text-gray-500 italic">Uploading MP3s...</p>}
+        {isUploadingMp3s && (
+          <p className="text-xs text-gray-500 italic">Uploading MP3s...</p>
+        )}
 
         <Mp3Uploader
           label="Original MP3s"
@@ -886,7 +961,12 @@ links={asVideoLinksArray(formData.originalBandVideoLinks)}
       </div>
 
       {/* IMAGE CROPPER MODALS */}
-      <ImageCropModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onSave={handleSaveCroppedImage} imageSrc={tempImage} />
+      <ImageCropModal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={handleSaveCroppedImage}
+        imageSrc={tempImage}
+      />
       <ImageCropModal
         isOpen={coverModalOpen}
         onClose={() => setCoverModalOpen(false)}
@@ -1012,7 +1092,11 @@ function SortableFileList({ files, setFiles }) {
             onDragOver={(e) => e.preventDefault()}
             className="flex items-center gap-2 border border-gray-200 px-2 py-1 rounded bg-white"
           >
-            <img src={assets.reordering_icon} alt="Reorder" className="w-4 h-4 cursor-move" />
+            <img
+              src={assets.reordering_icon}
+              alt="Reorder"
+              className="w-4 h-4 cursor-move"
+            />
             <input
               type="text"
               className="border border-gray-300 rounded py-1 px-2 text-xs w-40"
@@ -1024,8 +1108,14 @@ function SortableFileList({ files, setFiles }) {
                 setFiles(updated);
               }}
             />
-            <span className="truncate max-w-xs">{file?.name || "No file selected"}</span>
-            <button type="button" onClick={() => handleDelete(idx)} className="text-sm text-red-500">
+            <span className="truncate max-w-xs">
+              {file?.name || "No file selected"}
+            </span>
+            <button
+              type="button"
+              onClick={() => handleDelete(idx)}
+              className="text-sm text-red-500"
+            >
               ✕
             </button>
           </li>
@@ -1067,8 +1157,6 @@ function SortableVideoLinkList({ links, setLinks, placeholderPrefix }) {
     setLinks(updated);
   };
 
-
-
   return (
     <div>
       {(links || []).map((link, idx) => (
@@ -1081,7 +1169,11 @@ function SortableVideoLinkList({ links, setLinks, placeholderPrefix }) {
           onDragEnd={handleDragEnd}
           onDragOver={(e) => e.preventDefault()}
         >
-          <img src={assets.reordering_icon} alt="Reorder" className="w-4 h-4 cursor-move" />
+          <img
+            src={assets.reordering_icon}
+            alt="Reorder"
+            className="w-4 h-4 cursor-move"
+          />
           <input
             type="text"
             placeholder="Title"
@@ -1098,12 +1190,20 @@ function SortableVideoLinkList({ links, setLinks, placeholderPrefix }) {
             onBlur={(e) => handleChange(idx, "url", e.target.value.trim())}
             className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
           />
-          <button type="button" className="text-sm text-red-500" onClick={() => handleDelete(idx)}>
+          <button
+            type="button"
+            className="text-sm text-red-500"
+            onClick={() => handleDelete(idx)}
+          >
             ✕
           </button>
         </div>
       ))}
-      <button type="button" className="text-sm text-blue-600 underline" onClick={handleAdd}>
+      <button
+        type="button"
+        className="text-sm text-blue-600 underline"
+        onClick={handleAdd}
+      >
         + Add Link
       </button>
     </div>

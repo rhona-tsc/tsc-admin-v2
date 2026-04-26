@@ -1,8 +1,9 @@
 // src/components/DragAndDropImageUploader.jsx
-import React, { useMemo, useRef } from "react";
-import assets from "../assets/assets";
+import React, { useEffect, useMemo, useRef } from "react";
+import { assets } from "../assets/assets";
 
-const isFile = (v) => typeof File !== "undefined" && v instanceof File;
+const isFile = (value) =>
+  typeof File !== "undefined" && value instanceof File;
 
 const DragAndDropImageUploader = ({ label, files = [], setFiles }) => {
   const inputRef = useRef(null);
@@ -10,31 +11,71 @@ const DragAndDropImageUploader = ({ label, files = [], setFiles }) => {
   const safeFiles = Array.isArray(files) ? files : [];
 
   const previews = useMemo(() => {
-    // build previews for both URLs and File objects
-    return safeFiles.map((f) => {
-      if (typeof f === "string") return { kind: "url", src: f };
-      if (isFile(f)) return { kind: "file", src: URL.createObjectURL(f) };
+    return safeFiles.map((file) => {
+      if (typeof file === "string") {
+        return { kind: "url", src: file };
+      }
+
+      if (isFile(file)) {
+        return { kind: "file", src: URL.createObjectURL(file) };
+      }
+
       return { kind: "none", src: "" };
     });
-    // NOTE: we revoke File previews in onLoad below
   }, [safeFiles]);
+
+  useEffect(() => {
+    return () => {
+      previews.forEach((preview) => {
+        if (preview.kind === "file" && preview.src) {
+          try {
+            URL.revokeObjectURL(preview.src);
+          } catch {
+            // ignore cleanup errors
+          }
+        }
+      });
+    };
+  }, [previews]);
 
   const handleFiles = (incomingFiles) => {
     const newFiles = Array.from(incomingFiles || []).filter(Boolean);
 
-    // IMPORTANT: parent expects we pass either an array OR an updater fn
     setFiles((prev = []) => {
       const prevArr = Array.isArray(prev) ? prev : [];
-      return [...prevArr, ...newFiles];
+
+      // optional dedupe for File objects by name/size/lastModified
+      const existingKeys = new Set(
+        prevArr.map((item) => {
+          if (typeof item === "string") return `url:${item}`;
+          if (isFile(item)) {
+            return `file:${item.name}:${item.size}:${item.lastModified}`;
+          }
+          return String(item);
+        })
+      );
+
+      const uniqueNewFiles = newFiles.filter((item) => {
+        const key = isFile(item)
+          ? `file:${item.name}:${item.size}:${item.lastModified}`
+          : String(item);
+
+        if (existingKeys.has(key)) return false;
+        existingKeys.add(key);
+        return true;
+      });
+
+      return [...prevArr, ...uniqueNewFiles];
     });
   };
 
   const handleDeleteImage = (indexToRemove) => {
-    setFiles((prev = []) => (Array.isArray(prev) ? prev : []).filter((_, i) => i !== indexToRemove));
+    setFiles((prev = []) =>
+      (Array.isArray(prev) ? prev : []).filter((_, i) => i !== indexToRemove)
+    );
   };
 
   const openPicker = () => {
-    // user gesture → safe
     inputRef.current?.click();
   };
 
@@ -79,19 +120,13 @@ const DragAndDropImageUploader = ({ label, files = [], setFiles }) => {
 
       {safeFiles.length > 0 && (
         <div className="mt-4 flex flex-wrap justify-center gap-2">
-          {previews.map((p, idx) => (
+          {previews.map((preview, idx) => (
             <div key={idx} className="relative h-20 w-20">
-              {p.src ? (
+              {preview.src ? (
                 <img
-                  src={p.src}
+                  src={preview.src}
                   alt={`preview-${idx}`}
                   className="h-full w-full rounded object-cover"
-                  onLoad={() => {
-                    // revoke object URLs to avoid memory leaks
-                    if (p.kind === "file") {
-                      try { URL.revokeObjectURL(p.src); } catch {}
-                    }
-                  }}
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center rounded bg-gray-200 text-xs text-gray-600">
@@ -105,7 +140,11 @@ const DragAndDropImageUploader = ({ label, files = [], setFiles }) => {
                 className="absolute right-1 top-1 rounded-full bg-white/80 p-1 shadow hover:bg-white"
                 title="Remove image"
               >
-                <img src={assets.black_bin_icon} alt="Delete" className="h-4 w-4" />
+                <img
+                  src={assets.black_bin_icon}
+                  alt="Delete"
+                  className="h-4 w-4"
+                />
               </button>
             </div>
           ))}
