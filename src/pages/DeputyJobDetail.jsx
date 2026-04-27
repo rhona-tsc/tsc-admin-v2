@@ -1207,30 +1207,13 @@ const DeputyJobDetail = () => {
           <div className="rounded-2xl bg-white p-6 shadow">
             <h2 className="mb-4 text-lg font-semibold text-gray-900">Summary</h2>
             <div className="space-y-3 text-sm text-gray-700">
-              <div className="flex items-center justify-between">
-                <span>Matched</span>
-                <span className="font-medium text-gray-900">
-                  {job.matchedCount || matchedMusicians.length || 0}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Notified</span>
-                <span className="font-medium text-gray-900">
-                  {job.notifiedCount || notifications.length || 0}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Applications</span>
-                <span className="font-medium text-gray-900">
-                  {normaliseArray(job?.applications).length || applications.length}
-                </span>
-              </div>
+             
               <div className="flex items-center justify-between">
                 <span>Deputy net</span>
                 <span className="font-medium text-gray-900">{feeText}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span>Release on</span>
+                <span>Fee release on</span>
                 <span className="font-medium text-gray-900">
                   {formatDateLong(job.releaseOn)}
                 </span>
