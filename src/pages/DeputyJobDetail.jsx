@@ -174,10 +174,10 @@ const Badge = ({ children, tone = "default" }) => {
     tone === "green"
       ? "bg-green-100 text-green-800"
       : tone === "yellow"
-      ? "bg-yellow-100 text-yellow-800"
-      : tone === "red"
-      ? "bg-red-100 text-red-800"
-      : "bg-gray-100 text-gray-800";
+        ? "bg-yellow-100 text-yellow-800"
+        : tone === "red"
+          ? "bg-red-100 text-red-800"
+          : "bg-gray-100 text-gray-800";
 
   return (
     <span
@@ -227,13 +227,13 @@ const DeputyJobDetail = () => {
   const [showApplications, setShowApplications] = useState(true);
   const [showNotifications, setShowNotifications] = useState(false);
   const [visibleMatchedCount, setVisibleMatchedCount] = useState(
-    INITIAL_MATCHED_VISIBLE,
+    INITIAL_MATCHED_VISIBLE
   );
   const [visibleApplicationsCount, setVisibleApplicationsCount] = useState(
-    INITIAL_APPLICATIONS_VISIBLE,
+    INITIAL_APPLICATIONS_VISIBLE
   );
   const [visibleNotificationsCount, setVisibleNotificationsCount] = useState(
-    INITIAL_NOTIFICATIONS_VISIBLE,
+    INITIAL_NOTIFICATIONS_VISIBLE
   );
 
   const adminToken = localStorage.getItem("adminToken") || "";
@@ -254,7 +254,7 @@ const DeputyJobDetail = () => {
           tokenPayload?.useremail ||
           localStorage.getItem("userEmail") ||
           sessionStorage.getItem("userEmail") ||
-          "",
+          ""
       )
         .trim()
         .toLowerCase(),
@@ -263,7 +263,7 @@ const DeputyJobDetail = () => {
           tokenPayload?.userrole ||
           localStorage.getItem("userRole") ||
           sessionStorage.getItem("userRole") ||
-          "",
+          ""
       )
         .trim()
         .toLowerCase(),
@@ -278,7 +278,7 @@ const DeputyJobDetail = () => {
             token,
           }
         : {},
-    [token],
+    [token]
   );
 
   const loadJob = useCallback(async () => {
@@ -301,7 +301,7 @@ const DeputyJobDetail = () => {
       setError(
         err?.response?.data?.message ||
           err?.message ||
-          "Failed to load deputy job",
+          "Failed to load deputy job"
       );
     } finally {
       setLoading(false);
@@ -318,16 +318,21 @@ const DeputyJobDetail = () => {
     setVisibleNotificationsCount(INITIAL_NOTIFICATIONS_VISIBLE);
   }, [job?._id]);
 
-  const currentUserEmail = useMemo(() => getStoredUserEmail(), []);
+  const currentUserEmail = useMemo(() => {
+    return String(currentUser?.email || getStoredUserEmail() || "")
+      .trim()
+      .toLowerCase();
+  }, [currentUser?.email]);
+
   const createdByEmail = normaliseString(job?.createdByEmail).toLowerCase();
   const managerEmail = normaliseString(
-    job?.managerEmail || job?.createdBy?.email,
+    job?.managerEmail || job?.createdBy?.email
   ).toLowerCase();
 
   const isAdminViewer = Boolean(adminToken);
   const isJobManager = Boolean(
     currentUserEmail &&
-      (currentUserEmail === createdByEmail || currentUserEmail === managerEmail),
+      (currentUserEmail === createdByEmail || currentUserEmail === managerEmail)
   );
 
   const currentUserRole = String(currentUser?.role || "").trim().toLowerCase();
@@ -339,7 +344,7 @@ const DeputyJobDetail = () => {
     isAdminEmail ||
       currentUserRole === "admin" ||
       currentUserRole === "agent" ||
-      isJobManager,
+      isJobManager
   );
 
   const canSeeApplicationsSection = canManageThisJob;
@@ -349,6 +354,71 @@ const DeputyJobDetail = () => {
     currentUserRole === "admin" ||
     currentUserRole === "agent" ||
     Boolean(adminToken)
+  );
+
+  const jobType = String(job?.jobType || job?.type || "").trim().toLowerCase();
+  const isEnquiryJob =
+    job?.isEnquiry === true ||
+    job?.enquiryOnly === true ||
+    jobType === "enquiry" ||
+    String(job?.title || "").toLowerCase().includes("enquiry");
+
+  const canViewMatchedMusicians = isAdminViewer;
+  const canViewNotifications = isAdminViewer;
+
+  const applications = useMemo(() => toArray(job?.applications), [job?.applications]);
+
+  const applicationEmails = applications
+    .map((application) => normaliseString(application?.email).toLowerCase())
+    .filter(Boolean);
+
+  const hasApplied = Boolean(
+    currentUserEmail && applicationEmails.includes(currentUserEmail)
+  );
+
+  const canApplyToJob = Boolean(
+    !isAdminViewer &&
+      hasAnyUserToken &&
+      job &&
+      !hasApplied &&
+      !isJobManager &&
+      !["allocated", "filled", "closed", "cancelled"].includes(
+        normaliseString(job?.status).toLowerCase()
+      )
+  );
+
+  const shouldShowSignInToApply = Boolean(
+    !isAdminViewer &&
+      !hasAnyUserToken &&
+      job &&
+      !["allocated", "filled", "closed", "cancelled"].includes(
+        normaliseString(job?.status).toLowerCase()
+      )
+  );
+
+  const matchedMusicians = useMemo(
+    () => toArray(job?.matchedMusicians),
+    [job?.matchedMusicians]
+  );
+
+  const notifications = useMemo(
+    () => toArray(job?.notifications),
+    [job?.notifications]
+  );
+
+  const visibleMatchedMusicians = useMemo(
+    () => matchedMusicians.slice(0, visibleMatchedCount),
+    [matchedMusicians, visibleMatchedCount]
+  );
+
+  const visibleApplications = useMemo(
+    () => applications.slice(0, visibleApplicationsCount),
+    [applications, visibleApplicationsCount]
+  );
+
+  const visibleNotifications = useMemo(
+    () => notifications.slice(0, visibleNotificationsCount),
+    [notifications, visibleNotificationsCount]
   );
 
   const getApplicantFullName = (application = {}) => {
@@ -375,68 +445,12 @@ const DeputyJobDetail = () => {
     setManualAllocateOpen(true);
   };
 
-  const jobType = String(job?.jobType || job?.type || "").trim().toLowerCase();
-  const isEnquiryJob =
-    job?.isEnquiry === true ||
-    job?.enquiryOnly === true ||
-    jobType === "enquiry" ||
-    String(job?.title || "").toLowerCase().includes("enquiry");
-
-  const canViewMatchedMusicians = isAdminViewer;
-  const canViewNotifications = isAdminViewer;
-
-  const applications = useMemo(() => toArray(job?.applications), [job?.applications]);
-
-  const applicationEmails = applications
-    .map((application) => normaliseString(application?.email).toLowerCase())
-    .filter(Boolean);
-
-  const hasApplied = Boolean(
-    currentUserEmail && applicationEmails.includes(currentUserEmail),
-  );
-
-  const canApplyToJob = Boolean(
-    !isAdminViewer &&
-      hasAnyUserToken &&
-      job &&
-      !hasApplied &&
-      !isJobManager &&
-      !["allocated", "filled", "closed", "cancelled"].includes(
-        normaliseString(job?.status).toLowerCase(),
-      ),
-  );
-
-  const matchedMusicians = useMemo(
-    () => toArray(job?.matchedMusicians),
-    [job?.matchedMusicians],
-  );
-
-  const notifications = useMemo(
-    () => toArray(job?.notifications),
-    [job?.notifications],
-  );
-
-  const visibleMatchedMusicians = useMemo(
-    () => matchedMusicians.slice(0, visibleMatchedCount),
-    [matchedMusicians, visibleMatchedCount],
-  );
-
-  const visibleApplications = useMemo(
-    () => applications.slice(0, visibleApplicationsCount),
-    [applications, visibleApplicationsCount],
-  );
-
-  const visibleNotifications = useMemo(
-    () => notifications.slice(0, visibleNotificationsCount),
-    [notifications, visibleNotificationsCount],
-  );
-
   const manualAllocateCandidates = useMemo(() => {
     const list = [];
 
     const pushCandidate = (candidate = {}) => {
       const musicianId = String(
-        candidate?.musicianId || candidate?._id || candidate?.id || "",
+        candidate?.musicianId || candidate?._id || candidate?.id || ""
       ).trim();
 
       if (!musicianId) return;
@@ -479,13 +493,7 @@ const DeputyJobDetail = () => {
     if (!q) return manualAllocateCandidates;
 
     return manualAllocateCandidates.filter((m) => {
-      const haystack = [
-        m.firstName,
-        m.lastName,
-        m.email,
-        m.phone,
-        m.musicianId,
-      ]
+      const haystack = [m.firstName, m.lastName, m.email, m.phone, m.musicianId]
         .map((v) => String(v || "").toLowerCase())
         .join(" ");
 
@@ -518,13 +526,13 @@ const DeputyJobDetail = () => {
 
     if (!isValidObjectId(musicianId)) {
       toast.error(
-        "Please select a musician (or enter a valid 24-character musicianId).",
+        "Please select a musician (or enter a valid 24-character musicianId)."
       );
       return;
     }
 
     const confirmed = window.confirm(
-      `Manually allocate this job to musicianId: ${musicianId}?`,
+      `Manually allocate this job to musicianId: ${musicianId}?`
     );
     if (!confirmed) return;
 
@@ -534,12 +542,12 @@ const DeputyJobDetail = () => {
       const res = await axios.post(
         `${backendUrl}/api/deputy-jobs/${id}/manual-allocate`,
         { musicianId },
-        { headers, withCredentials: true },
+        { headers, withCredentials: true }
       );
 
       if (!res.data?.success) {
         throw new Error(
-          res.data?.message || "Failed to manually allocate musician",
+          res.data?.message || "Failed to manually allocate musician"
         );
       }
 
@@ -551,7 +559,7 @@ const DeputyJobDetail = () => {
       toast.error(
         err?.response?.data?.message ||
           err?.message ||
-          "Failed to manually allocate musician",
+          "Failed to manually allocate musician"
       );
     } finally {
       setManualAllocating(false);
@@ -561,7 +569,7 @@ const DeputyJobDetail = () => {
   const handleAllocateApplicant = useCallback(
     async (application) => {
       const musicianId = String(
-        application?.musicianId || application?._id || "",
+        application?.musicianId || application?._id || ""
       ).trim();
 
       if (!musicianId) {
@@ -570,7 +578,7 @@ const DeputyJobDetail = () => {
       }
 
       const confirmed = window.confirm(
-        `Allocate this job to ${getApplicantShortName(application)}?`,
+        `Allocate this job to ${getApplicantShortName(application)}?`
       );
       if (!confirmed) return;
 
@@ -580,7 +588,7 @@ const DeputyJobDetail = () => {
         const res = await axios.post(
           `${backendUrl}/api/deputy-jobs/${id}/manual-allocate`,
           { musicianId },
-          { headers, withCredentials: true },
+          { headers, withCredentials: true }
         );
 
         if (!res.data?.success) {
@@ -594,19 +602,19 @@ const DeputyJobDetail = () => {
         toast.error(
           err?.response?.data?.message ||
             err?.message ||
-            "Failed to allocate applicant",
+            "Failed to allocate applicant"
         );
       } finally {
         setAssigningId("");
       }
     },
-    [headers, id, loadJob],
+    [headers, id, loadJob]
   );
 
   const handlePresentApplicant = useCallback(
     async (application) => {
       const musicianId = String(
-        application?.musicianId || application?._id || "",
+        application?.musicianId || application?._id || ""
       ).trim();
 
       if (!musicianId) {
@@ -617,7 +625,7 @@ const DeputyJobDetail = () => {
       const confirmed = window.confirm(
         `Present ${getApplicantShortName(application)} to the client for ${
           job?.title || "this enquiry"
-        }?`,
+        }?`
       );
       if (!confirmed) return;
 
@@ -627,7 +635,7 @@ const DeputyJobDetail = () => {
         const res = await axios.post(
           `${backendUrl}/api/deputy-jobs/${id}/present-applicant`,
           { musicianId },
-          { headers, withCredentials: true },
+          { headers, withCredentials: true }
         );
 
         if (!res.data?.success) {
@@ -641,13 +649,13 @@ const DeputyJobDetail = () => {
         toast.error(
           err?.response?.data?.message ||
             err?.message ||
-            "Failed to present applicant",
+            "Failed to present applicant"
         );
       } finally {
         setPresentingId("");
       }
     },
-    [headers, id, job?.title, loadJob],
+    [headers, id, job?.title, loadJob]
   );
 
   const fullLocation =
@@ -658,7 +666,10 @@ const DeputyJobDetail = () => {
       .join(", ") ||
     "Location TBC";
 
-  const feeText = formatMoney(job?.deputyNetAmount || job?.fee || 0, job?.currency || "GBP");
+  const feeText = formatMoney(
+    job?.deputyNetAmount || job?.fee || 0,
+    job?.currency || "GBP"
+  );
 
   const statusTone =
     statusToneMap[normaliseString(job?.status).toLowerCase()] || "default";
@@ -695,7 +706,7 @@ const DeputyJobDetail = () => {
         {
           headers,
           withCredentials: true,
-        },
+        }
       );
 
       if (!res.data?.success) {
@@ -709,7 +720,7 @@ const DeputyJobDetail = () => {
       toast.error(
         err?.response?.data?.message ||
           err?.message ||
-          "Failed to apply for deputy job",
+          "Failed to apply for deputy job"
       );
     } finally {
       setApplying(false);
@@ -791,6 +802,18 @@ const DeputyJobDetail = () => {
               >
                 {applying ? "Applying…" : "One-click apply"}
               </button>
+            ) : shouldShowSignInToApply ? (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate("/musician-login", {
+                    state: { from: `/deputy-jobs/${id}` },
+                  })
+                }
+                className="inline-flex items-center rounded-lg border border-black px-4 py-2 text-sm font-medium text-black hover:bg-gray-50"
+              >
+                Sign in to apply
+              </button>
             ) : null}
 
             {canManageThisJob ? (
@@ -841,6 +864,20 @@ const DeputyJobDetail = () => {
                   className="rounded-lg bg-[#ff6667] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {applying ? "Applying…" : "One-click apply"}
+                </button>
+              </div>
+            ) : shouldShowSignInToApply ? (
+              <div className="mb-4">
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate("/musician-login", {
+                      state: { from: `/deputy-jobs/${id}` },
+                    })
+                  }
+                  className="rounded-lg border border-black px-4 py-2 text-sm font-medium text-black hover:bg-gray-50"
+                >
+                  Sign in to apply
                 </button>
               </div>
             ) : null}
@@ -975,7 +1012,7 @@ const DeputyJobDetail = () => {
                         type="button"
                         onClick={() =>
                           setVisibleMatchedCount(
-                            (prev) => prev + INITIAL_MATCHED_VISIBLE,
+                            (prev) => prev + INITIAL_MATCHED_VISIBLE
                           )
                         }
                         className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -1032,7 +1069,7 @@ const DeputyJobDetail = () => {
                     {visibleApplications.map((application, index) => {
                       const musicianId = String(application?.musicianId || "").trim();
                       const status = String(
-                        application?.status || "applied",
+                        application?.status || "applied"
                       ).toLowerCase();
 
                       const displayName = shouldMaskApplicantNames
@@ -1040,7 +1077,7 @@ const DeputyJobDetail = () => {
                         : getApplicantFullName(application);
 
                       const isAssigned = ["allocated", "booked", "assigned"].includes(
-                        status,
+                        status
                       );
 
                       const canAllocate =
@@ -1149,7 +1186,7 @@ const DeputyJobDetail = () => {
                         type="button"
                         onClick={() =>
                           setVisibleApplicationsCount(
-                            (prev) => prev + INITIAL_APPLICATIONS_VISIBLE,
+                            (prev) => prev + INITIAL_APPLICATIONS_VISIBLE
                           )
                         }
                         className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -1275,7 +1312,7 @@ const DeputyJobDetail = () => {
                         type="button"
                         onClick={() =>
                           setVisibleNotificationsCount(
-                            (prev) => prev + INITIAL_NOTIFICATIONS_VISIBLE,
+                            (prev) => prev + INITIAL_NOTIFICATIONS_VISIBLE
                           )
                         }
                         className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
