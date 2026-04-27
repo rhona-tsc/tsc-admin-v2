@@ -45,8 +45,15 @@ const getFeeLabel = (job) => {
 const hasStoredCardForJob = (job = {}) => {
   const paymentStatus = String(job?.paymentStatus || "").toLowerCase();
   const jobType = String(job?.jobType || "booked").toLowerCase();
+  const createdByEmail = String(job?.createdByEmail || "").trim().toLowerCase();
 
   if (jobType === "enquiry") return true;
+
+  // Admin / manual-pay jobs should still be visible on the board
+  // even though they do not have saved Stripe card details.
+  if (paymentStatus === "not_required") return true;
+  if (createdByEmail === "hello@thesupremecollective.co.uk") return true;
+
   if (job?.defaultPaymentMethodId) return true;
 
   return ["ready_to_charge", "charge_pending", "paid"].includes(paymentStatus);
@@ -256,6 +263,9 @@ const filteredJobs = useMemo(() => {
       jobType !== "enquiry" &&
       ["open", "allocated", "filled", "closed", "cancelled"].includes(status);
 
+    // Hide only genuine card-setup-required jobs.
+    // Admin/manual-pay jobs now use paymentStatus: "not_required"
+    // and should remain visible in the list.
     if (requiresStoredCard && !hasStoredCardForJob(job)) {
       return false;
     }
