@@ -42,7 +42,7 @@ useEffect(() => {
   const [stripeLoading, setStripeLoading] = useState(false);
   const [stripeError, setStripeError] = useState("");
 
- const handleConnectStripe = async () => {
+const handleConnectStripe = async () => {
   try {
     setStripeLoading(true);
     setStripeError("");
@@ -55,14 +55,12 @@ useEffect(() => {
       "";
 
     const response = await axios.post(
-      `${backendUrl}/api/musician/account/stripe-connect/onboarding-link`,
+      `${backendUrl}/api/account/stripe-connect/onboarding-link`,
       {},
       {
         headers: {
+          ...(tokenToUse ? { Authorization: `Bearer ${tokenToUse}` } : {}),
           ...(tokenToUse ? { token: tokenToUse } : {}),
-          ...(tokenToUse
-            ? { Authorization: `Bearer ${tokenToUse}` }
-            : {}),
         },
         withCredentials: true,
       }
@@ -75,11 +73,17 @@ useEffect(() => {
 
     window.location.href = onboardingUrl;
   } catch (err) {
-    console.error("❌ Failed to create Stripe onboarding link:", err);
+    console.error("❌ Failed to create Stripe onboarding link:", {
+      message: err?.message,
+      response: err?.response?.data,
+      status: err?.response?.status,
+    });
+
     setStripeError(
       err?.response?.data?.message ||
-        err?.message ||
-        "We couldn't start Stripe onboarding right now. Please try again."
+      err?.response?.data?.error ||
+      err?.message ||
+      "We couldn't start Stripe onboarding right now. Please try again."
     );
   } finally {
     setStripeLoading(false);
