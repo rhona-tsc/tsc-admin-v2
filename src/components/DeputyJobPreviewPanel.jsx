@@ -704,21 +704,29 @@ const applicantsCount =
         job.allocatedMusicianName || job.assignedMusicianName,
       );
 
-      const musicianSlug =
-        job?.allocatedMusicianSlug ||
-        job?.assignedMusicianSlug ||
-        "";
+const musicianSlug =
+  String(
+    job?.allocatedMusicianSlug ||
+    job?.assignedMusicianSlug ||
+    job?.allocatedMusicianId?.musicianSlug ||
+    job?.assignedMusicianId?.musicianSlug ||
+    ""
+  ).trim();
 
-      const musicianId =
-        job?.allocatedMusicianId ||
-        job?.assignedMusicianId ||
-        "";
+const musicianId =
+  String(
+    job?.allocatedMusicianId?._id ||
+    job?.assignedMusicianId?._id ||
+    job?.allocatedMusicianId ||
+    job?.assignedMusicianId ||
+    ""
+  ).trim();
 
-      const musicianHref = musicianSlug
-        ? `/musician/${encodeURIComponent(musicianSlug)}`
-        : musicianId
-          ? `/musician/${encodeURIComponent(musicianId)}`
-          : "";
+const musicianHref = musicianSlug
+  ? `/musician/${encodeURIComponent(musicianSlug)}`
+  : musicianId
+    ? `/musician/${encodeURIComponent(musicianId)}`
+    : "";
 
       return musicianHref ? (
         <Link
