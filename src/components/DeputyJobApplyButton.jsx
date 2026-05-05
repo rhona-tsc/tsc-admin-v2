@@ -66,7 +66,7 @@ const DeputyJobApplyButton = ({
 
   const baseClasses = disabled
     ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-    : "bg-black text-white hover:bg-[#ff6667]";
+    : "bg-[#ff6667] text-white hover:bg-black";
 
   const handleApply = async () => {
     if (!job?._id || disabled) return;
