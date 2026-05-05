@@ -295,9 +295,9 @@ const DeputyJobPreviewPanel = ({
   const requiredInstruments = normaliseArray(job?.requiredInstruments);
   const requiredSkills = normaliseArray(job?.requiredSkills);
   const tags = normaliseArray(job?.tags);
-  const applicantsCount = Array.isArray(job?.applications)
-    ? job.applications.length
-    : Number(job?.applicationsCount || 0);
+const applicantsCount =
+  Number(job?.applicationCount ?? job?.applicationsCount ?? 0) ||
+  (Array.isArray(job?.applications) ? job.applications.length : 0);
   const postedByLabel = getPostedByLabel(job);
   const venueDisplay =
     job?.venue || job?.locationName || job?.location || "TBC";
