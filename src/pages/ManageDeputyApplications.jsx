@@ -84,14 +84,27 @@ const getApplicantShortDisplayName = (application = {}) => {
   return "Unnamed applicant";
 };
 
-const getApplicantProfileLink = (application = {}) => {
+const getApplicantProfileLink = (application = {}, jobId = "") => {
   const slug = normaliseString(application?.musicianSlug || "");
-  if (slug) return `https://thesupremecollective.co.uk/musician/${slug}`;
-
   const musicianId = normaliseString(application?.musicianId || application?._id || "");
-  if (musicianId) return `https://thesupremecollective.co.uk/musician/${musicianId}`;
+  const presentationId = normaliseString(application?.presentationId || "");
 
-  return "";
+  const basePath = slug
+    ? `https://thesupremecollective.co.uk/musician/${encodeURIComponent(slug)}`
+    : musicianId
+      ? `https://thesupremecollective.co.uk/musician/${encodeURIComponent(musicianId)}`
+      : "";
+
+  if (!basePath) return "";
+
+  const params = new URLSearchParams();
+
+  if (jobId) params.set("jobId", jobId);
+  if (presentationId) params.set("presentationId", presentationId);
+
+  const queryString = params.toString();
+
+  return queryString ? `${basePath}?${queryString}` : basePath;
 };
 
 const getMusicianProfileLink = (musician = {}) => {
@@ -251,11 +264,11 @@ const ManageDeputyApplications = () => {
       return;
     }
 
-    const lines = presentedApplications.map((application) => {
-      const shortName = getApplicantShortDisplayName(application);
-      const profileLink = getApplicantProfileLink(application);
-      return profileLink ? `${shortName} – ${profileLink}` : shortName;
-    });
+ const lines = presentedApplications.map((application) => {
+  const shortName = getApplicantShortDisplayName(application);
+  const profileLink = getApplicantProfileLink(application, job?._id || "");
+  return profileLink ? `${shortName} – ${profileLink}` : shortName;
+});
 
     const text = lines.join("\n");
 
@@ -580,8 +593,7 @@ const ManageDeputyApplications = () => {
               const musicianId = String(application?.musicianId || "");
               const status = String(application?.status || "applied").toLowerCase();
               const isAssigned = ["allocated", "booked", "assigned"].includes(status);
-              const profileLink = getApplicantProfileLink(application);
-
+const profileLink = getApplicantProfileLink(application, job?._id || "");
               return (
                 <div
                   key={musicianId || `${application.fullName}-${application.appliedAt}`}
