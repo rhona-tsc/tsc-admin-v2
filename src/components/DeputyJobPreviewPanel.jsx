@@ -675,9 +675,10 @@ const applicantsCount =
     );
   }
 
-  return (
-<div className="w-full border-l p-6">
-  <div className="sticky top-6 max-h-[calc(100vh-2rem)] overflow-y-auto pr-1">
+ return (
+  <div className="w-full border-l p-6">
+    <div className="sticky top-6 max-h-[calc(100vh-2rem)] overflow-y-auto pr-1">
+      <div className="space-y-6">
         <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-start justify-between gap-4 border-b border-gray-200 pb-4">
             <div>
@@ -730,9 +731,7 @@ const applicantsCount =
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="space-y-6 py-6">
         <section>
           <h3 className="mb-3 text-lg font-semibold text-gray-900">Overview</h3>
           <div className="space-y-2 text-gray-600">
@@ -753,54 +752,54 @@ const applicantsCount =
               {applicantsCount}
             </p>
             {job.allocatedMusicianName || job.assignedMusicianName ? (
-  <p>
-    <span className="font-medium text-gray-900">Allocated to:</span>{" "}
-    {(() => {
-      const musicianName = formatShortName(
-        job.allocatedMusicianName || job.assignedMusicianName,
-      );
+              <p>
+                <span className="font-medium text-gray-900">Allocated to:</span>{" "}
+                {(() => {
+                  const musicianName = formatShortName(
+                    job.allocatedMusicianName || job.assignedMusicianName,
+                  );
 
-const musicianSlug =
-  String(
-    job?.allocatedMusicianSlug ||
-    job?.assignedMusicianSlug ||
-    job?.allocatedMusicianId?.musicianSlug ||
-    job?.assignedMusicianId?.musicianSlug ||
-    ""
-  ).trim();
+                  const musicianSlug = String(
+                    job?.allocatedMusicianSlug ||
+                      job?.assignedMusicianSlug ||
+                      job?.allocatedMusicianId?.musicianSlug ||
+                      job?.assignedMusicianId?.musicianSlug ||
+                      "",
+                  ).trim();
 
-const musicianId =
-  String(
-    job?.allocatedMusicianId?._id ||
-    job?.assignedMusicianId?._id ||
-    job?.allocatedMusicianId ||
-    job?.assignedMusicianId ||
-    ""
-  ).trim();
+                  const musicianId = String(
+                    job?.allocatedMusicianId?._id ||
+                      job?.assignedMusicianId?._id ||
+                      job?.allocatedMusicianId ||
+                      job?.assignedMusicianId ||
+                      "",
+                  ).trim();
 
-const musicianPath = musicianSlug
-  ? `/musician/${encodeURIComponent(musicianSlug)}`
-  : musicianId
-    ? `/musician/${encodeURIComponent(musicianId)}`
-    : "";
+                  const musicianPath = musicianSlug
+                    ? `/musician/${encodeURIComponent(musicianSlug)}`
+                    : musicianId
+                    ? `/musician/${encodeURIComponent(musicianId)}`
+                    : "";
 
-const musicianHref = musicianPath ? `${FRONTEND_URL}${musicianPath}` : "";
+                  const musicianHref = musicianPath
+                    ? `${FRONTEND_URL}${musicianPath}`
+                    : "";
 
-return musicianHref ? (
-  <a
-    href={musicianHref}
-    target="_blank"
-    rel="noreferrer"
-    className="text-[#ff6667] hover:underline"
-  >
-    {musicianName}
-  </a>
-) : (
-  musicianName
-);
-    })()}
-  </p>
-) : null}
+                  return musicianHref ? (
+                    <a
+                      href={musicianHref}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[#ff6667] hover:underline"
+                    >
+                      {musicianName}
+                    </a>
+                  ) : (
+                    musicianName
+                  );
+                })()}
+              </p>
+            ) : null}
           </div>
         </section>
 
@@ -1066,139 +1065,140 @@ return musicianHref ? (
           </div>
         </section>
       </div>
+    </div>
 
-      {showManualAllocateModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900">
-                  Manual allocate musician
-                </h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  Search for a musician, then choose who should receive the
-                  allocation request for this job.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowManualAllocateModal(false)}
-                className="rounded-full border border-gray-200 px-3 py-1 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-800"
-              >
-                ×
-              </button>
+    {showManualAllocateModal ? (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+        <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-xl">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-semibold text-gray-900">
+                Manual allocate musician
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Search for a musician, then choose who should receive the
+                allocation request for this job.
+              </p>
             </div>
 
-            <form
-              onSubmit={handleManualAllocateSearch}
-              className="mt-5 flex gap-3"
+            <button
+              type="button"
+              onClick={() => setShowManualAllocateModal(false)}
+              className="rounded-full border border-gray-200 px-3 py-1 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-800"
             >
-              <input
-                type="text"
-                value={manualAllocateQuery}
-                onChange={(event) => setManualAllocateQuery(event.target.value)}
-                className="min-w-0 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-black"
-                placeholder="Search by name, email, phone, instrument..."
-              />
-              <button
-                type="submit"
-                disabled={isSearchingMusicians}
-                className="rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {isSearchingMusicians ? "Searching…" : "Search"}
-              </button>
-            </form>
+              ×
+            </button>
+          </div>
 
-            <div className="mt-5 max-h-96 overflow-y-auto rounded-2xl border border-gray-200">
-              {manualAllocateResults.length ? (
-                manualAllocateResults.map((musician) => {
-                  const musicianId = String(
-                    musician?._id || musician?.id || musician?.musicianId || "",
-                  ).trim();
-                  const name = getMusicianDisplayName(musician);
-                  const email =
-                    musician?.email || musician?.basicInfo?.email || "";
-                  const phone =
-                    musician?.phone ||
-                    musician?.phoneNumber ||
-                    musician?.basicInfo?.phone ||
-                    "";
-                  const profileImage =
-                    musician?.profilePhoto ||
-                    musician?.profilePicture ||
-                    musician?.profileImage ||
-                    musician?.photoUrl ||
-                    "";
-                  const instruments = Array.isArray(musician?.instrumentation)
-                    ? musician.instrumentation
-                    : Array.isArray(musician?.instruments)
-                      ? musician.instruments
-                      : [];
+          <form
+            onSubmit={handleManualAllocateSearch}
+            className="mt-5 flex gap-3"
+          >
+            <input
+              type="text"
+              value={manualAllocateQuery}
+              onChange={(event) => setManualAllocateQuery(event.target.value)}
+              className="min-w-0 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-black"
+              placeholder="Search by name, email, phone, instrument..."
+            />
+            <button
+              type="submit"
+              disabled={isSearchingMusicians}
+              className="rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSearchingMusicians ? "Searching…" : "Search"}
+            </button>
+          </form>
 
-                  return (
-                    <div
-                      key={musicianId || email || name}
-                      className="flex items-center justify-between gap-4 border-b border-gray-100 p-4 last:border-b-0"
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        {profileImage ? (
-                          <img
-                            src={profileImage}
-                            alt={name}
-                            className="h-11 w-11 rounded-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-500">
-                            {name.charAt(0).toUpperCase() || "M"}
-                          </div>
-                        )}
+          <div className="mt-5 max-h-96 overflow-y-auto rounded-2xl border border-gray-200">
+            {manualAllocateResults.length ? (
+              manualAllocateResults.map((musician) => {
+                const musicianId = String(
+                  musician?._id || musician?.id || musician?.musicianId || "",
+                ).trim();
+                const name = getMusicianDisplayName(musician);
+                const email =
+                  musician?.email || musician?.basicInfo?.email || "";
+                const phone =
+                  musician?.phone ||
+                  musician?.phoneNumber ||
+                  musician?.basicInfo?.phone ||
+                  "";
+                const profileImage =
+                  musician?.profilePhoto ||
+                  musician?.profilePicture ||
+                  musician?.profileImage ||
+                  musician?.photoUrl ||
+                  "";
+                const instruments = Array.isArray(musician?.instrumentation)
+                  ? musician.instrumentation
+                  : Array.isArray(musician?.instruments)
+                  ? musician.instruments
+                  : [];
 
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-gray-900">
-                            {name}
-                          </p>
-                          <p className="truncate text-xs text-gray-500">
-                            {[email, phone].filter(Boolean).join(" • ") ||
-                              "No contact details shown"}
-                          </p>
-                          {instruments.length ? (
-                            <p className="mt-1 truncate text-xs text-gray-400">
-                              {instruments
-                                .map((item) =>
-                                  typeof item === "string"
-                                    ? item
-                                    : item?.instrument || item?.name || "",
-                                )
-                                .filter(Boolean)
-                                .join(", ")}
-                            </p>
-                          ) : null}
+                return (
+                  <div
+                    key={musicianId || email || name}
+                    className="flex items-center justify-between gap-4 border-b border-gray-100 p-4 last:border-b-0"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      {profileImage ? (
+                        <img
+                          src={profileImage}
+                          alt={name}
+                          className="h-11 w-11 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-500">
+                          {name.charAt(0).toUpperCase() || "M"}
                         </div>
-                      </div>
+                      )}
 
-                      <button
-                        type="button"
-                        onClick={() => handleManualAllocate(musician)}
-                        disabled={!musicianId || isManualAllocating}
-                        className="shrink-0 rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {isManualAllocating ? "Allocating…" : "Allocate"}
-                      </button>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-gray-900">
+                          {name}
+                        </p>
+                        <p className="truncate text-xs text-gray-500">
+                          {[email, phone].filter(Boolean).join(" • ") ||
+                            "No contact details shown"}
+                        </p>
+                        {instruments.length ? (
+                          <p className="mt-1 truncate text-xs text-gray-400">
+                            {instruments
+                              .map((item) =>
+                                typeof item === "string"
+                                  ? item
+                                  : item?.instrument || item?.name || "",
+                              )
+                              .filter(Boolean)
+                              .join(", ")}
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
-                  );
-                })
-              ) : (
-                <div className="p-6 text-center text-sm text-gray-500">
-                  Search for a musician to allocate manually.
-                </div>
-              )}
-            </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleManualAllocate(musician)}
+                      disabled={!musicianId || isManualAllocating}
+                      className="shrink-0 rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isManualAllocating ? "Allocating…" : "Allocate"}
+                    </button>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="p-6 text-center text-sm text-gray-500">
+                Search for a musician to allocate manually.
+              </div>
+            )}
           </div>
         </div>
-      ) : null}
-    </div>
-  );
+      </div>
+    ) : null}
+  </div>
+);
 };
 
 export default DeputyJobPreviewPanel;

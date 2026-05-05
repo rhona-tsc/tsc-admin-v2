@@ -6,7 +6,10 @@ import Title from "../components/Title";
 import DeputyJobCard from "../components/DeputyJobCard";
 import DeputyJobPreviewPanel from "../components/DeputyJobPreviewPanel";
 
-const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "").replace(
+  /\/+$/,
+  "",
+);
 
 const parseJwtPayload = (token = "") => {
   try {
@@ -45,7 +48,9 @@ const getFeeLabel = (job) => {
 const hasStoredCardForJob = (job = {}) => {
   const paymentStatus = String(job?.paymentStatus || "").toLowerCase();
   const jobType = String(job?.jobType || "booked").toLowerCase();
-  const createdByEmail = String(job?.createdByEmail || "").trim().toLowerCase();
+  const createdByEmail = String(job?.createdByEmail || "")
+    .trim()
+    .toLowerCase();
 
   if (jobType === "enquiry") return true;
 
@@ -59,8 +64,6 @@ const hasStoredCardForJob = (job = {}) => {
   return ["ready_to_charge", "charge_pending", "paid"].includes(paymentStatus);
 };
 
-
-
 const sortJobs = (jobs, sortType) => {
   const copy = [...jobs];
 
@@ -72,14 +75,15 @@ const sortJobs = (jobs, sortType) => {
     case "newest":
       return copy.sort(
         (a, b) =>
-          new Date(b?.createdAt || 0).getTime() - new Date(a?.createdAt || 0).getTime()
+          new Date(b?.createdAt || 0).getTime() -
+          new Date(a?.createdAt || 0).getTime(),
       );
     case "date_asc":
     default:
       return copy.sort(
         (a, b) =>
           new Date(a?.date || a?.eventDate || 0).getTime() -
-          new Date(b?.date || b?.eventDate || 0).getTime()
+          new Date(b?.date || b?.eventDate || 0).getTime(),
       );
   }
 };
@@ -95,11 +99,28 @@ const DeputyJobs = () => {
 
   const navigate = useNavigate();
 
-const [filters, setFilters] = useState({
-  search: "",
-  instrument: "",
-  onlyOpen: false,
-});
+  const [filters, setFilters] = useState({
+    search: "",
+    instrument: "",
+    onlyOpen: false,
+    date: "",
+    jobType: "",
+  });
+
+  const toDateInputValue = (value) => {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) {
+      const raw = String(value).slice(0, 10);
+      return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : "";
+    }
+    return d.toISOString().slice(0, 10);
+  };
+
+  const getJobDateValue = (job) => {
+    return toDateInputValue(job?.date || job?.eventDate || "");
+  };
+
   const authToken =
     localStorage.getItem("token") ||
     localStorage.getItem("adminToken") ||
@@ -107,32 +128,23 @@ const [filters, setFilters] = useState({
     sessionStorage.getItem("token") ||
     "";
 
-
   const authHeaders = useMemo(
-  () =>
-    authToken
-      ? {
-          Authorization: `Bearer ${authToken}`,
-          token: authToken,
-        }
-      : {},
-  [authToken]
-);
+    () =>
+      authToken
+        ? {
+            Authorization: `Bearer ${authToken}`,
+            token: authToken,
+          }
+        : {},
+    [authToken],
+  );
 
   const currentUser = useMemo(() => {
     const tokenPayload = parseJwtPayload(authToken);
 
     return {
-      _id:
-        tokenPayload?._id ||
-        tokenPayload?.id ||
-        tokenPayload?.userId ||
-        "",
-      id:
-        tokenPayload?.id ||
-        tokenPayload?._id ||
-        tokenPayload?.userId ||
-        "",
+      _id: tokenPayload?._id || tokenPayload?.id || tokenPayload?.userId || "",
+      id: tokenPayload?.id || tokenPayload?._id || tokenPayload?.userId || "",
       email:
         tokenPayload?.email ||
         tokenPayload?.useremail ||
@@ -148,86 +160,90 @@ const [filters, setFilters] = useState({
     };
   }, [authToken]);
 
-const currentUserEmail = String(currentUser?.email || "").trim().toLowerCase();
-const currentUserRole = String(currentUser?.role || "").trim().toLowerCase();
-const canCreateEnquiryJob =
-  currentUserRole === "admin" ||
-  currentUserRole === "agent" ||
-  currentUserEmail === "hello@thesupremecollective.co.uk";
+  const currentUserEmail = String(currentUser?.email || "")
+    .trim()
+    .toLowerCase();
+  const currentUserRole = String(currentUser?.role || "")
+    .trim()
+    .toLowerCase();
+  const canCreateEnquiryJob =
+    currentUserRole === "admin" ||
+    currentUserRole === "agent" ||
+    currentUserEmail === "hello@thesupremecollective.co.uk";
 
-const handleCloseJob = async (job) => {
-  if (!job?._id || loadingClose) return;
+  const handleCloseJob = async (job) => {
+    if (!job?._id || loadingClose) return;
 
-  const confirmed = window.confirm(
-    `Close the deputy job "${job.title || "Untitled job"}"?`
-  );
-
-  if (!confirmed) return;
-
-  try {
-    setLoadingClose(true);
-console.count("fetchJobs called");
-    const { data } = await axios.post(
-      `${BACKEND_URL}/api/deputy-jobs/${job._id}/close`,
-      {},
-      {
-        headers: authHeaders,
-        withCredentials: true,
-      }
+    const confirmed = window.confirm(
+      `Close the deputy job "${job.title || "Untitled job"}"?`,
     );
 
-    if (!data?.success) {
-      throw new Error(data?.message || "Failed to close deputy job");
-    }
+    if (!confirmed) return;
 
-    toast.success("Deputy job closed");
-    await fetchJobs();
-  } catch (error) {
-    console.error("❌ Failed to close deputy job:", error);
-    toast.error(
-      error?.response?.data?.message ||
-        error?.message ||
-        "Failed to close deputy job"
-    );
-  } finally {
-    setLoadingClose(false);
-  }
-};
-
-const fetchJobs = useCallback(async () => {
-  try {
-    setLoading(true);
-    setError("");
-
-    const headers = authToken
-      ? { Authorization: `Bearer ${authToken}`, token: authToken }
-      : {};
-
-    const { data } = await axios.get(`${BACKEND_URL}/api/deputy-jobs`, {
-      headers,
-      withCredentials: true,
-    });
-
-    const nextJobs = Array.isArray(data?.jobs) ? data.jobs : [];
-    setJobs(nextJobs);
-
-    setHoveredJob((prev) => {
-      if (!nextJobs.length) return null;
-      if (!prev?._id) return nextJobs[0];
-      return (
-        nextJobs.find((job) => String(job._id) === String(prev._id)) ||
-        nextJobs[0]
+    try {
+      setLoadingClose(true);
+      console.count("fetchJobs called");
+      const { data } = await axios.post(
+        `${BACKEND_URL}/api/deputy-jobs/${job._id}/close`,
+        {},
+        {
+          headers: authHeaders,
+          withCredentials: true,
+        },
       );
-    });
-  } catch (err) {
-    console.error("❌ Failed to fetch deputy jobs:", err);
-    setError(err?.response?.data?.message || "Could not load deputy jobs.");
-    setJobs([]);
-    setHoveredJob(null);
-  } finally {
-    setLoading(false);
-  }
-}, [authToken]);
+
+      if (!data?.success) {
+        throw new Error(data?.message || "Failed to close deputy job");
+      }
+
+      toast.success("Deputy job closed");
+      await fetchJobs();
+    } catch (error) {
+      console.error("❌ Failed to close deputy job:", error);
+      toast.error(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to close deputy job",
+      );
+    } finally {
+      setLoadingClose(false);
+    }
+  };
+
+  const fetchJobs = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const headers = authToken
+        ? { Authorization: `Bearer ${authToken}`, token: authToken }
+        : {};
+
+      const { data } = await axios.get(`${BACKEND_URL}/api/deputy-jobs`, {
+        headers,
+        withCredentials: true,
+      });
+
+      const nextJobs = Array.isArray(data?.jobs) ? data.jobs : [];
+      setJobs(nextJobs);
+
+      setHoveredJob((prev) => {
+        if (!nextJobs.length) return null;
+        if (!prev?._id) return nextJobs[0];
+        return (
+          nextJobs.find((job) => String(job._id) === String(prev._id)) ||
+          nextJobs[0]
+        );
+      });
+    } catch (err) {
+      console.error("❌ Failed to fetch deputy jobs:", err);
+      setError(err?.response?.data?.message || "Could not load deputy jobs.");
+      setJobs([]);
+      setHoveredJob(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [authToken]);
 
   useEffect(() => {
     fetchJobs();
@@ -250,80 +266,98 @@ const fetchJobs = useCallback(async () => {
     return Array.from(values).sort((a, b) => a.localeCompare(b));
   }, [jobs]);
 
-const filteredJobs = useMemo(() => {
-  const query = filters.search.trim().toLowerCase();
-  const instrumentFilter = filters.instrument.trim().toLowerCase();
-  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+  const filteredJobs = useMemo(() => {
+    const query = filters.search.trim().toLowerCase();
+    const instrumentFilter = filters.instrument.trim().toLowerCase();
+    const dateFilter = String(filters.date || "").trim();
+    const jobTypeFilter = String(filters.jobType || "")
+      .trim()
+      .toLowerCase();
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
 
-  const next = jobs.filter((job) => {
-    const status = String(job?.status || "open").toLowerCase();
-    const jobType = String(job?.jobType || "booked").toLowerCase();
+    const next = jobs.filter((job) => {
+      const status = String(job?.status || "open").toLowerCase();
+      const jobType = String(job?.jobType || "booked").toLowerCase();
 
-    const requiresStoredCard =
-      jobType !== "enquiry" &&
-      ["open", "allocated", "filled", "closed", "cancelled"].includes(status);
+      const requiresStoredCard =
+        jobType !== "enquiry" &&
+        ["open", "allocated", "filled", "closed", "cancelled"].includes(status);
 
-    // Hide only genuine card-setup-required jobs.
-    // Admin/manual-pay jobs now use paymentStatus: "not_required"
-    // and should remain visible in the list.
-    if (requiresStoredCard && !hasStoredCardForJob(job)) {
-      return false;
-    }
-
-    if (showEnquiryOnly && jobType !== "enquiry") {
-      return false;
-    }
-
-    // If Open jobs only is NOT ticked, keep allocated/filled/closed/cancelled
-    // visible for 7 days, then hide them. Jobs that require payment setup
-    // are also hidden until a stored card is attached.
-    if (
-      !filters.onlyOpen &&
-      ["allocated", "filled", "closed", "cancelled"].includes(status)
-    ) {
-      const updatedAt = new Date(
-        job?.updatedAt || job?.allocatedAt || job?.bookingConfirmedAt || 0
-      ).getTime();
-
-      if (updatedAt && Date.now() - updatedAt > sevenDaysMs) {
+      if (requiresStoredCard && !hasStoredCardForJob(job)) {
         return false;
       }
-    }
 
-    if (instrumentFilter) {
-      const instruments = Array.isArray(job?.requiredInstruments)
-        ? job.requiredInstruments.map((item) =>
-            String(item || "").toLowerCase()
-          )
-        : [];
-
-      if (!instruments.some((item) => item.includes(instrumentFilter))) {
+      if (showEnquiryOnly && jobType !== "enquiry") {
         return false;
       }
-    }
 
-    if (!query) return true;
+      if (jobTypeFilter && jobType !== jobTypeFilter) {
+        return false;
+      }
 
-    const haystack = [
-      job?.title,
-      job?.venue,
-      job?.location,
-      job?.notes,
-      ...(Array.isArray(job?.requiredInstruments) ? job.requiredInstruments : []),
-      ...(Array.isArray(job?.requiredSkills) ? job.requiredSkills : []),
-      ...(Array.isArray(job?.tags) ? job.tags : []),
-      ...(Array.isArray(job?.setLengths) ? job.setLengths : []),
-      ...(Array.isArray(job?.whatsIncluded) ? job.whatsIncluded : []),
-      ...(Array.isArray(job?.claimableExpenses) ? job.claimableExpenses : []),
-    ]
-      .map((value) => String(value || "").toLowerCase())
-      .join(" ");
+      if (
+        !filters.onlyOpen &&
+        ["allocated", "filled", "closed", "cancelled"].includes(status)
+      ) {
+        const updatedAt = new Date(
+          job?.updatedAt || job?.allocatedAt || job?.bookingConfirmedAt || 0,
+        ).getTime();
 
-    return haystack.includes(query);
-  });
+        if (updatedAt && Date.now() - updatedAt > sevenDaysMs) {
+          return false;
+        }
+      }
 
-  return sortJobs(next, sortType);
-}, [jobs, filters, sortType, showEnquiryOnly]);
+      if (filters.onlyOpen && status !== "open") {
+        return false;
+      }
+
+      if (instrumentFilter) {
+        const instruments = Array.isArray(job?.requiredInstruments)
+          ? job.requiredInstruments.map((item) =>
+              String(item || "").toLowerCase(),
+            )
+          : [];
+
+        if (!instruments.some((item) => item.includes(instrumentFilter))) {
+          return false;
+        }
+      }
+
+      if (dateFilter) {
+        const jobDate = getJobDateValue(job);
+        if (jobDate !== dateFilter) {
+          return false;
+        }
+      }
+
+      if (!query) return true;
+
+      const haystack = [
+        job?.title,
+        job?.venue,
+        job?.location,
+        job?.locationName,
+        job?.county,
+        job?.notes,
+        ...(Array.isArray(job?.requiredInstruments)
+          ? job.requiredInstruments
+          : []),
+        ...(Array.isArray(job?.requiredSkills) ? job.requiredSkills : []),
+        ...(Array.isArray(job?.tags) ? job.tags : []),
+        ...(Array.isArray(job?.setLengths) ? job.setLengths : []),
+        ...(Array.isArray(job?.whatsIncluded) ? job.whatsIncluded : []),
+        ...(Array.isArray(job?.claimableExpenses) ? job.claimableExpenses : []),
+      ]
+        .map((value) => String(value || "").toLowerCase())
+        .join(" ");
+
+      return haystack.includes(query);
+    });
+
+    return sortJobs(next, sortType);
+  }, [jobs, filters, sortType, showEnquiryOnly]);
+
   useEffect(() => {
     if (!filteredJobs.length) {
       setHoveredJob(null);
@@ -333,7 +367,8 @@ const filteredJobs = useMemo(() => {
     setHoveredJob((prev) => {
       if (!prev?._id) return filteredJobs[0];
       return (
-        filteredJobs.find((job) => String(job._id) === String(prev._id)) || filteredJobs[0]
+        filteredJobs.find((job) => String(job._id) === String(prev._id)) ||
+        filteredJobs[0]
       );
     });
   }, [filteredJobs]);
@@ -344,8 +379,8 @@ const filteredJobs = useMemo(() => {
         <div>
           <Title text1="DEPUTY" text2="JOBS" />
           <p className="text-sm text-gray-500 mt-3 max-w-2xl">
-            Browse deputy jobs, including previews, hover to preview full details, and jump into
-            applicants or allocation from the job panel.
+            Browse deputy jobs, including previews, hover to preview full
+            details, and jump into applicants or allocation from the job panel.
           </p>
         </div>
 
@@ -437,10 +472,52 @@ const filteredJobs = useMemo(() => {
           </label>
         </div>
 
+        <input
+          type="date"
+          value={filters.date}
+          onChange={(e) =>
+            setFilters((prev) => ({
+              ...prev,
+              date: e.target.value,
+            }))
+          }
+          className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black"
+        />
+
+        <select
+          value={filters.jobType}
+          onChange={(e) =>
+            setFilters((prev) => ({
+              ...prev,
+              jobType: e.target.value,
+            }))
+          }
+          className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black"
+        >
+          <option value="">All job types</option>
+          <option value="booked">Confirmed jobs</option>
+          <option value="enquiry">Enquiries</option>
+        </select>
+
         <div className="hidden lg:flex lg:items-center lg:justify-end text-sm text-gray-500">
           {filteredJobs.length} {filteredJobs.length === 1 ? "job" : "jobs"}
           {showEnquiryOnly ? " • enquiry only" : ""}
         </div>
+        <button
+          type="button"
+          onClick={() =>
+            setFilters({
+              search: "",
+              instrument: "",
+              onlyOpen: false,
+              date: "",
+              jobType: "",
+            })
+          }
+          className="rounded border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+        >
+          Clear filters
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] gap-6">
@@ -461,15 +538,20 @@ const filteredJobs = useMemo(() => {
             <div className="flex flex-col gap-4">
               {filteredJobs.map((job) => (
                 <div
-  key={job._id}
-  onMouseEnter={() => setHoveredJob(job)}
-  className="transition-all duration-300 ease-in-out"
->
+                  key={job._id}
+                  onMouseEnter={() => setHoveredJob(job)}
+                  className="transition-all duration-300 ease-in-out"
+                >
                   <DeputyJobCard
                     job={job}
-                    isSelected={String(hoveredJob?._id || "") === String(job._id)}
+                    isSelected={
+                      String(hoveredJob?._id || "") === String(job._id)
+                    }
                     onHover={() => setHoveredJob(job)}
-                    isDimmed={Boolean(hoveredJob?._id) && String(hoveredJob?._id || "") !== String(job._id)}
+                    isDimmed={
+                      Boolean(hoveredJob?._id) &&
+                      String(hoveredJob?._id || "") !== String(job._id)
+                    }
                     onRefresh={fetchJobs}
                     subtitle={`${formatDate(job?.date || job?.eventDate)} • ${getFeeLabel(job)}`}
                     onClick={() => navigate(`/deputy-jobs/${job._id}`)}
@@ -482,17 +564,15 @@ const filteredJobs = useMemo(() => {
 
         <div className="hidden lg:block">
           {hoveredJob ? (
-            <div className="sticky top-6">
             <DeputyJobPreviewPanel
-  hoveredJob={hoveredJob}
-  onRefresh={fetchJobs}
-  authHeaders={authHeaders}
-  currentUser={currentUser}
-  onCloseJob={handleCloseJob}
-   loadingClose={loadingClose}
-/>
-            </div>
-          ) : ( 
+              hoveredJob={hoveredJob}
+              onRefresh={fetchJobs}
+              authHeaders={authHeaders}
+              currentUser={currentUser}
+              onCloseJob={handleCloseJob}
+              loadingClose={loadingClose}
+            />
+          ) : (
             <div className="sticky top-6 rounded border border-gray-200 bg-white p-8 text-center text-gray-500">
               Hover over a deputy job to preview the details here.
             </div>
