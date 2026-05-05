@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import DeputyJobApplyButton from "./DeputyJobApplyButton";
@@ -697,13 +697,42 @@ const DeputyJobPreviewPanel = ({
               {applicantsCount}
             </p>
             {job.allocatedMusicianName || job.assignedMusicianName ? (
-              <p>
-                <span className="font-medium text-gray-900">Allocated to:</span>{" "}
-                {formatShortName(
-                  job.allocatedMusicianName || job.assignedMusicianName,
-                )}
-              </p>
-            ) : null}
+  <p>
+    <span className="font-medium text-gray-900">Allocated to:</span>{" "}
+    {(() => {
+      const musicianName = formatShortName(
+        job.allocatedMusicianName || job.assignedMusicianName,
+      );
+
+      const musicianSlug =
+        job?.allocatedMusicianSlug ||
+        job?.assignedMusicianSlug ||
+        "";
+
+      const musicianId =
+        job?.allocatedMusicianId ||
+        job?.assignedMusicianId ||
+        "";
+
+      const musicianHref = musicianSlug
+        ? `/musician/${encodeURIComponent(musicianSlug)}`
+        : musicianId
+          ? `/musician/${encodeURIComponent(musicianId)}`
+          : "";
+
+      return musicianHref ? (
+        <Link
+          to={musicianHref}
+          className="text-[#ff6667] hover:underline"
+        >
+          {musicianName}
+        </Link>
+      ) : (
+        musicianName
+      );
+    })()}
+  </p>
+) : null}
           </div>
         </section>
 
