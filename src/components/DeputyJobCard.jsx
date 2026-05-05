@@ -73,6 +73,38 @@ const getPostedByLabel = (job) => {
   return "A Supreme Collective Member";
 };
 
+const getClosedNoticeText = (job) => {
+  const status = String(job?.status || "").toLowerCase();
+
+  if (!["allocated", "filled", "closed", "cancelled"].includes(status)) {
+    return "";
+  }
+
+  const baseDate =
+    job?.updatedAt || job?.allocatedAt || job?.bookingConfirmedAt || job?.createdAt;
+
+  if (!baseDate) {
+    return `This job is ${status} and will disappear from this list soon.`;
+  }
+
+  const updatedAtMs = new Date(baseDate).getTime();
+  if (Number.isNaN(updatedAtMs)) {
+    return `This job is ${status} and will disappear from this list soon.`;
+  }
+
+  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+  const expiryMs = updatedAtMs + sevenDaysMs;
+  const remainingMs = expiryMs - Date.now();
+
+  if (remainingMs <= 0) {
+    return `This job is ${status} and will disappear from this list soon.`;
+  }
+
+  const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+
+  return `This job is ${status} and will disappear from this list in ${remainingDays} day${remainingDays === 1 ? "" : "s"}.`;
+};
+
 const DeputyJobCard = ({
   job,
   isSelected = false,
