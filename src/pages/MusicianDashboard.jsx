@@ -339,6 +339,7 @@ const [peerReview, setPeerReview] = useState(null);
 const adminEmail = ADMIN_EMAIL.toLowerCase();
   const [myActs, setMyActs] = useState([]);
   const [deppingActs, setDeppingActs] = useState([]);
+  const [appliedJobs, setAppliedJobs] = useState([]);
   const [stats, setStats] = useState({
     enquiries: [],
     bookings: [],
@@ -386,6 +387,30 @@ const [myDeputyStatus, setMyDeputyStatus] = useState(
     localStorage.getItem("deputyStatus") ||
     null
 );
+
+const fetchAppliedJobs = async () => {
+  try {
+    const id = storedUserId || userId;
+    if (!id) return;
+
+    const res = await axios.get(
+      `${backendUrl}/api/deputy-jobs?appliedBy=${id}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          token,
+        },
+        withCredentials: true,
+      }
+    );
+
+    const jobs = Array.isArray(res.data?.jobs) ? res.data.jobs : [];
+    setAppliedJobs(jobs);
+  } catch (err) {
+    console.error("Error fetching applied jobs", err);
+    setAppliedJobs([]);
+  }
+};
 
 const musicianId = useMemo(() => {
   const fromProps = userId;
@@ -575,14 +600,15 @@ const isAdminAgent = useMemo(() => {
     }
   };
 
-  useEffect(() => {
-    fetchMe();
-    fetchMyActs();
-    fetchDeppingActs();
-    fetchStats();
-     fetchPeerReview();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+useEffect(() => {
+  fetchMe();
+  fetchMyActs();
+  fetchDeppingActs();
+  fetchStats();
+  fetchPeerReview();
+  fetchAppliedJobs();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   // (You had this duplicate; leaving it, but it may overwrite stats shape)
   useEffect(() => {
@@ -767,7 +793,39 @@ const isAdminAgent = useMemo(() => {
             )}
           </div>
 
+          {/* ------- Deputy Jobs Applied For ------- */}
 
+<div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
+  <h3 className="text-lg font-semibold mb-3">Jobs You’ve Applied For</h3>
+
+  {appliedJobs.length === 0 ? (
+    <p className="text-gray-600">You haven’t applied for any deputy jobs yet.</p>
+  ) : (
+    appliedJobs.map((job) => (
+      <div
+        key={job._id}
+        className="p-3 border-b hover:bg-gray-50 cursor-pointer"
+        onClick={() => navigate(`/deputy-jobs/${job._id}`)}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+          <div>
+            <p className="font-medium text-gray-900">
+              {job.title || "Deputy opportunity"}
+            </p>
+            <p className="text-sm text-gray-500">
+              {job.eventDate ? formatDate(job.eventDate) : "Date TBC"} ·{" "}
+              {job.location || job.venue || job.locationName || "Location TBC"}
+            </p>
+          </div>
+
+          <span className="text-xs rounded-full bg-gray-100 px-3 py-1 text-gray-700 w-fit">
+            {job.status || "applied"}
+          </span>
+        </div>
+      </div>
+    ))
+  )}
+</div>
       
 
           {/* ------- Feedback Section ------- */}

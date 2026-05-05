@@ -23,7 +23,10 @@ const STRIPE_PUBLISHABLE_KEY = String(
 const stripePromise = STRIPE_PUBLISHABLE_KEY
   ? loadStripe(STRIPE_PUBLISHABLE_KEY)
   : null;
-
+const FRONTEND_URL =
+  (import.meta.env.VITE_FRONTEND_URL ||
+    "https://thesupremecollective.co.uk").replace(/\/+$/, "");
+    
 const formatMoney = (value) => {
   const n = Number(value || 0);
   return `£${n.toLocaleString("en-GB", {
@@ -142,6 +145,59 @@ const getPostedByLabel = (job) => {
     return "The Supreme Collective";
   }
   return "A Supreme Collective Member";
+};
+
+const getClosureDate = (job) => {
+  const status = String(job?.status || "").toLowerCase();
+
+  if (status === "allocated") {
+    return job?.updatedAt || job?.allocatedAt || job?.bookingConfirmedAt || null;
+  }
+
+  if (status === "filled" || status === "closed" || status === "cancelled") {
+    return job?.updatedAt || job?.bookingConfirmedAt || job?.allocatedAt || null;
+  }
+
+  return null;
+};
+
+const getDaysUntilHidden = (job) => {
+  const closedAt = getClosureDate(job);
+  if (!closedAt) return null;
+
+  const closedTime = new Date(closedAt).getTime();
+  if (Number.isNaN(closedTime)) return null;
+
+  const hideAfterMs = 7 * 24 * 60 * 60 * 1000;
+  const remainingMs = hideAfterMs - (Date.now() - closedTime);
+
+  if (remainingMs <= 0) return 0;
+
+  return Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+};
+
+const getClosedNoticeText = (job) => {
+  const status = String(job?.status || "").toLowerCase();
+  const daysLeft = getDaysUntilHidden(job);
+
+  if (!["allocated", "filled", "closed", "cancelled"].includes(status)) {
+    return "";
+  }
+
+  const label =
+    status === "allocated"
+      ? "allocated"
+      : status === "filled"
+      ? "filled"
+      : status === "cancelled"
+      ? "cancelled"
+      : "closed";
+
+  if (daysLeft == null) {
+    return `This job is ${label} and will disappear from this list soon.`;
+  }
+
+  return `This job is ${label} and will disappear from this list in ${daysLeft} day${daysLeft === 1 ? "" : "s"}.`;
 };
 
 const DeputyJobCardSetupForm = ({
@@ -620,8 +676,8 @@ const applicantsCount =
   }
 
   return (
-    <div className="w-full min-h-screen border-l p-6">
-      <div className="sticky top-0 pb-4">
+<div className="w-full border-l p-6">
+  <div className="sticky top-6 max-h-[calc(100vh-2rem)] overflow-y-auto pr-1">
         <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
           <div className="flex items-start justify-between gap-4 border-b border-gray-200 pb-4">
             <div>
@@ -722,22 +778,26 @@ const musicianId =
     ""
   ).trim();
 
-const musicianHref = musicianSlug
+const musicianPath = musicianSlug
   ? `/musician/${encodeURIComponent(musicianSlug)}`
   : musicianId
     ? `/musician/${encodeURIComponent(musicianId)}`
     : "";
 
-      return musicianHref ? (
-        <Link
-          to={musicianHref}
-          className="text-[#ff6667] hover:underline"
-        >
-          {musicianName}
-        </Link>
-      ) : (
-        musicianName
-      );
+const musicianHref = musicianPath ? `${FRONTEND_URL}${musicianPath}` : "";
+
+return musicianHref ? (
+  <a
+    href={musicianHref}
+    target="_blank"
+    rel="noreferrer"
+    className="text-[#ff6667] hover:underline"
+  >
+    {musicianName}
+  </a>
+) : (
+  musicianName
+);
     })()}
   </p>
 ) : null}

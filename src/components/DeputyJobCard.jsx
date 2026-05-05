@@ -133,7 +133,7 @@ const DeputyJobCard = ({
     : "";
   const jobTypeText = isEnquiryJob ? "Enquiry" : "Confirmed Booking";
   const postedByLabel = getPostedByLabel(job);
-
+const closedNoticeText = getClosedNoticeText(job);
   const handleApplicantsClick = (event) => {
     event.stopPropagation();
     if (typeof onViewApplicants === "function") {
@@ -149,22 +149,23 @@ const DeputyJobCard = ({
     if (typeof onHover === "function") onHover(job);
   };
 
-  return (
-    <button
-      type="button"
-      onClick={handleCardClick}
-      onMouseEnter={handleMouseEnter}
-     className={[
-  "w-full rounded-2xl border p-4 text-left focus:outline-none focus:ring-2 focus:ring-black/20 transform-gpu transition duration-300 ease-in-out",
-  isUnavailable
-    ? "border-gray-200 bg-gray-50 opacity-80"
-    : "border-gray-200 bg-white hover:scale-[1.03] hover:shadow-2xl hover:-translate-y-1",
-  isSelected
-    ? "border-black ring-2 ring-black/15 shadow-2xl scale-[1.02]"
-    : "",
-  isDimmed ? "opacity-50 saturate-0" : "",
-].join(" ")}
-    >
+
+    return (
+  <button
+    type="button"
+    onClick={handleCardClick}
+    onMouseEnter={handleMouseEnter}
+    className={[
+      "w-full rounded-2xl border p-4 text-left focus:outline-none focus:ring-2 focus:ring-black/20 transform-gpu transition duration-300 ease-in-out",
+      isUnavailable
+        ? "border-gray-200 bg-gray-50 opacity-80"
+        : "border-gray-200 bg-white hover:scale-[1.03] hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(0,0,0,0.12)]",
+      isSelected
+        ? "border-black bg-white ring-2 ring-black/15 scale-[1.02] shadow-[0_20px_45px_rgba(0,0,0,0.16)]"
+        : "",
+      isDimmed ? "opacity-50 saturate-0" : "",
+    ].join(" ")}
+  >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -228,6 +229,11 @@ const DeputyJobCard = ({
       {job.notes && (
         <p className="mt-4 line-clamp-2 text-sm text-gray-600">{job.notes}</p>
       )}
+      {closedNoticeText ? (
+  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+    {closedNoticeText}
+  </div>
+) : null}
 
       <div className="mt-4 flex items-center justify-between gap-3">
         <div className="text-xs text-gray-500">Posted by {postedByLabel}</div>
