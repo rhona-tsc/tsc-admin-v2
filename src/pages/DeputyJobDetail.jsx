@@ -504,6 +504,13 @@ const DeputyJobDetail = () => {
   const isValidObjectId = (value = "") =>
     /^[a-f\d]{24}$/i.test(String(value || "").trim());
 
+  const handleRedirectToLoginToApply = useCallback(() => {
+  toast.info("Please log in or create an account to apply. We’ll bring you back to this job afterwards.");
+  navigate("/login", {
+    state: { from: `/deputy-jobs/${id}` },
+  });
+}, [navigate, id]);
+
   const getCandidateDisplayName = (candidate = {}) => {
     const firstName = String(candidate?.firstName || "").trim();
     const lastName = String(candidate?.lastName || "").trim();
@@ -805,14 +812,10 @@ const DeputyJobDetail = () => {
             ) : shouldShowSignInToApply ? (
               <button
                 type="button"
-                onClick={() =>
-                  navigate("/musician-login", {
-                    state: { from: `/deputy-jobs/${id}` },
-                  })
-                }
+                onClick={handleRedirectToLoginToApply}
                 className="inline-flex items-center rounded-lg border border-black px-4 py-2 text-sm font-medium text-black hover:bg-gray-50"
               >
-                Sign in to apply
+                Sign in or create account to apply
               </button>
             ) : null}
 
@@ -870,11 +873,7 @@ const DeputyJobDetail = () => {
               <div className="mb-4">
                 <button
                   type="button"
-                  onClick={() =>
-                    navigate("/musician-login", {
-                      state: { from: `/deputy-jobs/${id}` },
-                    })
-                  }
+                  onClick={handleRedirectToLoginToApply}
                   className="rounded-lg border border-black px-4 py-2 text-sm font-medium text-black hover:bg-gray-50"
                 >
                   Sign in to apply

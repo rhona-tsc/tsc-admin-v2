@@ -64,7 +64,9 @@ const jobTypeClasses = {
 };
 
 const getPostedByLabel = (job) => {
-  const createdByEmail = String(job?.createdByEmail || "").trim().toLowerCase();
+  const createdByEmail = String(job?.createdByEmail || "")
+    .trim()
+    .toLowerCase();
   if (createdByEmail === "hello@thesupremecollective.co.uk") {
     return "The Supreme Collective";
   }
@@ -84,39 +86,47 @@ const DeputyJobCard = ({
   if (!job) return null;
 
   const title = job.title || "Deputy opportunity";
-const venueText = job.venue || job.locationName || job.location || "Venue TBC";
-const dateText = formatDate(job.date || job.eventDate);
-const timeText = formatTimeRange(
-  job.callTime || job.startTime,
-  job.finishTime || job.endTime
-);
+  const venueText =
+    job.venue || job.locationName || job.location || "Venue TBC";
+  const dateText = formatDate(job.date || job.eventDate);
+  const timeText = formatTimeRange(
+    job.callTime || job.startTime,
+    job.finishTime || job.endTime,
+  );
   const jobType = String(job?.jobType || "booked").toLowerCase();
   const isEnquiryJob = jobType === "enquiry" || Boolean(job?.isEnquiryOnly);
   const commissionApplies =
     !isEnquiryJob &&
-    (Number(job?.commissionAmount || 0) > 0 || Number(job?.deputyNetAmount || 0) > 0);
+    (Number(job?.commissionAmount || 0) > 0 ||
+      Number(job?.deputyNetAmount || 0) > 0);
   const netFeeValue =
     Number(job?.deputyNetAmount) > 0
       ? Number(job.deputyNetAmount)
       : commissionApplies
-      ? Math.max(Number(job?.fee || 0) - Number(job?.commissionAmount || 0), 0)
-      : Number(job?.fee || 0);
+        ? Math.max(
+            Number(job?.fee || 0) - Number(job?.commissionAmount || 0),
+            0,
+          )
+        : Number(job?.fee || 0);
   const feeText = formatMoney(netFeeValue);
   const status = String(job.status || "open").toLowerCase();
-  const isUnavailable = ["allocated", "filled", "closed", "cancelled"].includes(status);
-
-const statusText =
-  status === "allocated"
-    ? "Allocated"
-    : status === "filled"
-    ? "Filled"
-    : status === "closed"
-    ? "Closed"
-    : status === "cancelled"
-    ? "Cancelled"
-    : status === "preview"
-    ? "Preview"
-    : "Open";
+  const isUnavailable = ["allocated", "filled", "closed", "cancelled"].includes(
+    status,
+  );
+  const countyText = job.county || job.address?.county || "";
+  const locationText = [venueText, countyText].filter(Boolean).join(", ");
+  const statusText =
+    status === "allocated"
+      ? "Allocated"
+      : status === "filled"
+        ? "Filled"
+        : status === "closed"
+          ? "Closed"
+          : status === "cancelled"
+            ? "Cancelled"
+            : status === "preview"
+              ? "Preview"
+              : "Open";
   const chips = buildTagList(job);
   const commissionText = commissionApplies
     ? `Net after ${formatMoney(job.commissionAmount || 0, "£0")} commission`
@@ -145,30 +155,31 @@ const statusText =
       onClick={handleCardClick}
       onMouseEnter={handleMouseEnter}
       className={[
-  "w-full rounded-2xl border p-4 text-left shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-black/20",
-  isUnavailable
-    ? "border-gray-200 bg-gray-50 opacity-80"
-    : "border-gray-200 bg-white hover:-translate-y-0.5 hover:shadow-md",
-  isSelected ? "border-black ring-2 ring-black/15 shadow-md" : "",
-  isDimmed ? "opacity-50 saturate-0" : "",
-].join(" ")}
+        "w-full rounded-2xl border p-4 text-left shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-black/20",
+        isUnavailable
+          ? "border-gray-200 bg-gray-50 opacity-80"
+          : "border-gray-200 bg-white hover:-translate-y-0.5 hover:shadow-md",
+        isSelected ? "border-black ring-2 ring-black/15 shadow-md" : "",
+        isDimmed ? "opacity-50 saturate-0" : "",
+      ].join(" ")}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-           <h3
-  className={[
-    "truncate text-base font-semibold",
-    isSelected ? "text-black" : "text-gray-900",
-  ].join(" ")}
->
-  {title}
-</h3>
+            <h3
+              className={[
+                "truncate text-base font-semibold",
+                isSelected ? "text-black" : "text-gray-900",
+              ].join(" ")}
+            >
+              {title}
+            </h3>
             <span
-            className={[
-              "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
-              statusClasses[status] || "bg-gray-100 text-gray-700 border-gray-200",
-            ].join(" ")}
+              className={[
+                "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
+                statusClasses[status] ||
+                  "bg-gray-100 text-gray-700 border-gray-200",
+              ].join(" ")}
             >
               {statusText}
             </span>
@@ -185,7 +196,7 @@ const statusText =
           <div className="mt-2 space-y-1 text-sm text-gray-600">
             <p>{dateText}</p>
             <p>{timeText}</p>
-            <p className="truncate">{venueText}</p>
+            <p className="truncate">{locationText}</p>{" "}
           </div>
         </div>
 
@@ -217,9 +228,7 @@ const statusText =
       )}
 
       <div className="mt-4 flex items-center justify-between gap-3">
-        <div className="text-xs text-gray-500">
-          Posted by {postedByLabel}
-        </div>
+        <div className="text-xs text-gray-500">Posted by {postedByLabel}</div>
 
         {canManage && (
           <button
@@ -227,7 +236,10 @@ const statusText =
             onClick={handleApplicantsClick}
             className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:border-black hover:text-black"
           >
-            Applicants{(applicationCount || job?.applicationCount || job?.applications?.length)
+            Applicants
+            {applicationCount ||
+            job?.applicationCount ||
+            job?.applications?.length
               ? ` (${applicationCount || job?.applicationCount || job?.applications?.length})`
               : ""}
           </button>

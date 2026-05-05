@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -43,8 +43,6 @@ if (!import.meta.env.VITE_BACKEND_URL) {
 
 export const currency = "£";
 
-// 👇 helper to decode token once
-// replace your parseToken with this safer version
 function parseToken(t) {
   if (!t) return {};
   try {
@@ -57,31 +55,52 @@ function parseToken(t) {
       lastName: d?.lastName || "",
       email: d?.email || "",
       phone: d?.phone || "",
-      userId: isOid ? rawId : "", // ✅ only keep if it looks like an ObjectId
+      userId: isOid ? rawId : "",
       userRole: d?.role || "",
       password: d?.password || "",
     };
 
-    // your existing override is fine
     if (d?.id === "68123dcda79759339808b578") {
       user.userRole = "agent";
     }
+
     return user;
   } catch {
     return {};
   }
 }
 
-const RequireLoginRedirect = () => {
+const RequireAuth = ({ children }) => {
+  const location = useLocation();
+  const token = localStorage.getItem("token") || "";
+
+  if (!token) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: `${location.pathname}${location.search}${location.hash}` }}
+      />
+    );
+  }
+
+  return children;
+};
+
+const PublicOnlyRoute = ({ children }) => {
+  const token = localStorage.getItem("token") || "";
   const location = useLocation();
 
-  return (
-    <Navigate
-      to="/login"
-      replace
-      state={{ from: `${location.pathname}${location.search}${location.hash}` }}
-    />
-  );
+  if (token) {
+    const redirectTarget =
+      location.state?.from && typeof location.state.from === "string"
+        ? location.state.from
+        : "/musicians-dashboard";
+
+    return <Navigate to={redirectTarget} replace />;
+  }
+
+  return children;
 };
 
 const App = () => {
@@ -90,7 +109,6 @@ const App = () => {
   const initialToken = localStorage.getItem("token") || "";
   const initialUser = parseToken(initialToken);
 
-  // ✅ hydrate initial state from token so first render is correct
   const [token, setToken] = useState(initialToken);
   const [firstName, setFirstName] = useState(initialUser.firstName || "");
   const [lastName, setLastName] = useState(initialUser.lastName || "");
@@ -99,13 +117,17 @@ const App = () => {
   const [email, setEmail] = useState(initialUser.email || "");
   const [userRole, setUserRole] = useState(initialUser.userRole || "");
   const [password, setPassword] = useState(initialUser.password || "");
-  const [hydrated, setHydrated] = useState(true); // true because we already set from token synchronously
+  const [hydrated, setHydrated] = useState(true);
+
   const isAdminAgent =
     userRole === "agent" || email === "hello@thesupremecollective.co.uk";
+
+  const isLoggedIn = Boolean(token) && hydrated;
 
   const handleLogout = () => {
     setToken("");
     localStorage.clear();
+    sessionStorage.clear();
     setFirstName("");
     setLastName("");
     setPhone("");
@@ -115,7 +137,13 @@ const App = () => {
     setPassword("");
   };
 
-  // If token changes at runtime (login), re-hydrate fields
+  useEffect(() => {
+    const currentToken = localStorage.getItem("token") || "";
+    if (currentToken !== token) {
+      setToken(currentToken);
+    }
+  }, [token]);
+
   useEffect(() => {
     if (!token) return;
 
@@ -132,6 +160,19 @@ const App = () => {
     setHydrated(true);
   }, [token]);
 
+  const sidebarProps = useMemo(
+    () => ({
+      email,
+      userRole,
+      firstName,
+      lastName,
+      phone,
+      password,
+      userId,
+    }),
+    [email, userRole, firstName, lastName, phone, password, userId]
+  );
+
   return (
     <div className="w-full min-h-screen overflow-x-hidden bg-gray-50">
       <ToastContainer
@@ -144,249 +185,332 @@ const App = () => {
         className="mb-12"
       />
 
-      {token === "" ? (
-        <div className="w-full min-h-screen">
+      {isLoggedIn ? <Navbar onLogout={handleLogout} /> : null}
+      {isLoggedIn ? <hr /> : null}
+
+      <div className={isLoggedIn ? "flex w-full" : "w-full"}>
+        {isLoggedIn ? <Sidebar {...sidebarProps} /> : null}
+
+        <div
+          className={
+            isLoggedIn
+              ? "w-[70%] mx-auto ml-[max(5vw,25px)] my-8 text-gray-600 text-base"
+              : "w-full min-h-screen"
+          }
+        >
           <Routes>
+            {/* PUBLIC ROUTES */}
             <Route
               path="/login"
               element={
-                <Login
-                  setToken={setToken}
-                  setUserEmail={setEmail}
-                  setUserRole={setUserRole}
-                  setUserFirstName={setFirstName}
-                  setUserLastName={setLastName}
-                  setUserPhone={setPhone}
-                  setUserPassword={setPassword}
-                />
+                <PublicOnlyRoute>
+                  <Login
+                    setToken={setToken}
+                    setUserEmail={setEmail}
+                    setUserRole={setUserRole}
+                    setUserFirstName={setFirstName}
+                    setUserLastName={setLastName}
+                    setUserPhone={setPhone}
+                    setUserPassword={setPassword}
+                  />
+                </PublicOnlyRoute>
               }
             />
 
-            {/* ✅ Public password setup/reset pages */}
             <Route path="/set-password" element={<SetPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 
-            {/* Default when logged out */}
-            <Route path="*" element={<RequireLoginRedirect />} />
+            {/* PUBLIC DEPUTY JOB ROUTES */}
+            <Route path="/deputy-jobs" element={<DeputyJobs />} />
+            <Route path="/deputy-jobs/:id" element={<DeputyJobDetail />} />
+
+            {/* PUBLIC MUSICIAN PROFILE */}
+            <Route path="/musician/:slug" element={<Musician />} />
+
+            {/* DEFAULT */}
+            <Route
+              path="/"
+              element={
+                isLoggedIn ? (
+                  <Navigate to="/musicians-dashboard" replace />
+                ) : (
+                  <Navigate to="/deputy-jobs" replace />
+                )
+              }
+            />
+
+            {/* PROTECTED ROUTES */}
+            <Route
+              path="/musicians-dashboard"
+              element={
+                <RequireAuth>
+                  <MusicianDashboard
+                    uemail={email}
+                    userRole={userRole}
+                    firstName={firstName}
+                    lastName={lastName}
+                    phone={phone}
+                    password={password}
+                  />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/act-pre-submissions"
+              element={
+                <RequireAuth>
+                  <ActPreSubmissionsPage userRole={userRole} />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/agent-dashboard"
+              element={
+                <RequireAuth>
+                  <AgentDashboard userRole={userRole} />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/add-act-2"
+              element={
+                <RequireAuth>
+                  <AddAct2
+                    token={token}
+                    email={email}
+                    userRole={userRole}
+                    firstName={firstName}
+                    lastName={lastName}
+                    phone={phone}
+                    password={password}
+                  />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/edit-act-2/:id"
+              element={
+                <RequireAuth>
+                  <EditAct2StepperForm
+                    token={token}
+                    userRole={userRole}
+                    isModeration={true}
+                  />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/security"
+              element={
+                <RequireAuth>
+                  <Security
+                    token={token}
+                    email={email}
+                    userRole={userRole}
+                    firstName={firstName}
+                    lastName={lastName}
+                    phone={phone}
+                    password={password}
+                  />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/list"
+              element={
+                <RequireAuth>
+                  <List token={token} />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/register-as-deputy"
+              element={
+                <RequireAuth>
+                  <RegisterAsDeputy
+                    token={token}
+                    firstName={firstName}
+                    lastName={lastName}
+                    email={email}
+                    phone={phone}
+                    password={password}
+                    userId={userId}
+                    userRole={userRole}
+                  />
+                </RequireAuth>
+              }
+            />
+
+            {isAdminAgent && (
+              <Route
+                path="/moderate-deputy/edit/:id"
+                element={
+                  <RequireAuth>
+                    <DeputyForm token={token} userRole={userRole} />
+                  </RequireAuth>
+                }
+              />
+            )}
+
+            <Route
+              path="/edit-deputy/:id"
+              element={
+                <RequireAuth>
+                  <DeputyForm
+                    token={token}
+                    firstName={firstName}
+                    lastName={lastName}
+                    email={email}
+                    phone={phone}
+                    userRole={userRole}
+                    userId={userId}
+                  />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/bookings"
+              element={
+                <RequireAuth>
+                  <Orders token={token} />
+                </RequireAuth>
+              }
+            />
+
+            {isAdminAgent && (
+              <Route
+                path="/moderate"
+                element={
+                  <RequireAuth>
+                    <Moderate token={token} />
+                  </RequireAuth>
+                }
+              />
+            )}
+
+            {isAdminAgent && (
+              <Route
+                path="/moderate-deputies"
+                element={
+                  <RequireAuth>
+                    <ModerateDeputies token={token} />
+                  </RequireAuth>
+                }
+              />
+            )}
+
+            {isAdminAgent && (
+              <Route
+                path="/create-booking"
+                element={
+                  <RequireAuth>
+                    <CreateBooking token={token} />
+                  </RequireAuth>
+                }
+              />
+            )}
+
+            <Route
+              path="/moderate/edit/:id"
+              element={
+                <RequireAuth>
+                  <EditAct2StepperForm
+                    token={token}
+                    userRole={userRole}
+                    isModeration={true}
+                  />
+                </RequireAuth>
+              }
+            />
+
+            {isAdminAgent && (
+              <Route
+                path="/moderate-songs"
+                element={
+                  <RequireAuth>
+                    <PendingSongsModeration token={token} />
+                  </RequireAuth>
+                }
+              />
+            )}
+
+            <Route
+              path="/enquiry-board"
+              element={
+                <RequireAuth>
+                  <EnquiryBoard token={token} />
+                </RequireAuth>
+              }
+            />
+
+            {isAdminAgent && (
+              <Route
+                path="/booking-board"
+                element={
+                  <RequireAuth>
+                    <BookingBoard token={token} />
+                  </RequireAuth>
+                }
+              />
+            )}
+
+            <Route
+              path="/account/payout-settings"
+              element={
+                <RequireAuth>
+                  <PayoutSettings token={token} />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/messages"
+              element={
+                <RequireAuth>
+                  <Messages token={token} />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/deputy-jobs/create"
+              element={
+                <RequireAuth>
+                  <CreateDeputyJob />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/deputy-jobs/:id/applications"
+              element={
+                <RequireAuth>
+                  <ManageDeputyApplications />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/trash"
+              element={
+                <RequireAuth>
+                  <TrashedActs token={token} />
+                </RequireAuth>
+              }
+            />
+
+            <Route path="*" element={<Navigate to="/deputy-jobs" replace />} />
           </Routes>
         </div>
-      ) : (
-        // 👇 optional: gate UI until hydrated to prevent flicker
-        hydrated && (
-          <>
-            <Navbar onLogout={handleLogout} />
-            <hr />
-            <div className="flex w-full">
-              <Sidebar
-                email={email}
-                userRole={userRole}
-                firstName={firstName}
-                lastName={lastName}
-                phone={phone}
-                password={password}
-                userId={userId}
-              />
-              <div className="w-[70%] mx-auto ml-[max(5vw,25px)] my-8 text-gray-600 text-base">
-                <Routes>
-                  <Route
-                    path="/"
-                    element={
-                      <Navigate
-                        to={isAdminAgent ? "/moderate" : "/musicians-dashboard"}
-                        replace
-                      />
-                    }
-                  />
-                  <Route
-                    path="/musicians-dashboard"
-                    element={
-                      <MusicianDashboard
-                        uemail={email}
-                        userRole={userRole}
-                        firstName={firstName}
-                        lastName={lastName}
-                        phone={phone}
-                        password={password}
-                      />
-                    }
-                  />
-                  <Route
-                    path="/act-pre-submissions"
-                    element={<ActPreSubmissionsPage userRole={userRole} />}
-                  />
-                  <Route
-                    path="/agent-dashboard"
-                    element={<AgentDashboard userRole={userRole} />}
-                  />
-                  <Route
-                    path="/add-act-2"
-                    element={
-                      <AddAct2
-                        token={token}
-                        email={email}
-                        userRole={userRole}
-                        firstName={firstName}
-                        lastName={lastName}
-                        phone={phone}
-                        password={password}
-                      />
-                    }
-                  />
-                  <Route
-                    path="/edit-act-2/:id"
-                    element={
-                      <EditAct2StepperForm
-                        token={token}
-                        userRole={userRole}
-                        isModeration={true}
-                      />
-                    }
-                  />
-
-                  <Route
-                    path="/security"
-                    element={
-                      <Security
-                        token={token}
-                        email={email}
-                        userRole={userRole}
-                        firstName={firstName}
-                        lastName={lastName}
-                        phone={phone}
-                        password={password}
-                      />
-                    }
-                  />
-                  <Route path="/list" element={<List token={token} />} />
-                  <Route
-                    path="/register-as-deputy"
-                    element={
-                      <RegisterAsDeputy
-                        token={token}
-                        firstName={firstName}
-                        lastName={lastName}
-                        email={email}
-                        phone={phone}
-                        password={password}
-                        userId={userId}
-                        userRole={userRole}
-                      />
-                    }
-                  />
-                  {isAdminAgent && (
-                    <Route
-                      path="/moderate-deputy/edit/:id"
-                      element={<DeputyForm token={token} userRole={userRole} />}
-                    />
-                  )}
-
-                  <Route
-                    path="/edit-deputy/:id"
-                    element={
-                      <DeputyForm
-                        token={token}
-                        firstName={firstName}
-                        lastName={lastName}
-                        email={email}
-                        phone={phone}
-                        userRole={userRole}
-                        userId={userId}
-                      />
-                    }
-                  />
-
-                  <Route path="/bookings" element={<Orders token={token} />} />
-
-                  {isAdminAgent && (
-                    <Route
-                      path="/moderate"
-                      element={<Moderate token={token} />}
-                    />
-                  )}
-                  {isAdminAgent && (
-                    <Route
-                      path="/moderate-deputies"
-                      element={<ModerateDeputies token={token} />}
-                    />
-                  )}
-                  {isAdminAgent && (
-                    <Route
-                      path="/create-booking"
-                      element={<CreateBooking token={token} />}
-                    />
-                  )}
-
-                  <Route
-                    path="/moderate/edit/:id"
-                    element={
-                      <EditAct2StepperForm
-                        token={token}
-                        userRole={userRole}
-                        isModeration={true}
-                      />
-                    }
-                  />
-
-                  {isAdminAgent && (
-                    <Route
-                      path="/moderate-songs"
-                      element={<PendingSongsModeration token={token} />}
-                    />
-                  )}
-
-                  <Route
-                    path="/enquiry-board"
-                    element={<EnquiryBoard token={token} />}
-                  />
-
-                  {isAdminAgent && (
-                    <Route
-                      path="/booking-board"
-                      element={<BookingBoard token={token} />}
-                    />
-                  )}
-                  <Route
-                    path="/account/payout-settings"
-                    element={<PayoutSettings token={token} />}
-                  />
-                  <Route
-                    path="/messages"
-                    element={<Messages token={token} />}
-                  />
-                  <Route path="/musician/:slug" element={<Musician />} />
-
-                  <Route path="/deputy-jobs" element={<DeputyJobs />} />
-
-                  <Route
-                    path="/deputy-jobs/create"
-                    element={<CreateDeputyJob />}
-                  />
-                  <Route
-                    path="/deputy-jobs/:id"
-                    element={<DeputyJobDetail />}
-                  />
-
-                  <Route
-                    path="/deputy-jobs/:id"
-                    element={<DeputyJobDetail />}
-                  />
-
-                  <Route
-                    path="/deputy-jobs/:id/applications"
-                    element={<ManageDeputyApplications />}
-                  />
-
-                  <Route
-                    path="/trash"
-                    element={<TrashedActs token={token} />}
-                  />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </div>
-            </div>
-          </>
-        )
-      )}
+      </div>
     </div>
   );
 };
