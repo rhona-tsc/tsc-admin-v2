@@ -154,14 +154,16 @@ const DeputyJobCard = ({
       type="button"
       onClick={handleCardClick}
       onMouseEnter={handleMouseEnter}
-      className={[
-        "w-full rounded-2xl border p-4 text-left shadow-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-black/20",
-        isUnavailable
-          ? "border-gray-200 bg-gray-50 opacity-80"
-          : "border-gray-200 bg-white hover:-translate-y-0.5 hover:shadow-md",
-        isSelected ? "border-black ring-2 ring-black/15 shadow-md" : "",
-        isDimmed ? "opacity-50 saturate-0" : "",
-      ].join(" ")}
+     className={[
+  "w-full rounded-2xl border p-4 text-left focus:outline-none focus:ring-2 focus:ring-black/20 transform-gpu transition duration-300 ease-in-out",
+  isUnavailable
+    ? "border-gray-200 bg-gray-50 opacity-80"
+    : "border-gray-200 bg-white hover:scale-[1.03] hover:shadow-2xl hover:-translate-y-1",
+  isSelected
+    ? "border-black ring-2 ring-black/15 shadow-2xl scale-[1.02]"
+    : "",
+  isDimmed ? "opacity-50 saturate-0" : "",
+].join(" ")}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">

@@ -461,10 +461,10 @@ const filteredJobs = useMemo(() => {
             <div className="flex flex-col gap-4">
               {filteredJobs.map((job) => (
                 <div
-                  key={job._id}
-                  onMouseEnter={() => setHoveredJob(job)}
-                  className="transition-all duration-150"
-                >
+  key={job._id}
+  onMouseEnter={() => setHoveredJob(job)}
+  className="transition-all duration-300 ease-in-out"
+>
                   <DeputyJobCard
                     job={job}
                     isSelected={String(hoveredJob?._id || "") === String(job._id)}
