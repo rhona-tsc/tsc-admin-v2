@@ -6,20 +6,15 @@ import Title from "../components/Title";
 import DeputyJobCard from "../components/DeputyJobCard";
 import DeputyJobPreviewPanel from "../components/DeputyJobPreviewPanel";
 
-const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "").replace(
-  /\/+$/,
-  "",
-);
+const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
 
 const parseJwtPayload = (token = "") => {
   try {
     const payload = String(token || "").split(".")[1] || "";
     if (!payload) return {};
-
     const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
     const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
-    const decoded = atob(padded);
-    return JSON.parse(decoded);
+    return JSON.parse(atob(padded));
   } catch {
     return {};
   }
@@ -27,7 +22,6 @@ const parseJwtPayload = (token = "") => {
 
 const formatDate = (dateString) => {
   if (!dateString) return "Date TBC";
-
   const date = new Date(dateString);
   if (Number.isNaN(date.getTime())) return "Date TBC";
 
@@ -48,17 +42,11 @@ const getFeeLabel = (job) => {
 const hasStoredCardForJob = (job = {}) => {
   const paymentStatus = String(job?.paymentStatus || "").toLowerCase();
   const jobType = String(job?.jobType || "booked").toLowerCase();
-  const createdByEmail = String(job?.createdByEmail || "")
-    .trim()
-    .toLowerCase();
+  const createdByEmail = String(job?.createdByEmail || "").trim().toLowerCase();
 
   if (jobType === "enquiry") return true;
-
-  // Admin / manual-pay jobs should still be visible on the board
-  // even though they do not have saved Stripe card details.
   if (paymentStatus === "not_required") return true;
   if (createdByEmail === "hello@thesupremecollective.co.uk") return true;
-
   if (job?.defaultPaymentMethodId) return true;
 
   return ["ready_to_charge", "charge_pending", "paid"].includes(paymentStatus);
@@ -97,8 +85,6 @@ const DeputyJobs = () => {
   const [loadingClose, setLoadingClose] = useState(false);
   const [showEnquiryOnly, setShowEnquiryOnly] = useState(false);
 
-  const navigate = useNavigate();
-
   const [filters, setFilters] = useState({
     search: "",
     instrument: "",
@@ -107,19 +93,7 @@ const DeputyJobs = () => {
     jobType: "",
   });
 
-  const toDateInputValue = (value) => {
-    if (!value) return "";
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) {
-      const raw = String(value).slice(0, 10);
-      return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : "";
-    }
-    return d.toISOString().slice(0, 10);
-  };
-
-  const getJobDateValue = (job) => {
-    return toDateInputValue(job?.date || job?.eventDate || "");
-  };
+  const navigate = useNavigate();
 
   const authToken =
     localStorage.getItem("token") ||
@@ -160,16 +134,69 @@ const DeputyJobs = () => {
     };
   }, [authToken]);
 
-  const currentUserEmail = String(currentUser?.email || "")
-    .trim()
-    .toLowerCase();
-  const currentUserRole = String(currentUser?.role || "")
-    .trim()
-    .toLowerCase();
+  const currentUserEmail = String(currentUser?.email || "").trim().toLowerCase();
+  const currentUserRole = String(currentUser?.role || "").trim().toLowerCase();
+
   const canCreateEnquiryJob =
     currentUserRole === "admin" ||
     currentUserRole === "agent" ||
     currentUserEmail === "hello@thesupremecollective.co.uk";
+
+  const toDateInputValue = (value) => {
+    if (!value) return "";
+
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) {
+      const raw = String(value).slice(0, 10);
+      return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : "";
+    }
+
+    return d.toISOString().slice(0, 10);
+  };
+
+  const getJobDateValue = (job) => {
+    return toDateInputValue(job?.date || job?.eventDate || "");
+  };
+
+  const fetchJobs = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      const headers = authToken
+        ? { Authorization: `Bearer ${authToken}`, token: authToken }
+        : {};
+
+      const { data } = await axios.get(`${BACKEND_URL}/api/deputy-jobs`, {
+        headers,
+        withCredentials: true,
+      });
+
+      const nextJobs = Array.isArray(data?.jobs) ? data.jobs : [];
+      setJobs(nextJobs);
+
+      setHoveredJob((prev) => {
+        if (!nextJobs.length) return null;
+        if (!prev?._id) return nextJobs[0];
+
+        return (
+          nextJobs.find((job) => String(job._id) === String(prev._id)) ||
+          nextJobs[0]
+        );
+      });
+    } catch (err) {
+      console.error("❌ Failed to fetch deputy jobs:", err);
+      setError(err?.response?.data?.message || "Could not load deputy jobs.");
+      setJobs([]);
+      setHoveredJob(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [authToken]);
+
+  useEffect(() => {
+    fetchJobs();
+  }, [fetchJobs]);
 
   const handleCloseJob = async (job) => {
     if (!job?._id || loadingClose) return;
@@ -182,7 +209,7 @@ const DeputyJobs = () => {
 
     try {
       setLoadingClose(true);
-      console.count("fetchJobs called");
+
       const { data } = await axios.post(
         `${BACKEND_URL}/api/deputy-jobs/${job._id}/close`,
         {},
@@ -210,45 +237,6 @@ const DeputyJobs = () => {
     }
   };
 
-  const fetchJobs = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const headers = authToken
-        ? { Authorization: `Bearer ${authToken}`, token: authToken }
-        : {};
-
-      const { data } = await axios.get(`${BACKEND_URL}/api/deputy-jobs`, {
-        headers,
-        withCredentials: true,
-      });
-
-      const nextJobs = Array.isArray(data?.jobs) ? data.jobs : [];
-      setJobs(nextJobs);
-
-      setHoveredJob((prev) => {
-        if (!nextJobs.length) return null;
-        if (!prev?._id) return nextJobs[0];
-        return (
-          nextJobs.find((job) => String(job._id) === String(prev._id)) ||
-          nextJobs[0]
-        );
-      });
-    } catch (err) {
-      console.error("❌ Failed to fetch deputy jobs:", err);
-      setError(err?.response?.data?.message || "Could not load deputy jobs.");
-      setJobs([]);
-      setHoveredJob(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [authToken]);
-
-  useEffect(() => {
-    fetchJobs();
-  }, [fetchJobs]);
-
   const availableInstruments = useMemo(() => {
     const values = new Set();
 
@@ -270,9 +258,7 @@ const DeputyJobs = () => {
     const query = filters.search.trim().toLowerCase();
     const instrumentFilter = filters.instrument.trim().toLowerCase();
     const dateFilter = String(filters.date || "").trim();
-    const jobTypeFilter = String(filters.jobType || "")
-      .trim()
-      .toLowerCase();
+    const jobTypeFilter = String(filters.jobType || "").trim().toLowerCase();
     const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
 
     const next = jobs.filter((job) => {
@@ -283,17 +269,10 @@ const DeputyJobs = () => {
         jobType !== "enquiry" &&
         ["open", "allocated", "filled", "closed", "cancelled"].includes(status);
 
-      if (requiresStoredCard && !hasStoredCardForJob(job)) {
-        return false;
-      }
-
-      if (showEnquiryOnly && jobType !== "enquiry") {
-        return false;
-      }
-
-      if (jobTypeFilter && jobType !== jobTypeFilter) {
-        return false;
-      }
+      if (requiresStoredCard && !hasStoredCardForJob(job)) return false;
+      if (showEnquiryOnly && jobType !== "enquiry") return false;
+      if (jobTypeFilter && jobType !== jobTypeFilter) return false;
+      if (filters.onlyOpen && status !== "open") return false;
 
       if (
         !filters.onlyOpen &&
@@ -303,13 +282,7 @@ const DeputyJobs = () => {
           job?.updatedAt || job?.allocatedAt || job?.bookingConfirmedAt || 0,
         ).getTime();
 
-        if (updatedAt && Date.now() - updatedAt > sevenDaysMs) {
-          return false;
-        }
-      }
-
-      if (filters.onlyOpen && status !== "open") {
-        return false;
+        if (updatedAt && Date.now() - updatedAt > sevenDaysMs) return false;
       }
 
       if (instrumentFilter) {
@@ -324,12 +297,7 @@ const DeputyJobs = () => {
         }
       }
 
-      if (dateFilter) {
-        const jobDate = getJobDateValue(job);
-        if (jobDate !== dateFilter) {
-          return false;
-        }
-      }
+      if (dateFilter && getJobDateValue(job) !== dateFilter) return false;
 
       if (!query) return true;
 
@@ -366,6 +334,7 @@ const DeputyJobs = () => {
 
     setHoveredJob((prev) => {
       if (!prev?._id) return filteredJobs[0];
+
       return (
         filteredJobs.find((job) => String(job._id) === String(prev._id)) ||
         filteredJobs[0]
@@ -373,48 +342,31 @@ const DeputyJobs = () => {
     });
   }, [filteredJobs]);
 
+  const clearFilters = () => {
+    setFilters({
+      search: "",
+      instrument: "",
+      onlyOpen: false,
+      date: "",
+      jobType: "",
+    });
+    setShowEnquiryOnly(false);
+    setSortType("date_asc");
+  };
+
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-8">
-        <div>
-          <Title text1="DEPUTY" text2="JOBS" />
-          <p className="text-sm text-gray-500 mt-3 max-w-2xl">
-            Browse deputy jobs, including previews, hover to preview full
-            details, and jump into applicants or allocation from the job panel.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <Link
-            to="/deputy-jobs/create"
-            className="inline-flex items-center justify-center rounded bg-black px-4 py-2 text-sm font-medium text-white hover:bg-[#ff6667] transition-colors"
-          >
-            + Create deputy job
-          </Link>
-
-          {canCreateEnquiryJob ? (
-            <label className="inline-flex items-center gap-2 rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700">
-              <input
-                type="checkbox"
-                checked={showEnquiryOnly}
-                onChange={(e) => setShowEnquiryOnly(e.target.checked)}
-              />
-              Enquiry jobs only
-            </label>
-          ) : null}
-
-          <button
-            type="button"
-            onClick={fetchJobs}
-            className="inline-flex items-center justify-center rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            Refresh
-          </button>
-        </div>
+      <div className="mb-6">
+        <Title text1="DEPUTY" text2="JOBS" />
+        <p className="text-sm text-gray-500 mt-3 max-w-2xl">
+          Browse deputy jobs, hover to preview full details, and jump into
+          applicants or allocation from the job panel.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-6 mb-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+      {/* Filters full width above cards */}
+      <div className="mb-6 rounded border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
           <input
             type="text"
             value={filters.search}
@@ -425,7 +377,7 @@ const DeputyJobs = () => {
               }))
             }
             placeholder="Search by title, venue, location or skill"
-            className="w-full sm:max-w-sm rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black"
+            className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black md:col-span-2 xl:col-span-2"
           />
 
           <select
@@ -446,6 +398,33 @@ const DeputyJobs = () => {
             ))}
           </select>
 
+          <input
+            type="date"
+            value={filters.date}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                date: e.target.value,
+              }))
+            }
+            className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black"
+          />
+
+          <select
+            value={filters.jobType}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                jobType: e.target.value,
+              }))
+            }
+            className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black"
+          >
+            <option value="">All job types</option>
+            <option value="booked">Confirmed jobs</option>
+            <option value="enquiry">Enquiries</option>
+          </select>
+
           <select
             value={sortType}
             onChange={(e) => setSortType(e.target.value)}
@@ -456,70 +435,61 @@ const DeputyJobs = () => {
             <option value="fee_high_low">Sort: Fee high to low</option>
             <option value="fee_low_high">Sort: Fee low to high</option>
           </select>
-
-          <label className="inline-flex items-center gap-2 text-sm text-gray-700 px-1 py-2">
-            <input
-              type="checkbox"
-              checked={filters.onlyOpen}
-              onChange={(e) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  onlyOpen: e.target.checked,
-                }))
-              }
-            />
-            Open jobs only
-          </label>
         </div>
 
-        <input
-          type="date"
-          value={filters.date}
-          onChange={(e) =>
-            setFilters((prev) => ({
-              ...prev,
-              date: e.target.value,
-            }))
-          }
-          className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black"
-        />
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-4">
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={filters.onlyOpen}
+                onChange={(e) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    onlyOpen: e.target.checked,
+                  }))
+                }
+              />
+              Open jobs only
+            </label>
 
-        <select
-          value={filters.jobType}
-          onChange={(e) =>
-            setFilters((prev) => ({
-              ...prev,
-              jobType: e.target.value,
-            }))
-          }
-          className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black"
-        >
-          <option value="">All job types</option>
-          <option value="booked">Confirmed jobs</option>
-          <option value="enquiry">Enquiries</option>
-        </select>
+            {canCreateEnquiryJob ? (
+              <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={showEnquiryOnly}
+                  onChange={(e) => setShowEnquiryOnly(e.target.checked)}
+                />
+                Enquiry jobs only
+              </label>
+            ) : null}
 
-        <div className="hidden lg:flex lg:items-center lg:justify-end text-sm text-gray-500">
-          {filteredJobs.length} {filteredJobs.length === 1 ? "job" : "jobs"}
-          {showEnquiryOnly ? " • enquiry only" : ""}
+            <span className="text-sm text-gray-500">
+              {filteredJobs.length} {filteredJobs.length === 1 ? "job" : "jobs"}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="rounded border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              Clear filters
+            </button>
+
+            <button
+              type="button"
+              onClick={fetchJobs}
+              className="rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={() =>
-            setFilters({
-              search: "",
-              instrument: "",
-              onlyOpen: false,
-              date: "",
-              jobType: "",
-            })
-          }
-          className="rounded border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-        >
-          Clear filters
-        </button>
       </div>
 
+      {/* Job cards + preview panel */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_420px] gap-6">
         <div className="min-w-0">
           {loading ? (
@@ -553,7 +523,9 @@ const DeputyJobs = () => {
                       String(hoveredJob?._id || "") !== String(job._id)
                     }
                     onRefresh={fetchJobs}
-                    subtitle={`${formatDate(job?.date || job?.eventDate)} • ${getFeeLabel(job)}`}
+                    subtitle={`${formatDate(
+                      job?.date || job?.eventDate,
+                    )} • ${getFeeLabel(job)}`}
                     onClick={() => navigate(`/deputy-jobs/${job._id}`)}
                   />
                 </div>
@@ -563,20 +535,38 @@ const DeputyJobs = () => {
         </div>
 
         <div className="hidden lg:block">
-          {hoveredJob ? (
-            <DeputyJobPreviewPanel
-              hoveredJob={hoveredJob}
-              onRefresh={fetchJobs}
-              authHeaders={authHeaders}
-              currentUser={currentUser}
-              onCloseJob={handleCloseJob}
-              loadingClose={loadingClose}
-            />
-          ) : (
-            <div className="sticky top-6 rounded border border-gray-200 bg-white p-8 text-center text-gray-500">
-              Hover over a deputy job to preview the details here.
-            </div>
-          )}
+          <div className="sticky top-6 flex flex-col gap-4">
+            <Link
+              to="/deputy-jobs/create"
+              className="inline-flex w-full items-center justify-center rounded bg-black px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#ff6667]"
+            >
+              + Create deputy job
+            </Link>
+
+            {hoveredJob ? (
+              <DeputyJobPreviewPanel
+                hoveredJob={hoveredJob}
+                onRefresh={fetchJobs}
+                authHeaders={authHeaders}
+                currentUser={currentUser}
+                onCloseJob={handleCloseJob}
+                loadingClose={loadingClose}
+              />
+            ) : (
+              <div className="rounded border border-gray-200 bg-white p-8 text-center text-gray-500">
+                Hover over a deputy job to preview the details here.
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="lg:hidden">
+          <Link
+            to="/deputy-jobs/create"
+            className="inline-flex w-full items-center justify-center rounded bg-black px-4 py-3 text-sm font-medium text-white transition-colors hover:bg-[#ff6667]"
+          >
+            + Create deputy job
+          </Link>
         </div>
       </div>
     </div>

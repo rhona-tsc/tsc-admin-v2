@@ -216,6 +216,9 @@ const CreateDeputyJob = () => {
   const canCreateEnquiryPost =
     isAdminUser || storedRole === "admin" || storedRole === "agent";
 
+    const canSkipCardStep =
+  isAdminUser || storedRole === "admin" || storedRole === "agent";
+
   const deputyJobsBaseUrl = useMemo(() => `${backendUrl}/api/deputy-jobs`, []);
 
   useEffect(() => {
@@ -280,48 +283,56 @@ const CreateDeputyJob = () => {
     );
   }, [isAdminUser]);
 
-  const prepareDeputyJobPaymentSetup = async ({ jobId, payload }) => {
-    if (!payload?.saveClientCard || !payload?.clientEmail || !jobId) {
-      return { success: false, skipped: true };
-    }
+const prepareDeputyJobPaymentSetup = async ({ jobId, payload, createdJob }) => {
+  const paymentStatus = String(createdJob?.paymentStatus || "").toLowerCase();
 
-    const setupRes = await axios.post(
-      `${deputyJobsBaseUrl}/${jobId}/create-setup-intent`,
-      {
-        clientName: payload.clientName || "",
-        clientEmail: payload.clientEmail || "",
-        clientPhone: payload.clientPhone || "",
-      },
-      { headers: authHeaders }
+  if (
+    canSkipCardStep ||
+    paymentStatus === "not_required" ||
+    !payload?.saveClientCard ||
+    !payload?.clientEmail ||
+    !jobId
+  ) {
+    return { success: false, skipped: true };
+  }
+
+  const setupRes = await axios.post(
+    `${deputyJobsBaseUrl}/${jobId}/create-setup-intent`,
+    {
+      clientName: payload.clientName || "",
+      clientEmail: payload.clientEmail || "",
+      clientPhone: payload.clientPhone || "",
+    },
+    { headers: authHeaders }
+  );
+
+  if (!setupRes.data?.success) {
+    throw new Error(
+      setupRes.data?.message || "Failed to prepare payment setup"
     );
+  }
 
-    if (!setupRes.data?.success) {
-      throw new Error(
-        setupRes.data?.message || "Failed to prepare payment setup"
-      );
-    }
-
-    const nextPaymentSetupState = {
-      status: "prepared",
-      deputyJobId: String(jobId || ""),
-      setupIntentId: setupRes.data?.setupIntentId || "",
-      clientSecret: setupRes.data?.clientSecret || "",
-      stripeCustomerId: setupRes.data?.stripeCustomerId || "",
-    };
-
-    setPaymentSetupState(nextPaymentSetupState);
-
-    try {
-      sessionStorage.setItem(
-        "deputyJobPaymentSetup",
-        JSON.stringify(nextPaymentSetupState)
-      );
-    } catch {
-      // ignore storage errors
-    }
-
-    return { success: true, ...nextPaymentSetupState };
+  const nextPaymentSetupState = {
+    status: "prepared",
+    deputyJobId: String(jobId || ""),
+    setupIntentId: setupRes.data?.setupIntentId || "",
+    clientSecret: setupRes.data?.clientSecret || "",
+    stripeCustomerId: setupRes.data?.stripeCustomerId || "",
   };
+
+  setPaymentSetupState(nextPaymentSetupState);
+
+  try {
+    sessionStorage.setItem(
+      "deputyJobPaymentSetup",
+      JSON.stringify(nextPaymentSetupState)
+    );
+  } catch {
+    // ignore storage errors
+  }
+
+  return { success: true, ...nextPaymentSetupState };
+};
 
   const handleCreated = (createdJob, options = {}) => {
     const createdId = createdJob?._id || createdJob?.id;
@@ -391,49 +402,47 @@ const CreateDeputyJob = () => {
       const createdJobId = createdJob?._id || createdJob?.id || "";
       const isEnquiryJob = submitPayload.jobType === "enquiry";
 
-      let paymentSetupPrepared = false;
+let paymentSetupPrepared = false;
 
-      if (
-        !isEnquiryJob &&
-        submitPayload?.saveClientCard &&
-        submitPayload?.clientEmail &&
-        createdJobId
-      ) {
-        try {
-          const paymentSetupResult = await prepareDeputyJobPaymentSetup({
-            jobId: createdJobId,
-            payload: submitPayload,
-          });
+if (!isEnquiryJob && createdJobId) {
+  try {
+    const paymentSetupResult = await prepareDeputyJobPaymentSetup({
+      jobId: createdJobId,
+      payload: submitPayload,
+      createdJob,
+    });
 
-          paymentSetupPrepared = Boolean(paymentSetupResult?.success);
-        } catch (paymentSetupError) {
-          console.error(
-            "❌ Failed to prepare deputy job payment setup:",
-            paymentSetupError
-          );
-          toast.warn(
-            paymentSetupError?.response?.data?.message ||
-              paymentSetupError?.message ||
-              "Deputy job created, but payment setup could not be prepared yet."
-          );
-        }
-      }
+    paymentSetupPrepared = Boolean(paymentSetupResult?.success);
+  } catch (paymentSetupError) {
+    console.error(
+      "❌ Failed to prepare deputy job payment setup:",
+      paymentSetupError
+    );
+    toast.warn(
+      paymentSetupError?.response?.data?.message ||
+        paymentSetupError?.message ||
+        "Deputy job created, but payment setup could not be prepared yet."
+    );
+  }
+}
 
-      toast.success(
-        paymentSetupPrepared
-          ? "Deputy job created. Complete the card step below to activate the job and notify matched musicians."
-          : isEnquiryJob
-            ? `Enquiry deputy job created. ${res.data?.notifiedCount || 0} musicians notified.`
-            : `Deputy job created. ${res.data?.notifiedCount || 0} musicians notified.`
-      );
+   toast.success(
+  paymentSetupPrepared
+    ? "Deputy job created. Complete the card step below to activate the job and notify matched musicians."
+    : canSkipCardStep
+      ? `Deputy job created. ${res.data?.notifiedCount || 0} musicians notified. No card step needed for this account.`
+      : isEnquiryJob
+        ? `Enquiry deputy job created. ${res.data?.notifiedCount || 0} musicians notified.`
+        : `Deputy job created. ${res.data?.notifiedCount || 0} musicians notified.`
+);
 
-      if (paymentSetupPrepared) {
-        setCreatedPreviewJob(createdJob);
-        toast.info(
-          "Your job is not live yet. Please complete the card step below to activate it and send notifications."
-        );
-        return;
-      }
+ if (paymentSetupPrepared) {
+  setCreatedPreviewJob(createdJob);
+  toast.info(
+    "Your job is not live yet. Please complete the card step below to activate it and send notifications."
+  );
+  return;
+}
 
       handleCreated(createdJob, { paymentSetupPrepared: false });
     } catch (error) {
@@ -486,8 +495,8 @@ const CreateDeputyJob = () => {
           </div>
         </div>
 
-        {paymentSetupState.status === "prepared" ? (
-          paymentSetupState.clientSecret ? (
+{paymentSetupState.status === "prepared" && !canSkipCardStep ? (
+            paymentSetupState.clientSecret ? (
             <Elements
               stripe={stripePromise}
               options={{
@@ -527,12 +536,13 @@ const CreateDeputyJob = () => {
             </Elements>
           ) : null
         ) : (
-          <DeputyJobCreateForm
+      <DeputyJobCreateForm
   onSubmit={handleSubmit}
   isSubmitting={isSubmitting}
   submitLabel="Create job"
   authHeaders={authHeaders}
   canCreateEnquiryJob={canCreateEnquiryPost}
+  canSkipCardStep={canSkipCardStep}
 />
         )}
       </div>
