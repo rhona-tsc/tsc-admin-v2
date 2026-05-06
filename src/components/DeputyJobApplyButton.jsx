@@ -1,24 +1,80 @@
-
-
 import React, { useMemo, useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 
 const BACKEND_BASE = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
 
+const parseJwtPayload = (token = "") => {
+  try {
+    const payload = String(token || "").split(".")[1] || "";
+    if (!payload) return {};
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const decoded = atob(padded);
+    return JSON.parse(decoded);
+  } catch {
+    return {};
+  }
+};
+
+const isTokenExpired = (token = "") => {
+  try {
+    const payload = parseJwtPayload(token);
+    const exp = Number(payload?.exp || 0);
+    if (!exp) return false;
+    return Date.now() >= exp * 1000;
+  } catch {
+    return false;
+  }
+};
+
+const getBestAuthToken = () => {
+  const candidates = [
+    {
+      source: "localStorage.musicianToken",
+      token: localStorage.getItem("musicianToken") || "",
+    },
+    {
+      source: "localStorage.adminToken",
+      token: localStorage.getItem("adminToken") || "",
+    },
+    {
+      source: "sessionStorage.token",
+      token: sessionStorage.getItem("token") || "",
+    },
+    {
+      source: "localStorage.token",
+      token: localStorage.getItem("token") || "",
+    },
+  ];
+
+  const validCandidate = candidates.find(
+    ({ token }) => token && !isTokenExpired(token),
+  );
+
+  if (validCandidate) {
+    return validCandidate;
+  }
+
+  const fallbackCandidate = candidates.find(({ token }) => token);
+
+  return fallbackCandidate || { source: "none", token: "" };
+};
 
 const getAuthHeaders = () => {
-  const authToken =
-    localStorage.getItem("token") ||
-    localStorage.getItem("adminToken") ||
-    localStorage.getItem("musicianToken") ||
-    sessionStorage.getItem("token") ||
-    "";
+  const { token, source } = getBestAuthToken();
 
-  return authToken
+  console.log("🔐 DeputyJobApplyButton token selected", {
+    source,
+    tokenPresent: Boolean(token),
+    tokenLength: token?.length || 0,
+    expired: token ? isTokenExpired(token) : false,
+  });
+
+  return token
     ? {
-        Authorization: `Bearer ${authToken}`,
-        token: authToken,
+        Authorization: `Bearer ${token}`,
+        token,
       }
     : {};
 };
@@ -35,17 +91,16 @@ const DeputyJobApplyButton = ({
   const [missingFields, setMissingFields] = useState([]);
 
   const status = String(job?.status || "open").toLowerCase();
-  const isAssigned = status === "assigned" || status === "allocated" || status === "filled";
+  const isAssigned =
+    status === "assigned" || status === "allocated" || status === "filled";
   const isClosed = status === "closed" || status === "cancelled";
   const isOpen = status === "open" || status === "preview";
 
   const alreadyApplied = useMemo(() => {
     if (hasApplied) return true;
-
     if (job?.hasApplied === true) return true;
     if (job?.alreadyApplied === true) return true;
     if (job?.userHasApplied === true) return true;
-
     return false;
   }, [job?.hasApplied, job?.alreadyApplied, job?.userHasApplied, hasApplied]);
 
@@ -75,40 +130,67 @@ const DeputyJobApplyButton = ({
       setIsApplying(true);
       setMissingFields([]);
 
+      const headers = getAuthHeaders();
+
+      console.log("📨 Applying to deputy job", {
+        jobId: job._id,
+        status,
+        headersPresent: Boolean(headers?.Authorization),
+      });
+
       const { data } = await axios.post(
         `${BACKEND_BASE}/api/deputy-jobs/${job._id}/apply`,
         {},
         {
-          headers: getAuthHeaders(),
+          headers,
           withCredentials: true,
-        }
+        },
       );
+
+      console.log("✅ apply response", data);
 
       if (!data?.success) {
         throw new Error(data?.message || "Failed to apply for this deputy job");
       }
 
       setHasApplied(true);
+
       toast.success(data?.message || "Application submitted successfully.");
 
       if (typeof onApplied === "function") {
         onApplied({
           jobId: job._id,
           application: data?.application || null,
+          job: data?.job || null,
         });
       }
     } catch (error) {
+      const responseStatus = error?.response?.status;
       const responseMessage = error?.response?.data?.message;
       const missing = Array.isArray(error?.response?.data?.missing)
         ? error.response.data.missing
         : [];
 
+      console.error("❌ One-click apply failed", {
+        jobId: job?._id,
+        status: responseStatus,
+        data: error?.response?.data,
+        message: error?.message,
+      });
+
       if (missing.length) {
         setMissingFields(missing);
       }
 
+      if (responseStatus === 401) {
+        toast.error("Your session has expired. Please log in again before applying.");
+        return;
+      }
+
       toast.error(
-        responseMessage || error?.message || "Failed to apply for this deputy job",
+        responseMessage ||
+          error?.message ||
+          "Failed to apply for this deputy job",
       );
     } finally {
       setIsApplying(false);

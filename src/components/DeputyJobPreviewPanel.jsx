@@ -23,10 +23,10 @@ const STRIPE_PUBLISHABLE_KEY = String(
 const stripePromise = STRIPE_PUBLISHABLE_KEY
   ? loadStripe(STRIPE_PUBLISHABLE_KEY)
   : null;
-const FRONTEND_URL =
-  (import.meta.env.VITE_FRONTEND_URL ||
-    "https://thesupremecollective.co.uk").replace(/\/+$/, "");
-    
+const FRONTEND_URL = (
+  import.meta.env.VITE_FRONTEND_URL || "https://thesupremecollective.co.uk"
+).replace(/\/+$/, "");
+
 const formatMoney = (value) => {
   const n = Number(value || 0);
   return `£${n.toLocaleString("en-GB", {
@@ -151,11 +151,15 @@ const getClosureDate = (job) => {
   const status = String(job?.status || "").toLowerCase();
 
   if (status === "allocated") {
-    return job?.updatedAt || job?.allocatedAt || job?.bookingConfirmedAt || null;
+    return (
+      job?.updatedAt || job?.allocatedAt || job?.bookingConfirmedAt || null
+    );
   }
 
   if (status === "filled" || status === "closed" || status === "cancelled") {
-    return job?.updatedAt || job?.bookingConfirmedAt || job?.allocatedAt || null;
+    return (
+      job?.updatedAt || job?.bookingConfirmedAt || job?.allocatedAt || null
+    );
   }
 
   return null;
@@ -188,10 +192,10 @@ const getClosedNoticeText = (job) => {
     status === "allocated"
       ? "allocated"
       : status === "filled"
-      ? "filled"
-      : status === "cancelled"
-      ? "cancelled"
-      : "closed";
+        ? "filled"
+        : status === "cancelled"
+          ? "cancelled"
+          : "closed";
 
   if (daysLeft == null) {
     return `This job is ${label} and will disappear from this list soon.`;
@@ -351,9 +355,9 @@ const DeputyJobPreviewPanel = ({
   const requiredInstruments = normaliseArray(job?.requiredInstruments);
   const requiredSkills = normaliseArray(job?.requiredSkills);
   const tags = normaliseArray(job?.tags);
-const applicantsCount =
-  Number(job?.applicationCount ?? job?.applicationsCount ?? 0) ||
-  (Array.isArray(job?.applications) ? job.applications.length : 0);
+  const applicantsCount =
+    Number(job?.applicationCount ?? job?.applicationsCount ?? 0) ||
+    (Array.isArray(job?.applications) ? job.applications.length : 0);
   const postedByLabel = getPostedByLabel(job);
   const venueDisplay =
     job?.venue || job?.locationName || job?.location || "TBC";
@@ -675,530 +679,542 @@ const applicantsCount =
     );
   }
 
- return (
-  <div className="w-full border-l p-6">
-    <div className="sticky top-6 max-h-[calc(100vh-2rem)] overflow-y-auto pr-1">
-      <div className="space-y-6">
-        <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4 border-b border-gray-200 pb-4">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-[0.2em] text-gray-400">
-                Deputy opportunity
-              </p>
-              <h2 className="mt-2 text-3xl font-semibold text-gray-900">
-                {job.title || "Untitled opportunity"}
-              </h2>
-              <div className="mt-3 flex flex-wrap gap-2 text-sm text-gray-600">
-                <span className="rounded-full bg-gray-100 px-3 py-1">
-                  {formatDate(job.date || job.eventDate)}
-                </span>
-                {job.callTime || job.startTime ? (
+  return (
+    <div className="w-full border-l p-6">
+      <div className="sticky top-6 max-h-[calc(100vh-2rem)] overflow-y-auto pr-1">
+        <div className="space-y-6">
+          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+            <div className="flex items-start justify-between gap-4 border-b border-gray-200 pb-4">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-[0.2em] text-gray-400">
+                  Deputy opportunity
+                </p>
+                <h2 className="mt-2 text-3xl font-semibold text-gray-900">
+                  {job.title || "Untitled opportunity"}
+                </h2>
+                <div className="mt-3 flex flex-wrap gap-2 text-sm text-gray-600">
                   <span className="rounded-full bg-gray-100 px-3 py-1">
-                    Call: {job.callTime || job.startTime}
+                    {formatDate(job.date || job.eventDate)}
                   </span>
-                ) : null}
-                {job.finishTime || job.endTime ? (
-                  <span className="rounded-full bg-gray-100 px-3 py-1">
-                    Finish: {job.finishTime || job.endTime}
+                  {job.callTime || job.startTime ? (
+                    <span className="rounded-full bg-gray-100 px-3 py-1">
+                      Call: {job.callTime || job.startTime}
+                    </span>
+                  ) : null}
+                  {job.finishTime || job.endTime ? (
+                    <span className="rounded-full bg-gray-100 px-3 py-1">
+                      Finish: {job.finishTime || job.endTime}
+                    </span>
+                  ) : null}
+                  <span
+                    className={`rounded-full border px-3 py-1 ${
+                      jobStatusClassMap[jobStatus] ||
+                      "bg-gray-100 text-gray-700 border-gray-200"
+                    }`}
+                  >
+                    {getJobStatusLabel(jobStatus)}
                   </span>
-                ) : null}
-                <span
-                  className={`rounded-full border px-3 py-1 ${
-                    jobStatusClassMap[jobStatus] ||
-                    "bg-gray-100 text-gray-700 border-gray-200"
-                  }`}
-                >
-                  {getJobStatusLabel(jobStatus)}
-                </span>
-                {isEnquiryJob ? (
-                  <span className="rounded-full border border-blue-200 bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
-                    Enquiry only
-                  </span>
+                  {isEnquiryJob ? (
+                    <span className="rounded-full border border-blue-200 bg-blue-100 px-3 py-1 text-xs font-medium text-blue-700">
+                      Enquiry only
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="text-right">
+                <p className="text-sm text-gray-500">Fee</p>
+                <p className="text-3xl font-semibold text-gray-900">
+                  {formatMoney(displayFee)}
+                </p>
+                {Number(job?.commissionAmount || 0) > 0 ? (
+                  <p className="mt-2 text-sm text-gray-500">
+                    Net fee after commission
+                  </p>
                 ) : null}
               </div>
             </div>
-
-            <div className="text-right">
-              <p className="text-sm text-gray-500">Fee</p>
-              <p className="text-3xl font-semibold text-gray-900">
-                {formatMoney(displayFee)}
-              </p>
-              {Number(job?.commissionAmount || 0) > 0 ? (
-                <p className="mt-2 text-sm text-gray-500">
-                  Net fee after commission
-                </p>
-              ) : null}
-            </div>
           </div>
-        </div>
 
-        <section>
-          <h3 className="mb-3 text-lg font-semibold text-gray-900">Overview</h3>
-          <div className="space-y-2 text-gray-600">
-            <p>
-              <span className="font-medium text-gray-900">Venue:</span>{" "}
-              {venueDisplay}
-            </p>
-            <p>
-              <span className="font-medium text-gray-900">Location:</span>{" "}
-              {locationDisplay}
-            </p>
-            <p>
-              <span className="font-medium text-gray-900">Posted by:</span>{" "}
-              {postedByLabel}
-            </p>
-            <p>
-              <span className="font-medium text-gray-900">Applications:</span>{" "}
-              {applicantsCount}
-            </p>
-            {job.allocatedMusicianName || job.assignedMusicianName ? (
+          <section>
+            <h3 className="mb-3 text-lg font-semibold text-gray-900">
+              Overview
+            </h3>
+            <div className="space-y-2 text-gray-600">
               <p>
-                <span className="font-medium text-gray-900">Allocated to:</span>{" "}
-                {(() => {
-                  const musicianName = formatShortName(
-                    job.allocatedMusicianName || job.assignedMusicianName,
-                  );
-
-                  const musicianSlug = String(
-                    job?.allocatedMusicianSlug ||
-                      job?.assignedMusicianSlug ||
-                      job?.allocatedMusicianId?.musicianSlug ||
-                      job?.assignedMusicianId?.musicianSlug ||
-                      "",
-                  ).trim();
-
-                  const musicianId = String(
-                    job?.allocatedMusicianId?._id ||
-                      job?.assignedMusicianId?._id ||
-                      job?.allocatedMusicianId ||
-                      job?.assignedMusicianId ||
-                      "",
-                  ).trim();
-
-                  const musicianPath = musicianSlug
-                    ? `/musician/${encodeURIComponent(musicianSlug)}`
-                    : musicianId
-                    ? `/musician/${encodeURIComponent(musicianId)}`
-                    : "";
-
-                  const musicianHref = musicianPath
-                    ? `${FRONTEND_URL}${musicianPath}`
-                    : "";
-
-                  return musicianHref ? (
-                    <a
-                      href={musicianHref}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[#ff6667] hover:underline"
-                    >
-                      {musicianName}
-                    </a>
-                  ) : (
-                    musicianName
-                  );
-                })()}
+                <span className="font-medium text-gray-900">Venue:</span>{" "}
+                {venueDisplay}
               </p>
-            ) : null}
-          </div>
-        </section>
-
-        {!!requiredInstruments.length && (
-          <section>
-            <h3 className="mb-3 text-lg font-semibold text-gray-900">
-              Required instruments
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {requiredInstruments.map((item) => (
-                <span
-                  key={`instrument-${item}`}
-                  className="rounded-full bg-black px-3 py-1 text-sm text-white"
-                >
-                  {formatLabel(item)}
-                </span>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {!!requiredSkills.length && (
-          <section>
-            <h3 className="mb-3 text-lg font-semibold text-gray-900">
-              Required skills
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {requiredSkills.map((item) => (
-                <span
-                  key={`skill-${item}`}
-                  className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700"
-                >
-                  {formatLabel(item)}
-                </span>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {!!tags.length && (
-          <section>
-            <h3 className="mb-3 text-lg font-semibold text-gray-900">Tags</h3>
-            <div className="flex flex-wrap gap-2">
-              {tags.map((item) => (
-                <span
-                  key={`tag-${item}`}
-                  className="rounded-full border border-gray-200 px-3 py-1 text-sm text-gray-600"
-                >
-                  {formatLabel(item)}
-                </span>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {job.notes ? (
-          <section>
-            <h3 className="mb-3 text-lg font-semibold text-gray-900">Notes</h3>
-            <div className="rounded-2xl bg-gray-50 p-4 text-gray-600 whitespace-pre-wrap">
-              {job.notes}
-            </div>
-          </section>
-        ) : null}
-
-        {canViewPayments && !isEnquiryJob ? (
-          <section>
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Payment & payout
-                  </h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Track card setup, charge status, ledger amounts, and when
-                    the deputy payout should be released.
-                  </p>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <span
-                    className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${
-                      paymentStatusClassMap[paymentStatus] ||
-                      paymentStatusClassMap.not_started
-                    }`}
-                  >
-                    Payment: {formatLabel(paymentStatus)}
-                  </span>
-                  <span
-                    className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${
-                      payoutStatusClassMap[payoutStatus] ||
-                      payoutStatusClassMap.not_ready
-                    }`}
-                  >
-                    Payout: {formatLabel(payoutStatus)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Gross amount
-                  </p>
-                  <p className="mt-2 text-lg font-semibold text-gray-900">
-                    {formatMoney(job.grossAmount || job.fee || 0)}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Commission
-                  </p>
-                  <p className="mt-2 text-lg font-semibold text-gray-900">
-                    {formatMoney(job.commissionAmount || 0)}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Deputy net
-                  </p>
-                  <p className="mt-2 text-lg font-semibold text-gray-900">
-                    {formatMoney(job.deputyNetAmount || job.fee || 0)}
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Payment release on
-                  </p>
-                  <p className="mt-2 text-lg font-semibold text-gray-900">
-                    {job.releaseOn ? formatDate(job.releaseOn) : "TBC"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 space-y-2 text-sm text-gray-600">
+              <p>
+                <span className="font-medium text-gray-900">Location:</span>{" "}
+                {locationDisplay}
+              </p>
+              <p>
+                <span className="font-medium text-gray-900">Posted by:</span>{" "}
+                {postedByLabel}
+              </p>
+              <p>
+                <span className="font-medium text-gray-900">Applications:</span>{" "}
+                {applicantsCount}
+              </p>
+              {job.allocatedMusicianName || job.assignedMusicianName ? (
                 <p>
                   <span className="font-medium text-gray-900">
-                    Stripe customer:
+                    Allocated to:
                   </span>{" "}
-                  {job.stripeCustomerId || "Not created yet"}
-                </p>
-                <p>
-                  <span className="font-medium text-gray-900">
-                    Saved payment method:
-                  </span>{" "}
-                  {job.defaultPaymentMethodId || "Not saved yet"}
-                </p>
-                <p>
-                  <span className="font-medium text-gray-900">Charged at:</span>{" "}
-                  {job.chargedAt
-                    ? formatDateTime(job.chargedAt)
-                    : "Not charged yet"}
-                </p>
-                <p>
-                  <span className="font-medium text-gray-900">
-                    Latest payment event:
-                  </span>{" "}
-                  {latestPaymentEvent
-                    ? `${formatLabel(latestPaymentEvent.type || "manual_adjustment")} • ${formatDateTime(latestPaymentEvent.createdAt)}`
-                    : "No payment events yet"}
-                </p>
-                {job.paymentFailureReason ? (
-                  <p className="text-red-600">
-                    <span className="font-medium text-red-700">
-                      Failure reason:
-                    </span>{" "}
-                    {job.paymentFailureReason}
-                  </p>
-                ) : null}
-              </div>
+                  {(() => {
+                    const musicianName = formatShortName(
+                      job.allocatedMusicianName || job.assignedMusicianName,
+                    );
 
-              {paymentSetupInfo?.clientSecret ? (
-                STRIPE_PUBLISHABLE_KEY && stripePromise ? (
-                  <Elements
-                    stripe={stripePromise}
-                    options={{ clientSecret: paymentSetupInfo.clientSecret }}
-                  >
-                    <DeputyJobCardSetupForm
-                      job={job}
-                      clientSecret={paymentSetupInfo.clientSecret}
-                      authHeaders={authHeaders}
-                      onSaved={handleCardSaved}
-                    />
-                  </Elements>
-                ) : (
-                  <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
-                    Stripe card form is unavailable because{" "}
-                    <strong>VITE_STRIPE_PUBLISHABLE_KEY</strong> is missing in
-                    the frontend environment.
-                  </div>
-                )
+                    const musicianSlug = String(
+                      job?.allocatedMusicianSlug ||
+                        job?.assignedMusicianSlug ||
+                        job?.allocatedMusicianId?.musicianSlug ||
+                        job?.assignedMusicianId?.musicianSlug ||
+                        "",
+                    ).trim();
+
+                    const musicianId = String(
+                      job?.allocatedMusicianId?._id ||
+                        job?.assignedMusicianId?._id ||
+                        job?.allocatedMusicianId ||
+                        job?.assignedMusicianId ||
+                        "",
+                    ).trim();
+
+                    const musicianPath = musicianSlug
+                      ? `/musician/${encodeURIComponent(musicianSlug)}`
+                      : musicianId
+                        ? `/musician/${encodeURIComponent(musicianId)}`
+                        : "";
+
+                    const musicianHref = musicianPath
+                      ? `${FRONTEND_URL}${musicianPath}`
+                      : "";
+
+                    return musicianHref ? (
+                      <a
+                        href={musicianHref}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[#ff6667] hover:underline"
+                      >
+                        {musicianName}
+                      </a>
+                    ) : (
+                      musicianName
+                    );
+                  })()}
+                </p>
               ) : null}
-
-              <div className="mt-5 flex flex-wrap gap-3">
-                {canPreparePaymentSetup ? (
-                  <button
-                    type="button"
-                    onClick={handlePreparePaymentSetup}
-                    disabled={isPreparingPaymentSetup}
-                    className="rounded border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-800 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isPreparingPaymentSetup
-                      ? "Preparing payment setup…"
-                      : "Prepare payment setup"}
-                  </button>
-                ) : null}
-
-                {canChargeNow ? (
-                  <button
-                    type="button"
-                    onClick={handleChargeNow}
-                    disabled={isChargingJob}
-                    className="rounded border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-800 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {isChargingJob ? "Charging…" : "Charge now"}
-                  </button>
-                ) : null}
-              </div>
             </div>
           </section>
-        ) : null}
 
-        <section>
-          <div className="flex flex-wrap items-center gap-3">
-            <DeputyJobApplyButton
-              job={job}
-              onApply={onApply}
-              loading={loadingApply}
-            />
-
-            {canManage ? (
-              <button
-                type="button"
-                onClick={() => navigate(`/deputy-jobs/${job._id}/applications`)}
-                className="rounded bg-gray-100 px-5 py-3 text-sm font-medium text-gray-800 transition hover:bg-gray-200"
-              >
-                Manage applications ({applicantsCount})
-              </button>
-            ) : null}
-
-            {canManualAllocate ? (
-              <button
-                type="button"
-                onClick={handleOpenManualAllocateModal}
-                className="rounded border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-800 transition hover:bg-gray-100"
-              >
-                Manual allocate musician
-              </button>
-            ) : null}
-
-            {canManage && job.status === "open" ? (
-              <button
-                type="button"
-                onClick={() => onCloseJob?.(job)}
-                disabled={loadingClose}
-                className="rounded border border-red-200 px-5 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {loadingClose ? "Closing..." : "Close job"}
-              </button>
-            ) : null}
-          </div>
-        </section>
-      </div>
-    </div>
-
-    {showManualAllocateModal ? (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-        <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-xl">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h3 className="text-xl font-semibold text-gray-900">
-                Manual allocate musician
+          {!!requiredInstruments.length && (
+            <section>
+              <h3 className="mb-3 text-lg font-semibold text-gray-900">
+                Required instruments
               </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Search for a musician, then choose who should receive the
-                allocation request for this job.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowManualAllocateModal(false)}
-              className="rounded-full border border-gray-200 px-3 py-1 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-800"
-            >
-              ×
-            </button>
-          </div>
-
-          <form
-            onSubmit={handleManualAllocateSearch}
-            className="mt-5 flex gap-3"
-          >
-            <input
-              type="text"
-              value={manualAllocateQuery}
-              onChange={(event) => setManualAllocateQuery(event.target.value)}
-              className="min-w-0 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-black"
-              placeholder="Search by name, email, phone, instrument..."
-            />
-            <button
-              type="submit"
-              disabled={isSearchingMusicians}
-              className="rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isSearchingMusicians ? "Searching…" : "Search"}
-            </button>
-          </form>
-
-          <div className="mt-5 max-h-96 overflow-y-auto rounded-2xl border border-gray-200">
-            {manualAllocateResults.length ? (
-              manualAllocateResults.map((musician) => {
-                const musicianId = String(
-                  musician?._id || musician?.id || musician?.musicianId || "",
-                ).trim();
-                const name = getMusicianDisplayName(musician);
-                const email =
-                  musician?.email || musician?.basicInfo?.email || "";
-                const phone =
-                  musician?.phone ||
-                  musician?.phoneNumber ||
-                  musician?.basicInfo?.phone ||
-                  "";
-                const profileImage =
-                  musician?.profilePhoto ||
-                  musician?.profilePicture ||
-                  musician?.profileImage ||
-                  musician?.photoUrl ||
-                  "";
-                const instruments = Array.isArray(musician?.instrumentation)
-                  ? musician.instrumentation
-                  : Array.isArray(musician?.instruments)
-                  ? musician.instruments
-                  : [];
-
-                return (
-                  <div
-                    key={musicianId || email || name}
-                    className="flex items-center justify-between gap-4 border-b border-gray-100 p-4 last:border-b-0"
+              <div className="flex flex-wrap gap-2">
+                {requiredInstruments.map((item) => (
+                  <span
+                    key={`instrument-${item}`}
+                    className="rounded-full bg-black px-3 py-1 text-sm text-white"
                   >
-                    <div className="flex min-w-0 items-center gap-3">
-                      {profileImage ? (
-                        <img
-                          src={profileImage}
-                          alt={name}
-                          className="h-11 w-11 rounded-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-500">
-                          {name.charAt(0).toUpperCase() || "M"}
-                        </div>
-                      )}
+                    {formatLabel(item)}
+                  </span>
+                ))}
+              </div>
+            </section>
+          )}
 
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-gray-900">
-                          {name}
-                        </p>
-                        <p className="truncate text-xs text-gray-500">
-                          {[email, phone].filter(Boolean).join(" • ") ||
-                            "No contact details shown"}
-                        </p>
-                        {instruments.length ? (
-                          <p className="mt-1 truncate text-xs text-gray-400">
-                            {instruments
-                              .map((item) =>
-                                typeof item === "string"
-                                  ? item
-                                  : item?.instrument || item?.name || "",
-                              )
-                              .filter(Boolean)
-                              .join(", ")}
-                          </p>
-                        ) : null}
-                      </div>
+          {!!requiredSkills.length && (
+            <section>
+              <h3 className="mb-3 text-lg font-semibold text-gray-900">
+                Required skills
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {requiredSkills.map((item) => (
+                  <span
+                    key={`skill-${item}`}
+                    className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700"
+                  >
+                    {formatLabel(item)}
+                  </span>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {!!tags.length && (
+            <section>
+              <h3 className="mb-3 text-lg font-semibold text-gray-900">Tags</h3>
+              <div className="flex flex-wrap gap-2">
+                {tags.map((item) => (
+                  <span
+                    key={`tag-${item}`}
+                    className="rounded-full border border-gray-200 px-3 py-1 text-sm text-gray-600"
+                  >
+                    {formatLabel(item)}
+                  </span>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {job.notes ? (
+            <section>
+              <h3 className="mb-3 text-lg font-semibold text-gray-900">
+                Notes
+              </h3>
+              <div className="rounded-2xl bg-gray-50 p-4 text-gray-600 whitespace-pre-wrap">
+                {job.notes}
+              </div>
+            </section>
+          ) : null}
+
+          {canViewPayments && !isEnquiryJob ? (
+            <section>
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      Payment & payout
+                    </h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Track card setup, charge status, ledger amounts, and when
+                      the deputy payout should be released.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <span
+                      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${
+                        paymentStatusClassMap[paymentStatus] ||
+                        paymentStatusClassMap.not_started
+                      }`}
+                    >
+                      Payment: {formatLabel(paymentStatus)}
+                    </span>
+                    <span
+                      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${
+                        payoutStatusClassMap[payoutStatus] ||
+                        payoutStatusClassMap.not_ready
+                      }`}
+                    >
+                      Payout: {formatLabel(payoutStatus)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Gross amount
+                    </p>
+                    <p className="mt-2 text-lg font-semibold text-gray-900">
+                      {formatMoney(job.grossAmount || job.fee || 0)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Commission
+                    </p>
+                    <p className="mt-2 text-lg font-semibold text-gray-900">
+                      {formatMoney(job.commissionAmount || 0)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Deputy net
+                    </p>
+                    <p className="mt-2 text-lg font-semibold text-gray-900">
+                      {formatMoney(job.deputyNetAmount || job.fee || 0)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                      Payment release on
+                    </p>
+                    <p className="mt-2 text-lg font-semibold text-gray-900">
+                      {job.releaseOn ? formatDate(job.releaseOn) : "TBC"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-2 text-sm text-gray-600">
+                  <p>
+                    <span className="font-medium text-gray-900">
+                      Stripe customer:
+                    </span>{" "}
+                    {job.stripeCustomerId || "Not created yet"}
+                  </p>
+                  <p>
+                    <span className="font-medium text-gray-900">
+                      Saved payment method:
+                    </span>{" "}
+                    {job.defaultPaymentMethodId || "Not saved yet"}
+                  </p>
+                  <p>
+                    <span className="font-medium text-gray-900">
+                      Charged at:
+                    </span>{" "}
+                    {job.chargedAt
+                      ? formatDateTime(job.chargedAt)
+                      : "Not charged yet"}
+                  </p>
+                  <p>
+                    <span className="font-medium text-gray-900">
+                      Latest payment event:
+                    </span>{" "}
+                    {latestPaymentEvent
+                      ? `${formatLabel(latestPaymentEvent.type || "manual_adjustment")} • ${formatDateTime(latestPaymentEvent.createdAt)}`
+                      : "No payment events yet"}
+                  </p>
+                  {job.paymentFailureReason ? (
+                    <p className="text-red-600">
+                      <span className="font-medium text-red-700">
+                        Failure reason:
+                      </span>{" "}
+                      {job.paymentFailureReason}
+                    </p>
+                  ) : null}
+                </div>
+
+                {paymentSetupInfo?.clientSecret ? (
+                  STRIPE_PUBLISHABLE_KEY && stripePromise ? (
+                    <Elements
+                      stripe={stripePromise}
+                      options={{ clientSecret: paymentSetupInfo.clientSecret }}
+                    >
+                      <DeputyJobCardSetupForm
+                        job={job}
+                        clientSecret={paymentSetupInfo.clientSecret}
+                        authHeaders={authHeaders}
+                        onSaved={handleCardSaved}
+                      />
+                    </Elements>
+                  ) : (
+                    <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-700">
+                      Stripe card form is unavailable because{" "}
+                      <strong>VITE_STRIPE_PUBLISHABLE_KEY</strong> is missing in
+                      the frontend environment.
                     </div>
+                  )
+                ) : null}
 
+                <div className="mt-5 flex flex-wrap gap-3">
+                  {canPreparePaymentSetup ? (
                     <button
                       type="button"
-                      onClick={() => handleManualAllocate(musician)}
-                      disabled={!musicianId || isManualAllocating}
-                      className="shrink-0 rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
+                      onClick={handlePreparePaymentSetup}
+                      disabled={isPreparingPaymentSetup}
+                      className="rounded border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-800 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {isManualAllocating ? "Allocating…" : "Allocate"}
+                      {isPreparingPaymentSetup
+                        ? "Preparing payment setup…"
+                        : "Prepare payment setup"}
                     </button>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="p-6 text-center text-sm text-gray-500">
-                Search for a musician to allocate manually.
+                  ) : null}
+
+                  {canChargeNow ? (
+                    <button
+                      type="button"
+                      onClick={handleChargeNow}
+                      disabled={isChargingJob}
+                      className="rounded border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-800 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {isChargingJob ? "Charging…" : "Charge now"}
+                    </button>
+                  ) : null}
+                </div>
               </div>
-            )}
-          </div>
+            </section>
+          ) : null}
+
+          <section>
+            <div className="flex flex-wrap items-center gap-3">
+              <DeputyJobApplyButton
+                job={job}
+                onApplied={async (result) => {
+                  onApply?.(result);
+                  await onRefresh?.(job);
+                }}
+              />
+
+              {canManage ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(`/deputy-jobs/${job._id}/applications`)
+                  }
+                  className="rounded bg-gray-100 px-5 py-3 text-sm font-medium text-gray-800 transition hover:bg-gray-200"
+                >
+                  Manage applications ({applicantsCount})
+                </button>
+              ) : null}
+
+              {canManualAllocate ? (
+                <button
+                  type="button"
+                  onClick={handleOpenManualAllocateModal}
+                  className="rounded border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-800 transition hover:bg-gray-100"
+                >
+                  Manual allocate musician
+                </button>
+              ) : null}
+
+              {canManage && job.status === "open" ? (
+                <button
+                  type="button"
+                  onClick={() => onCloseJob?.(job)}
+                  disabled={loadingClose}
+                  className="rounded border border-red-200 px-5 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {loadingClose ? "Closing..." : "Close job"}
+                </button>
+              ) : null}
+            </div>
+          </section>
         </div>
       </div>
-    ) : null}
-  </div>
-);
+
+      {showManualAllocateModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Manual allocate musician
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Search for a musician, then choose who should receive the
+                  allocation request for this job.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowManualAllocateModal(false)}
+                className="rounded-full border border-gray-200 px-3 py-1 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-800"
+              >
+                ×
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleManualAllocateSearch}
+              className="mt-5 flex gap-3"
+            >
+              <input
+                type="text"
+                value={manualAllocateQuery}
+                onChange={(event) => setManualAllocateQuery(event.target.value)}
+                className="min-w-0 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-black"
+                placeholder="Search by name, email, phone, instrument..."
+              />
+              <button
+                type="submit"
+                disabled={isSearchingMusicians}
+                className="rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isSearchingMusicians ? "Searching…" : "Search"}
+              </button>
+            </form>
+
+            <div className="mt-5 max-h-96 overflow-y-auto rounded-2xl border border-gray-200">
+              {manualAllocateResults.length ? (
+                manualAllocateResults.map((musician) => {
+                  const musicianId = String(
+                    musician?._id || musician?.id || musician?.musicianId || "",
+                  ).trim();
+                  const name = getMusicianDisplayName(musician);
+                  const email =
+                    musician?.email || musician?.basicInfo?.email || "";
+                  const phone =
+                    musician?.phone ||
+                    musician?.phoneNumber ||
+                    musician?.basicInfo?.phone ||
+                    "";
+                  const profileImage =
+                    musician?.profilePhoto ||
+                    musician?.profilePicture ||
+                    musician?.profileImage ||
+                    musician?.photoUrl ||
+                    "";
+                  const instruments = Array.isArray(musician?.instrumentation)
+                    ? musician.instrumentation
+                    : Array.isArray(musician?.instruments)
+                      ? musician.instruments
+                      : [];
+
+                  return (
+                    <div
+                      key={musicianId || email || name}
+                      className="flex items-center justify-between gap-4 border-b border-gray-100 p-4 last:border-b-0"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        {profileImage ? (
+                          <img
+                            src={profileImage}
+                            alt={name}
+                            className="h-11 w-11 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gray-100 text-sm font-semibold text-gray-500">
+                            {name.charAt(0).toUpperCase() || "M"}
+                          </div>
+                        )}
+
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-gray-900">
+                            {name}
+                          </p>
+                          <p className="truncate text-xs text-gray-500">
+                            {[email, phone].filter(Boolean).join(" • ") ||
+                              "No contact details shown"}
+                          </p>
+                          {instruments.length ? (
+                            <p className="mt-1 truncate text-xs text-gray-400">
+                              {instruments
+                                .map((item) =>
+                                  typeof item === "string"
+                                    ? item
+                                    : item?.instrument || item?.name || "",
+                                )
+                                .filter(Boolean)
+                                .join(", ")}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleManualAllocate(musician)}
+                        disabled={!musicianId || isManualAllocating}
+                        className="shrink-0 rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isManualAllocating ? "Allocating…" : "Allocate"}
+                      </button>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="p-6 text-center text-sm text-gray-500">
+                  Search for a musician to allocate manually.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
 };
 
 export default DeputyJobPreviewPanel;
