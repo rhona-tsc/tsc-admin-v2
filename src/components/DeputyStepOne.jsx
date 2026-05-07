@@ -31,6 +31,10 @@ const DeputyStepOne = ({
 
   const [userFirstName] = useState(localStorage.getItem("userFirstName") || "");
 
+  const canDownloadModerationImages = ["agent", "admin", "moderator"].some((role) =>
+    String(userRole || "").toLowerCase().includes(role),
+  );
+
   // MP3 local state
   const [originalMp3s, setOriginalMp3s] = useState([]);
   const [coverMp3s, setCoverMp3s] = useState([]);
@@ -46,6 +50,72 @@ const DeputyStepOne = ({
     const arr = asArray(v);
     // keep only strings (image urls)
     return arr.filter((x) => typeof x === "string" && x.trim());
+  };
+
+  const getImageDownloadName = (label, index = 0, url = "") => {
+    const first = formData.firstName || formData.basicInfo?.firstName || "deputy";
+    const last = formData.lastName || formData.basicInfo?.lastName || "musician";
+    const cleanBase = `${first}-${last}-${label}-${index + 1}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+    const extensionMatch = String(url).match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
+    const extension = extensionMatch?.[1] || "jpg";
+    return `${cleanBase}.${extension}`;
+  };
+
+  const handleDownloadImage = async (url, label, index = 0) => {
+    if (!url) return;
+
+    const filename = getImageDownloadName(label, index, url);
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Image download failed");
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error("❌ Failed to download image:", error);
+      const fallbackLink = document.createElement("a");
+      fallbackLink.href = url;
+      fallbackLink.download = filename;
+      fallbackLink.target = "_blank";
+      fallbackLink.rel = "noopener noreferrer";
+      document.body.appendChild(fallbackLink);
+      fallbackLink.click();
+      document.body.removeChild(fallbackLink);
+    }
+  };
+
+  const DownloadImageButtons = ({ label, urls = [] }) => {
+    if (!canDownloadModerationImages) return null;
+
+    const cleanUrls = asUrlArray(urls);
+    if (!cleanUrls.length) return null;
+
+    return (
+      <div className="mt-2 flex flex-wrap gap-2">
+        {cleanUrls.map((url, index) => (
+          <button
+            key={`${label}-${url}-${index}`}
+            type="button"
+            onClick={() => handleDownloadImage(url, label, index)}
+            className="text-xs bg-gray-100 border border-gray-300 rounded px-2 py-1 hover:bg-black hover:text-white transition"
+          >
+            Download {cleanUrls.length > 1 ? `${label} ${index + 1}` : label}
+          </button>
+        ))}
+      </div>
+    );
   };
 
   const asVideoLinksArray = (v) => {
@@ -371,6 +441,7 @@ const DeputyStepOne = ({
               className="mt-2 w-32 h-32 object-cover rounded-full mx-auto"
             />
           )}
+          <DownloadImageButtons label="Profile Picture" urls={profileSrc ? [profileSrc] : []} />
         </div>
 
         {/* -------------------------------------------------------
@@ -408,6 +479,7 @@ const DeputyStepOne = ({
               className="mt-2 w-full aspect-video object-cover rounded-md border"
             />
           )}
+          <DownloadImageButtons label="Cover Hero" urls={coverHeroSrc ? [coverHeroSrc] : []} />
         </div>
 
         {/* Address Section */}
@@ -710,6 +782,10 @@ const DeputyStepOne = ({
               );
             }}
           />
+          <DownloadImageButtons
+            label="Black Tie"
+            urls={formData.digitalWardrobeBlackTie}
+          />
         </div>
 
         {/* FORMAL */}
@@ -732,6 +808,10 @@ const DeputyStepOne = ({
                   : updatedFn;
               await handleWardrobeImageUpload(updated, "digitalWardrobeFormal");
             }}
+          />
+          <DownloadImageButtons
+            label="Formal"
+            urls={formData.digitalWardrobeFormal}
           />
         </div>
 
@@ -761,6 +841,10 @@ const DeputyStepOne = ({
               );
             }}
           />
+          <DownloadImageButtons
+            label="Smart Casual"
+            urls={formData.digitalWardrobeSmartCasual}
+          />
         </div>
 
         {/* Session All Black */}
@@ -786,6 +870,10 @@ const DeputyStepOne = ({
               );
             }}
           />
+          <DownloadImageButtons
+            label="Session All Black"
+            urls={formData.digitalWardrobeSessionAllBlack}
+          />
         </div>
       </div>
 
@@ -810,6 +898,10 @@ const DeputyStepOne = ({
               typeof updatedFn === "function" ? updatedFn(previous) : updatedFn;
             await handleWardrobeImageUpload(updated, "additionalImages");
           }}
+        />
+        <DownloadImageButtons
+          label="Additional Image"
+          urls={formData.additionalImages}
         />
       </div>
 
