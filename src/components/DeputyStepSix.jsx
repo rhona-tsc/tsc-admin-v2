@@ -236,11 +236,15 @@ if (!formData.reference && safeLastName) {
             {stripeLoading ? "Opening Stripe…" : "Connect Stripe for payouts"}
           </button>
 
-          {formData?.stripeConnect?.accountId && (
-            <span className="text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">
-              Stripe account connected
-            </span>
-          )}
+          {formData?.stripeConnect?.payoutsEnabled ? (
+  <span className="text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">
+    Stripe payouts ready
+  </span>
+) : formData?.stripeConnect?.accountId ? (
+  <span className="text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+    Stripe connected, payout verification pending
+  </span>
+) : null}
         </div>
 
         {stripeError && (

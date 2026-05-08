@@ -393,8 +393,8 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
         <div className="border-b border-gray-200 px-6 py-5">
           <h2 className={sectionTitleClass}>Create deputy opportunity</h2>
           <p className={`${sectionTextClass} mt-1`}>
-            Add the job details below and send the opportunity to matching musicians straight away.
-          </p>
+  Add the job details below and we’ll match musicians using instrument and vocal fit first, then refine the ranking using essential skills, preferred extras, genres and location.
+</p>
         </div>
 
         <div className="grid grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-2">
@@ -651,8 +651,8 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
   <div className="lg:col-span-2 rounded-2xl border border-blue-200 bg-blue-50 p-4">
     <h3 className="text-sm font-semibold text-blue-900">Enquiry-only post</h3>
     <p className={`${sectionTextClass} mt-1`}>
-      This will create an enquiry-only deputy post for a potential gig. No card details will be collected and no automatic charge flow will be set up.
-    </p>
+  This will create an enquiry-only deputy post for a potential gig. No card details will be collected and no automatic charge flow will be set up, but matching and ranking will still run in the same way.
+</p>
   </div>
 )}
 
@@ -686,7 +686,7 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
               value={formData.requiredSkills}
               onChange={handleChange}
               className={inputClass}
-              placeholder="e.g. Backing vocals, MD, Sound engineering"
+              placeholder="e.g. Backing vocals, lead vocals, MD, sound engineering"
             />
           </div>
 
@@ -701,7 +701,7 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
               value={formData.desiredRoles}
               onChange={handleChange}
               className={inputClass}
-              placeholder="e.g. Can DJ, Band leading, Client liaison"
+              placeholder="e.g. Can DJ, band leading, client liaison, extra vocal ability"
             />
           </div>
 
@@ -716,7 +716,7 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
               value={formData.secondaryInstruments}
               onChange={handleChange}
               className={inputClass}
-              placeholder="e.g. Piano, Acoustic Guitar"
+              placeholder="e.g. Bass, acoustic guitar, keys"
             />
           </div>
 
@@ -887,8 +887,8 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
           <div>
             <h3 className="text-base font-semibold text-gray-900">Matching preview</h3>
             <p className="mt-1 text-sm text-gray-500">
-              These are the fields the matching logic will use when deciding who to notify.
-            </p>
+  Required instruments and vocal fit act as the main filter. Essential skills are treated as hard requirements, while preferred extras, genres and location help rank the best matches.
+</p>
           </div>
 
         

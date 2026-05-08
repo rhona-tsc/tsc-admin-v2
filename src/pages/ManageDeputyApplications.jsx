@@ -643,8 +643,8 @@ const profileLink = getApplicantProfileLink(application, job?._id || "");
                       </Badge>
 
                       {typeof application.deputyMatchScore === "number" ? (
-                        <Badge>{Math.round(application.deputyMatchScore)} score</Badge>
-                      ) : null}
+  <Badge>{Math.round(application.deputyMatchScore * 100)}% match</Badge>
+) : null}
                     </div>
                   </div>
 

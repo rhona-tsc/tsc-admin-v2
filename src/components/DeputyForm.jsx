@@ -630,6 +630,47 @@ const DeputyForm = ({
     );
   }, [authToken]);
 
+  // Keep local Stripe Connect status in sync after Stripe onboarding returns.
+  // Stripe accountLinks only redirect the user back to the app; they do not
+  // automatically update our musician document, so we refresh the account
+  // status from the backend whenever this form loads for a logged-in deputy.
+  useEffect(() => {
+    if (!authToken || !deputyId) return;
+
+    const syncStripe = async () => {
+      try {
+        const res = await axios.post(
+          `${backendUrl}/api/account/stripe-connect/sync`,
+          {},
+          {
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+              token: authToken,
+            },
+            withCredentials: true,
+          },
+        );
+
+        if (res.data?.stripeConnect) {
+          setFormData((prev) => ({
+            ...prev,
+            stripeConnect: {
+              ...prev.stripeConnect,
+              ...res.data.stripeConnect,
+            },
+          }));
+        }
+      } catch (err) {
+        console.warn(
+          "Stripe sync failed:",
+          err?.response?.data || err.message,
+        );
+      }
+    };
+
+    syncStripe();
+  }, [authToken, deputyId]);
+
   // Backend hydration
   useEffect(() => {
     if (!deputyId) {
