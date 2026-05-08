@@ -89,7 +89,7 @@ const DeputyJobApplyButton = ({
   const [isApplying, setIsApplying] = useState(false);
   const [hasApplied, setHasApplied] = useState(false);
   const [missingFields, setMissingFields] = useState([]);
-
+const [sessionError, setSessionError] = useState("");
   const status = String(job?.status || "open").toLowerCase();
   const isAssigned =
     status === "assigned" || status === "allocated" || status === "filled";
@@ -123,79 +123,117 @@ const DeputyJobApplyButton = ({
     ? "bg-gray-200 text-gray-500 cursor-not-allowed"
     : "bg-[#ff6667] text-white hover:bg-black";
 
-  const handleApply = async () => {
-    if (!job?._id || disabled) return;
+const handleApply = async () => {
+  setSessionError("");
+  if (!job?._id || disabled) return;
 
-    try {
-      setIsApplying(true);
-      setMissingFields([]);
+  try {
+    setIsApplying(true);
+    setMissingFields([]);
 
-      const headers = getAuthHeaders();
+    const { token, source } = getBestAuthToken();
+    const headers = token
+      ? {
+          Authorization: `Bearer ${token}`,
+          token,
+        }
+      : {};
 
-      console.log("📨 Applying to deputy job", {
-        jobId: job._id,
-        status,
-        headersPresent: Boolean(headers?.Authorization),
-      });
+    console.log("📨 Applying to deputy job", {
+      jobId: job._id,
+      status,
+      tokenSource: source,
+      tokenPresent: Boolean(token),
+      tokenExpired: token ? isTokenExpired(token) : false,
+      headersPresent: Boolean(headers?.Authorization),
+    });
 
-      const { data } = await axios.post(
-        `${BACKEND_BASE}/api/deputy-jobs/${job._id}/apply`,
-        {},
-        {
-          headers,
-          withCredentials: true,
-        },
-      );
-
-      console.log("✅ apply response", data);
-
-      if (!data?.success) {
-        throw new Error(data?.message || "Failed to apply for this deputy job");
-      }
-
-      setHasApplied(true);
-
-      toast.success(data?.message || "Application submitted successfully.");
-
-      if (typeof onApplied === "function") {
-        onApplied({
-          jobId: job._id,
-          application: data?.application || null,
-          job: data?.job || null,
-        });
-      }
-    } catch (error) {
-      const responseStatus = error?.response?.status;
-      const responseMessage = error?.response?.data?.message;
-      const missing = Array.isArray(error?.response?.data?.missing)
-        ? error.response.data.missing
-        : [];
-
-      console.error("❌ One-click apply failed", {
-        jobId: job?._id,
-        status: responseStatus,
-        data: error?.response?.data,
-        message: error?.message,
-      });
-
-      if (missing.length) {
-        setMissingFields(missing);
-      }
-
-      if (responseStatus === 401) {
-        toast.error("Your session has expired. Please log in again before applying.");
-        return;
-      }
-
+    if (!token) {
       toast.error(
-        responseMessage ||
-          error?.message ||
-          "Failed to apply for this deputy job",
+        "You need to log in before applying. Please log out and log back in, then try again."
       );
-    } finally {
-      setIsApplying(false);
+      return;
     }
-  };
+
+    if (isTokenExpired(token)) {
+      toast.error(
+        "Your session has expired. Please log out and log back in, then try applying again."
+      );
+      return;
+    }
+
+    const { data } = await axios.post(
+      `${BACKEND_BASE}/api/deputy-jobs/${job._id}/apply`,
+      {},
+      {
+        headers,
+        withCredentials: true,
+      }
+    );
+
+    console.log("✅ apply response", data);
+
+    if (!data?.success) {
+      throw new Error(data?.message || "Failed to apply for this deputy job");
+    }
+
+    setHasApplied(true);
+
+    toast.success(data?.message || "Application submitted successfully.");
+
+    if (typeof onApplied === "function") {
+      onApplied({
+        jobId: job._id,
+        application: data?.application || null,
+        job: data?.job || null,
+      });
+    }
+  } catch (error) {
+    const responseStatus = error?.response?.status;
+    const responseMessage = error?.response?.data?.message || "";
+    const missing = Array.isArray(error?.response?.data?.missing)
+      ? error.response.data.missing
+      : [];
+
+    console.error("❌ One-click apply failed", {
+      jobId: job?._id,
+      status: responseStatus,
+      data: error?.response?.data,
+      message: error?.message,
+    });
+
+    if (missing.length) {
+      setMissingFields(missing);
+    }
+
+    const authProblem =
+      responseStatus === 401 ||
+      /jwt expired/i.test(responseMessage) ||
+      /jwt malformed/i.test(responseMessage) ||
+      /invalid token/i.test(responseMessage) ||
+      /unauthorized/i.test(responseMessage) ||
+      /forbidden/i.test(responseMessage);
+
+    if (authProblem) {
+      setSessionError(
+  "Your login session looks out of date. Please log out and log back in, then try again."
+);
+toast.error(
+  "Your login session looks out of date. Please log out and log back in, then try applying again."
+);
+return;
+  
+    }
+
+    toast.error(
+      responseMessage ||
+        error?.message ||
+        "Failed to apply for this deputy job"
+    );
+  } finally {
+    setIsApplying(false);
+  }
+};
 
   return (
     <div className="flex flex-col items-start gap-2">
@@ -207,7 +245,11 @@ const DeputyJobApplyButton = ({
       >
         {buttonText}
       </button>
-
+{sessionError ? (
+  <div className="text-xs text-red-600 leading-5">
+    {sessionError}
+  </div>
+) : null}
       {showMissingInline && missingFields.length > 0 ? (
         <div className="text-xs text-red-600 leading-5">
           Complete your profile to apply: {missingFields.join(", ")}.
