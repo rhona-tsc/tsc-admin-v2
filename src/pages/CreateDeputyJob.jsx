@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -162,6 +162,8 @@ const DeputyJobPaymentSetupCard = ({
   );
 };
 
+
+
 const CreateDeputyJob = () => {
   const [paymentSetupState, setPaymentSetupState] = useState({
     status: "idle",
@@ -173,7 +175,8 @@ const CreateDeputyJob = () => {
   const [createdPreviewJob, setCreatedPreviewJob] = useState(null);
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const submitLockRef = useRef(false);
+  const lastSubmissionIdRef = useRef("");
   const authToken =
     localStorage.getItem("token") ||
     localStorage.getItem("adminToken") ||
@@ -216,8 +219,8 @@ const CreateDeputyJob = () => {
   const canCreateEnquiryPost =
     isAdminUser || storedRole === "admin" || storedRole === "agent";
 
-    const canSkipCardStep =
-  isAdminUser || storedRole === "admin" || storedRole === "agent";
+  const canSkipCardStep =
+    isAdminUser || storedRole === "admin" || storedRole === "agent";
 
   const deputyJobsBaseUrl = useMemo(() => `${backendUrl}/api/deputy-jobs`, []);
 
@@ -356,9 +359,25 @@ const prepareDeputyJobPaymentSetup = async ({ jobId, payload, createdJob }) => {
     navigate("/deputy-jobs");
   };
 
-  const handleSubmit = async (payload) => {
-    try {
-      setIsSubmitting(true);
+
+const handleSubmit = async (payload) => {
+  if (submitLockRef.current || isSubmitting) {
+    console.warn("🚫 Duplicate deputy job submit prevented on client", {
+      lastSubmissionId: lastSubmissionIdRef.current || null,
+    });
+    return;
+  }
+
+  const submissionId =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `deputyjob_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+  submitLockRef.current = true;
+  lastSubmissionIdRef.current = submissionId;
+
+  try {
+    setIsSubmitting(true);
       setPaymentSetupState({
         status: "idle",
         deputyJobId: "",
@@ -389,8 +408,15 @@ const prepareDeputyJobPaymentSetup = async ({ jobId, payload, createdJob }) => {
         previewOnly: false,
       };
 
+
+      const requestHeaders = {
+        ...authHeaders,
+        "x-request-id": submissionId,
+        "x-idempotency-key": submissionId,
+      };
+
       const res = await axios.post(deputyJobsBaseUrl, submitPayload, {
-        headers: authHeaders,
+        headers: requestHeaders,
       });
 
       if (!res.data?.success) {
@@ -451,6 +477,7 @@ if (!isEnquiryJob && createdJobId) {
         error?.response?.data?.message || "Failed to create deputy job."
       );
     } finally {
+      submitLockRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -536,10 +563,10 @@ if (!isEnquiryJob && createdJobId) {
             </Elements>
           ) : null
         ) : (
-      <DeputyJobCreateForm
+    <DeputyJobCreateForm
   onSubmit={handleSubmit}
   isSubmitting={isSubmitting}
-  submitLabel="Create job"
+  submitLabel={isSubmitting ? "Creating job..." : "Create job"}
   authHeaders={authHeaders}
   canCreateEnquiryJob={canCreateEnquiryPost}
   canSkipCardStep={canSkipCardStep}

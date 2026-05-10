@@ -18,6 +18,71 @@ const parseJwtPayload = (token = "") => {
   }
 };
 
+const isJwtExpired = (token = "") => {
+  try {
+    const payload = parseJwtPayload(token);
+    const exp = Number(payload?.exp || 0);
+    if (!exp) return false;
+    return Date.now() >= exp * 1000;
+  } catch {
+    return false;
+  }
+};
+
+const clearStoredAuthTokens = () => {
+  [
+    "token",
+    "adminToken",
+    "musicianToken",
+    "userEmail",
+    "userRole",
+    "adminEmail",
+    "adminRole",
+    "musicianEmail",
+    "musicianRole",
+  ].forEach((key) => {
+    try {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
+    } catch {
+      // ignore storage errors
+    }
+  });
+};
+
+const getPreferredAuthToken = () => {
+  const musicianToken = localStorage.getItem("musicianToken") || "";
+  const adminToken = localStorage.getItem("adminToken") || "";
+  const generalToken = localStorage.getItem("token") || "";
+
+  const candidates = [musicianToken, generalToken, adminToken].filter(Boolean);
+  const firstValid = candidates.find((candidate) => !isJwtExpired(candidate));
+
+  return {
+    musicianToken,
+    adminToken,
+    generalToken,
+    token: firstValid || "",
+  };
+};
+
+const isAuthExpiredError = (err) => {
+  const responseMessage = String(err?.response?.data?.message || "")
+    .trim()
+    .toLowerCase();
+  const errorMessage = String(err?.message || "").trim().toLowerCase();
+  const status = Number(err?.response?.status || 0);
+
+  return (
+    status === 401 ||
+    status === 403 ||
+    responseMessage.includes("jwt expired") ||
+    responseMessage.includes("invalid token") ||
+    responseMessage.includes("unauthor") ||
+    errorMessage.includes("jwt expired")
+  );
+};
+
 const normaliseString = (value) => String(value || "").trim();
 
 const toArray = (value) => (Array.isArray(value) ? value.filter(Boolean) : []);
@@ -236,11 +301,7 @@ const DeputyJobDetail = () => {
     INITIAL_NOTIFICATIONS_VISIBLE
   );
 
-  const adminToken = localStorage.getItem("adminToken") || "";
-  const musicianToken = localStorage.getItem("musicianToken") || "";
-  const generalToken = localStorage.getItem("token") || "";
-
-  const token = generalToken || adminToken || musicianToken || "";
+  const { adminToken, token } = useMemo(() => getPreferredAuthToken(), []);
   const hasAnyUserToken = Boolean(token);
 
   const currentUser = useMemo(() => {
@@ -275,11 +336,18 @@ const DeputyJobDetail = () => {
       token
         ? {
             Authorization: `Bearer ${token}`,
-            token,
           }
         : {},
     [token]
   );
+
+  const handleExpiredAuth = useCallback(() => {
+    clearStoredAuthTokens();
+    toast.info("Your session expired. Please log in again to continue.");
+    navigate("/login", {
+      state: { from: `/deputy-jobs/${id}` },
+    });
+  }, [navigate, id]);
 
   const loadJob = useCallback(async () => {
     try {
@@ -297,6 +365,10 @@ const DeputyJobDetail = () => {
 
       setJob(res.data.job);
     } catch (err) {
+      if (isAuthExpiredError(err)) {
+        handleExpiredAuth();
+        return;
+      }
       console.error("❌ Failed to load deputy job:", err);
       setError(
         err?.response?.data?.message ||
@@ -306,7 +378,7 @@ const DeputyJobDetail = () => {
     } finally {
       setLoading(false);
     }
-  }, [headers, id]);
+  }, [handleExpiredAuth, headers, id]);
 
   useEffect(() => {
     loadJob();
@@ -329,7 +401,7 @@ const DeputyJobDetail = () => {
     job?.managerEmail || job?.createdBy?.email
   ).toLowerCase();
 
-  const isAdminViewer = Boolean(adminToken);
+  const isAdminViewer = Boolean(adminToken) && token === adminToken;
   const isJobManager = Boolean(
     currentUserEmail &&
       (currentUserEmail === createdByEmail || currentUserEmail === managerEmail)
@@ -353,7 +425,7 @@ const DeputyJobDetail = () => {
     isAdminEmail ||
     currentUserRole === "admin" ||
     currentUserRole === "agent" ||
-    Boolean(adminToken)
+    isAdminViewer
   );
 
   const jobType = String(job?.jobType || job?.type || "").trim().toLowerCase();
@@ -505,11 +577,13 @@ const DeputyJobDetail = () => {
     /^[a-f\d]{24}$/i.test(String(value || "").trim());
 
   const handleRedirectToLoginToApply = useCallback(() => {
-  toast.info("Please log in or create an account to apply. We’ll bring you back to this job afterwards.");
-  navigate("/login", {
-    state: { from: `/deputy-jobs/${id}` },
-  });
-}, [navigate, id]);
+    toast.info(
+      "Please log in or create an account to apply. We’ll bring you back to this job afterwards."
+    );
+    navigate("/login", {
+      state: { from: `/deputy-jobs/${id}` },
+    });
+  }, [navigate, id]);
 
   const getCandidateDisplayName = (candidate = {}) => {
     const firstName = String(candidate?.firstName || "").trim();
@@ -562,6 +636,10 @@ const DeputyJobDetail = () => {
       setManualAllocateOpen(false);
       await loadJob();
     } catch (err) {
+      if (isAuthExpiredError(err)) {
+        handleExpiredAuth();
+        return;
+      }
       console.error("❌ Failed to manually allocate musician:", err);
       toast.error(
         err?.response?.data?.message ||
@@ -571,7 +649,14 @@ const DeputyJobDetail = () => {
     } finally {
       setManualAllocating(false);
     }
-  }, [canManageThisJob, manualAllocateSelectedId, headers, id, loadJob]);
+  }, [
+    canManageThisJob,
+    handleExpiredAuth,
+    manualAllocateSelectedId,
+    headers,
+    id,
+    loadJob,
+  ]);
 
   const handleAllocateApplicant = useCallback(
     async (application) => {
@@ -605,6 +690,10 @@ const DeputyJobDetail = () => {
         toast.success(res.data?.message || "Applicant allocated");
         await loadJob();
       } catch (err) {
+        if (isAuthExpiredError(err)) {
+          handleExpiredAuth();
+          return;
+        }
         console.error("❌ Failed to allocate applicant:", err);
         toast.error(
           err?.response?.data?.message ||
@@ -615,7 +704,7 @@ const DeputyJobDetail = () => {
         setAssigningId("");
       }
     },
-    [headers, id, loadJob]
+    [handleExpiredAuth, headers, id, loadJob]
   );
 
   const handlePresentApplicant = useCallback(
@@ -652,6 +741,10 @@ const DeputyJobDetail = () => {
         toast.success(res.data?.message || "Applicant presented");
         await loadJob();
       } catch (err) {
+        if (isAuthExpiredError(err)) {
+          handleExpiredAuth();
+          return;
+        }
         console.error("❌ Failed to present applicant:", err);
         toast.error(
           err?.response?.data?.message ||
@@ -662,7 +755,7 @@ const DeputyJobDetail = () => {
         setPresentingId("");
       }
     },
-    [headers, id, job?.title, loadJob]
+    [handleExpiredAuth, headers, id, job?.title, loadJob]
   );
 
   const fullLocation =
@@ -723,6 +816,10 @@ const DeputyJobDetail = () => {
       toast.success(res.data?.message || "Application submitted");
       await loadJob();
     } catch (err) {
+      if (isAuthExpiredError(err)) {
+        handleExpiredAuth();
+        return;
+      }
       console.error("❌ Failed to apply for deputy job:", err);
       toast.error(
         err?.response?.data?.message ||
@@ -732,7 +829,7 @@ const DeputyJobDetail = () => {
     } finally {
       setApplying(false);
     }
-  }, [hasApplied, headers, id, loadJob]);
+  }, [handleExpiredAuth, hasApplied, headers, id, loadJob]);
 
   if (loading) {
     return (
@@ -1045,7 +1142,7 @@ const DeputyJobDetail = () => {
                   {isAdminEmail ||
                   currentUserRole === "admin" ||
                   currentUserRole === "agent" ||
-                  Boolean(adminToken) ? (
+                  isAdminViewer ? (
                     <button
                       type="button"
                       onClick={() => navigate(`/deputy-jobs/${id}/applications`)}
@@ -1103,7 +1200,7 @@ const DeputyJobDetail = () => {
                             <div className="min-w-0">
                               <p className="font-medium text-gray-900">{displayName}</p>
 
-                              {Boolean(adminToken) && application.email ? (
+                              {isAdminViewer && application.email ? (
                                 <p className="text-sm text-gray-500">
                                   {maskEmail(application.email)}
                                 </p>
