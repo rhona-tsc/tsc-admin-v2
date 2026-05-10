@@ -719,6 +719,15 @@ const buildEditStateFromRow = (row) => {
         : 0;
   const performance =
     row?.actsSummary?.[0]?.performance || row?.performanceTimes || {};
+const split = getAccountingSplit(row, gross, depositFromBackend ?? deposit);
+
+const vatRate = Number(row?.accounting?.vatRate ?? 0.2) || 0.2;
+
+const commissionGross = clamp0(split?.commissionGross);
+const passThroughGross = clamp0(split?.passThroughGross);
+
+// This is the “core” gross excluding extras/manual adjustments
+const coreGross = commissionGross + passThroughGross;
 
   return {
     _id: row?._id,
@@ -727,7 +736,7 @@ const buildEditStateFromRow = (row) => {
     actName: getDisplayActName(row),
     actTscName: getDisplayActTscName(row),
     eventDate: getDisplayEventDate(row),
-    baseGross: Number(gross || 0),
+    baseGross: Number(coreGross || 0),
     depositAmount: Number(deposit || 0),
     eventType: row?.eventType || "",
     venueAddress: getDisplayAddress(row),
@@ -743,6 +752,9 @@ const buildEditStateFromRow = (row) => {
     manualAdjustmentLabel: "",
     manualAdjustmentAmount: "",
     notes: row?.notes || "",
+    vatRate,
+commissionGross,
+passThroughGross,
   };
 };
 
@@ -1049,6 +1061,82 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
             </select>
           </div>
         </div>
+
+<div className="mb-5 border rounded-lg p-4">
+  <div className="font-medium mb-3">Accounting split</div>
+
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div>
+      <label className="block text-xs text-gray-600 mb-1">
+        Band fee (pass-through) £
+      </label>
+      <input
+        type="number"
+        step="0.01"
+        className="border rounded px-3 py-2 w-full"
+        value={value.passThroughGross ?? 0}
+        onChange={(e) => {
+          const passThroughGross = clamp0(e.target.value);
+          const commissionGross = clamp0(value.commissionGross);
+          onChange({
+            ...value,
+            passThroughGross,
+            baseGross: passThroughGross + commissionGross,
+          });
+        }}
+      />
+      <div className="text-[11px] text-gray-500 mt-1">
+        Keep this the same if you’re only discounting your commission.
+      </div>
+    </div>
+
+    <div>
+      <label className="block text-xs text-gray-600 mb-1">
+        Commission (gross, VAT-inc) £
+      </label>
+      <input
+        type="number"
+        step="0.01"
+        className="border rounded px-3 py-2 w-full"
+        value={value.commissionGross ?? 0}
+        onChange={(e) => {
+          const commissionGross = clamp0(e.target.value);
+          const passThroughGross = clamp0(value.passThroughGross);
+          onChange({
+            ...value,
+            commissionGross,
+            baseGross: passThroughGross + commissionGross,
+          });
+        }}
+      />
+      <div className="text-[11px] text-gray-500 mt-1">
+        This is your VAT-able bucket.
+      </div>
+    </div>
+
+    <div>
+      <label className="block text-xs text-gray-600 mb-1">VAT (from commission)</label>
+      <input
+        className="border rounded px-3 py-2 w-full bg-gray-50"
+        readOnly
+        value={() => {
+          const vatRate = Number(value.vatRate ?? 0.2) || 0.2;
+          const { vat } = calcVatFromVatInclusiveGross(value.commissionGross, vatRate);
+          return vat.toFixed(2);
+        })()}
+      />
+    </div>
+
+    <div>
+      <label className="block text-xs text-gray-600 mb-1">Core gross (commission + band)</label>
+      <input
+        className="border rounded px-3 py-2 w-full bg-gray-50"
+        readOnly
+        value={Number(value.baseGross || 0).toFixed(2)}
+      />
+    </div>
+  </div>
+</div>
 
         <div className="mb-5 p-4 border rounded-lg bg-gray-50">
           <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
@@ -1734,6 +1822,11 @@ export default function BookingBoard() {
       0,
       Number(editForm.baseGross || 0) + extrasTotal + manualAdjustmentAmount,
     );
+    const vatRate = Number(editForm.vatRate ?? 0.2) || 0.2;
+const commissionGross = clamp0(editForm.commissionGross);
+const passThroughGross = clamp0(editForm.passThroughGross);
+const { vat: commissionVat, net: commissionNet } =
+  calcVatFromVatInclusiveGross(commissionGross, vatRate);
     const depositAmount = Number(editForm.depositAmount || 0) || 0;
     const newBalance = Math.max(0, newGross - depositAmount);
 
@@ -1776,6 +1869,15 @@ export default function BookingBoard() {
           ? editForm.selectedLateStayMembers
           : [],
       },
+      accounting: {
+  paymentStage: String(editingRow?.accounting?.paymentStage || ""),
+  vatRate,
+  commissionGross: Number(commissionGross.toFixed(2)),
+  commissionVat: Number(commissionVat.toFixed(2)),
+  commissionNet: Number(commissionNet.toFixed(2)),
+  passThroughGross: Number(passThroughGross.toFixed(2)),
+  currency: String(editingRow?.accounting?.currency || editingRow?.totals?.currency || "GBP"),
+},
       notes: [
         editingRow?.notes || "",
         editForm.manualAdjustmentLabel && manualAdjustmentAmount
@@ -1848,6 +1950,16 @@ export default function BookingBoard() {
     const net = round2(g - vat);
     return { vat, net };
   };
+
+  const clamp0 = (n) => Math.max(0, Number(n || 0) || 0);
+
+const calcVatFromVatInclusiveGross = (gross, vatRate = 0.2) => {
+  const g = clamp0(gross);
+  const r = Number(vatRate || 0.2) || 0.2;
+  const vat = Math.round(g * (r / (1 + r)) * 100) / 100;
+  const net = Math.round((g - vat) * 100) / 100;
+  return { vat, net };
+};
 
   const getAccountingSplit = (row, gross, deposit) => {
     // Prefer backend-provided accounting split
