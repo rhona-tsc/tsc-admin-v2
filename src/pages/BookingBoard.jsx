@@ -102,57 +102,72 @@ const getDisplayDeposit = (row) => {
   return backendDeposit > 0 ? backendDeposit : null;
 };
 
-const getAccountingSplit = (row) => {
+const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
+
+const clamp0 = (n) => Math.max(0, Number(n || 0) || 0);
+
+const vatSplitFromGross = (gross, vatRate = 0.2) => {
+  const g = Number(gross || 0) || 0;
+  const r = Number(vatRate || 0.2) || 0.2;
+  const vat = round2(g * (r / (1 + r)));
+  const net = round2(g - vat);
+  return { vat, net };
+};
+
+const calcVatFromVatInclusiveGross = (gross, vatRate = 0.2) => {
+  const g = clamp0(gross);
+  const r = Number(vatRate || 0.2) || 0.2;
+  const vat = Math.round(g * (r / (1 + r)) * 100) / 100;
+  const net = Math.round((g - vat) * 100) / 100;
+  return { vat, net };
+};
+
+// Single source of truth for accounting split across table + modal
+const getAccountingSplit = (row, gross, deposit) => {
   const acc =
     row?.accounting ||
+    row?.booking?.accounting ||
     row?.totals?.accounting ||
     row?.payments?.accounting ||
     null;
 
-  const commissionGross = Number(acc?.commissionGross || 0) || 0;
-  const commissionVat = Number(acc?.commissionVat || 0) || 0;
-  const passThroughGross = Number(acc?.passThroughGross || 0) || 0;
+  const vatRate = Number(acc?.vatRate ?? 0.2) || 0.2;
 
-  // Fallback: if accounting isn't present, attempt a best-effort split.
-  // Assumption: commission ~= deposit (where available). Pass-through ~= gross - commission.
-  if (!acc && commissionGross === 0 && passThroughGross === 0) {
-    const gross = Number(
-      row?.grossValue ||
-        row?.totals?.fullAmount ||
-        row?.quote?.total ||
-        row?.pricing?.total ||
-        row?.amount ||
-        row?.fee ||
-        0,
-    );
+  const commissionGross = Number(acc?.commissionGross ?? 0) || 0;
+  const commissionVat = Number(acc?.commissionVat ?? 0) || 0;
+  const commissionNet = Number(acc?.commissionNet ?? 0) || 0;
+  const passThroughGross = Number(acc?.passThroughGross ?? 0) || 0;
 
-    const deposit = Number(
-      row?.payments?.depositChargedAmount ??
-        row?.payments?.depositAmount ??
-        row?.totals?.depositAmount ??
-        row?.quote?.deposit ??
-        row?.pricing?.deposit ??
-        row?.depositAmount ??
-        0,
-    );
-
-    const commission = Math.max(0, Number(deposit || 0));
-    const passThrough = Math.max(0, Number(gross || 0) - commission);
-
-    // VAT is unknown without accounting; keep as 0 in fallback.
+  // If backend has split, trust it.
+  if (commissionGross > 0 || passThroughGross > 0) {
     return {
-      commissionGross: commission,
-      commissionVat: 0,
-      passThroughGross: passThrough,
-      hasAccounting: false,
+      vatRate,
+      commissionGross: round2(commissionGross),
+      commissionVat: round2(commissionVat),
+      commissionNet: round2(commissionNet),
+      passThroughGross: round2(passThroughGross),
+      hasAccounting: true,
+      source: "booking.accounting",
     };
   }
 
+  // Fallback: commission ~= deposit, pass-through ~= gross - commission
+  const g = Number(gross || 0) || 0;
+  const d = Number(deposit || 0) || 0;
+
+  const fallbackCommissionGross = d > 0 ? d : 0;
+  const fallbackPassThroughGross = Math.max(0, round2(g - fallbackCommissionGross));
+
+  const split = vatSplitFromGross(fallbackCommissionGross, vatRate);
+
   return {
-    commissionGross,
-    commissionVat,
-    passThroughGross,
-    hasAccounting: Boolean(acc),
+    vatRate,
+    commissionGross: round2(fallbackCommissionGross),
+    commissionVat: round2(split.vat),
+    commissionNet: round2(split.net),
+    passThroughGross: round2(fallbackPassThroughGross),
+    hasAccounting: false,
+    source: "fallback",
   };
 };
 
@@ -720,7 +735,6 @@ const buildEditStateFromRow = (row) => {
   const performance =
     row?.actsSummary?.[0]?.performance || row?.performanceTimes || {};
 const split = getAccountingSplit(row, gross, depositFromBackend ?? deposit);
-
 const vatRate = Number(row?.accounting?.vatRate ?? 0.2) || 0.2;
 
 const commissionGross = clamp0(split?.commissionGross);
@@ -755,6 +769,7 @@ const coreGross = commissionGross + passThroughGross;
     vatRate,
 commissionGross,
 passThroughGross,
+coreGross,
   };
 };
 
@@ -967,6 +982,12 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
     }
   };
 
+    const vatRateForDisplay = Number(value.vatRate ?? 0.2) || 0.2;
+  const vatDisplay = calcVatFromVatInclusiveGross(
+    Number(value.commissionGross || 0),
+    vatRateForDisplay,
+  ).vat.toFixed(2);
+
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl p-5">
@@ -1117,14 +1138,10 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
     <div>
       <label className="block text-xs text-gray-600 mb-1">VAT (from commission)</label>
       <input
-        className="border rounded px-3 py-2 w-full bg-gray-50"
-        readOnly
-        value={() => {
-          const vatRate = Number(value.vatRate ?? 0.2) || 0.2;
-          const { vat } = calcVatFromVatInclusiveGross(value.commissionGross, vatRate);
-          return vat.toFixed(2);
-        })()}
-      />
+  className="border rounded px-3 py-2 w-full bg-gray-50"
+  readOnly
+  value={vatDisplay}
+/>
     </div>
 
     <div>
@@ -1132,8 +1149,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
       <input
         className="border rounded px-3 py-2 w-full bg-gray-50"
         readOnly
-        value={Number(value.baseGross || 0).toFixed(2)}
-      />
+value={Number((value.passThroughGross || 0) + (value.commissionGross || 0)).toFixed(2)}      />
     </div>
   </div>
 </div>
@@ -1790,6 +1806,7 @@ export default function BookingBoard() {
         payoutMemberNames: Array.isArray(extra?.payoutMemberNames)
           ? extra.payoutMemberNames
           : [],
+         
         paLateStay: extra?.paLateStay
           ? {
               ...extra.paLateStay,
@@ -1870,14 +1887,26 @@ const { vat: commissionVat, net: commissionNet } =
           : [],
       },
       accounting: {
-  paymentStage: String(editingRow?.accounting?.paymentStage || ""),
-  vatRate,
-  commissionGross: Number(commissionGross.toFixed(2)),
-  commissionVat: Number(commissionVat.toFixed(2)),
-  commissionNet: Number(commissionNet.toFixed(2)),
-  passThroughGross: Number(passThroughGross.toFixed(2)),
-  currency: String(editingRow?.accounting?.currency || editingRow?.totals?.currency || "GBP"),
-},
+
+    paymentStage: String(editingRow?.accounting?.paymentStage || ""),
+
+    vatRate,
+
+    commissionGross: Number(commissionGross.toFixed(2)),
+
+    commissionVat: Number(commissionVat.toFixed(2)),
+
+    commissionNet: Number(commissionNet.toFixed(2)),
+
+    passThroughGross: Number(passThroughGross.toFixed(2)),
+
+    currency: String(
+
+      editingRow?.accounting?.currency || editingRow?.totals?.currency || "GBP",
+
+    ),
+
+  },
       notes: [
         editingRow?.notes || "",
         editForm.manualAdjustmentLabel && manualAdjustmentAmount
@@ -1941,82 +1970,6 @@ const { vat: commissionVat, net: commissionNet } =
     return n > 0 ? n : null;
   };
 
-  const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
-
-  const vatSplitFromGross = (gross, vatRate = 0.2) => {
-    const g = Number(gross || 0) || 0;
-    const r = Number(vatRate || 0.2) || 0.2;
-    const vat = round2(g * (r / (1 + r)));
-    const net = round2(g - vat);
-    return { vat, net };
-  };
-
-  const clamp0 = (n) => Math.max(0, Number(n || 0) || 0);
-
-const calcVatFromVatInclusiveGross = (gross, vatRate = 0.2) => {
-  const g = clamp0(gross);
-  const r = Number(vatRate || 0.2) || 0.2;
-  const vat = Math.round(g * (r / (1 + r)) * 100) / 100;
-  const net = Math.round((g - vat) * 100) / 100;
-  return { vat, net };
-};
-
-  const getAccountingSplit = (row, gross, deposit) => {
-    // Prefer backend-provided accounting split
-    const acc = row?.accounting || row?.booking?.accounting || null;
-    const vatRate = Number(acc?.vatRate ?? 0.2) || 0.2;
-
-    const commissionGross = Number(acc?.commissionGross ?? 0) || 0;
-    const commissionVat = Number(acc?.commissionVat ?? 0) || 0;
-    const commissionNet = Number(acc?.commissionNet ?? 0) || 0;
-    const passThroughGross = Number(acc?.passThroughGross ?? 0) || 0;
-
-    if (commissionGross > 0 || passThroughGross > 0) {
-      return {
-        vatRate,
-        commissionGross: round2(commissionGross),
-        commissionVat: round2(commissionVat),
-        commissionNet: round2(commissionNet),
-        passThroughGross: round2(passThroughGross),
-        source: "booking.accounting",
-      };
-    }
-
-    // Fallback (no accounting saved on booking yet)
-    const g = Number(gross || 0) || 0;
-    const d = Number(deposit || 0) || 0;
-
-    const balancePence = Number(row?.balanceAmountPence ?? 0) || 0;
-    const balanceMajor = round2(balancePence / 100);
-
-    // “paid in full upfront” heuristic:
-    // - balance is 0
-    // - booking is marked paid/balancePaid etc
-    const paidInFullUpfront =
-      g > 0 &&
-      d > 0 &&
-      balanceMajor === 0 &&
-      (row?.balancePaid === true ||
-        row?.balanceStatus === "paid" ||
-        row?.paymentStatus === "paid");
-
-    const fallbackCommissionGross = d > 0 ? d : 0;
-    const fallbackPassThroughGross =
-      paidInFullUpfront && g > 0
-        ? Math.max(0, round2(g - fallbackCommissionGross))
-        : 0;
-
-    const split = vatSplitFromGross(fallbackCommissionGross, vatRate);
-
-    return {
-      vatRate,
-      commissionGross: round2(fallbackCommissionGross),
-      commissionVat: round2(split.vat),
-      commissionNet: round2(split.net),
-      passThroughGross: round2(fallbackPassThroughGross),
-      source: "fallback",
-    };
-  };
 
   const extractBandSize = (row) => {
     if (Number(row?.bandSize)) return Number(row.bandSize);
