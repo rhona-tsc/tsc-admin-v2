@@ -108,7 +108,7 @@ const clamp0 = (n) => Math.max(0, Number(n || 0) || 0);
 
 const vatSplitFromGross = (gross, vatRate = 0.2) => {
   const g = Number(gross || 0) || 0;
-  const r = Number(vatRate || 0.2) || 0.2;
+const r = Number(vatRate ?? 0.2);
   const vat = round2(g * (r / (1 + r)));
   const net = round2(g - vat);
   return { vat, net };
@@ -116,7 +116,7 @@ const vatSplitFromGross = (gross, vatRate = 0.2) => {
 
 const calcVatFromVatInclusiveGross = (gross, vatRate = 0.2) => {
   const g = clamp0(gross);
-  const r = Number(vatRate || 0.2) || 0.2;
+const r = Number(vatRate ?? 0.2);
   const vat = Math.round(g * (r / (1 + r)) * 100) / 100;
   const net = Math.round((g - vat) * 100) / 100;
   return { vat, net };
@@ -131,8 +131,7 @@ const getAccountingSplit = (row, gross, deposit) => {
     row?.payments?.accounting ||
     null;
 
-  const vatRate = Number(acc?.vatRate ?? 0.2) || 0.2;
-
+const vatRate = Number(acc?.vatRate ?? 0.2);
   const commissionGross = Number(acc?.commissionGross ?? 0) || 0;
   const commissionVat = Number(acc?.commissionVat ?? 0) || 0;
   const commissionNet = Number(acc?.commissionNet ?? 0) || 0;
@@ -430,6 +429,27 @@ const normalizeUrl = (u) => {
   if (s.startsWith("//")) return `https:${s}`;
   // otherwise treat as API-relative
   return `${API_BASE.replace(/\/api$/, "")}${s.startsWith("/") ? s : `/${s}`}`;
+};
+
+const getPaymentUrl = (row) => {
+  const raw =
+    row?.paymentLink ||
+    row?.checkoutUrl ||
+    row?.stripeCheckoutUrl ||
+    row?.payments?.checkoutUrl ||
+    row?.payments?.paymentLink ||
+    "";
+  return normalizeUrl(raw);
+};
+
+const getInvoiceUrl = (row) => {
+  const raw =
+    row?.invoiceUrl ||
+    row?.invoicePdfUrl ||
+    row?.invoice?.pdfUrl ||
+    row?.invoice?.url ||
+    "";
+  return normalizeUrl(raw);
 };
 
 const buildFullLineup = (row) => {
@@ -738,8 +758,7 @@ const buildEditStateFromRow = (row) => {
   const performance =
     row?.actsSummary?.[0]?.performance || row?.performanceTimes || {};
   const split = getAccountingSplit(row, gross, depositFromBackend ?? deposit);
-  const vatRate = Number(row?.accounting?.vatRate ?? 0.2) || 0.2;
-
+const vatRate = Number(row?.accounting?.vatRate ?? 0.2);
   const commissionGross = clamp0(split?.commissionGross);
   const passThroughGross = clamp0(split?.passThroughGross);
 
@@ -985,7 +1004,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
     }
   };
 
-  const vatRateForDisplay = Number(value.vatRate ?? 0.2) || 0.2;
+const vatRateForDisplay = Number(value.vatRate ?? 0.2);
   const vatDisplay = calcVatFromVatInclusiveGross(
     Number(value.commissionGross || 0),
     vatRateForDisplay,
@@ -1717,7 +1736,9 @@ export default function BookingBoard() {
     finishTime: "", // already added earlier
     commissionGross: "",
 passThroughGross: "",
-vatRate: 0.2,
+paymentLink: "",
+invoiceUrl: "",
+vatRate: 0, // (since you're not VAT registered yet)
   });
   const [adding, setAdding] = useState(false);
   const [hideInternalTests, setHideInternalTests] = useState(true);
@@ -1852,7 +1873,8 @@ vatRate: 0.2,
       0,
       Number(editForm.baseGross || 0) + extrasTotal + manualAdjustmentAmount,
     );
-    const vatRate = Number(editForm.vatRate ?? 0.2) || 0.2;
+const vatRateRaw = Number(editForm.vatRate ?? 0.2);
+const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : 0.2;
     const commissionGross = clamp0(editForm.commissionGross);
     const passThroughGross = clamp0(editForm.passThroughGross);
     const { vat: commissionVat, net: commissionNet } =
@@ -2099,6 +2121,8 @@ const postManualRow = async () => {
       bookingDateISO: newRow.bookingDateISO || "", // optional
       arrivalTime: newRow.arrivalTime || "",
       finishTime: newRow.finishTime || "",
+      paymentLink: String(newRow.paymentLink || "").trim(),
+invoiceUrl: String(newRow.invoiceUrl || "").trim(),
     };
 
     const res = await fetch(`${API_BASE}/board/bookings`, {
@@ -2138,6 +2162,8 @@ const postManualRow = async () => {
         finishTime: "",
         enquiryDateISO: "",
         bookingDateISO: "",
+        paymentLink: "",
+invoiceUrl: "",
       });
     }
   } catch (e) {
@@ -2231,6 +2257,8 @@ const postManualRow = async () => {
             <col style={{ width: 140 }} /> {/* Review */}
             <col style={{ width: 120 }} /> {/* Balance Paid */}
             <col style={{ width: 120 }} /> {/* Band Paid */}
+            <col style={{ width: 120 }} /> {/* Payment */}
+<col style={{ width: 120 }} /> {/* Invoice */}
             <col style={{ width: 130 }} /> {/* Actions */}
           </colgroup>
 
@@ -2266,6 +2294,8 @@ const postManualRow = async () => {
                 "Review",
                 "Balance Paid",
                 "Band Paid",
+                "Payment",
+"Invoice",
                 "Actions",
               ].map((h) => (
                 <th key={h} className="px-3 py-2 border-b">
@@ -2305,6 +2335,8 @@ const postManualRow = async () => {
                   (r?.contract && (r.contract.url || r.contract.href)) ||
                   "";
                 const normalizedContractUrl = normalizeUrl(contractUrl);
+                const paymentUrl = getPaymentUrl(r);
+const invoiceUrl = getInvoiceUrl(r);
                 const actName = getDisplayActName(r);
                 const actTsc = getDisplayActTscName(r);
                 const address = getDisplayAddress(r);
@@ -2440,11 +2472,11 @@ const postManualRow = async () => {
   <div>
     <div>{money(deposit)}</div>
 
-    {!split?.hasAccounting && (
-      <div className="text-[11px] text-gray-500 leading-4 mt-1">
-        {r?.source === "manual" ? "Manual split" : "Awaiting webhook split"}
-      </div>
-    )}
+   {split?.source === "fallback" && !split?.hasAccounting && (
+  <div className="text-[11px] text-gray-500 leading-4 mt-1">
+    Awaiting webhook split
+  </div>
+)}
   </div>
 ) : (
   "—"
@@ -2577,6 +2609,26 @@ const postManualRow = async () => {
                         </span>
                       )}
                     </td>
+                    <td className="px-3 py-2">
+  {paymentUrl ? (
+    <a className="text-blue-600 underline" href={paymentUrl} target="_blank" rel="noreferrer">
+      Pay
+    </a>
+  ) : (
+    "—"
+  )}
+</td>
+
+<td className="px-3 py-2">
+  {invoiceUrl ? (
+    <a className="text-blue-600 underline" href={invoiceUrl} target="_blank" rel="noreferrer">
+      Invoice
+    </a>
+  ) : (
+    "—"
+  )}
+</td>
+           
                     <td className="px-3 py-2">
                       <button
                         className="px-3 py-1.5 border rounded hover:bg-gray-100"
@@ -2770,6 +2822,22 @@ const postManualRow = async () => {
   </div>
 </div>
 
+{/* Row 2b: payment + invoice links */}
+<div className="flex flex-wrap gap-2 items-end">
+  <input
+    className="border rounded px-2 py-1 w-[360px]"
+    placeholder="Payment link / checkout URL (optional)"
+    value={newRow.paymentLink}
+    onChange={(e) => setNewRow((v) => ({ ...v, paymentLink: e.target.value }))}
+  />
+  <input
+    className="border rounded px-2 py-1 w-[360px]"
+    placeholder="Invoice PDF URL (optional)"
+    value={newRow.invoiceUrl}
+    onChange={(e) => setNewRow((v) => ({ ...v, invoiceUrl: e.target.value }))}
+  />
+</div>
+
                     {/* Row 3: lineup + times */}
                     <div className="flex flex-wrap gap-4 items-end">
                       <div className="flex flex-col">
@@ -2866,6 +2934,8 @@ const postManualRow = async () => {
                         }
                       />
                     </div>
+
+         
 
                     {/* Actions */}
                     <div className="flex gap-2 mt-1">
