@@ -1715,6 +1715,9 @@ export default function BookingBoard() {
     lineupSelected: "",
     arrivalTime: "",
     finishTime: "", // already added earlier
+    commissionGross: "",
+passThroughGross: "",
+vatRate: 0.2,
   });
   const [adding, setAdding] = useState(false);
   const [hideInternalTests, setHideInternalTests] = useState(true);
@@ -2433,18 +2436,19 @@ const postManualRow = async () => {
                       )}
                     </td>
                     <td className="px-3 py-2">
-                      {deposit != null ? (
-                        <div>
-                          <div>{money(deposit)}</div>
-                          {split?.source === "fallback" && (
-                            <div className="text-[11px] text-gray-500 leading-4 mt-1">
-                              Awaiting webhook split
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        "—"
-                      )}
+               {deposit != null ? (
+  <div>
+    <div>{money(deposit)}</div>
+
+    {!split?.hasAccounting && (
+      <div className="text-[11px] text-gray-500 leading-4 mt-1">
+        {r?.source === "manual" ? "Manual split" : "Awaiting webhook split"}
+      </div>
+    )}
+  </div>
+) : (
+  "—"
+)}
                     </td>{" "}
                     <td className="px-3 py-2">
                       {balance != null ? money(balance) : "—"}
@@ -2679,43 +2683,92 @@ const postManualRow = async () => {
                     </div>
 
                     {/* Row 2: agent + contact + money */}
-                    <div className="flex flex-wrap gap-2 items-end">
-                      <select
-                        className="border rounded px-2 py-1 w-48"
-                        value={newRow.agent}
-                        onChange={(e) =>
-                          setNewRow((v) => ({ ...v, agent: e.target.value }))
-                        }
-                      >
-                        {AGENTS.map((a) => (
-                          <option key={a} value={a}>
-                            {a}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        className="border rounded px-2 py-1 w-56"
-                        placeholder="Client email"
-                        value={newRow.clientEmail}
-                        onChange={(e) =>
-                          setNewRow((v) => ({
-                            ...v,
-                            clientEmail: e.target.value,
-                          }))
-                        }
-                      />
-                      <input
-                        className="border rounded px-2 py-1 w-28"
-                        placeholder="Gross"
-                        value={newRow.grossValue}
-                        onChange={(e) =>
-                          setNewRow((v) => ({
-                            ...v,
-                            grossValue: e.target.value,
-                          }))
-                        }
-                      />
-                    </div>
+<div className="flex flex-wrap gap-2 items-end">
+  <select
+    className="border rounded px-2 py-1 w-48"
+    value={newRow.agent}
+    onChange={(e) => setNewRow((v) => ({ ...v, agent: e.target.value }))}
+  >
+    {AGENTS.map((a) => (
+      <option key={a} value={a}>
+        {a}
+      </option>
+    ))}
+  </select>
+
+  <input
+    className="border rounded px-2 py-1 w-56"
+    placeholder="Client email"
+    value={newRow.clientEmail}
+    onChange={(e) =>
+      setNewRow((v) => ({
+        ...v,
+        clientEmail: e.target.value,
+      }))
+    }
+  />
+
+  <input
+    className="border rounded px-2 py-1 w-28"
+    placeholder="Gross"
+    value={newRow.grossValue}
+    onChange={(e) =>
+      setNewRow((v) => ({
+        ...v,
+        grossValue: e.target.value,
+      }))
+    }
+  />
+
+  {/* NEW: Commission (VAT-inc) */}
+  <input
+    type="number"
+    step="0.01"
+    className="border rounded px-2 py-1 w-36"
+    placeholder="Commission"
+    value={newRow.commissionGross ?? ""}
+    onChange={(e) =>
+      setNewRow((v) => ({
+        ...v,
+        commissionGross: e.target.value,
+      }))
+    }
+  />
+
+  {/* NEW: Pass-through (band fee / held) */}
+  <input
+    type="number"
+    step="0.01"
+    className="border rounded px-2 py-1 w-36"
+    placeholder="Pass-through"
+    value={newRow.passThroughGross ?? ""}
+    onChange={(e) =>
+      setNewRow((v) => ({
+        ...v,
+        passThroughGross: e.target.value,
+      }))
+    }
+  />
+
+  {/* NEW: VAT rate */}
+  <div className="flex flex-col">
+    <label className="text-xs text-gray-600">VAT rate</label>
+    <input
+      type="number"
+      step="0.01"
+      min="0"
+      max="1"
+      className="border rounded px-2 py-1 w-24"
+      value={newRow.vatRate ?? 0.2}
+      onChange={(e) =>
+        setNewRow((v) => ({
+          ...v,
+          vatRate: e.target.value === "" ? "" : Number(e.target.value),
+        }))
+      }
+    />
+  </div>
+</div>
 
                     {/* Row 3: lineup + times */}
                     <div className="flex flex-wrap gap-4 items-end">
