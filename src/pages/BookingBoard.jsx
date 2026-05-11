@@ -2092,35 +2092,43 @@ const [creatingPayLinkId, setCreatingPayLinkId] = useState(null);
 
 const createPayLinkForRow = async (row) => {
   const bookingRef = getDisplayBookingRef(row);
+
+  // Total booking value (major units)
   const grossMajor = Number(getDisplayGross(row) || 0) || 0;
 
-// What they've already paid (deposit or full)
-const chargedMajor =
-  Number(row?.totals?.chargedAmount ?? row?.amount ?? 0) || 0;
+  // What they've already paid (major units).
+  // Prefer explicit chargedAmount if present, otherwise fall back to deposit amount.
+  const chargedMajor = Number(
+    row?.totals?.chargedAmount ??
+      row?.payments?.depositChargedAmount ??
+      row?.payments?.depositAmount ??
+      row?.amount ??
+      0,
+  ) || 0;
 
-// Remaining (major)
-const remainingMajor = Math.max(0, +(grossMajor - chargedMajor).toFixed(2));
+  // Remaining (major)
+  const remainingMajor = Math.max(0, +(grossMajor - chargedMajor).toFixed(2));
 
-// Decide invoice stage:
-// - if remaining > 0 AND they've already paid something -> BALANCE
-// - if remaining > 0 AND they've paid nothing -> FULL
-// - if remaining == 0 -> nothing to invoice
-let stage = "";
-let invoiceMajor = 0;
+  // Decide invoice stage:
+  // - remaining > 0 AND they've already paid something -> BALANCE (invoice remaining)
+  // - remaining > 0 AND they've paid nothing -> FULL (invoice gross)
+  // - remaining == 0 -> nothing to invoice
+  let stage = "";
+  let invoiceMajor = 0;
 
-if (remainingMajor > 0 && chargedMajor > 0) {
-  stage = "balance";
-  invoiceMajor = remainingMajor;
-} else if (remainingMajor > 0) {
-  stage = "full";
-  invoiceMajor = grossMajor;
-} else {
-  window.alert("No outstanding amount to invoice.");
-  return;
-}
+  if (remainingMajor > 0 && chargedMajor > 0) {
+    stage = "balance";
+    invoiceMajor = remainingMajor;
+  } else if (remainingMajor > 0) {
+    stage = "full";
+    invoiceMajor = grossMajor;
+  } else {
+    window.alert("No outstanding amount to invoice.");
+    return;
+  }
 
-// Pence
-const amountPence = Math.round(invoiceMajor * 100);
+  // Pence
+  const amountPence = Math.round(invoiceMajor * 100);
   const customerEmail = getPrimaryEmail(row);
   const customerName = getClientFirstNames(row);
 
@@ -2142,7 +2150,7 @@ const amountPence = Math.round(invoiceMajor * 100);
         bookingIdOrRef: bookingRef,
         stage,
         amountPence,
-        currency: String(totals?.currency || "GBP"),
+        currency: String(row?.totals?.currency || row?.payments?.currency || "GBP"),
         customerEmail,
         customerName,
         metadata: {
