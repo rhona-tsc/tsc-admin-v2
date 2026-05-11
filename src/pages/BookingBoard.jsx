@@ -108,7 +108,7 @@ const clamp0 = (n) => Math.max(0, Number(n || 0) || 0);
 
 const vatSplitFromGross = (gross, vatRate = 0.2) => {
   const g = Number(gross || 0) || 0;
-const r = Number(vatRate ?? 0.2);
+  const r = Number(vatRate ?? 0.2);
   const vat = round2(g * (r / (1 + r)));
   const net = round2(g - vat);
   return { vat, net };
@@ -116,7 +116,7 @@ const r = Number(vatRate ?? 0.2);
 
 const calcVatFromVatInclusiveGross = (gross, vatRate = 0.2) => {
   const g = clamp0(gross);
-const r = Number(vatRate ?? 0.2);
+  const r = Number(vatRate ?? 0.2);
   const vat = Math.round(g * (r / (1 + r)) * 100) / 100;
   const net = Math.round((g - vat) * 100) / 100;
   return { vat, net };
@@ -131,7 +131,7 @@ const getAccountingSplit = (row, gross, deposit) => {
     row?.payments?.accounting ||
     null;
 
-const vatRate = Number(acc?.vatRate ?? 0.2);
+  const vatRate = Number(acc?.vatRate ?? 0.2);
   const commissionGross = Number(acc?.commissionGross ?? 0) || 0;
   const commissionVat = Number(acc?.commissionVat ?? 0) || 0;
   const commissionNet = Number(acc?.commissionNet ?? 0) || 0;
@@ -433,22 +433,40 @@ const normalizeUrl = (u) => {
 
 const getPaymentUrl = (row) => {
   const raw =
+    // Stripe hosted invoice / balance links (preferred)
+    row?.payments?.balanceInvoiceUrl ||
+    row?.payments?.hosted_invoice_url ||
+    row?.balanceInvoiceUrl ||
+
+    // Generic invoice hosted URL
+    row?.payments?.invoiceUrl ||
+    row?.invoiceUrl ||
+
+    // Legacy / manual
     row?.paymentLink ||
     row?.checkoutUrl ||
     row?.stripeCheckoutUrl ||
     row?.payments?.checkoutUrl ||
     row?.payments?.paymentLink ||
     "";
+
   return normalizeUrl(raw);
 };
 
 const getInvoiceUrl = (row) => {
   const raw =
-    row?.invoiceUrl ||
+    // Stripe invoice PDF (preferred)
+    row?.payments?.balanceInvoicePdfUrl ||
+    row?.payments?.invoice_pdf ||
+    row?.balanceInvoicePdfUrl ||
+
+    // Legacy / manual
     row?.invoicePdfUrl ||
+    row?.invoiceUrl ||
     row?.invoice?.pdfUrl ||
     row?.invoice?.url ||
     "";
+
   return normalizeUrl(raw);
 };
 
@@ -758,7 +776,7 @@ const buildEditStateFromRow = (row) => {
   const performance =
     row?.actsSummary?.[0]?.performance || row?.performanceTimes || {};
   const split = getAccountingSplit(row, gross, depositFromBackend ?? deposit);
-const vatRate = Number(row?.accounting?.vatRate ?? 0.2);
+  const vatRate = Number(row?.accounting?.vatRate ?? 0.2);
   const commissionGross = clamp0(split?.commissionGross);
   const passThroughGross = clamp0(split?.passThroughGross);
 
@@ -1004,7 +1022,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
     }
   };
 
-const vatRateForDisplay = Number(value.vatRate ?? 0.2);
+  const vatRateForDisplay = Number(value.vatRate ?? 0.2);
   const vatDisplay = calcVatFromVatInclusiveGross(
     Number(value.commissionGross || 0),
     vatRateForDisplay,
@@ -1735,17 +1753,17 @@ export default function BookingBoard() {
     arrivalTime: "",
     finishTime: "", // already added earlier
     commissionGross: "",
-passThroughGross: "",
-paymentLink: "",
-invoiceUrl: "",
-vatRate: 0, // (since you're not VAT registered yet)
+    passThroughGross: "",
+    paymentLink: "",
+    invoiceUrl: "",
+    vatRate: 0, // (since you're not VAT registered yet)
   });
   const [adding, setAdding] = useState(false);
   const [hideInternalTests, setHideInternalTests] = useState(true);
   const [editingRow, setEditingRow] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [savingEdit, setSavingEdit] = useState(false);
-
+const [creatingPayLinkId, setCreatingPayLinkId] = useState(null);
   const buildHeaders = () => {
     const token = getAuthToken();
     return {
@@ -1873,8 +1891,8 @@ vatRate: 0, // (since you're not VAT registered yet)
       0,
       Number(editForm.baseGross || 0) + extrasTotal + manualAdjustmentAmount,
     );
-const vatRateRaw = Number(editForm.vatRate ?? 0.2);
-const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : 0.2;
+    const vatRateRaw = Number(editForm.vatRate ?? 0.2);
+    const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : 0.2;
     const commissionGross = clamp0(editForm.commissionGross);
     const passThroughGross = clamp0(editForm.passThroughGross);
     const { vat: commissionVat, net: commissionNet } =
@@ -2072,64 +2090,50 @@ const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : 0.2;
     return bits.join(" • ");
   };
 
-const postManualRow = async () => {
+  const createPayLinkForRow = async (row) => {
+  const bookingRef = getDisplayBookingRef(row);
+  const gross = getDisplayGross(row);
+
+  const depositFromBackend = getDisplayDeposit(row);
+  const deposit = depositFromBackend != null ? depositFromBackend : calcDeposit(gross) || 0;
+  const balance = gross ? Math.max(0, Math.round(gross - (deposit || 0))) : 0;
+
+  // Heuristic:
+  // - if a deposit exists and balance remains => create BALANCE invoice
+  // - else => create FULL invoice for gross
+  const shouldCreateBalance = deposit > 0 && balance > 0;
+  const stage = shouldCreateBalance ? "balance" : "full";
+  const amountPence = Math.max(0, Math.round((shouldCreateBalance ? balance : gross) * 100));
+
+  const customerEmail = getPrimaryEmail(row);
+  const customerName = getClientFirstNames(row);
+
+  if (!bookingRef || !amountPence || !customerEmail) {
+    window.alert("Missing booking ref, amount, or client email for invoice creation.");
+    return;
+  }
+
+  const busyKey = String(row?._id || bookingRef);
+
   try {
-    // --- accounting split for manual rows ---
-    const grossValue = Number(newRow.grossValue || 0) || 0;
-    const vatRate = Number(newRow.vatRate ?? 0.2) || 0.2;
+    setCreatingPayLinkId(busyKey);
 
-    let commissionGross = clamp0(newRow.commissionGross);
-    let passThroughGross = clamp0(newRow.passThroughGross);
-
-    // If user only entered one side, infer the other from gross.
-    if (grossValue > 0) {
-      if (commissionGross > 0 && passThroughGross <= 0) {
-        passThroughGross = clamp0(grossValue - commissionGross);
-      } else if (passThroughGross > 0 && commissionGross <= 0) {
-        commissionGross = clamp0(grossValue - passThroughGross);
-      }
-    }
-
-    const hasSplit = commissionGross > 0 || passThroughGross > 0;
-
-    const { vat: commissionVat, net: commissionNet } =
-      calcVatFromVatInclusiveGross(commissionGross, vatRate);
-
-    const payload = {
-      ...newRow,
-      clientEmails: newRow.clientEmail ? [{ email: newRow.clientEmail }] : [],
-      grossValue,
-
-      // ✅ this is the important bit for your table + modal
-      accounting: hasSplit
-        ? {
-            paymentStage: "",
-            vatRate,
-            commissionGross: Number(commissionGross.toFixed(2)),
-            commissionVat: Number(commissionVat.toFixed(2)),
-            commissionNet: Number(commissionNet.toFixed(2)),
-            passThroughGross: Number(passThroughGross.toFixed(2)),
-            currency: "GBP",
-          }
-        : undefined,
-
-      bookingDetails: {},
-      allocation: { status: "in_progress" },
-      review: { requestedCount: 0, received: false },
-      source: "manual",
-      enquiryDateISO: newRow.enquiryDateISO || "", // optional
-      bookingDateISO: newRow.bookingDateISO || "", // optional
-      arrivalTime: newRow.arrivalTime || "",
-      finishTime: newRow.finishTime || "",
-      paymentLink: String(newRow.paymentLink || "").trim(),
-invoiceUrl: String(newRow.invoiceUrl || "").trim(),
-    };
-
-    const res = await fetch(`${API_BASE}/board/bookings`, {
+    const res = await fetch(`${API_BASE}/invoices/create-invoice-pay-link`, {
       method: "POST",
       headers: buildHeaders(),
       credentials: "include",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        bookingIdOrRef: bookingRef,
+        stage,
+        amountPence,
+        currency: "GBP",
+        customerEmail,
+        customerName,
+        metadata: {
+          source: "admin_booking_board",
+          rowId: String(row?._id || ""),
+        },
+      }),
     });
 
     const raw = await res.text();
@@ -2138,38 +2142,120 @@ invoiceUrl: String(newRow.invoiceUrl || "").trim(),
       json = JSON.parse(raw);
     } catch {}
 
-    if (json?.success) {
-      setRows((r) => [...r, json.row]);
-      setAdding(false);
-      setNewRow({
-        bookerName: "",
-        clientFirstNames: "",
-        bookingRef: "",
-        eventDateISO: "",
-        agent: "Direct",
-        clientEmail: "",
-        actName: "",
-        actTscName: "",
-        address: "",
-        county: "",
-        grossValue: "",
-        // 👇 reset the split fields too
-        commissionGross: "",
-        passThroughGross: "",
-        vatRate: 0.2,
-        lineupSelected: "",
-        arrivalTime: "",
-        finishTime: "",
-        enquiryDateISO: "",
-        bookingDateISO: "",
-        paymentLink: "",
-invoiceUrl: "",
-      });
+    if (!json?.success) {
+      console.error("create pay link failed", json || raw);
+      window.alert(json?.message || "Failed to create pay link.");
+      return;
     }
+
+    // easiest: refresh the board so links appear
+    await fetchRows();
   } catch (e) {
-    console.error("manual add failed", e);
+    console.error("createPayLinkForRow failed", e);
+    window.alert(e?.message || "Failed to create pay link.");
+  } finally {
+    setCreatingPayLinkId(null);
   }
 };
+
+  const postManualRow = async () => {
+    try {
+      // --- accounting split for manual rows ---
+      const grossValue = Number(newRow.grossValue || 0) || 0;
+const vatRateRaw = Number(newRow.vatRate);
+const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : 0;
+      let commissionGross = clamp0(newRow.commissionGross);
+      let passThroughGross = clamp0(newRow.passThroughGross);
+
+      // If user only entered one side, infer the other from gross.
+      if (grossValue > 0) {
+        if (commissionGross > 0 && passThroughGross <= 0) {
+          passThroughGross = clamp0(grossValue - commissionGross);
+        } else if (passThroughGross > 0 && commissionGross <= 0) {
+          commissionGross = clamp0(grossValue - passThroughGross);
+        }
+      }
+
+      const hasSplit = commissionGross > 0 || passThroughGross > 0;
+
+      const { vat: commissionVat, net: commissionNet } =
+        calcVatFromVatInclusiveGross(commissionGross, vatRate);
+
+      const payload = {
+        ...newRow,
+        clientEmails: newRow.clientEmail ? [{ email: newRow.clientEmail }] : [],
+        grossValue,
+
+        // ✅ this is the important bit for your table + modal
+        accounting: hasSplit
+          ? {
+              paymentStage: "",
+              vatRate,
+              commissionGross: Number(commissionGross.toFixed(2)),
+              commissionVat: Number(commissionVat.toFixed(2)),
+              commissionNet: Number(commissionNet.toFixed(2)),
+              passThroughGross: Number(passThroughGross.toFixed(2)),
+              currency: "GBP",
+            }
+          : undefined,
+
+        bookingDetails: {},
+        allocation: { status: "in_progress" },
+        review: { requestedCount: 0, received: false },
+        source: "manual",
+        enquiryDateISO: newRow.enquiryDateISO || "", // optional
+        bookingDateISO: newRow.bookingDateISO || "", // optional
+        arrivalTime: newRow.arrivalTime || "",
+        finishTime: newRow.finishTime || "",
+        paymentLink: String(newRow.paymentLink || "").trim(),
+        invoiceUrl: String(newRow.invoiceUrl || "").trim(),
+      };
+
+      const res = await fetch(`${API_BASE}/board/bookings`, {
+        method: "POST",
+        headers: buildHeaders(),
+        credentials: "include",
+        body: JSON.stringify(payload),
+      });
+
+      const raw = await res.text();
+      let json = null;
+      try {
+        json = JSON.parse(raw);
+      } catch {}
+
+      if (json?.success) {
+        setRows((r) => [...r, json.row]);
+        setAdding(false);
+        setNewRow({
+          bookerName: "",
+          clientFirstNames: "",
+          bookingRef: "",
+          eventDateISO: "",
+          agent: "Direct",
+          clientEmail: "",
+          actName: "",
+          actTscName: "",
+          address: "",
+          county: "",
+          grossValue: "",
+          // 👇 reset the split fields too
+          commissionGross: "",
+          passThroughGross: "",
+          vatRate: 0.2,
+          lineupSelected: "",
+          arrivalTime: "",
+          finishTime: "",
+          enquiryDateISO: "",
+          bookingDateISO: "",
+          paymentLink: "",
+          invoiceUrl: "",
+        });
+      }
+    } catch (e) {
+      console.error("manual add failed", e);
+    }
+  };
 
   return (
     <div className="p-4">
@@ -2258,7 +2344,7 @@ invoiceUrl: "",
             <col style={{ width: 120 }} /> {/* Balance Paid */}
             <col style={{ width: 120 }} /> {/* Band Paid */}
             <col style={{ width: 120 }} /> {/* Payment */}
-<col style={{ width: 120 }} /> {/* Invoice */}
+            <col style={{ width: 120 }} /> {/* Invoice */}
             <col style={{ width: 130 }} /> {/* Actions */}
           </colgroup>
 
@@ -2295,7 +2381,7 @@ invoiceUrl: "",
                 "Balance Paid",
                 "Band Paid",
                 "Payment",
-"Invoice",
+                "Invoice",
                 "Actions",
               ].map((h) => (
                 <th key={h} className="px-3 py-2 border-b">
@@ -2336,7 +2422,7 @@ invoiceUrl: "",
                   "";
                 const normalizedContractUrl = normalizeUrl(contractUrl);
                 const paymentUrl = getPaymentUrl(r);
-const invoiceUrl = getInvoiceUrl(r);
+                const invoiceUrl = getInvoiceUrl(r);
                 const actName = getDisplayActName(r);
                 const actTsc = getDisplayActTscName(r);
                 const address = getDisplayAddress(r);
@@ -2468,19 +2554,19 @@ const invoiceUrl = getInvoiceUrl(r);
                       )}
                     </td>
                     <td className="px-3 py-2">
-               {deposit != null ? (
-  <div>
-    <div>{money(deposit)}</div>
+                      {deposit != null ? (
+                        <div>
+                          <div>{money(deposit)}</div>
 
-   {split?.source === "fallback" && !split?.hasAccounting && (
+                          {!split?.hasAccounting && (
   <div className="text-[11px] text-gray-500 leading-4 mt-1">
-    Awaiting webhook split
+    {r?.source === "manual" ? "Manual split" : "Awaiting webhook split"}
   </div>
 )}
-  </div>
-) : (
-  "—"
-)}
+                        </div>
+                      ) : (
+                        "—"
+                      )}
                     </td>{" "}
                     <td className="px-3 py-2">
                       {balance != null ? money(balance) : "—"}
@@ -2615,20 +2701,25 @@ const invoiceUrl = getInvoiceUrl(r);
       Pay
     </a>
   ) : (
-    "—"
+    <button
+      className="px-2 py-1 border rounded hover:bg-gray-100 text-xs"
+      disabled={creatingPayLinkId === String(r?._id || bookingRef)}
+      onClick={() => createPayLinkForRow(r)}
+      title="Create a Stripe hosted invoice link"
+    >
+      {creatingPayLinkId === String(r?._id || bookingRef) ? "Creating…" : "Create pay link"}
+    </button>
   )}
 </td>
-
-<td className="px-3 py-2">
+                   <td className="px-3 py-2">
   {invoiceUrl ? (
     <a className="text-blue-600 underline" href={invoiceUrl} target="_blank" rel="noreferrer">
       Invoice
     </a>
   ) : (
-    "—"
+    <span className="text-gray-400">—</span>
   )}
 </td>
-           
                     <td className="px-3 py-2">
                       <button
                         className="px-3 py-1.5 border rounded hover:bg-gray-100"
@@ -2735,108 +2826,125 @@ const invoiceUrl = getInvoiceUrl(r);
                     </div>
 
                     {/* Row 2: agent + contact + money */}
-<div className="flex flex-wrap gap-2 items-end">
-  <select
-    className="border rounded px-2 py-1 w-48"
-    value={newRow.agent}
-    onChange={(e) => setNewRow((v) => ({ ...v, agent: e.target.value }))}
-  >
-    {AGENTS.map((a) => (
-      <option key={a} value={a}>
-        {a}
-      </option>
-    ))}
-  </select>
+                    <div className="flex flex-wrap gap-2 items-end">
+                      <select
+                        className="border rounded px-2 py-1 w-48"
+                        value={newRow.agent}
+                        onChange={(e) =>
+                          setNewRow((v) => ({ ...v, agent: e.target.value }))
+                        }
+                      >
+                        {AGENTS.map((a) => (
+                          <option key={a} value={a}>
+                            {a}
+                          </option>
+                        ))}
+                      </select>
 
-  <input
-    className="border rounded px-2 py-1 w-56"
-    placeholder="Client email"
-    value={newRow.clientEmail}
-    onChange={(e) =>
-      setNewRow((v) => ({
-        ...v,
-        clientEmail: e.target.value,
-      }))
-    }
-  />
+                      <input
+                        className="border rounded px-2 py-1 w-56"
+                        placeholder="Client email"
+                        value={newRow.clientEmail}
+                        onChange={(e) =>
+                          setNewRow((v) => ({
+                            ...v,
+                            clientEmail: e.target.value,
+                          }))
+                        }
+                      />
 
-  <input
-    className="border rounded px-2 py-1 w-28"
-    placeholder="Gross"
-    value={newRow.grossValue}
-    onChange={(e) =>
-      setNewRow((v) => ({
-        ...v,
-        grossValue: e.target.value,
-      }))
-    }
-  />
+                      <input
+                        className="border rounded px-2 py-1 w-28"
+                        placeholder="Gross"
+                        value={newRow.grossValue}
+                        onChange={(e) =>
+                          setNewRow((v) => ({
+                            ...v,
+                            grossValue: e.target.value,
+                          }))
+                        }
+                      />
 
-  {/* NEW: Commission (VAT-inc) */}
-  <input
-    type="number"
-    step="0.01"
-    className="border rounded px-2 py-1 w-36"
-    placeholder="Commission"
-    value={newRow.commissionGross ?? ""}
-    onChange={(e) =>
-      setNewRow((v) => ({
-        ...v,
-        commissionGross: e.target.value,
-      }))
-    }
-  />
+                      {/* NEW: Commission (VAT-inc) */}
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="border rounded px-2 py-1 w-36"
+                        placeholder="Commission"
+                        value={newRow.commissionGross ?? ""}
+                        onChange={(e) =>
+                          setNewRow((v) => ({
+                            ...v,
+                            commissionGross: e.target.value,
+                          }))
+                        }
+                      />
 
-  {/* NEW: Pass-through (band fee / held) */}
-  <input
-    type="number"
-    step="0.01"
-    className="border rounded px-2 py-1 w-36"
-    placeholder="Pass-through"
-    value={newRow.passThroughGross ?? ""}
-    onChange={(e) =>
-      setNewRow((v) => ({
-        ...v,
-        passThroughGross: e.target.value,
-      }))
-    }
-  />
+                      {/* NEW: Pass-through (band fee / held) */}
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="border rounded px-2 py-1 w-36"
+                        placeholder="Pass-through"
+                        value={newRow.passThroughGross ?? ""}
+                        onChange={(e) =>
+                          setNewRow((v) => ({
+                            ...v,
+                            passThroughGross: e.target.value,
+                          }))
+                        }
+                      />
 
-  {/* NEW: VAT rate */}
-  <div className="flex flex-col">
-    <label className="text-xs text-gray-600">VAT rate</label>
-    <input
-      type="number"
-      step="0.01"
-      min="0"
-      max="1"
-      className="border rounded px-2 py-1 w-24"
-      value={newRow.vatRate ?? 0.2}
-      onChange={(e) =>
-        setNewRow((v) => ({
-          ...v,
-          vatRate: e.target.value === "" ? "" : Number(e.target.value),
-        }))
-      }
-    />
-  </div>
-</div>
+                      {/* NEW: VAT rate */}
+                      <div className="flex flex-col">
+                        <label className="text-xs text-gray-600">
+                          VAT rate
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max="1"
+                          className="border rounded px-2 py-1 w-24"
+                          value={newRow.vatRate ?? 0.2}
+                          onChange={(e) =>
+                            setNewRow((v) => ({
+                              ...v,
+                              vatRate:
+                                e.target.value === ""
+                                  ? ""
+                                  : Number(e.target.value),
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
 
-{/* Row 2b: payment + invoice links */}
-<div className="flex flex-wrap gap-2 items-end">
-  <input
-    className="border rounded px-2 py-1 w-[360px]"
-    placeholder="Payment link / checkout URL (optional)"
-    value={newRow.paymentLink}
-    onChange={(e) => setNewRow((v) => ({ ...v, paymentLink: e.target.value }))}
-  />
-  <input
-    className="border rounded px-2 py-1 w-[360px]"
-    placeholder="Invoice PDF URL (optional)"
-    value={newRow.invoiceUrl}
-    onChange={(e) => setNewRow((v) => ({ ...v, invoiceUrl: e.target.value }))}
-  />
-</div>
+                    {/* Row 2b: payment + invoice links */}
+                    <div className="flex flex-wrap gap-2 items-end">
+                      <input
+                        className="border rounded px-2 py-1 w-[360px]"
+                        placeholder="Payment link / checkout URL (optional)"
+                        value={newRow.paymentLink}
+                        onChange={(e) =>
+                          setNewRow((v) => ({
+                            ...v,
+                            paymentLink: e.target.value,
+                          }))
+                        }
+                      />
+                      <input
+                        className="border rounded px-2 py-1 w-[360px]"
+                        placeholder="Invoice PDF URL (optional)"
+                        value={newRow.invoiceUrl}
+                        onChange={(e) =>
+                          setNewRow((v) => ({
+                            ...v,
+                            invoiceUrl: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
 
                     {/* Row 3: lineup + times */}
                     <div className="flex flex-wrap gap-4 items-end">
@@ -2935,8 +3043,6 @@ const invoiceUrl = getInvoiceUrl(r);
                       />
                     </div>
 
-         
-
                     {/* Actions */}
                     <div className="flex gap-2 mt-1">
                       <button
@@ -2963,7 +3069,7 @@ const invoiceUrl = getInvoiceUrl(r);
               <tr>
                 <td
                   className="px-3 py-6 text-center text-gray-500"
-                  colSpan={27}
+              colSpan={32}
                 >
                   No rows yet.
                   <div className="text-xs mt-2">
