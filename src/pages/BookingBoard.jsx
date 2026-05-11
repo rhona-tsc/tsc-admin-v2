@@ -2047,58 +2047,100 @@ export default function BookingBoard() {
     return bits.join(" • ");
   };
 
-  const postManualRow = async () => {
-    try {
-      const payload = {
-        ...newRow,
-        clientEmails: newRow.clientEmail ? [{ email: newRow.clientEmail }] : [],
-        grossValue: Number(newRow.grossValue || 0) || 0,
-        bookingDetails: {},
-        allocation: { status: "in_progress" },
-        review: { requestedCount: 0, received: false },
-        source: "manual",
-        enquiryDateISO: newRow.enquiryDateISO || "", // optional
-        bookingDateISO: newRow.bookingDateISO || "", // optional
-        arrivalTime: newRow.arrivalTime || "",
-        finishTime: newRow.finishTime || "",
-      };
-      const res = await fetch(`${API_BASE}/board/bookings`, {
-        method: "POST",
-        headers: buildHeaders(),
-        credentials: "include",
-        body: JSON.stringify(payload),
-      });
-      const raw = await res.text();
-      let json = null;
-      try {
-        json = JSON.parse(raw);
-      } catch {}
-      if (json?.success) {
-        setRows((r) => [...r, json.row]);
-        setAdding(false);
-        setNewRow({
-          bookerName: "",
-          clientFirstNames: "",
-          bookingRef: "",
-          eventDateISO: "",
-          agent: "Direct",
-          clientEmail: "",
-          actName: "",
-          actTscName: "",
-          address: "",
-          county: "",
-          grossValue: "",
-          lineupSelected: "",
-          arrivalTime: "",
-          finishTime: "",
-          enquiryDateISO: "",
-          bookingDateISO: "",
-        });
+const postManualRow = async () => {
+  try {
+    // --- accounting split for manual rows ---
+    const grossValue = Number(newRow.grossValue || 0) || 0;
+    const vatRate = Number(newRow.vatRate ?? 0.2) || 0.2;
+
+    let commissionGross = clamp0(newRow.commissionGross);
+    let passThroughGross = clamp0(newRow.passThroughGross);
+
+    // If user only entered one side, infer the other from gross.
+    if (grossValue > 0) {
+      if (commissionGross > 0 && passThroughGross <= 0) {
+        passThroughGross = clamp0(grossValue - commissionGross);
+      } else if (passThroughGross > 0 && commissionGross <= 0) {
+        commissionGross = clamp0(grossValue - passThroughGross);
       }
-    } catch (e) {
-      console.error("manual add failed", e);
     }
-  };
+
+    const hasSplit = commissionGross > 0 || passThroughGross > 0;
+
+    const { vat: commissionVat, net: commissionNet } =
+      calcVatFromVatInclusiveGross(commissionGross, vatRate);
+
+    const payload = {
+      ...newRow,
+      clientEmails: newRow.clientEmail ? [{ email: newRow.clientEmail }] : [],
+      grossValue,
+
+      // ✅ this is the important bit for your table + modal
+      accounting: hasSplit
+        ? {
+            paymentStage: "",
+            vatRate,
+            commissionGross: Number(commissionGross.toFixed(2)),
+            commissionVat: Number(commissionVat.toFixed(2)),
+            commissionNet: Number(commissionNet.toFixed(2)),
+            passThroughGross: Number(passThroughGross.toFixed(2)),
+            currency: "GBP",
+          }
+        : undefined,
+
+      bookingDetails: {},
+      allocation: { status: "in_progress" },
+      review: { requestedCount: 0, received: false },
+      source: "manual",
+      enquiryDateISO: newRow.enquiryDateISO || "", // optional
+      bookingDateISO: newRow.bookingDateISO || "", // optional
+      arrivalTime: newRow.arrivalTime || "",
+      finishTime: newRow.finishTime || "",
+    };
+
+    const res = await fetch(`${API_BASE}/board/bookings`, {
+      method: "POST",
+      headers: buildHeaders(),
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
+
+    const raw = await res.text();
+    let json = null;
+    try {
+      json = JSON.parse(raw);
+    } catch {}
+
+    if (json?.success) {
+      setRows((r) => [...r, json.row]);
+      setAdding(false);
+      setNewRow({
+        bookerName: "",
+        clientFirstNames: "",
+        bookingRef: "",
+        eventDateISO: "",
+        agent: "Direct",
+        clientEmail: "",
+        actName: "",
+        actTscName: "",
+        address: "",
+        county: "",
+        grossValue: "",
+        // 👇 reset the split fields too
+        commissionGross: "",
+        passThroughGross: "",
+        vatRate: 0.2,
+        lineupSelected: "",
+        arrivalTime: "",
+        finishTime: "",
+        enquiryDateISO: "",
+        bookingDateISO: "",
+      });
+    }
+  } catch (e) {
+    console.error("manual add failed", e);
+  }
+};
 
   return (
     <div className="p-4">
