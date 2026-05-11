@@ -2090,26 +2090,42 @@ const [creatingPayLinkId, setCreatingPayLinkId] = useState(null);
     return bits.join(" • ");
   };
 
-  const createPayLinkForRow = async (row) => {
+const createPayLinkForRow = async (row) => {
   const bookingRef = getDisplayBookingRef(row);
-  const gross = getDisplayGross(row);
+  const grossMajor = Number(getDisplayGross(row) || 0) || 0;
 
-  const depositFromBackend = getDisplayDeposit(row);
-  const deposit = depositFromBackend != null ? depositFromBackend : calcDeposit(gross) || 0;
-  const balance = gross ? Math.max(0, Math.round(gross - (deposit || 0))) : 0;
+// What they've already paid (deposit or full)
+const chargedMajor =
+  Number(row?.totals?.chargedAmount ?? row?.amount ?? 0) || 0;
 
-  // Heuristic:
-  // - if a deposit exists and balance remains => create BALANCE invoice
-  // - else => create FULL invoice for gross
-  const shouldCreateBalance = deposit > 0 && balance > 0;
-  const stage = shouldCreateBalance ? "balance" : "full";
-  const amountPence = Math.max(0, Math.round((shouldCreateBalance ? balance : gross) * 100));
+// Remaining (major)
+const remainingMajor = Math.max(0, +(grossMajor - chargedMajor).toFixed(2));
 
+// Decide invoice stage:
+// - if remaining > 0 AND they've already paid something -> BALANCE
+// - if remaining > 0 AND they've paid nothing -> FULL
+// - if remaining == 0 -> nothing to invoice
+let stage = "";
+let invoiceMajor = 0;
+
+if (remainingMajor > 0 && chargedMajor > 0) {
+  stage = "balance";
+  invoiceMajor = remainingMajor;
+} else if (remainingMajor > 0) {
+  stage = "full";
+  invoiceMajor = grossMajor;
+} else {
+  window.alert("No outstanding amount to invoice.");
+  return;
+}
+
+// Pence
+const amountPence = Math.round(invoiceMajor * 100);
   const customerEmail = getPrimaryEmail(row);
   const customerName = getClientFirstNames(row);
 
-  if (!bookingRef || !amountPence || !customerEmail) {
-    window.alert("Missing booking ref, amount, or client email for invoice creation.");
+  if (!bookingRef || !customerEmail || amountPence <= 0) {
+    window.alert("Missing booking ref, client email, or amount for invoice creation.");
     return;
   }
 
@@ -2118,7 +2134,7 @@ const [creatingPayLinkId, setCreatingPayLinkId] = useState(null);
   try {
     setCreatingPayLinkId(busyKey);
 
-    const res = await fetch(`${API_BASE}/invoices/create-invoice-pay-link`, {
+    const res = await fetch(`${API_BASE}/invoices/create`, {
       method: "POST",
       headers: buildHeaders(),
       credentials: "include",
@@ -2126,7 +2142,7 @@ const [creatingPayLinkId, setCreatingPayLinkId] = useState(null);
         bookingIdOrRef: bookingRef,
         stage,
         amountPence,
-        currency: "GBP",
+        currency: String(totals?.currency || "GBP"),
         customerEmail,
         customerName,
         metadata: {
@@ -2138,9 +2154,7 @@ const [creatingPayLinkId, setCreatingPayLinkId] = useState(null);
 
     const raw = await res.text();
     let json = null;
-    try {
-      json = JSON.parse(raw);
-    } catch {}
+    try { json = JSON.parse(raw); } catch {}
 
     if (!json?.success) {
       console.error("create pay link failed", json || raw);
@@ -2148,7 +2162,7 @@ const [creatingPayLinkId, setCreatingPayLinkId] = useState(null);
       return;
     }
 
-    // easiest: refresh the board so links appear
+    // Refresh so payment/invoice links show
     await fetchRows();
   } catch (e) {
     console.error("createPayLinkForRow failed", e);
