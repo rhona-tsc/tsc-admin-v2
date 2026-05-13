@@ -548,6 +548,36 @@ const Tag = ({ children }) => (
   </span>
 );
 
+function InlineInput({
+  value,
+  placeholder,
+  className = "",
+  onCommit,
+  type = "text",
+}) {
+  const [v, setV] = useState(value || "");
+
+  useEffect(() => {
+    setV(value || "");
+  }, [value]);
+
+  return (
+    <input
+      type={type}
+      step={type === "time" ? 300 : undefined}
+      className={`border rounded px-2 py-1 w-full ${className}`}
+      placeholder={placeholder}
+      value={v}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={() => {
+        const next = (v || "").trim();
+        const prev = (value || "").trim();
+        if (next !== prev) onCommit(next);
+      }}
+    />
+  );
+}
+
 const isValidObjectIdString = (value) =>
   /^[a-f\d]{24}$/i.test(String(value || "").trim());
 
@@ -2466,7 +2496,19 @@ const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : 0;
                     key={r._id}
                     className="odd:bg-white even:bg-gray-50 align-top"
                   >
-                    <td className="px-3 py-2">{clientFirstNames}</td>
+                    <td className="px-3 py-2">
+  <InlineInput
+    value={clientFirstNames}
+    placeholder="Client name"
+    onCommit={(val) =>
+      onInlineEdit(r._id, {
+        clientFirstNames: val,
+        clientName: val,
+        bookerName: val,
+      })
+    }
+  />
+</td>
                     <td className="px-3 py-2">{bookingRef}</td>
                     {/* Event Sheet */}
                     <td className="px-3 py-2">
@@ -2621,40 +2663,72 @@ const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : 0;
                         onSave={(val) => onInlineEdit(r._id, { agent: val })}
                       />
                     </td>
-                    <td className="px-3 py-2">
-                      <div className="flex flex-wrap gap-1">
-                        {clientEmails.map((e, i) => (
-                          <Tag key={i}>
-                            {e.label ? `${e.label}: ` : ""}
-                            {e.email}
-                          </Tag>
-                        ))}
-                      </div>
-                    </td>
+                   <td className="px-3 py-2">
+  <InlineInput
+    value={clientEmails[0]?.email || ""}
+    placeholder="Client email"
+    onCommit={(val) =>
+      onInlineEdit(r._id, {
+        clientEmail: val,
+        userEmail: val,
+        clientEmails: val ? [{ email: val }] : [],
+      })
+    }
+  />
+</td>
                     <td className="px-3 py-2">{r.eventType || "—"}</td>
-                    <td className="px-3 py-2">{actName || "—"}</td>
-                    <td className="px-3 py-2">{actTsc || "—"}</td>
-                    <td className="px-3 py-2">{address || "—"}</td>
-                    <td className="px-3 py-2">{county || "—"}</td>
+<td className="px-3 py-2">
+  <InlineInput
+    value={actName || ""}
+    placeholder="Act"
+    onCommit={(val) => onInlineEdit(r._id, { actName: val })}
+  />
+</td>
+<td className="px-3 py-2">
+  <InlineInput
+    value={actTsc || ""}
+    placeholder="Act tscName"
+    onCommit={(val) => onInlineEdit(r._id, { actTscName: val })}
+  />
+</td>
+<td className="px-3 py-2">
+  <InlineInput
+    value={address || ""}
+    placeholder="Address"
+    onCommit={(val) => onInlineEdit(r._id, { address: val })}
+  />
+</td>
+<td className="px-3 py-2">
+  <InlineInput
+    value={county || ""}
+    placeholder="County"
+    onCommit={(val) => onInlineEdit(r._id, { county: val })}
+  />
+</td>
                     <td className="px-3 py-2">{extractBandSize(r)}</td>
-                    <td className="px-3 py-2">{buildFullLineup(r) || "—"}</td>
-                    <td className="px-3 py-2">
-                      {performanceTimes?.startTime ||
-                      performanceTimes?.finishTime ||
-                      performanceTimes?.paLightsFinishTime
-                        ? [
-                            performanceTimes.startTime,
-                            performanceTimes.finishTime,
-                            performanceTimes.paLightsFinishTime
-                              ? `PA/lights until ${performanceTimes.paLightsFinishTime}${performanceTimes?.paLightsFinishDayOffset ? " (+1)" : ""}`
-                              : "",
-                          ]
-                            .filter(Boolean)
-                            .join(" • ")
-                        : arrivalTime || finishTime
-                          ? [arrivalTime, finishTime].filter(Boolean).join("–")
-                          : "—"}
-                    </td>
+                   <td className="px-3 py-2">
+  <InlineInput
+    value={r.lineupSelected || ""}
+    placeholder="Lineup"
+    onCommit={(val) => onInlineEdit(r._id, { lineupSelected: val })}
+  />
+</td>
+                   <td className="px-3 py-2">
+  <div className="flex flex-col gap-2 min-w-[150px]">
+    <InlineInput
+      type="time"
+      value={arrivalTime || ""}
+      placeholder="Arrival"
+      onCommit={(val) => onInlineEdit(r._id, { arrivalTime: val })}
+    />
+    <InlineInput
+      type="time"
+      value={finishTime || ""}
+      placeholder="Finish"
+      onCommit={(val) => onInlineEdit(r._id, { finishTime: val })}
+    />
+  </div>
+</td>
                     <td className="px-3 py-2">
                       <div className="text-xs leading-5">
                         {summariseBookingDetails(r.bookingDetails, r)}
