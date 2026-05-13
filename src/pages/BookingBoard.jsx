@@ -1832,6 +1832,25 @@ const [creatingPayLinkId, setCreatingPayLinkId] = useState(null);
     }
   };
 
+  // --- Invoice URL helper: prioritise invoicePdfUrl, payments?.invoicePdfUrl, invoiceUrl, invoice?.pdf, invoice?.url
+const getInvoiceUrl = (row) => {
+  if (row?.invoicePdfUrl) return row.invoicePdfUrl;
+  if (row?.payments?.invoicePdfUrl) return row.payments.invoicePdfUrl;
+  if (row?.invoiceUrl) return row.invoiceUrl;
+  if (row?.invoice?.pdf) return row.invoice.pdf;
+  if (row?.invoice?.url) return row.invoice.url;
+  return "";
+};
+
+// --- Payment/hosted invoice URL helper: prioritise paymentLink, payments?.paymentLink, checkoutUrl, invoice?.hosted_invoice_url
+const getPaymentUrl = (row) => {
+  if (row?.paymentLink) return row.paymentLink;
+  if (row?.payments?.paymentLink) return row.payments.paymentLink;
+  if (row?.checkoutUrl) return row.checkoutUrl;
+  if (row?.invoice?.hosted_invoice_url) return row.invoice.hosted_invoice_url;
+  return "";
+};
+
   const openEditModal = (row) => {
     setEditingRow(row);
     setEditForm(buildEditStateFromRow(row));
@@ -2142,33 +2161,61 @@ const createPayLinkForRow = async (row) => {
   try {
     setCreatingPayLinkId(busyKey);
 
-    const res = await fetch(`${API_BASE}/invoices/create`, {
-      method: "POST",
-      headers: buildHeaders(),
-      credentials: "include",
-      body: JSON.stringify({
-        bookingIdOrRef: bookingRef,
-        stage,
-        amountPence,
-        currency: String(row?.totals?.currency || row?.payments?.currency || "GBP"),
-        customerEmail,
-        customerName,
-        metadata: {
-          source: "admin_booking_board",
-          rowId: String(row?._id || ""),
-        },
-      }),
-    });
+    const attempt = async (path) => {
+      const res = await fetch(`${API_BASE}${path}`, {
+        method: "POST",
+        headers: buildHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          bookingIdOrRef: bookingRef,
+          stage,
+          amountPence,
+          currency: String(row?.totals?.currency || row?.payments?.currency || "GBP"),
+          customerEmail,
+          customerName,
+          metadata: {
+            source: "admin_booking_board",
+            rowId: String(row?._id || ""),
+          },
+        }),
+      });
 
-    const raw = await res.text();
-    let json = null;
-    try { json = JSON.parse(raw); } catch {}
+       const raw = await res.text();
+      let json = null;
+      try {
+        json = JSON.parse(raw);
+      } catch {
+        json = null;
+      }
 
-    if (!json?.success) {
-      console.error("create pay link failed", json || raw);
-      window.alert(json?.message || "Failed to create pay link.");
-      return;
+      return { res, raw, json };
+    };
+
+    // Primary (current) route
+    let out = await attempt("/invoices/create");
+
+    // Backwards-compatible fallbacks (if backend path differs)
+    if (out.res.status === 404) {
+      out = await attempt("/invoice/create");
     }
+    if (out.res.status === 404) {
+      out = await attempt("/invoices/create-pay-link");
+    }
+
+    if (!out.res.ok || !out.json?.success) {
+      console.error("create pay link failed", {
+        status: out.res.status,
+        raw: out.raw,
+        json: out.json,
+      });
+
+      const msg =
+        out.json?.message ||
+        (out.res.status === 404
+          ? "Invoice endpoint not found on backend (404). Check /api/debug/routes on the API to confirm the mounted path."
+          : "Failed to create pay link.");
+
+      window.alert(msg);
 
     // Refresh so payment/invoice links show
     await fetchRows();
