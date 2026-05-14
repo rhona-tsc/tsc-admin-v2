@@ -20,12 +20,14 @@ import DepFiveDjEquipmentCategories from './DepFiveDjEquipmentCategories.jsx'
 import DepFiveDjGearRequired from './DepFiveDjGearRequired.jsx'
 import DepFiveBackline from './DepFiveBackline.jsx'
 
-const DeputyStepFive = ({ formData, setFormData, userRole, stepProps }) => {
-  // === Visibility logic ===
+const DeputyStepFive = ({ formData = {}, setFormData, userRole, stepProps = {} }) => {
+    // === Visibility logic ===
   const selectedInstruments = (formData.instrumentation || []).filter(i => i.instrument?.trim() !== "");
   const hasInstruments = selectedInstruments.length > 0;
 
-  const selectedVocalTypes = formData.vocals?.type || [];
+  const selectedVocalTypes = Array.isArray(formData.vocals?.type)
+  ? formData.vocals.type
+  : [];
   const isVocalist =
     selectedVocalTypes.includes("Lead Vocalist") ||
     selectedVocalTypes.includes("Lead Vocalist-Instrumentalist") ||

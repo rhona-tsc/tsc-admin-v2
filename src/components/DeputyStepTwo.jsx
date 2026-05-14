@@ -1,9 +1,15 @@
 import React from "react";
 import TscApprovedBio from "./TscApprovedBio";
 
-const DeputyStepTwo = ({ formData = {}, setFormData = () => {}, userRole, tscApprovedBio, setTscApprovedBio }) => {  
+const DeputyStepTwo = ({
+  formData = {},
+  setFormData = () => {},
+  userRole,
+  tscApprovedBio,
+  setTscApprovedBio,
+}) => {
   console.log("🟦 DeputyStepTwo RENDER", { formData, tscApprovedBio });
-  
+
   const {
     bio = "",
 
@@ -64,98 +70,125 @@ const DeputyStepTwo = ({ formData = {}, setFormData = () => {}, userRole, tscApp
           }}
         ></textarea>
       </div>
-      
 
-{userRole?.includes("agent") && (
-  <TscApprovedBio
-    tscApprovedBio={tscApprovedBio}
-    setTscApprovedBio={setTscApprovedBio}
-  />
-)}
-
-
+      {userRole?.includes("agent") && (
+        <TscApprovedBio
+          tscApprovedBio={tscApprovedBio}
+          setTscApprovedBio={setTscApprovedBio}
+        />
+      )}
 
       <div>
         <h2 className="font-semibold mb-2">Academic Credentials</h2>
         {academic_credentials.map((cred, index) => (
-  <div key={index} className="grid grid-cols-2 gap-4 mb-3">
-    <div>
-      <label className="block text-sm font-medium text-gray-700">Course</label>
-      <input
-        type="text"
-        value={cred.course || ""}
-        onChange={(e) => {
-          console.log("✏️ academic/award changed", {
-            arrayName: "academic_credentials",
-            index,
-            field: "course",
-            value: e.target.value
-          });
-          updateArrayItem("academic_credentials", index, "course", e.target.value);
-        }}
-        className="p-2 border rounded w-full"
-      />
-    </div>
-    <div>
-      <label className="block text-sm font-medium text-gray-700">Institution</label>
-      <input
-        type="text"
-        value={cred.institution || ""}
-        onChange={(e) => {
-          console.log("✏️ academic/award changed", {
-            arrayName: "academic_credentials",
-            index,
-            field: "institution",
-            value: e.target.value
-          });
-          updateArrayItem("academic_credentials", index, "institution", e.target.value);
-        }}
-        className="p-2 border rounded w-full"
-      />
-    </div>
-    <div>
-      <label className="block text-sm font-medium text-gray-700">Years</label>
-      <input
-        type="text"
-        value={cred.years || ""}
-        onChange={(e) => {
-          console.log("✏️ academic/award changed", {
-            arrayName: "academic_credentials",
-            index,
-            field: "years",
-            value: e.target.value
-          });
-          updateArrayItem("academic_credentials", index, "years", e.target.value);
-        }}
-        className="p-2 border rounded w-full"
-      />
-    </div>
-    <div>
-      <label className="block text-sm font-medium text-gray-700">Education Level</label>
-      <input
-        type="text"
-        value={cred.education_level || ""}
-        onChange={(e) => {
-          console.log("✏️ academic/award changed", {
-            arrayName: "academic_credentials",
-            index,
-            field: "education_level",
-            value: e.target.value
-          });
-          updateArrayItem("academic_credentials", index, "education_level", e.target.value);
-        }}
-        className="p-2 border rounded w-full"
-      />
-    </div>
-    <button
-      onClick={() => removeItem("academic_credentials", index)}
-      className="text-red-500 text-left col-span-2"
-    >
-      Remove
-    </button>
-  </div>
-))}
+          <div key={index} className="grid grid-cols-2 gap-4 mb-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Course
+              </label>
+              <input
+                type="text"
+                value={cred.course || ""}
+                onChange={(e) => {
+                  console.log("✏️ academic/award changed", {
+                    arrayName: "academic_credentials",
+                    index,
+                    field: "course",
+                    value: e.target.value,
+                  });
+                  updateArrayItem(
+                    "academic_credentials",
+                    index,
+                    "course",
+                    e.target.value,
+                  );
+                }}
+                className="p-2 border rounded w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Institution
+              </label>
+              <input
+                type="text"
+                value={cred.institution || ""}
+                onChange={(e) => {
+                  console.log("✏️ academic/award changed", {
+                    arrayName: "academic_credentials",
+                    index,
+                    field: "institution",
+                    value: e.target.value,
+                  });
+                  updateArrayItem(
+                    "academic_credentials",
+                    index,
+                    "institution",
+                    e.target.value,
+                  );
+                }}
+                className="p-2 border rounded w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Years
+              </label>
+              <input
+                type="text"
+                value={cred.years || ""}
+                onChange={(e) => {
+                  console.log("✏️ academic/award changed", {
+                    arrayName: "academic_credentials",
+                    index,
+                    field: "years",
+                    value: e.target.value,
+                  });
+                  updateArrayItem(
+                    "academic_credentials",
+                    index,
+                    "years",
+                    e.target.value,
+                  );
+                }}
+                className="p-2 border rounded w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Education Level
+              </label>
+              <input
+                type="text"
+                value={cred.education_level || ""}
+                onChange={(e) => {
+                  console.log("✏️ academic/award changed", {
+                    arrayName: "academic_credentials",
+                    index,
+                    field: "education_level",
+                    value: e.target.value,
+                  });
+                  updateArrayItem(
+                    "academic_credentials",
+                    index,
+                    "education_level",
+                    e.target.value,
+                  );
+                }}
+                className="p-2 border rounded w-full"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => removeItem("academic_credentials", index)}
+              className="text-red-500 text-left col-span-2"
+            >
+              Remove
+            </button>
+          </div>
+        ))}
         <button
+          type="button"
           onClick={() =>
             addItem("academic_credentials", {
               course: "",
@@ -173,53 +206,62 @@ const DeputyStepTwo = ({ formData = {}, setFormData = () => {}, userRole, tscApp
       <div>
         <h2 className="font-semibold mb-2">Awards</h2>
         {awards.map((award, index) => (
-  <div key={index} className="grid grid-cols-3 gap-4 mb-3">
-    <div className="col-span-2">
-      <label className="block text-sm font-medium text-gray-700">Description</label>
-      <input
-        type="text"
-        value={award.description || ""}
-        onChange={(e) => {
-          console.log("✏️ academic/award changed", {
-            arrayName: "awards",
-            index,
-            field: "description",
-            value: e.target.value
-          });
-          updateArrayItem("awards", index, "description", e.target.value);
-        }}
-        className="p-2 border rounded w-full"
-      />
-    </div>
-    <div>
-      <label className="block text-sm font-medium text-gray-700">Year Achieved</label>
-      <input
-        type="text"
-        value={award.years || ""}
-        onChange={(e) => {
-          console.log("✏️ academic/award changed", {
-            arrayName: "awards",
-            index,
-            field: "years",
-            value: e.target.value
-          });
-          updateArrayItem("awards", index, "years", e.target.value);
-        }}
-        className="p-2 border rounded w-full"
-      />
-    </div>
-    <button
-      onClick={() => removeItem("awards", index)}
-      className="text-red-500 text-left col-span-3"
-    >
-      Remove
-    </button>
-  </div>
-))}
+          <div key={index} className="grid grid-cols-3 gap-4 mb-3">
+            <div className="col-span-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Description
+              </label>
+              <input
+                type="text"
+                value={award.description || ""}
+                onChange={(e) => {
+                  console.log("✏️ academic/award changed", {
+                    arrayName: "awards",
+                    index,
+                    field: "description",
+                    value: e.target.value,
+                  });
+                  updateArrayItem(
+                    "awards",
+                    index,
+                    "description",
+                    e.target.value,
+                  );
+                }}
+                className="p-2 border rounded w-full"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Year Achieved
+              </label>
+              <input
+                type="text"
+                value={award.years || ""}
+                onChange={(e) => {
+                  console.log("✏️ academic/award changed", {
+                    arrayName: "awards",
+                    index,
+                    field: "years",
+                    value: e.target.value,
+                  });
+                  updateArrayItem("awards", index, "years", e.target.value);
+                }}
+                className="p-2 border rounded w-full"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => removeItem("awards", index)}
+              className="text-red-500 text-left col-span-3"
+            >
+              Remove
+            </button>
+          </div>
+        ))}
         <button
-          onClick={() =>
-            addItem("awards", { description: "", years: "" })
-          }
+          type="button"
+          onClick={() => addItem("awards", { description: "", years: "" })}
           className="mt-2 text-sm text-blue-600 underline"
         >
           + Add Award

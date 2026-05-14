@@ -1,6 +1,11 @@
 import React, { useState } from "react";
-import { 
-  FaInstagram, FaFacebookF, FaYoutube, FaTiktok, FaTwitter, FaGlobe 
+import {
+  FaInstagram,
+  FaFacebookF,
+  FaYoutube,
+  FaTiktok,
+  FaTwitter,
+  FaGlobe,
 } from "react-icons/fa";
 
 const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
@@ -8,7 +13,7 @@ const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
     function_bands_performed_with = [],
     original_bands_performed_with = [],
     sessions = [],
-    social_media_links = []
+    social_media_links = [],
   } = formData;
 
   const platformIcons = {
@@ -22,7 +27,10 @@ const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
 
   // --- HELPERS WITH LOGGING ---
   const updateArrayItem = (arrayName, index, field, value) => {
-    console.log(`🟦 DS3 updateArrayItem → ${arrayName}[${index}].${field} =`, value);
+    console.log(
+      `🟦 DS3 updateArrayItem → ${arrayName}[${index}].${field} =`,
+      value,
+    );
     const updatedArray = [...(formData[arrayName] || [])];
     updatedArray[index] = { ...updatedArray[index], [field]: value };
 
@@ -71,77 +79,101 @@ const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
 
   return (
     <div className="flex flex-col gap-6">
-
       {/* Function Bands */}
       <div>
-        <h2 className="font-semibold mb-2">Function Bands You've Performed With</h2>
-        
+        <h2 className="font-semibold mb-2">
+          Function Bands You've Performed With
+        </h2>
+
         {function_bands_performed_with.map((band, index) => (
           <div key={index} className="grid grid-cols-2 gap-4 mb-3">
-
             <div>
-              <label className="block text-sm font-medium text-gray-700">Band Name</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Band Name
+              </label>
               <input
                 type="text"
                 value={band.function_band_name || ""}
                 onChange={(e) =>
-                  updateArrayItem("function_bands_performed_with", index, "function_band_name", e.target.value)
+                  updateArrayItem(
+                    "function_bands_performed_with",
+                    index,
+                    "function_band_name",
+                    e.target.value,
+                  )
                 }
                 className="p-2 border rounded w-full"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Reference Email</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Reference Email
+              </label>
               <input
                 type="email"
                 value={band.function_band_leader_email || ""}
                 onChange={(e) => {
                   const value = e.target.value;
-                  updateArrayItem("function_bands_performed_with", index, "function_band_leader_email", value);
+                  updateArrayItem(
+                    "function_bands_performed_with",
+                    index,
+                    "function_band_leader_email",
+                    value,
+                  );
 
                   const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-                  setEmailErrors(prev => ({
+                  setEmailErrors((prev) => ({
                     ...prev,
                     function: {
                       ...prev.function,
-                      [index]: !isValid && value.length > 3 ? "Please enter a valid email address." : ""
-                    }
+                      [index]:
+                        !isValid && value.length > 3
+                          ? "Please enter a valid email address."
+                          : "",
+                    },
                   }));
                 }}
                 onBlur={(e) => {
                   const value = e.target.value;
                   const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-                  setEmailErrors(prev => ({
+                  setEmailErrors((prev) => ({
                     ...prev,
-                    function: { 
+                    function: {
                       ...prev.function,
-                      [index]: !isValid && value ? "Please enter a valid email address." : "" 
-                    }
+                      [index]:
+                        !isValid && value
+                          ? "Please enter a valid email address."
+                          : "",
+                    },
                   }));
                 }}
                 className={`p-2 border rounded w-full ${emailErrors.function[index] ? "border-red-500" : ""}`}
               />
               {emailErrors.function[index] && (
-                <p className="text-red-500 text-sm mt-1">{emailErrors.function[index]}</p>
+                <p className="text-red-500 text-sm mt-1">
+                  {emailErrors.function[index]}
+                </p>
               )}
             </div>
 
             <button
-              onClick={() =>
-                removeItem("function_bands_performed_with", index)
-              }
+              type="button"
+              onClick={() => removeItem("function_bands_performed_with", index)}
               className="text-red-500 text-left col-span-2"
             >
               Remove
             </button>
-
           </div>
         ))}
 
         <button
+          type="button"
           onClick={() =>
-            addItem("function_bands_performed_with", { function_band_name: "", function_band_leader_email: "" })
+            addItem("function_bands_performed_with", {
+              function_band_name: "",
+              function_band_leader_email: "",
+            })
           }
           className="mt-2 text-sm text-blue-600 underline"
         >
@@ -151,76 +183,100 @@ const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
 
       {/* Original Bands */}
       <div>
-        <h2 className="font-semibold mb-2">Original Bands You've Performed With</h2>
+        <h2 className="font-semibold mb-2">
+          Original Bands You've Performed With
+        </h2>
 
         {original_bands_performed_with.map((band, index) => (
           <div key={index} className="grid grid-cols-2 gap-4 mb-3">
-
             <div>
-              <label className="block text-sm font-medium text-gray-700">Band Name</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Band Name
+              </label>
               <input
                 type="text"
                 value={band.original_band_name || ""}
                 onChange={(e) =>
-                  updateArrayItem("original_bands_performed_with", index, "original_band_name", e.target.value)
+                  updateArrayItem(
+                    "original_bands_performed_with",
+                    index,
+                    "original_band_name",
+                    e.target.value,
+                  )
                 }
                 className="p-2 border rounded w-full"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Reference Email</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Reference Email
+              </label>
               <input
                 type="email"
                 value={band.original_band_leader_email || ""}
                 onChange={(e) => {
                   const value = e.target.value;
-                  updateArrayItem("original_bands_performed_with", index, "original_band_leader_email", value);
+                  updateArrayItem(
+                    "original_bands_performed_with",
+                    index,
+                    "original_band_leader_email",
+                    value,
+                  );
 
                   const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
-                  setEmailErrors(prev => ({
+                  setEmailErrors((prev) => ({
                     ...prev,
                     original: {
                       ...prev.original,
-                      [index]: !isValid && value.length > 3 ? "Please enter a valid email address." : ""
-                    }
+                      [index]:
+                        !isValid && value.length > 3
+                          ? "Please enter a valid email address."
+                          : "",
+                    },
                   }));
                 }}
                 onBlur={(e) => {
                   const value = e.target.value;
                   const isValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
-                  setEmailErrors(prev => ({
+                  setEmailErrors((prev) => ({
                     ...prev,
                     original: {
                       ...prev.original,
-                      [index]: !isValid && value ? "Please enter a valid email address." : ""
-                    }
+                      [index]:
+                        !isValid && value
+                          ? "Please enter a valid email address."
+                          : "",
+                    },
                   }));
                 }}
                 className={`p-2 border rounded w-full ${emailErrors.original[index] ? "border-red-500" : ""}`}
               />
               {emailErrors.original[index] && (
-                <p className="text-red-500 text-sm mt-1">{emailErrors.original[index]}</p>
+                <p className="text-red-500 text-sm mt-1">
+                  {emailErrors.original[index]}
+                </p>
               )}
             </div>
 
             <button
-              onClick={() =>
-                removeItem("original_bands_performed_with", index)
-              }
+              onClick={() => removeItem("original_bands_performed_with", index)}
               className="text-red-500 text-left col-span-2"
             >
               Remove
             </button>
-
           </div>
         ))}
 
         <button
+          type="button"
           onClick={() =>
-            addItem("original_bands_performed_with", { original_band_name: "", original_band_leader_email: "" })
+            addItem("original_bands_performed_with", {
+              original_band_name: "",
+              original_band_leader_email: "",
+            })
           }
           className="mt-2 text-sm text-blue-600 underline"
         >
@@ -234,9 +290,10 @@ const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
 
         {sessions.map((session, index) => (
           <div key={index} className="grid grid-cols-2 gap-4 mb-3">
-
             <div>
-              <label className="block text-sm font-medium text-gray-700">Artist</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Artist
+              </label>
               <input
                 type="text"
                 value={session.artist || ""}
@@ -248,33 +305,37 @@ const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Session Type</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Session Type
+              </label>
               <input
                 type="text"
                 value={session.session_type || ""}
                 onChange={(e) =>
-                  updateArrayItem("sessions", index, "session_type", e.target.value)
+                  updateArrayItem(
+                    "sessions",
+                    index,
+                    "session_type",
+                    e.target.value,
+                  )
                 }
                 className="p-2 border rounded w-full"
               />
             </div>
 
             <button
-              onClick={() =>
-                removeItem("sessions", index)
-              }
+              type="button"
+              onClick={() => removeItem("sessions", index)}
               className="text-red-500 text-left col-span-2"
             >
               Remove
             </button>
-
           </div>
         ))}
 
         <button
-          onClick={() =>
-            addItem("sessions", { artist: "", session_type: "" })
-          }
+          type="button"
+          onClick={() => addItem("sessions", { artist: "", session_type: "" })}
           className="mt-2 text-sm text-blue-600 underline"
         >
           + Add Session
@@ -287,11 +348,15 @@ const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
 
         {social_media_links.map((link, index) => (
           <div key={index} className="grid grid-cols-3 gap-4 items-center mb-3">
-
             <select
               value={link.platform || ""}
               onChange={(e) =>
-                updateArrayItem("social_media_links", index, "platform", e.target.value)
+                updateArrayItem(
+                  "social_media_links",
+                  index,
+                  "platform",
+                  e.target.value,
+                )
               }
               className="p-2 border rounded"
             >
@@ -306,42 +371,49 @@ const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
 
             <div className="flex flex-col">
               <input
-  type="text"
-  placeholder="https://..."
-  value={link.url || ""}
-  onChange={(e) => {
-    const value = e.target.value;
-    updateArrayItem("social_media_links", index, "url", value);
+                type="text"
+                placeholder="https://..."
+                value={link.url || ""}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  updateArrayItem("social_media_links", index, "url", value);
 
-    const isValid =
-      /^(https?:\/\/)?([\w.-]+)+(:\d+)?(\/([\w/_-]*(\?\S+)?)?)?$/.test(value);
+                  const isValid =
+                    /^(https?:\/\/)?([\w.-]+)+(:\d+)?(\/([\w/_-]*(\?\S+)?)?)?$/.test(
+                      value,
+                    );
 
-    setEmailErrors((prev) => ({
-      ...prev,
-      social: {
-        ...prev.social,
-        [index]:
-          !isValid && value.length > 4 ? "Please enter a valid URL." : "",
-      },
-    }));
-  }}
-  onBlur={(e) => {
-    const value = e.target.value;
-    const isValid =
-      /^(https?:\/\/)?([\w.-]+)+(:\d+)?(\/([\w/_-]*(\?\S+)?)?)?$/.test(value);
+                  setEmailErrors((prev) => ({
+                    ...prev,
+                    social: {
+                      ...prev.social,
+                      [index]:
+                        !isValid && value.length > 4
+                          ? "Please enter a valid URL."
+                          : "",
+                    },
+                  }));
+                }}
+                onBlur={(e) => {
+                  const value = e.target.value;
+                  const isValid =
+                    /^(https?:\/\/)?([\w.-]+)+(:\d+)?(\/([\w/_-]*(\?\S+)?)?)?$/.test(
+                      value,
+                    );
 
-    setEmailErrors((prev) => ({
-      ...prev,
-      social: {
-        ...prev.social,
-        [index]: !isValid && value ? "Please enter a valid URL." : "",
-      },
-    }));
-  }}
-  className={`p-2 border rounded ${
-    emailErrors.social[index] ? "border-red-500" : ""
-  }`}
-/>
+                  setEmailErrors((prev) => ({
+                    ...prev,
+                    social: {
+                      ...prev.social,
+                      [index]:
+                        !isValid && value ? "Please enter a valid URL." : "",
+                    },
+                  }));
+                }}
+                className={`p-2 border rounded ${
+                  emailErrors.social[index] ? "border-red-500" : ""
+                }`}
+              />
 
               {emailErrors.social[index] && (
                 <p className="text-red-500 text-sm mt-1">
@@ -356,21 +428,21 @@ const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
               </div>
 
               <button
-                onClick={() =>
-                  removeItem("social_media_links", index)
-                }
+                type="button"
+                onClick={() => removeItem("social_media_links", index)}
                 className="text-red-500 text-sm"
               >
                 Remove
               </button>
             </div>
-
           </div>
         ))}
 
         <button
+          type="button"
           onClick={() =>
-addItem("social_media_links", { platform: "", url: "" })          }
+            addItem("social_media_links", { platform: "", url: "" })
+          }
           className="mt-2 text-sm text-blue-600 underline"
         >
           + Add Social Link

@@ -149,7 +149,9 @@ export const parseCustomRepertoire = (text) => {
 
 export const enrichAndSetSongsFromRepertoire = async (
   customRepertoire,
-  setSelectedSongs
+  setSelectedSongs,
+  authHeaders = {},
+  backendUrl = ""
 ) => {
   const parsed = parseCustomRepertoire(customRepertoire);
 
@@ -166,22 +168,36 @@ export const enrichAndSetSongsFromRepertoire = async (
       if (existing) return existing;
 
       try {
-        const res = await axios.post("/api/ai/lookup-song", {
-          title: song.title,
-          artist: song.artist,
-          genre: song.genre,
-        });
+       const res = await axios.post(
+  `${backendUrl}/api/ai/lookup-song`,
+  {
+    title: song.title,
+    artist: song.artist,
+    genre: song.genre,
+  },
+  {
+    headers: authHeaders,
+    withCredentials: true,
+  },
+);
 
         const enrichedSong = res?.data?.song;
         if (enrichedSong) return enrichedSong;
 
         // If no AI enrichment, POST to moderation queue
-        await axios.post("/api/moderation/pending-song", {
-          title: song.title,
-          artist: song.artist,
-          genre: song.genre,
-          year: song.year,
-        });
+        await axios.post(
+  `${backendUrl}/api/moderation/pending-song`,
+  {
+    title: song.title,
+    artist: song.artist,
+    genre: song.genre,
+    year: song.year,
+  },
+  {
+    headers: authHeaders,
+    withCredentials: true,
+  },
+);
 
         return { ...song, note: "Pending moderation" };
       } catch (err) {
@@ -199,6 +215,7 @@ const DeputyRepertoire = ({
   setCustomRepertoire,
   selectedSongs,
   setSelectedSongs,
+  authHeaders = {},
 }) => {
   const [filter, setFilter] = useState({
     decade: "",

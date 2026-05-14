@@ -51,6 +51,23 @@ const normalizeVocalsForSubmit = (v) => {
   };
 };
 
+const isValidAuthToken = (value) => {
+  const clean = String(value || "").trim();
+  return (
+    clean &&
+    clean !== "undefined" &&
+    clean !== "null" &&
+    clean.split(".").length === 3
+  );
+};
+
+const getStoredAuthToken = () =>
+  [
+    localStorage.getItem("musicianToken"),
+    localStorage.getItem("token"),
+    localStorage.getItem("adminToken"),
+  ].find(isValidAuthToken) || "";
+
 const DeputyForm = ({
   token,
   userRole,
@@ -63,21 +80,17 @@ const DeputyForm = ({
   const location = useLocation();
   const navigate = useNavigate();
 
-  const authToken =
-    token ||
-    localStorage.getItem("token") ||
-    localStorage.getItem("adminToken") ||
-    localStorage.getItem("musicianToken") ||
-    "";
+  const authToken = isValidAuthToken(token) ? token : getStoredAuthToken();
+  const hasValidAuthToken = isValidAuthToken(authToken);
 
   const authHeaders = useMemo(() => {
-    return authToken
+    return hasValidAuthToken
       ? {
           Authorization: `Bearer ${authToken}`,
-          token: authToken, // ✅ covers backends that expect req.headers.token
+          token: authToken,
         }
       : {};
-  }, [authToken]);
+  }, [authToken, hasValidAuthToken]);
 
   const isModerationMode =
     location.pathname.includes("moderate-deputy") ||
@@ -93,6 +106,16 @@ const DeputyForm = ({
   // Handles final form submission for step 6
   const handleSubmit = async () => {
     try {
+      if (!hasValidAuthToken) {
+        toast(
+          <CustomToast
+            type="error"
+            message="Your login session has expired. Please log out and back in before submitting."
+          />,
+        );
+
+        return;
+      }
       setSubmissionInProgress(true);
       setShowSubmittingPopup(true);
       // --- normalize agreement shape ---
@@ -269,8 +292,7 @@ const DeputyForm = ({
       const res = await axios.post(
         `${backendUrl}/api/musician/moderation/register-deputy`,
         fd,
-        { headers: { Authorization: `Bearer ${authToken}` } },
-      );
+{ headers: authHeaders, withCredentials: true },      );
 
       if (res.data?.success) {
         // Decide which message to show
@@ -635,7 +657,7 @@ const DeputyForm = ({
   // automatically update our musician document, so we refresh the account
   // status from the backend whenever this form loads for a logged-in deputy.
   useEffect(() => {
-    if (!authToken || !deputyId) return;
+    if (!hasValidAuthToken || !deputyId) return;
 
     const syncStripe = async () => {
       try {
@@ -661,10 +683,7 @@ const DeputyForm = ({
           }));
         }
       } catch (err) {
-        console.warn(
-          "Stripe sync failed:",
-          err?.response?.data || err.message,
-        );
+        console.warn("Stripe sync failed:", err?.response?.data || err.message);
       }
     };
 
@@ -677,6 +696,10 @@ const DeputyForm = ({
       console.warn("⚠️ No valid deputyId; skipping hydration");
       return;
     }
+    if (!hasValidAuthToken) {
+  console.warn("⚠️ No valid auth token yet; skipping deputy hydration");
+  return;
+}
 
     // If we've already hydrated this deputyId, don't hydrate again
     if (hasHydratedRef.current && hydratedIdRef.current === deputyId) {
@@ -793,7 +816,7 @@ const DeputyForm = ({
         console.error("❌ Failed to fetch deputy:", err);
       }
     })();
-  }, [deputyId, authHeaders]);
+}, [deputyId, authHeaders, hasValidAuthToken]);
 
   // Autosave hydration
   useEffect(() => {
@@ -864,6 +887,7 @@ const DeputyForm = ({
     email,
     hasRestoredAutosave,
     hasHydratedFromBackend,
+    hasValidAuthToken
   ]);
 
   /* -------------------------------- nav helpers ------------------------------ */
@@ -941,12 +965,13 @@ const DeputyForm = ({
       case 4:
         return (
           <DeputyStepFour
-            formData={formData}
-            setFormData={setFormData}
-            userRole={userRole}
-            deputyId={deputyId}
-            {...stepProps}
-          />
+  formData={formData}
+  setFormData={setFormData}
+  userRole={userRole}
+  deputyId={deputyId}
+  authHeaders={authHeaders}
+  {...stepProps}
+/>
         );
       case 5:
         return (
@@ -960,13 +985,14 @@ const DeputyForm = ({
       case 6:
         return (
           <DeputyStepSix
-            formData={formData}
-            setFormData={setFormData}
-            userRole={userRole}
-            setHasDrawnSignature={setHasDrawnSignature}
-            authToken={authToken}
-            {...stepProps}
-          />
+  formData={formData}
+  setFormData={setFormData}
+  userRole={userRole}
+  setHasDrawnSignature={setHasDrawnSignature}
+  authToken={authToken}
+  authHeaders={authHeaders}
+  {...stepProps}
+/>
         );
       default:
         return null;
@@ -1098,8 +1124,7 @@ const DeputyForm = ({
         // backend autosave (server archives previous)
         (async () => {
           try {
-            if (!deputyId) return;
-
+if (!deputyId || !hasValidAuthToken) return;
             const snapshotStr = JSON.stringify(safe);
             let hash = 0;
             for (let i = 0; i < snapshotStr.length; i++) {
@@ -1152,6 +1177,7 @@ const DeputyForm = ({
     isEdit,
     hasHydratedFromBackend,
     authHeaders,
+    hasValidAuthToken
   ]);
 
   /* ---------------------------- DEBUG: track changes -------------------------- */
@@ -1223,7 +1249,7 @@ const DeputyForm = ({
       const res = await axios.post(
         `${backendUrl}/api/musician/approve-deputy`,
         { id: deputyId },
-        { headers: { Authorization: `Bearer ${authToken}` } },
+        { headers: authHeaders, withCredentials: true },
       );
       if (res.data?.success) {
         toast(

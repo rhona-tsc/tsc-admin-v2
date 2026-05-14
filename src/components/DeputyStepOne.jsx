@@ -31,8 +31,11 @@ const DeputyStepOne = ({
 
   const [userFirstName] = useState(localStorage.getItem("userFirstName") || "");
 
-  const canDownloadModerationImages = ["agent", "admin", "moderator"].some((role) =>
-    String(userRole || "").toLowerCase().includes(role),
+  const canDownloadModerationImages = ["agent", "admin", "moderator"].some(
+    (role) =>
+      String(userRole || "")
+        .toLowerCase()
+        .includes(role),
   );
 
   // MP3 local state
@@ -53,8 +56,10 @@ const DeputyStepOne = ({
   };
 
   const getImageDownloadName = (label, index = 0, url = "") => {
-    const first = formData.firstName || formData.basicInfo?.firstName || "deputy";
-    const last = formData.lastName || formData.basicInfo?.lastName || "musician";
+    const first =
+      formData.firstName || formData.basicInfo?.firstName || "deputy";
+    const last =
+      formData.lastName || formData.basicInfo?.lastName || "musician";
     const cleanBase = `${first}-${last}-${label}-${index + 1}`
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
@@ -198,30 +203,11 @@ const DeputyStepOne = ({
         address: formData.address || {},
       });
 
-      setFormData((prev) => {
-        const updated = {
-          ...prev,
-          profilePicture: url, // ✅ for your current UI
-          profilePhoto: url, // ✅ matches musicianModel.js
-        };
-
-        try {
-          const safe = JSON.parse(
-            JSON.stringify(updated, (key, value) => {
-              if (value instanceof File) return undefined;
-              if (value instanceof Blob) return undefined;
-              if (typeof value === "function") return undefined;
-              if (value === window) return undefined;
-              return value;
-            }),
-          );
-          localStorage.setItem("deputyAutosave", JSON.stringify(safe));
-        } catch (e) {
-          console.error("❌ Autosave failed after crop:", e);
-        }
-
-        return updated;
-      });
+      setFormData((prev) => ({
+        ...prev,
+        profilePicture: url,
+        profilePhoto: url,
+      }));
 
       setPreviewUrl(url);
       setModalOpen(false);
@@ -258,26 +244,10 @@ const DeputyStepOne = ({
         address: formData.address || {},
       });
 
-      setFormData((prev) => {
-        const updated = { ...prev, coverHeroImage: url };
-
-        try {
-          const safe = JSON.parse(
-            JSON.stringify(updated, (key, value) => {
-              if (value instanceof File) return undefined;
-              if (value instanceof Blob) return undefined;
-              if (typeof value === "function") return undefined;
-              if (value === window) return undefined;
-              return value;
-            }),
-          );
-          localStorage.setItem("deputyAutosave", JSON.stringify(safe));
-        } catch (e) {
-          console.error("❌ Autosave failed after crop:", e);
-        }
-
-        return updated;
-      });
+      setFormData((prev) => ({
+        ...prev,
+        coverHeroImage: url,
+      }));
 
       setCoverHeroPreviewUrl(url);
       setCoverModalOpen(false);
@@ -292,26 +262,38 @@ const DeputyStepOne = ({
   // Helper for wardrobe/additional images
   const handleWardrobeImageUpload = async (updated, wardrobeKey) => {
     setIsUploadingImages(true);
-    const previous = formData[wardrobeKey] || [];
-    const uploaded = await Promise.all(
-      (updated || []).map(async (img) => {
-        if (typeof img === "string") return img;
-        const [url] = await renameAndCompressImage({
-          images: [img],
-          address: formData.address,
-        });
-        return url;
-      }),
-    );
-    const deleted = previous.filter(
-      (f) => !uploaded.includes(f) && typeof f === "string",
-    );
-    setFormData((prev) => ({
-      ...prev,
-      [wardrobeKey]: uploaded,
-      deletedImages: [...(prev.deletedImages || []), ...deleted],
-    }));
-    setIsUploadingImages(false);
+
+    try {
+      const previous = formData[wardrobeKey] || [];
+
+      const uploaded = await Promise.all(
+        (updated || []).map(async (img) => {
+          if (typeof img === "string") return img;
+
+          const [url] = await renameAndCompressImage({
+            images: [img],
+            address: formData.address,
+          });
+
+          return url;
+        }),
+      );
+
+      const deleted = previous.filter(
+        (f) => !uploaded.includes(f) && typeof f === "string",
+      );
+
+      setFormData((prev) => ({
+        ...prev,
+        [wardrobeKey]: uploaded,
+        deletedImages: [...(prev.deletedImages || []), ...deleted],
+      }));
+    } catch (err) {
+      console.error(`❌ Failed to upload ${wardrobeKey}:`, err);
+      alert("Failed to upload image. Please try again.");
+    } finally {
+      setIsUploadingImages(false);
+    }
   };
 
   // -------------------------------------
@@ -441,7 +423,10 @@ const DeputyStepOne = ({
               className="mt-2 w-32 h-32 object-cover rounded-full mx-auto"
             />
           )}
-          <DownloadImageButtons label="Profile Picture" urls={profileSrc ? [profileSrc] : []} />
+          <DownloadImageButtons
+            label="Profile Picture"
+            urls={profileSrc ? [profileSrc] : []}
+          />
         </div>
 
         {/* -------------------------------------------------------
@@ -479,7 +464,10 @@ const DeputyStepOne = ({
               className="mt-2 w-full aspect-video object-cover rounded-md border"
             />
           )}
-          <DownloadImageButtons label="Cover Hero" urls={coverHeroSrc ? [coverHeroSrc] : []} />
+          <DownloadImageButtons
+            label="Cover Hero"
+            urls={coverHeroSrc ? [coverHeroSrc] : []}
+          />
         </div>
 
         {/* Address Section */}

@@ -72,7 +72,8 @@ const toJsonSafeText = (input) => {
       if (ch === "'") {
         const prev = src[i - 1] || "";
         const next = src[i + 1] || "";
-        const isWordApostrophe = /[0-9A-Za-z]/.test(prev) && /[0-9A-Za-z]/.test(next);
+        const isWordApostrophe =
+          /[0-9A-Za-z]/.test(prev) && /[0-9A-Za-z]/.test(next);
         if (isWordApostrophe) {
           out += "'";
           continue;
@@ -84,7 +85,7 @@ const toJsonSafeText = (input) => {
       }
 
       if (ch === '"') {
-        out += "\\\"";
+        out += '\\"';
         continue;
       }
 
@@ -140,6 +141,7 @@ const DeputySongModeration = ({
   setSelectedSongs,
   userRole,
   deputyId,
+  authHeaders = {},
 }) => {
   const [rawInput, setRawInput] = useState("");
   const [parsedSongs, setParsedSongs] = useState([]);
@@ -190,7 +192,7 @@ const DeputySongModeration = ({
       log("final JSON.parse error:", e.message);
       end();
       throw new Error(
-        "Invalid input. Please ensure it's a valid array of song objects."
+        "Invalid input. Please ensure it's a valid array of song objects.",
       );
     }
   };
@@ -203,7 +205,7 @@ const DeputySongModeration = ({
       setParsedSongs(parsed);
       setSelectedSongs([...(selectedSongs || []), ...parsed]);
       setResultMsg(
-        `Parsed ${parsed.length} songs and added to deputy selection.`
+        `Parsed ${parsed.length} songs and added to deputy selection.`,
       );
     } catch (err) {
       log("Parse error:", err);
@@ -217,7 +219,10 @@ const DeputySongModeration = ({
   const fetchMasterSongs = async () => {
     const url = `${backendUrl}/api/moderation/master-songs`;
     log("GET", url);
-    const res = await axios.get(url);
+    const res = await axios.get(url, {
+      headers: authHeaders,
+      withCredentials: true,
+    });
     const masterSongs = res?.data?.songs || [];
     const byKey = new Map(masterSongs.map((s) => [makeKey(s), s]));
     return { masterSongs, byKey };
@@ -275,15 +280,18 @@ const DeputySongModeration = ({
               year: s.year,
             };
             log(` → [${i}] payload:`, payload);
-            return axios.post(approveUrl, payload);
-          })
+            return axios.post(approveUrl, payload, {
+              headers: authHeaders,
+              withCredentials: true,
+            });
+          }),
         );
 
         const failures = results.filter((r) => r.status === "rejected");
         if (failures.length) {
           log("Some inserts failed:", failures.length, failures.slice(0, 3));
           alert(
-            `Some songs failed to add (${failures.length}). Check console for details.`
+            `Some songs failed to add (${failures.length}). Check console for details.`,
           );
         }
       }
@@ -304,29 +312,36 @@ const DeputySongModeration = ({
       if (songIds.length === 0) {
         log("No songs resolved to master IDs — aborting repertoire update.");
         alert(
-          "Songs were added to the master list, but could not resolve IDs to update repertoire."
+          "Songs were added to the master list, but could not resolve IDs to update repertoire.",
         );
         return;
       }
 
       // 4) append to deputy repertoire as OBJECTS (server de-dupes by title|artist|year)
       // 🔧 FIXED PATH: goes through /api/musician/...
-const repUrl = `${backendUrl}/api/moderation/deputy/${deputyId}/repertoire/append`;      log("POST repertoire append (objects):", repUrl, "count:", parsed.length);
-      await axios.post(repUrl, {
-        songs: parsed.map((s) => ({
-          title: s.title,
-          artist: s.artist,
-          year: s.year ?? "",
-          genre: s.genre || "",
-        })),
-        // Optional: also mirror into selectedSongs
-        selectedSongs: parsed.map((s) => ({
-          title: s.title,
-          artist: s.artist,
-          year: s.year ?? "",
-          genre: s.genre || "",
-        })),
-      });
+      const repUrl = `${backendUrl}/api/moderation/deputy/${deputyId}/repertoire/append`;
+      log("POST repertoire append (objects):", repUrl, "count:", parsed.length);
+      await axios.post(
+        repUrl,
+        {
+          songs: parsed.map((s) => ({
+            title: s.title,
+            artist: s.artist,
+            year: s.year ?? "",
+            genre: s.genre || "",
+          })),
+          selectedSongs: parsed.map((s) => ({
+            title: s.title,
+            artist: s.artist,
+            year: s.year ?? "",
+            genre: s.genre || "",
+          })),
+        },
+        {
+          headers: authHeaders,
+          withCredentials: true,
+        },
+      );
 
       // 5) update local selection as well (so the UI shows them immediately)
       setSelectedSongs([
@@ -341,13 +356,13 @@ const repUrl = `${backendUrl}/api/moderation/deputy/${deputyId}/repertoire/appen
 
       setFilteredSongs(parsed);
       setResultMsg(
-        `✅ Added ${parsed.length} songs to master and deputy repertoire.`
+        `✅ Added ${parsed.length} songs to master and deputy repertoire.`,
       );
       log("Direct add complete.");
     } catch (err) {
       log("Direct add error:", err?.response || err);
       alert(
-        `Direct add failed.\n${err?.response?.data?.message || err.message}`
+        `Direct add failed.\n${err?.response?.data?.message || err.message}`,
       );
     } finally {
       setBusy(false);
@@ -380,13 +395,14 @@ Single quotes and unquoted keys are allowed — we’ll auto-format it.`}
 
       <div className="flex flex-wrap gap-3 mt-2">
         <button
+          type="button"
           onClick={() => {
             try {
               const parsed = safeParseInput(rawInput);
               setParsedSongs(parsed);
               setSelectedSongs([...(selectedSongs || []), ...parsed]);
               setResultMsg(
-                `Parsed ${parsed.length} songs and added to deputy selection.`
+                `Parsed ${parsed.length} songs and added to deputy selection.`,
               );
             } catch (e) {
               alert(e.message);
@@ -399,6 +415,7 @@ Single quotes and unquoted keys are allowed — we’ll auto-format it.`}
         </button>
 
         <button
+          type="button"
           onClick={handleDirectAddToMaster}
           disabled={busy}
           className="bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700 disabled:opacity-50"

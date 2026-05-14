@@ -12,83 +12,101 @@ const DeputyStepSix = ({
   stepProps,
   setHasDrawnSignature,
   authToken,
-}) => {  console.log("🟣 [DeputyStepSix] RENDER — formData:", formData);
-    const sigCanvas = useRef(null);
+  authHeaders = {},
+}) => {
+  console.log("🟣 [DeputyStepSix] RENDER — formData:", formData);
+  const sigCanvas = useRef(null);
 
-useEffect(() => {
-  window.scrollTo(0, 0);
-}, []);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
-  
-// --- Extract fields from basicInfo ---
+  // --- Extract fields from basicInfo ---
   const basicInfo = useMemo(() => {
     try {
-      return typeof formData.basicInfo === "string" ? JSON.parse(formData.basicInfo) : (formData.basicInfo || {});
+      return typeof formData.basicInfo === "string"
+        ? JSON.parse(formData.basicInfo)
+        : formData.basicInfo || {};
     } catch {
       return {};
     }
   }, [formData.basicInfo]);
 
-  const firstName = basicInfo.firstName || formData.firstName || localStorage.getItem("userFirstName") || "";
-  const lastName = basicInfo.lastName || formData.last_name || localStorage.getItem("userLastName") || "";
-  const phone = basicInfo.phone || formData.phone_number || localStorage.getItem("userPhone") || "";
-  const email = basicInfo.email || formData.email_address || localStorage.getItem("userEmail") || "";
+  const firstName =
+    basicInfo.firstName ||
+    formData.firstName ||
+    localStorage.getItem("userFirstName") ||
+    "";
+  const lastName =
+    basicInfo.lastName ||
+    formData.last_name ||
+    localStorage.getItem("userLastName") ||
+    "";
+  const phone =
+    basicInfo.phone ||
+    formData.phone_number ||
+    localStorage.getItem("userPhone") ||
+    "";
+  const email =
+    basicInfo.email ||
+    formData.email_address ||
+    localStorage.getItem("userEmail") ||
+    "";
 
   console.log("🟣 Basic bank source:", { firstName, lastName, phone, email });
 
-  
   const [errors, setErrors] = useState({ sortCode: "", accountNumber: "" });
   const [isSignaturePresent, setIsSignaturePresent] = useState(false);
   const [stripeLoading, setStripeLoading] = useState(false);
   const [stripeError, setStripeError] = useState("");
 
-const handleConnectStripe = async () => {
-  try {
-    setStripeLoading(true);
-    setStripeError("");
+  const handleConnectStripe = async () => {
+    try {
+      setStripeLoading(true);
+      setStripeError("");
 
-    const tokenToUse =
-      authToken ||
-      localStorage.getItem("token") ||
-      localStorage.getItem("adminToken") ||
-      localStorage.getItem("musicianToken") ||
-      "";
+      const tokenToUse =
+        authToken ||
+        localStorage.getItem("token") ||
+        localStorage.getItem("adminToken") ||
+        localStorage.getItem("musicianToken") ||
+        "";
 
-    const response = await axios.post(
-      `${backendUrl}/api/account/stripe-connect/onboarding-link`,
-      {},
-      {
-        headers: {
-          ...(tokenToUse ? { Authorization: `Bearer ${tokenToUse}` } : {}),
-          ...(tokenToUse ? { token: tokenToUse } : {}),
+      const response = await axios.post(
+        `${backendUrl}/api/account/stripe-connect/onboarding-link`,
+        {},
+        {
+          headers: {
+            ...(tokenToUse ? { Authorization: `Bearer ${tokenToUse}` } : {}),
+            ...(tokenToUse ? { token: tokenToUse } : {}),
+          },
+          withCredentials: true,
         },
-        withCredentials: true,
+      );
+
+      const onboardingUrl = response?.data?.url || "";
+      if (!onboardingUrl) {
+        throw new Error("No Stripe onboarding link returned");
       }
-    );
 
-    const onboardingUrl = response?.data?.url || "";
-    if (!onboardingUrl) {
-      throw new Error("No Stripe onboarding link returned");
+      window.location.href = onboardingUrl;
+    } catch (err) {
+      console.error("❌ Failed to create Stripe onboarding link:", {
+        message: err?.message,
+        response: err?.response?.data,
+        status: err?.response?.status,
+      });
+
+      setStripeError(
+        err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          err?.message ||
+          "We couldn't start Stripe onboarding right now. Please try again.",
+      );
+    } finally {
+      setStripeLoading(false);
     }
-
-    window.location.href = onboardingUrl;
-  } catch (err) {
-    console.error("❌ Failed to create Stripe onboarding link:", {
-      message: err?.message,
-      response: err?.response?.data,
-      status: err?.response?.status,
-    });
-
-    setStripeError(
-      err?.response?.data?.message ||
-      err?.response?.data?.error ||
-      err?.message ||
-      "We couldn't start Stripe onboarding right now. Please try again."
-    );
-  } finally {
-    setStripeLoading(false);
-  }
-};
+  };
 
   const validateBankDetails = (field, value) => {
     let error = "";
@@ -101,27 +119,27 @@ const handleConnectStripe = async () => {
     setErrors((prev) => ({ ...prev, [field]: error }));
   };
 
-const handleEnd = () => {
-  console.log("🟣 [DeputyStepSix] Signature END — saving signature");
+  const handleEnd = () => {
+    console.log("🟣 [DeputyStepSix] Signature END — saving signature");
 
-  if (!sigCanvas.current) return;
+    if (!sigCanvas.current) return;
 
-  try {
-    const canvas = sigCanvas.current.getCanvas();
-    const dataURL = canvas.toDataURL("image/png");
+    try {
+      const canvas = sigCanvas.current.getCanvas();
+      const dataURL = canvas.toDataURL("image/png");
 
-    setFormData(prev => ({
-      ...prev,
-      deputy_contract_signed: dataURL,
-      signature: [dataURL], // Save signature for DeputyForm detection
-    }));
+      setFormData((prev) => ({
+        ...prev,
+        deputy_contract_signed: dataURL,
+        signature: [dataURL], // Save signature for DeputyForm detection
+      }));
 
-    setHasDrawnSignature(true);
-  } catch (err) {
-    console.error("❌ Failed to capture signature:", err);
-  }
-};
-  
+      setHasDrawnSignature(true);
+    } catch (err) {
+      console.error("❌ Failed to capture signature:", err);
+    }
+  };
+
   const clearSignature = () => {
     console.log("🟣 [DeputyStepSix] Signature CLEAR");
     sigCanvas.current.clear();
@@ -133,12 +151,15 @@ const handleEnd = () => {
     setHasDrawnSignature(false); // ✅ use the prop here
   };
 
-
-
   useEffect(() => {
     // Always sync signature array for DeputyForm detection
-    if (formData.deputy_contract_signed && (!formData.signature || !Array.isArray(formData.signature) || formData.signature[0] !== formData.deputy_contract_signed)) {
-      setFormData(prev => ({
+    if (
+      formData.deputy_contract_signed &&
+      (!formData.signature ||
+        !Array.isArray(formData.signature) ||
+        formData.signature[0] !== formData.deputy_contract_signed)
+    ) {
+      setFormData((prev) => ({
         ...prev,
         signature: [formData.deputy_contract_signed],
       }));
@@ -164,10 +185,10 @@ const handleEnd = () => {
   // Use deputy doc id if present, else the logged-in user id.
 
   const safeLastName =
-  formData.basicInfo?.lastName ||
-  formData.last_name ||
-  localStorage.getItem("userLastName") ||
-  "";
+    formData.basicInfo?.lastName ||
+    formData.last_name ||
+    localStorage.getItem("userLastName") ||
+    "";
 
   const deputyId =
     (formData && (formData._id || formData.id)) ||
@@ -176,27 +197,30 @@ const handleEnd = () => {
 
   const computedReference = useMemo(() => {
     const yy = new Date().getFullYear().toString().slice(-2);
-    const tail = deputyId ? deputyId.toString().slice(-6).toUpperCase() : "NOID";
-      const lname = safeLastName.toUpperCase().replace(/\s+/g, "");
-
-      
+    const tail = deputyId
+      ? deputyId.toString().slice(-6).toUpperCase()
+      : "NOID";
+    const lname = safeLastName.toUpperCase().replace(/\s+/g, "");
 
     return `TSC${yy}-${tail}-${lname}`;
   }, [deputyId, safeLastName]);
 
-      useEffect(() => {
-  if (safeLastName) {
-    setFormData(prev => ({
-      ...prev,
-      reference: computedReference
-    }));
-  }
-}, [computedReference, safeLastName]);
+  useEffect(() => {
+    if (safeLastName) {
+      setFormData((prev) => ({
+        ...prev,
+        reference: computedReference,
+      }));
+    }
+  }, [computedReference, safeLastName]);
 
   // On first render (or when deputyId arrives), set formData.reference if empty
   useEffect(() => {
-if (!formData.reference && safeLastName) {
-      console.log("🟣 [DeputyStepSix] Setting initial contract reference:", computedReference);
+    if (!formData.reference && safeLastName) {
+      console.log(
+        "🟣 [DeputyStepSix] Setting initial contract reference:",
+        computedReference,
+      );
       setFormData((prev) => ({ ...prev, reference: computedReference }));
     }
   }, [computedReference, formData.reference, setFormData]);
@@ -209,10 +233,9 @@ if (!formData.reference && safeLastName) {
     formDataLastName: formData.lastName,
     formData_last_name: formData.last_name,
     basicInfoLastName: formData.basicInfo?.lastName,
-    localStorageLastName: localStorage.getItem("userLastName")
+    localStorageLastName: localStorage.getItem("userLastName"),
   });
 
-  
   return (
     <div>
       <h2 className="text-xl font-semibold mb-4">Payment Setup & Contract</h2>
@@ -220,10 +243,14 @@ if (!formData.reference && safeLastName) {
       <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
         <h3 className="text-lg font-semibold mb-2">Preferred payout method</h3>
         <p className="text-sm text-gray-700 mb-3">
-          Please connect your Stripe account for deputy payouts. This is the preferred method and is what will be used for automatic payouts once a job has been completed and released.
+          Please connect your Stripe account for deputy payouts. This is the
+          preferred method and is what will be used for automatic payouts once a
+          job has been completed and released.
         </p>
         <p className="text-sm text-gray-600 mb-4">
-          Stripe will securely collect and verify the bank details needed for payment. You only need to do this once, and it is generally better than entering bank details manually here.
+          Stripe will securely collect and verify the bank details needed for
+          payment. You only need to do this once, and it is generally better
+          than entering bank details manually here.
         </p>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -237,14 +264,14 @@ if (!formData.reference && safeLastName) {
           </button>
 
           {formData?.stripeConnect?.payoutsEnabled ? (
-  <span className="text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">
-    Stripe payouts ready
-  </span>
-) : formData?.stripeConnect?.accountId ? (
-  <span className="text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-    Stripe connected, payout verification pending
-  </span>
-) : null}
+            <span className="text-sm font-medium text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2">
+              Stripe payouts ready
+            </span>
+          ) : formData?.stripeConnect?.accountId ? (
+            <span className="text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              Stripe connected, payout verification pending
+            </span>
+          ) : null}
         </div>
 
         {stripeError && (
@@ -252,17 +279,18 @@ if (!formData.reference && safeLastName) {
         )}
       </div>
 
-
-
       <div className="mb-6">
-        <label className="block font-semibold mb-2">Deputy Musician Contract</label>
+        <label className="block font-semibold mb-2">
+          Deputy Musician Contract
+        </label>
         <div
-  className="contract-text w-full border rounded px-3 py-2 bg-gray-100 text-s overflow-y-auto max-h-60 text-sm"
-  dangerouslySetInnerHTML={{
-    __html: formData.deputy_contract_text ||
-            `<h2>The Supreme Collective Booking Contract</h2>
-<p>Issued by the ‘Agent’ (The Supreme Collective, trading name The Supreme Collective) on behalf of the 'Artistic Supplier'${formData.firstName || formData.first_name || ''} 
-${formData.lastName || formData.last_name || ''}.</p>
+          className="contract-text w-full border rounded px-3 py-2 bg-gray-100 text-s overflow-y-auto max-h-60 text-sm"
+          dangerouslySetInnerHTML={{
+            __html:
+              formData.deputy_contract_text ||
+              `<h2>The Supreme Collective Booking Contract</h2>
+<p>Issued by the ‘Agent’ (The Supreme Collective, trading name The Supreme Collective) on behalf of the 'Artistic Supplier'${formData.firstName || formData.first_name || ""} 
+${formData.lastName || formData.last_name || ""}.</p>
 <p><strong>Contract Ref:</strong> ${contractReference}</p>
 <p><strong>Date of Issue:</strong> ${new Date().toLocaleDateString()}</p>
 <p><strong>Artistic Supplier Contact Details</strong><br/>
@@ -277,25 +305,22 @@ Contact Address: Cramond, Reeves Lane, Roydon, CM19 5LE<br/>
 Contact Email: hello@thesupremecollective.co.uk</p>
 <p><strong>Artistic Supplier Details</strong></p>
 <p>
-  Role(s): ${
-    [
-      // Instruments (cleaned + joined)
-      ...((formData.instrumentation || [])
-        .map(i => i.instrument?.trim())
-        .filter(Boolean)),
+  Role(s): ${[
+    // Instruments (cleaned + joined)
+    ...(formData.instrumentation || [])
+      .map((i) => i.instrument?.trim())
+      .filter(Boolean),
 
-      // Vocal types — always treat as array
-      ...(
-        Array.isArray(formData.vocals?.type)
-          ? formData.vocals.type
-          : [formData.vocals?.type]
-      )
-        .map(v => v?.trim())
-        .filter(Boolean)
-    ]
+    // Vocal types — always treat as array
+    ...(Array.isArray(formData.vocals?.type)
+      ? formData.vocals.type
+      : [formData.vocals?.type]
+    )
+      .map((v) => v?.trim())
+      .filter(Boolean),
+  ]
     .filter(Boolean)
-    .join(", ")
-  }
+    .join(", ")}
 </p><p>Additional Skills: ${formData.other_skills?.join(", ")}</p>
 <p>Able to Perform at: Weddings, Corporate Events, Private Parties, Festivals, Birthday Parties, Bar & Bat Mitzvahs, HM Forces Events, NYE Parties, Charity Events, Product Launches, Residencies, Award Ceremonies, and International Events. Note this list is not exhaustive but representative of the types of events expected to be covered.</p>
 <p>UK Counties Covered: All England, Wales, and Scotland counties.</p>
@@ -377,7 +402,7 @@ Contact Email: hello@thesupremecollective.co.uk</p>
   By signing below, you confirm that you are the authorised signatory for contract
   <strong>${
     formData.reference ||
-    `20${200 + Number(formData._id?.slice(-3) || 0)} ${(lastName).toUpperCase()}`
+    `20${200 + Number(formData._id?.slice(-3) || 0)} ${lastName.toUpperCase()}`
   }</strong> (<strong>${firstName} ${lastName}</strong>, <strong>${new Date().toLocaleDateString()}</strong>) and agree
   to be bound by The Supreme Collective’s Terms and Conditions of booking.
 </p>
@@ -870,39 +895,41 @@ Contact Email: hello@thesupremecollective.co.uk</p>
     or seek legal advice. Once signed or agreed, you are bound to all conditions.
   </li>
 </ul>
-`
+`,
           }}
-          
         />
-      
       </div>
       <div className="mb-6">
-                <label className="block mb-2 font-semibold">Signature</label>
-                <div className="mb-4 flex items-center gap-4">
-                  <div className="border rounded w-96 h-40">
-  <ReactSignatureCanvas
-    ref={sigCanvas}
-    penColor="black"
-    canvasProps={{
-      width: 384,
-      height: 160,
-      className: "signature-canvas border rounded",
-    }}
-    onEnd={handleEnd}
-  />
-</div>
-                
-                  <button
-                    type="button"
-                    onClick={clearSignature}
-                    className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                  >
-                    Clear
-                  </button>
-                </div>
-               <DepFiveAgreementCheckboxes formData={formData} setFormData={setFormData} userRole={userRole} {...stepProps} />
-              </div>
-     
+        <label className="block mb-2 font-semibold">Signature</label>
+        <div className="mb-4 flex items-center gap-4">
+          <div className="border rounded w-96 h-40">
+            <ReactSignatureCanvas
+              ref={sigCanvas}
+              penColor="black"
+              canvasProps={{
+                width: 384,
+                height: 160,
+                className: "signature-canvas border rounded",
+              }}
+              onEnd={handleEnd}
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={clearSignature}
+            className="px-3 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+          >
+            Clear
+          </button>
+        </div>
+        <DepFiveAgreementCheckboxes
+          formData={formData}
+          setFormData={setFormData}
+          userRole={userRole}
+          {...stepProps}
+        />
+      </div>
     </div>
   );
 };
