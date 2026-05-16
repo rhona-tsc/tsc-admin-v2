@@ -460,7 +460,17 @@ const App = () => {
                   </RequireAuth>
                 }
               />
+
+              
             )}
+
+             {isAdminAgent && (
+               <Route path="/finance" element={<FinanceDashboard />} />
+
+              
+            )}
+
+           
 
             <Route
               path="/account/payout-settings"

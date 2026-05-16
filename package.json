@@ -35,7 +35,7 @@
     "react-signature-canvas": "^1.1.0-alpha.2",
     "react-signature-pad-wrapper": "^4.2.0",
     "react-toastify": "^11.0.5",
-    "recharts": "^3.4.1",
+    "recharts": "^3.8.1",
     "signature_pad": "^5.1.1",
     "uuid": "^11.1.0"
   },
