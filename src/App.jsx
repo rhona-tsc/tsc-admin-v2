@@ -36,6 +36,7 @@ import ManageDeputyApplications from "./pages/ManageDeputyApplications";
 import FinanceDashboard from "./pages/FinanceDashboard";
 import FinanceAccounts from "./pages/FinanceAccounts";
 import FinanceTransactions from "./pages/FinanceTransactions";
+import FinanceReconciliation from "./pages/FinanceReconciliation";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -479,7 +480,9 @@ const App = () => {
                 element={<FinanceTransactions />}
               />
             )}
-
+    {isAdminAgent && (
+            <Route path="/finance/reconciliation" element={<FinanceReconciliation />} />
+   )}
             <Route
               path="/account/payout-settings"
               element={
