@@ -483,6 +483,11 @@ const App = () => {
     {isAdminAgent && (
             <Route path="/finance/reconciliation" element={<FinanceReconciliation />} />
    )}
+    {isAdminAgent && (
+
+   <Route path="/finance/forecast-events" element={<FinanceForecastEvents />} />
+   )}
+
             <Route
               path="/account/payout-settings"
               element={
