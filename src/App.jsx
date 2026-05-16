@@ -37,6 +37,7 @@ import FinanceDashboard from "./pages/FinanceDashboard";
 import FinanceAccounts from "./pages/FinanceAccounts";
 import FinanceTransactions from "./pages/FinanceTransactions";
 import FinanceReconciliation from "./pages/FinanceReconciliation";
+import FinanceForecastEvents from "./pages/FinanceForecastEvents";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
