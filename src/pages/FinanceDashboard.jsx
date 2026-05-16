@@ -33,11 +33,23 @@ const FinanceDashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
+const [monthlyData, setMonthlyData] = useState(null);
   const fetchForecast = async () => {
     try {
       setLoading(true);
       setError("");
+
+      const [timelineRes, monthlyRes] = await Promise.all([
+  axios.get(`${backendUrl}/api/finance/forecast/timeline`, {
+    params: { entity, startingBalance },
+  }),
+  axios.get(`${backendUrl}/api/finance/forecast/monthly-summary`, {
+    params: { entity, startingBalance },
+  }),
+]);
+
+if (timelineRes.data?.success) setData(timelineRes.data);
+if (monthlyRes.data?.success) setMonthlyData(monthlyRes.data);
 
       const res = await axios.get(
         `${backendUrl}/api/finance/forecast/timeline`,
@@ -198,6 +210,48 @@ const FinanceDashboard = () => {
             )}
           </div>
         </div>
+
+<div className="mb-6 rounded-2xl bg-white p-5 shadow-sm">
+  <h2 className="text-lg font-semibold text-gray-900">Monthly Summary</h2>
+
+  <div className="mt-4 overflow-x-auto">
+    <table className="min-w-full text-left text-sm">
+      <thead>
+        <tr className="border-b text-xs uppercase tracking-wide text-gray-500">
+          <th className="px-3 py-3">Month</th>
+          <th className="px-3 py-3 text-right">In</th>
+          <th className="px-3 py-3 text-right">Out</th>
+          <th className="px-3 py-3 text-right">Net</th>
+          <th className="px-3 py-3 text-right">Lowest</th>
+          <th className="px-3 py-3 text-right">Closing</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {(monthlyData?.months || []).map((month) => (
+          <tr key={month.month} className="border-b last:border-0">
+            <td className="px-3 py-3 font-medium">{month.month}</td>
+            <td className="px-3 py-3 text-right text-green-700">
+              {formatCurrency(month.totalIn)}
+            </td>
+            <td className="px-3 py-3 text-right text-red-700">
+              {formatCurrency(month.totalOut)}
+            </td>
+            <td className="px-3 py-3 text-right">
+              {formatCurrency(month.netMovement)}
+            </td>
+            <td className="px-3 py-3 text-right">
+              {formatCurrency(month.lowestBalance)}
+            </td>
+            <td className="px-3 py-3 text-right font-semibold">
+              {formatCurrency(month.closingBalance)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</div>
 
         <div className="rounded-2xl bg-white p-5 shadow-sm">
           <div className="mb-4">
