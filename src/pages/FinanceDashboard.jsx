@@ -43,7 +43,6 @@ const FinanceDashboard = () => {
         `${backendUrl}/api/finance/forecast/timeline`,
         {
           params: {
-            entity,
             startingBalance,
           },
         },
@@ -116,9 +115,9 @@ const FinanceDashboard = () => {
               </label>
               <input
                 type="number"
-                value={startingBalance}
-                onChange={(e) => setStartingBalance(e.target.value)}
-                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+                value={data?.filters?.startingBalance ?? 0}
+                readOnly
+                className="rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-sm"
               />
             </div>
 
@@ -146,7 +145,10 @@ const FinanceDashboard = () => {
         )}
 
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <SummaryCard title="Total In" value={formatCurrency(summary.totalIn)} />
+          <SummaryCard
+            title="Total In"
+            value={formatCurrency(summary.totalIn)}
+          />
           <SummaryCard
             title="Total Out"
             value={formatCurrency(summary.totalOut)}
@@ -186,12 +188,7 @@ const FinanceDashboard = () => {
                     formatter={(value) => formatCurrency(value)}
                     labelFormatter={(label) => `Date: ${label}`}
                   />
-                  <Line
-                    type="monotone"
-                    dataKey="balance"
-                    strokeWidth={2}
-                    dot
-                  />
+                  <Line type="monotone" dataKey="balance" strokeWidth={2} dot />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
