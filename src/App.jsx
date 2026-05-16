@@ -81,7 +81,9 @@ const RequireAuth = ({ children }) => {
       <Navigate
         to="/login"
         replace
-        state={{ from: `${location.pathname}${location.search}${location.hash}` }}
+        state={{
+          from: `${location.pathname}${location.search}${location.hash}`,
+        }}
       />
     );
   }
@@ -172,7 +174,7 @@ const App = () => {
       password,
       userId,
     }),
-    [email, userRole, firstName, lastName, phone, password, userId]
+    [email, userRole, firstName, lastName, phone, password, userId],
   );
 
   return (
@@ -462,19 +464,20 @@ const App = () => {
                   </RequireAuth>
                 }
               />
-
-              
             )}
 
-             {isAdminAgent && (
-               <Route path="/finance" element={<FinanceDashboard />} />
-
-              
+            {isAdminAgent && (
+              <Route path="/finance" element={<FinanceDashboard />} />
             )}
-             {isAdminAgent && (
-
-           <Route path="/finance/accounts" element={<FinanceAccounts />} />
-    )}
+            {isAdminAgent && (
+              <Route path="/finance/accounts" element={<FinanceAccounts />} />
+            )}
+            {isAdminAgent && (
+              <Route
+                path="/finance/transactions"
+                element={<FinanceTransactions />}
+              />
+            )}
 
             <Route
               path="/account/payout-settings"

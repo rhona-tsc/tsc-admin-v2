@@ -219,6 +219,7 @@ const FinanceDashboard = () => {
                   <th className="px-3 py-3">Direction</th>
                   <th className="px-3 py-3 text-right">Amount</th>
                   <th className="px-3 py-3 text-right">Running Balance</th>
+                  <th className="px-3 py-3">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -252,7 +253,7 @@ const FinanceDashboard = () => {
                 {!data?.timeline?.length && (
                   <tr>
                     <td
-                      colSpan="6"
+                      colSpan="7"
                       className="px-3 py-8 text-center text-gray-500"
                     >
                       No forecast events found.
