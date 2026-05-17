@@ -40,6 +40,7 @@ import FinanceReconciliation from "./pages/FinanceReconciliation";
 import FinanceForecastEvents from "./pages/FinanceForecastEvents";
 import RecurringForecastRules from "./pages/RecurringForecastRules";
 import FinanceTransactionImport from "./pages/FinanceTransactionImport";
+import FinanceVatForecast from "./pages/FinanceVatForecast";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
