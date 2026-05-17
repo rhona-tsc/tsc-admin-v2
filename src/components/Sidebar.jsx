@@ -452,6 +452,8 @@ useEffect(() => {
           to="/finance/reconciliation">Reconciliation</NavLink>
           <NavLink  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
           to="/finance/recurring-rules">Recurring Rules</NavLink>
+          <NavLink  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+          to="/finance/transactions/import">Import CSV</NavLink>
               </>
         )}
         

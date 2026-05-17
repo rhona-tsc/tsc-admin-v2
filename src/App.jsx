@@ -38,7 +38,8 @@ import FinanceAccounts from "./pages/FinanceAccounts";
 import FinanceTransactions from "./pages/FinanceTransactions";
 import FinanceReconciliation from "./pages/FinanceReconciliation";
 import FinanceForecastEvents from "./pages/FinanceForecastEvents";
-import RecurringForecastRules from "./pages/RecurringForecastRules";  
+import RecurringForecastRules from "./pages/RecurringForecastRules";
+import FinanceTransactionImport from "./pages/FinanceTransactionImport";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -500,6 +501,14 @@ const App = () => {
                 element={<RecurringForecastRules />}
               />
             )}
+
+            {isAdminAgent && (
+              <Route
+                path="/finance/transactions/import"
+                element={<FinanceTransactionImport />}
+              />
+            )}
+
             <Route
               path="/account/payout-settings"
               element={
