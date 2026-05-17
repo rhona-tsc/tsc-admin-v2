@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { Link } from "react-router-dom";
 import {
   LineChart,
   Line,
@@ -10,6 +11,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { backendUrl } from "../App";
+
+const entities = ["TSC", "BMM", "Personal", "Savings", "Investment", "Crypto"];
 
 const formatCurrency = (value = 0) =>
   new Intl.NumberFormat("en-GB", {
@@ -29,42 +32,51 @@ const formatDate = (date) => {
 
 const FinanceDashboard = () => {
   const [entity, setEntity] = useState("TSC");
-  const [startingBalance, setStartingBalance] = useState(1000);
   const [data, setData] = useState(null);
+  const [monthlyData, setMonthlyData] = useState(null);
+  const [unreconciledCount, setUnreconciledCount] = useState(0);
+  const [unpaidForecastCount, setUnpaidForecastCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [autoMatching, setAutoMatching] = useState(false);
   const [error, setError] = useState("");
-const [monthlyData, setMonthlyData] = useState(null);
+  const [successMessage, setSuccessMessage] = useState("");
+
   const fetchForecast = async () => {
     try {
       setLoading(true);
       setError("");
+      setSuccessMessage("");
 
-      const [timelineRes, monthlyRes] = await Promise.all([
-  axios.get(`${backendUrl}/api/finance/forecast/timeline`, {
-    params: { entity, startingBalance },
-  }),
-  axios.get(`${backendUrl}/api/finance/forecast/monthly-summary`, {
-    params: { entity, startingBalance },
-  }),
-]);
+      const [timelineRes, monthlyRes, transactionsRes, forecastEventsRes] =
+        await Promise.all([
+          axios.get(`${backendUrl}/api/finance/forecast/timeline`, {
+            params: { entity },
+          }),
+          axios.get(`${backendUrl}/api/finance/forecast/monthly-summary`, {
+            params: { entity },
+          }),
+          axios.get(`${backendUrl}/api/finance/transactions`, {
+            params: { entity, reconciled: false },
+          }),
+          axios.get(`${backendUrl}/api/finance/forecast-events`, {
+            params: { entity, status: "forecast" },
+          }),
+        ]);
 
-if (timelineRes.data?.success) setData(timelineRes.data);
-if (monthlyRes.data?.success) setMonthlyData(monthlyRes.data);
+      if (timelineRes.data?.success) setData(timelineRes.data);
+      if (monthlyRes.data?.success) setMonthlyData(monthlyRes.data);
 
-      const res = await axios.get(
-        `${backendUrl}/api/finance/forecast/timeline`,
-        {
-          params: {
-            startingBalance,
-          },
-        },
+      setUnreconciledCount(
+        transactionsRes.data?.transactions?.length ||
+          transactionsRes.data?.count ||
+          0,
       );
 
-      if (res.data?.success) {
-        setData(res.data);
-      } else {
-        setError(res.data?.message || "Could not load forecast");
-      }
+      setUnpaidForecastCount(
+        forecastEventsRes.data?.forecastEvents?.length ||
+          forecastEventsRes.data?.count ||
+          0,
+      );
     } catch (err) {
       console.error("Finance forecast error:", err);
       setError(err.response?.data?.message || err.message);
@@ -77,6 +89,37 @@ if (monthlyRes.data?.success) setMonthlyData(monthlyRes.data);
     fetchForecast();
   }, [entity]);
 
+  const handleAutoMatch = async () => {
+    try {
+      setAutoMatching(true);
+      setError("");
+      setSuccessMessage("");
+
+      const res = await axios.post(
+        `${backendUrl}/api/finance/reconcile/auto-match`,
+        {
+          entity,
+          dateWindowDays: 14,
+          dryRun: false,
+        },
+      );
+
+      if (res.data?.success) {
+        setSuccessMessage(
+          `Auto-matched ${res.data.matchedCount || 0} transaction(s).`,
+        );
+        await fetchForecast();
+      } else {
+        setError(res.data?.message || "Auto-match failed.");
+      }
+    } catch (err) {
+      console.error("Auto-match error:", err);
+      setError(err.response?.data?.message || err.message);
+    } finally {
+      setAutoMatching(false);
+    }
+  };
+
   const chartData = useMemo(() => {
     return (data?.timeline || []).map((event) => ({
       date: formatDate(event.expectedDate),
@@ -87,6 +130,11 @@ if (monthlyRes.data?.success) setMonthlyData(monthlyRes.data);
   }, [data]);
 
   const summary = data?.summary || {};
+  const startingBalance = data?.filters?.startingBalance ?? 0;
+  const cashBufferNeeded =
+    Number(summary.lowestBalance || 0) < 0
+      ? Math.abs(Number(summary.lowestBalance || 0))
+      : 0;
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-8 sm:px-8">
@@ -97,12 +145,12 @@ if (monthlyRes.data?.success) setMonthlyData(monthlyRes.data);
               Finance Dashboard
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              Forecasted cash position based on confirmed bookings and expected
-              payments.
+              Forecasted cash position based on bookings, bank transactions and
+              expected payments.
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex flex-wrap items-end gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">
                 Entity
@@ -112,12 +160,11 @@ if (monthlyRes.data?.success) setMonthlyData(monthlyRes.data);
                 onChange={(e) => setEntity(e.target.value)}
                 className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
               >
-                <option value="TSC">TSC</option>
-                <option value="BMM">BMM</option>
-                <option value="Personal">Personal</option>
-                <option value="Savings">Savings</option>
-                <option value="Investment">Investment</option>
-                <option value="Crypto">Crypto</option>
+                {entities.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -127,11 +174,33 @@ if (monthlyRes.data?.success) setMonthlyData(monthlyRes.data);
               </label>
               <input
                 type="number"
-                value={data?.filters?.startingBalance ?? 0}
+                value={startingBalance}
                 readOnly
-                className="rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-sm"
+                className="w-32 rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-sm"
               />
             </div>
+
+            <Link
+              to="/finance/transactions/import"
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800"
+            >
+              Import CSV
+            </Link>
+
+            <Link
+              to="/finance/reconciliation"
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800"
+            >
+              Reconcile
+            </Link>
+
+            <button
+              onClick={handleAutoMatch}
+              disabled={autoMatching || loading}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 disabled:opacity-50"
+            >
+              {autoMatching ? "Auto-matching..." : "Auto-match"}
+            </button>
 
             <button
               onClick={fetchForecast}
@@ -149,6 +218,12 @@ if (monthlyRes.data?.success) setMonthlyData(monthlyRes.data);
           </div>
         )}
 
+        {successMessage && (
+          <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+            {successMessage}
+          </div>
+        )}
+
         {summary.firstNegativeDate && (
           <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
             Warning: forecast balance first goes negative on{" "}
@@ -156,26 +231,31 @@ if (monthlyRes.data?.success) setMonthlyData(monthlyRes.data);
           </div>
         )}
 
-        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <SummaryCard title="Total In" value={formatCurrency(summary.totalIn)} />
+          <SummaryCard title="Total Out" value={formatCurrency(summary.totalOut)} />
+          <SummaryCard title="Final Balance" value={formatCurrency(summary.finalBalance)} />
           <SummaryCard
-            title="Total In"
-            value={formatCurrency(summary.totalIn)}
+            title="Cash Buffer Needed"
+            value={formatCurrency(cashBufferNeeded)}
+            warning={cashBufferNeeded > 0}
           />
           <SummaryCard
-            title="Total Out"
-            value={formatCurrency(summary.totalOut)}
+            title="Unreconciled Transactions"
+            value={unreconciledCount}
           />
           <SummaryCard
-            title="Net Movement"
-            value={formatCurrency(summary.netMovement)}
-          />
-          <SummaryCard
-            title="Final Balance"
-            value={formatCurrency(summary.finalBalance)}
+            title="Unpaid Forecast Events"
+            value={unpaidForecastCount}
           />
           <SummaryCard
             title="Lowest Balance"
             value={formatCurrency(summary.lowestBalance)}
+            warning={Number(summary.lowestBalance || 0) < 0}
+          />
+          <SummaryCard
+            title="Net Movement"
+            value={formatCurrency(summary.netMovement)}
           />
         </div>
 
@@ -211,47 +291,60 @@ if (monthlyRes.data?.success) setMonthlyData(monthlyRes.data);
           </div>
         </div>
 
-<div className="mb-6 rounded-2xl bg-white p-5 shadow-sm">
-  <h2 className="text-lg font-semibold text-gray-900">Monthly Summary</h2>
+        <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Monthly Summary
+          </h2>
 
-  <div className="mt-4 overflow-x-auto">
-    <table className="min-w-full text-left text-sm">
-      <thead>
-        <tr className="border-b text-xs uppercase tracking-wide text-gray-500">
-          <th className="px-3 py-3">Month</th>
-          <th className="px-3 py-3 text-right">In</th>
-          <th className="px-3 py-3 text-right">Out</th>
-          <th className="px-3 py-3 text-right">Net</th>
-          <th className="px-3 py-3 text-right">Lowest</th>
-          <th className="px-3 py-3 text-right">Closing</th>
-        </tr>
-      </thead>
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead>
+                <tr className="border-b text-xs uppercase tracking-wide text-gray-500">
+                  <th className="px-3 py-3">Month</th>
+                  <th className="px-3 py-3 text-right">In</th>
+                  <th className="px-3 py-3 text-right">Out</th>
+                  <th className="px-3 py-3 text-right">Net</th>
+                  <th className="px-3 py-3 text-right">Lowest</th>
+                  <th className="px-3 py-3 text-right">Closing</th>
+                </tr>
+              </thead>
 
-      <tbody>
-        {(monthlyData?.months || []).map((month) => (
-          <tr key={month.month} className="border-b last:border-0">
-            <td className="px-3 py-3 font-medium">{month.month}</td>
-            <td className="px-3 py-3 text-right text-green-700">
-              {formatCurrency(month.totalIn)}
-            </td>
-            <td className="px-3 py-3 text-right text-red-700">
-              {formatCurrency(month.totalOut)}
-            </td>
-            <td className="px-3 py-3 text-right">
-              {formatCurrency(month.netMovement)}
-            </td>
-            <td className="px-3 py-3 text-right">
-              {formatCurrency(month.lowestBalance)}
-            </td>
-            <td className="px-3 py-3 text-right font-semibold">
-              {formatCurrency(month.closingBalance)}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-</div>
+              <tbody>
+                {(monthlyData?.months || []).map((month) => (
+                  <tr key={month.month} className="border-b last:border-0">
+                    <td className="px-3 py-3 font-medium">{month.month}</td>
+                    <td className="px-3 py-3 text-right text-green-700">
+                      {formatCurrency(month.totalIn)}
+                    </td>
+                    <td className="px-3 py-3 text-right text-red-700">
+                      {formatCurrency(month.totalOut)}
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      {formatCurrency(month.netMovement)}
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      {formatCurrency(month.lowestBalance)}
+                    </td>
+                    <td className="px-3 py-3 text-right font-semibold">
+                      {formatCurrency(month.closingBalance)}
+                    </td>
+                  </tr>
+                ))}
+
+                {!monthlyData?.months?.length && (
+                  <tr>
+                    <td
+                      colSpan="6"
+                      className="px-3 py-8 text-center text-gray-500"
+                    >
+                      No monthly summary found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         <div className="rounded-2xl bg-white p-5 shadow-sm">
           <div className="mb-4">
@@ -273,13 +366,13 @@ if (monthlyRes.data?.success) setMonthlyData(monthlyRes.data);
                   <th className="px-3 py-3">Direction</th>
                   <th className="px-3 py-3 text-right">Amount</th>
                   <th className="px-3 py-3 text-right">Running Balance</th>
-                  <th className="px-3 py-3">Status</th>
                 </tr>
               </thead>
+
               <tbody>
                 {(data?.timeline || []).map((event) => (
                   <tr key={event._id} className="border-b last:border-0">
-                    <td className="px-3 py-3 whitespace-nowrap">
+                    <td className="whitespace-nowrap px-3 py-3">
                       {formatDate(event.expectedDate)}
                     </td>
                     <td className="px-3 py-3">{event.title}</td>
@@ -307,7 +400,7 @@ if (monthlyRes.data?.success) setMonthlyData(monthlyRes.data);
                 {!data?.timeline?.length && (
                   <tr>
                     <td
-                      colSpan="7"
+                      colSpan="6"
                       className="px-3 py-8 text-center text-gray-500"
                     >
                       No forecast events found.
@@ -323,8 +416,12 @@ if (monthlyRes.data?.success) setMonthlyData(monthlyRes.data);
   );
 };
 
-const SummaryCard = ({ title, value }) => (
-  <div className="rounded-2xl bg-white p-4 shadow-sm">
+const SummaryCard = ({ title, value, warning }) => (
+  <div
+    className={`rounded-2xl p-4 shadow-sm ${
+      warning ? "border border-amber-200 bg-amber-50" : "bg-white"
+    }`}
+  >
     <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
       {title}
     </p>
