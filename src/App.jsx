@@ -509,6 +509,13 @@ const App = () => {
               />
             )}
 
+            {isAdminAgent && (
+              <Route
+                path="/finance/vat-forecast"
+                element={<FinanceVatForecast />}
+              />
+            )}
+
             <Route
               path="/account/payout-settings"
               element={

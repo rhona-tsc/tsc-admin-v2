@@ -441,19 +441,19 @@ useEffect(() => {
       
 
           <NavLink  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
-          to="/finance">Dashboard</NavLink>
+          to="/finance"><p className="hidden md:block text-white">Dashboard</p></NavLink>
           <NavLink  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
-          to="/finance/accounts">Accounts</NavLink>
+          to="/finance/accounts"><p className="hidden md:block text-white">Accounts</p></NavLink>
           <NavLink  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
-          to="/finance/transactions">Transactions</NavLink>
+          to="/finance/transactions"><p className="hidden md:block text-white">Transactions</p></ NavLink>
           <NavLink  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
-          to="/finance/forecast-events">Forecast Events</NavLink>
+          to="/finance/forecast-events"><p className="hidden md:block text-white">Forecast Events</p></NavLink>
           <NavLink  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
-          to="/finance/reconciliation">Reconciliation</NavLink>
+          to="/finance/reconciliation"><p className="hidden md:block text-white">Reconciliation</p></NavLink>
           <NavLink  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
-          to="/finance/recurring-rules">Recurring Rules</NavLink>
+          to="/finance/recurring-rules"><p className="hidden md:block text-white">Recurring Rules</p></NavLink>
           <NavLink  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
-          to="/finance/transactions/import">Import CSV</NavLink>
+          to="/finance/transactions/import"><p className="hidden md:block text-white">Import CSV</p></NavLink>
               </>
         )}
         
