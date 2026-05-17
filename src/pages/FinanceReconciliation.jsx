@@ -8,7 +8,6 @@ const formatCurrency = (value = 0) =>
   new Intl.NumberFormat("en-GB", {
     style: "currency",
     currency: "GBP",
-    maximumFractionDigits: 2,
   }).format(Number(value || 0));
 
 const formatDate = (date) => {
@@ -20,8 +19,16 @@ const formatDate = (date) => {
   });
 };
 
+const signedForecastAmount = (event) =>
+  event.direction === "out" ? -Number(event.amount || 0) : Number(event.amount || 0);
+
+const signedTransactionAmount = (transaction) =>
+  transaction.direction === "out"
+    ? -Number(transaction.amount || 0)
+    : Number(transaction.amount || 0);
+
 const FinanceReconciliation = () => {
-  const [entity, setEntity] = useState("TSC");
+  const [entity, setEntity] = useState("BMM");
   const [forecastEvents, setForecastEvents] = useState([]);
   const [transactions, setTransactions] = useState([]);
 
@@ -29,35 +36,59 @@ const FinanceReconciliation = () => {
   const [selectedTransactionId, setSelectedTransactionId] = useState("");
 
   const [loading, setLoading] = useState(false);
-  const [reconciling, setReconciling] = useState(false);
+  const [matching, setMatching] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const selectedEvent = useMemo(
+    () => forecastEvents.find((event) => event._id === selectedEventId),
+    [forecastEvents, selectedEventId],
+  );
+
+  const selectedTransaction = useMemo(
+    () =>
+      transactions.find(
+        (transaction) => transaction._id === selectedTransactionId,
+      ),
+    [transactions, selectedTransactionId],
+  );
+
+  const amountDifference = useMemo(() => {
+    if (!selectedEvent || !selectedTransaction) return null;
+
+    return (
+      signedForecastAmount(selectedEvent) -
+      signedTransactionAmount(selectedTransaction)
+    );
+  }, [selectedEvent, selectedTransaction]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       setError("");
+      setSuccessMessage("");
 
-      const [eventsRes, txRes] = await Promise.all([
+      const [forecastRes, transactionRes] = await Promise.all([
         axios.get(`${backendUrl}/api/finance/forecast-events`, {
-          params: { entity, status: "forecast" },
+          params: {
+            entity,
+            status: "forecast",
+          },
         }),
         axios.get(`${backendUrl}/api/finance/transactions`, {
-          params: { entity, reconciled: false },
+          params: {
+            entity,
+            reconciled: false,
+          },
         }),
       ]);
 
-      if (eventsRes.data?.success) {
-        setForecastEvents(eventsRes.data.forecastEvents || []);
-      }
-
-      if (txRes.data?.success) {
-        setTransactions(txRes.data.transactions || []);
-      }
-
+      setForecastEvents(forecastRes.data?.forecastEvents || []);
+      setTransactions(transactionRes.data?.transactions || []);
       setSelectedEventId("");
       setSelectedTransactionId("");
     } catch (err) {
-      console.error("fetch reconciliation data error:", err);
+      console.error("Finance reconciliation load error:", err);
       setError(err.response?.data?.message || err.message);
     } finally {
       setLoading(false);
@@ -68,46 +99,36 @@ const FinanceReconciliation = () => {
     fetchData();
   }, [entity]);
 
-  const selectedEvent = useMemo(
-    () => forecastEvents.find((event) => event._id === selectedEventId),
-    [forecastEvents, selectedEventId],
-  );
-
-  const selectedTransaction = useMemo(
-    () => transactions.find((tx) => tx._id === selectedTransactionId),
-    [transactions, selectedTransactionId],
-  );
-
-  const canReconcile = selectedEventId && selectedTransactionId;
-
-  const amountDifference = useMemo(() => {
-    if (!selectedEvent || !selectedTransaction) return null;
-    return (
-      Math.abs(Number(selectedEvent.amount || 0)) -
-      Math.abs(Number(selectedTransaction.amount || 0))
-    );
-  }, [selectedEvent, selectedTransaction]);
-
-  const handleReconcile = async () => {
-    if (!canReconcile) return;
-
+  const handleManualMatch = async () => {
     try {
-      setReconciling(true);
+      setMatching(true);
       setError("");
+      setSuccessMessage("");
 
-      await axios.post(
-        `${backendUrl}/api/finance/forecast-events/${selectedEventId}/reconcile`,
+      if (!selectedEventId || !selectedTransactionId) {
+        setError("Select one forecast event and one transaction.");
+        return;
+      }
+
+      const res = await axios.post(
+        `${backendUrl}/api/finance/reconcile/manual-match`,
         {
+          forecastEventId: selectedEventId,
           transactionId: selectedTransactionId,
         },
       );
 
-      await fetchData();
+      if (res.data?.success) {
+        setSuccessMessage("Matched successfully.");
+        await fetchData();
+      } else {
+        setError(res.data?.message || "Could not match items.");
+      }
     } catch (err) {
-      console.error("reconcile error:", err);
+      console.error("Manual match error:", err);
       setError(err.response?.data?.message || err.message);
     } finally {
-      setReconciling(false);
+      setMatching(false);
     }
   };
 
@@ -125,12 +146,22 @@ const FinanceReconciliation = () => {
           </div>
 
           <div className="flex gap-3">
-            <Select
-              label="Entity"
-              value={entity}
-              onChange={(e) => setEntity(e.target.value)}
-              options={entities.map((v) => ({ value: v, label: v }))}
-            />
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">
+                Entity
+              </label>
+              <select
+                value={entity}
+                onChange={(e) => setEntity(e.target.value)}
+                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+              >
+                {entities.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <button
               onClick={fetchData}
@@ -148,52 +179,64 @@ const FinanceReconciliation = () => {
           </div>
         )}
 
-        <div className="mb-6 grid gap-4 sm:grid-cols-3">
-          <SummaryCard
-            title="Unmatched Forecast Events"
-            value={forecastEvents.length}
-          />
-          <SummaryCard
-            title="Unreconciled Transactions"
-            value={transactions.length}
-          />
-          <SummaryCard
-            title="Selected Difference"
-            value={
-              amountDifference === null
-                ? "-"
-                : formatCurrency(amountDifference)
-            }
-          />
-        </div>
+        {successMessage && (
+          <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+            {successMessage}
+          </div>
+        )}
 
         <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-lg font-semibold text-gray-900">
-            Selected Match
-          </h2>
-
-          <div className="grid gap-4 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
-            <MatchBox
-              title="Forecast event"
-              item={selectedEvent}
-              emptyText="Select a forecast event below"
-              type="forecast"
-            />
-
-            <MatchBox
-              title="Actual transaction"
-              item={selectedTransaction}
-              emptyText="Select a transaction below"
-              type="transaction"
-            />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">
+                Selected Match
+              </h2>
+              <p className="text-sm text-gray-500">
+                Pick one forecast item and one bank transaction, then match.
+              </p>
+            </div>
 
             <button
-              onClick={handleReconcile}
-              disabled={!canReconcile || reconciling}
-              className="rounded-lg bg-black px-4 py-3 text-sm font-medium text-white disabled:opacity-50"
+              onClick={handleManualMatch}
+              disabled={matching || !selectedEventId || !selectedTransactionId}
+              className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
-              {reconciling ? "Reconciling..." : "Reconcile"}
+              {matching ? "Matching..." : "Match Selected"}
             </button>
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <SummaryBox
+              title="Forecast"
+              value={
+                selectedEvent
+                  ? `${formatCurrency(signedForecastAmount(selectedEvent))} · ${
+                      selectedEvent.title
+                    }`
+                  : "None selected"
+              }
+            />
+
+            <SummaryBox
+              title="Transaction"
+              value={
+                selectedTransaction
+                  ? `${formatCurrency(
+                      signedTransactionAmount(selectedTransaction),
+                    )} · ${selectedTransaction.description}`
+                  : "None selected"
+              }
+            />
+
+            <SummaryBox
+              title="Difference"
+              value={
+                amountDifference === null
+                  ? "-"
+                  : formatCurrency(amountDifference)
+              }
+              warning={amountDifference !== null && Math.abs(amountDifference) > 0.01}
+            />
           </div>
         </div>
 
@@ -203,29 +246,25 @@ const FinanceReconciliation = () => {
               Forecast Events
             </h2>
             <p className="mb-4 text-sm text-gray-500">
-              Expected payments still marked as forecast.
+              Unpaid expected payments and payouts.
             </p>
 
-            <div className="space-y-3">
+            <div className="max-h-[650px] overflow-auto">
               {forecastEvents.map((event) => (
                 <button
                   key={event._id}
-                  type="button"
                   onClick={() => setSelectedEventId(event._id)}
-                  className={`w-full rounded-xl border p-4 text-left transition ${
+                  className={`mb-3 w-full rounded-xl border p-4 text-left ${
                     selectedEventId === event._id
                       ? "border-black bg-gray-50"
-                      : "border-gray-200 bg-white hover:bg-gray-50"
+                      : "border-gray-200 bg-white"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex justify-between gap-4">
                     <div>
                       <p className="font-medium text-gray-900">{event.title}</p>
-                      <p className="mt-1 text-xs text-gray-500">
+                      <p className="text-xs text-gray-500">
                         {formatDate(event.expectedDate)} · {event.type}
-                      </p>
-                      <p className="mt-1 text-xs text-gray-500">
-                        {event.clientNames || event.actName || event.entity}
                       </p>
                     </div>
 
@@ -236,15 +275,14 @@ const FinanceReconciliation = () => {
                           : "text-red-700"
                       }`}
                     >
-                      {event.direction === "out" ? "-" : "+"}
-                      {formatCurrency(event.amount)}
+                      {formatCurrency(signedForecastAmount(event))}
                     </p>
                   </div>
                 </button>
               ))}
 
               {!forecastEvents.length && (
-                <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">
+                <div className="py-8 text-center text-sm text-gray-500">
                   No forecast events to reconcile.
                 </div>
               )}
@@ -253,53 +291,49 @@ const FinanceReconciliation = () => {
 
           <div className="rounded-2xl bg-white p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900">
-              Actual Transactions
+              Bank Transactions
             </h2>
             <p className="mb-4 text-sm text-gray-500">
-              Real transactions not yet reconciled.
+              Imported transactions not yet reconciled.
             </p>
 
-            <div className="space-y-3">
-              {transactions.map((tx) => (
+            <div className="max-h-[650px] overflow-auto">
+              {transactions.map((transaction) => (
                 <button
-                  key={tx._id}
-                  type="button"
-                  onClick={() => setSelectedTransactionId(tx._id)}
-                  className={`w-full rounded-xl border p-4 text-left transition ${
-                    selectedTransactionId === tx._id
+                  key={transaction._id}
+                  onClick={() => setSelectedTransactionId(transaction._id)}
+                  className={`mb-3 w-full rounded-xl border p-4 text-left ${
+                    selectedTransactionId === transaction._id
                       ? "border-black bg-gray-50"
-                      : "border-gray-200 bg-white hover:bg-gray-50"
+                      : "border-gray-200 bg-white"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex justify-between gap-4">
                     <div>
                       <p className="font-medium text-gray-900">
-                        {tx.description}
+                        {transaction.description}
                       </p>
-                      <p className="mt-1 text-xs text-gray-500">
-                        {formatDate(tx.date)} · {tx.category}
-                      </p>
-                      <p className="mt-1 text-xs text-gray-500">
-                        {tx.accountId?.name || tx.merchant || tx.entity}
+                      <p className="text-xs text-gray-500">
+                        {formatDate(transaction.date)} ·{" "}
+                        {transaction.category || "uncategorised"}
                       </p>
                     </div>
 
                     <p
                       className={`whitespace-nowrap font-semibold ${
-                        tx.direction === "in"
+                        transaction.direction === "in"
                           ? "text-green-700"
                           : "text-red-700"
                       }`}
                     >
-                      {tx.direction === "out" ? "-" : "+"}
-                      {formatCurrency(tx.amount)}
+                      {formatCurrency(signedTransactionAmount(transaction))}
                     </p>
                   </div>
                 </button>
               ))}
 
               {!transactions.length && (
-                <div className="rounded-xl border border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">
+                <div className="py-8 text-center text-sm text-gray-500">
                   No unreconciled transactions.
                 </div>
               )}
@@ -311,66 +345,16 @@ const FinanceReconciliation = () => {
   );
 };
 
-const MatchBox = ({ title, item, emptyText, type }) => {
-  const isTransaction = type === "transaction";
-
-  return (
-    <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-        {title}
-      </p>
-
-      {item ? (
-        <>
-          <p className="font-medium text-gray-900">
-            {isTransaction ? item.description : item.title}
-          </p>
-          <p className="mt-1 text-sm text-gray-500">
-            {formatDate(isTransaction ? item.date : item.expectedDate)}
-          </p>
-          <p
-            className={`mt-2 font-semibold ${
-              item.direction === "in" ? "text-green-700" : "text-red-700"
-            }`}
-          >
-            {item.direction === "out" ? "-" : "+"}
-            {formatCurrency(item.amount)}
-          </p>
-        </>
-      ) : (
-        <p className="text-sm text-gray-500">{emptyText}</p>
-      )}
-    </div>
-  );
-};
-
-const SummaryCard = ({ title, value }) => (
-  <div className="rounded-2xl bg-white p-4 shadow-sm">
+const SummaryBox = ({ title, value, warning }) => (
+  <div
+    className={`rounded-xl border p-4 ${
+      warning ? "border-amber-200 bg-amber-50" : "border-gray-200 bg-white"
+    }`}
+  >
     <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
       {title}
     </p>
-    <p className="mt-2 text-xl font-semibold text-gray-900">{value}</p>
-  </div>
-);
-
-const Select = ({ label, value, onChange, options }) => (
-  <div>
-    {label && (
-      <label className="mb-1 block text-xs font-medium text-gray-600">
-        {label}
-      </label>
-    )}
-    <select
-      value={value}
-      onChange={onChange}
-      className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-    >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+    <p className="mt-2 text-sm font-semibold text-gray-900">{value}</p>
   </div>
 );
 
