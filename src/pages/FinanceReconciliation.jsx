@@ -404,7 +404,11 @@ const FinanceReconciliation = () => {
                   key={event._id}
                   role="button"
                   tabIndex={0}
-                  onClick={() => setSelectedEventId(event._id)}
+                  onClick={() =>
+                    setSelectedEventId((prev) =>
+                      prev === event._id ? "" : event._id,
+                    )
+                  }
                   onKeyDown={(e) => {
                     if (e.key === "Enter") setSelectedEventId(event._id);
                   }}
@@ -480,7 +484,11 @@ const FinanceReconciliation = () => {
               {filteredTransactions.map((transaction) => (
                 <button
                   key={transaction._id}
-                  onClick={() => setSelectedTransactionId(transaction._id)}
+                  onClick={() =>
+                    setSelectedTransactionId((prev) =>
+                      prev === transaction._id ? "" : transaction._id,
+                    )
+                  }
                   className={`mb-3 w-full rounded-xl border p-4 text-left ${
                     selectedTransactionId === transaction._id
                       ? "border-black bg-gray-50"
