@@ -18,7 +18,7 @@ const EMPTY_FORM = {
   reconciled: false,
 };
 
-const entities = ["TSC", "BMM", "Personal", "Savings", "Investment", "Crypto"];
+const entities = ["TSC", "BMM", "HSBC", "Monzo Joint",  "Monzo Personal", "AMEX", "CBS", "HL Investment", "HSBC Investment","Bitcoin", "Solana","Ethereum", "True Potential Penson", "Aviva Pension"];
 
 const categories = [
   "client_payment",

@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { Link } from "react-router-dom";
 import { backendUrl } from "../App";
 
-const entities = ["TSC", "BMM", "Personal", "Savings", "Investment", "Crypto"];
+const entities = ["TSC", "BMM", "HSBC", "Monzo Joint",  "Monzo Personal", "AMEX", "CBS", "HL Investment", "HSBC Investment","Bitcoin", "Solana","Ethereum", "True Potential Penson", "Aviva Pension"];
 
 const formatCurrency = (value = 0) =>
   new Intl.NumberFormat("en-GB", {
@@ -20,12 +21,40 @@ const formatDate = (date) => {
 };
 
 const signedForecastAmount = (event) =>
-  event.direction === "out" ? -Number(event.amount || 0) : Number(event.amount || 0);
+  event.direction === "out"
+    ? -Number(event.amount || 0)
+    : Number(event.amount || 0);
 
 const signedTransactionAmount = (transaction) =>
   transaction.direction === "out"
     ? -Number(transaction.amount || 0)
     : Number(transaction.amount || 0);
+
+const matchesSearch = (item, search, signedAmount) => {
+  const q = String(search || "").toLowerCase().trim();
+  if (!q) return true;
+
+  const amountText = String(Math.abs(Number(signedAmount || 0)));
+  const amountFixed = Math.abs(Number(signedAmount || 0)).toFixed(2);
+  const moneyText = formatCurrency(signedAmount).toLowerCase();
+
+  return [
+    item.title,
+    item.description,
+    item.clientNames,
+    item.actName,
+    item.type,
+    item.category,
+    item.merchant,
+    item.source,
+    item.reference,
+    amountText,
+    amountFixed,
+    moneyText,
+  ]
+    .filter(Boolean)
+    .some((value) => String(value).toLowerCase().includes(q));
+};
 
 const FinanceReconciliation = () => {
   const [entity, setEntity] = useState("BMM");
@@ -35,8 +64,12 @@ const FinanceReconciliation = () => {
   const [selectedEventId, setSelectedEventId] = useState("");
   const [selectedTransactionId, setSelectedTransactionId] = useState("");
 
+  const [forecastSearch, setForecastSearch] = useState("");
+  const [transactionSearch, setTransactionSearch] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [matching, setMatching] = useState(false);
+  const [deletingEventId, setDeletingEventId] = useState("");
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -61,6 +94,22 @@ const FinanceReconciliation = () => {
       signedTransactionAmount(selectedTransaction)
     );
   }, [selectedEvent, selectedTransaction]);
+
+  const filteredForecastEvents = useMemo(() => {
+    return forecastEvents.filter((event) =>
+      matchesSearch(event, forecastSearch, signedForecastAmount(event)),
+    );
+  }, [forecastEvents, forecastSearch]);
+
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((transaction) =>
+      matchesSearch(
+        transaction,
+        transactionSearch,
+        signedTransactionAmount(transaction),
+      ),
+    );
+  }, [transactions, transactionSearch]);
 
   const fetchData = async () => {
     try {
@@ -132,6 +181,28 @@ const FinanceReconciliation = () => {
     }
   };
 
+  const handleDeleteForecastEvent = async (id) => {
+    if (!window.confirm("Delete this forecast event?")) return;
+
+    try {
+      setDeletingEventId(id);
+      setError("");
+      setSuccessMessage("");
+
+      await axios.delete(`${backendUrl}/api/finance/forecast-events/${id}`);
+
+      if (selectedEventId === id) setSelectedEventId("");
+
+      setSuccessMessage("Forecast event deleted.");
+      await fetchData();
+    } catch (err) {
+      console.error("Delete forecast event error:", err);
+      setError(err.response?.data?.message || err.message);
+    } finally {
+      setDeletingEventId("");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-8 sm:px-8">
       <div className="mx-auto max-w-7xl">
@@ -145,7 +216,7 @@ const FinanceReconciliation = () => {
             </p>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex flex-wrap items-end gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">
                 Entity
@@ -162,6 +233,13 @@ const FinanceReconciliation = () => {
                 ))}
               </select>
             </div>
+
+            <Link
+              to="/finance/forecast-events"
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800"
+            >
+              Add Forecast Event
+            </Link>
 
             <button
               onClick={fetchData}
@@ -235,26 +313,45 @@ const FinanceReconciliation = () => {
                   ? "-"
                   : formatCurrency(amountDifference)
               }
-              warning={amountDifference !== null && Math.abs(amountDifference) > 0.01}
+              warning={
+                amountDifference !== null && Math.abs(amountDifference) > 0.01
+              }
             />
           </div>
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div className="rounded-2xl bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Forecast Events
-            </h2>
-            <p className="mb-4 text-sm text-gray-500">
-              Unpaid expected payments and payouts.
-            </p>
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Forecast Events
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {filteredForecastEvents.length} of {forecastEvents.length}{" "}
+                  unpaid expected payments and payouts.
+                </p>
+              </div>
+            </div>
+
+            <input
+              value={forecastSearch}
+              onChange={(e) => setForecastSearch(e.target.value)}
+              placeholder="Search forecast by title, client, amount..."
+              className="mb-4 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+            />
 
             <div className="max-h-[650px] overflow-auto">
-              {forecastEvents.map((event) => (
-                <button
+              {filteredForecastEvents.map((event) => (
+                <div
                   key={event._id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setSelectedEventId(event._id)}
-                  className={`mb-3 w-full rounded-xl border p-4 text-left ${
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") setSelectedEventId(event._id);
+                  }}
+                  className={`mb-3 w-full cursor-pointer rounded-xl border p-4 text-left ${
                     selectedEventId === event._id
                       ? "border-black bg-gray-50"
                       : "border-gray-200 bg-white"
@@ -266,6 +363,23 @@ const FinanceReconciliation = () => {
                       <p className="text-xs text-gray-500">
                         {formatDate(event.expectedDate)} · {event.type}
                       </p>
+                      <p className="mt-1 text-xs text-gray-400">
+                        {event.source || entity}
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteForecastEvent(event._id);
+                        }}
+                        disabled={deletingEventId === event._id}
+                        className="mt-2 text-xs font-medium text-red-600 underline disabled:opacity-50"
+                      >
+                        {deletingEventId === event._id
+                          ? "Deleting..."
+                          : "Delete"}
+                      </button>
                     </div>
 
                     <p
@@ -278,12 +392,12 @@ const FinanceReconciliation = () => {
                       {formatCurrency(signedForecastAmount(event))}
                     </p>
                   </div>
-                </button>
+                </div>
               ))}
 
-              {!forecastEvents.length && (
+              {!filteredForecastEvents.length && (
                 <div className="py-8 text-center text-sm text-gray-500">
-                  No forecast events to reconcile.
+                  No forecast events found.
                 </div>
               )}
             </div>
@@ -294,11 +408,19 @@ const FinanceReconciliation = () => {
               Bank Transactions
             </h2>
             <p className="mb-4 text-sm text-gray-500">
-              Imported transactions not yet reconciled.
+              {filteredTransactions.length} of {transactions.length} imported
+              transactions not yet reconciled.
             </p>
 
+            <input
+              value={transactionSearch}
+              onChange={(e) => setTransactionSearch(e.target.value)}
+              placeholder="Search transactions by description, merchant, amount..."
+              className="mb-4 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+            />
+
             <div className="max-h-[650px] overflow-auto">
-              {transactions.map((transaction) => (
+              {filteredTransactions.map((transaction) => (
                 <button
                   key={transaction._id}
                   onClick={() => setSelectedTransactionId(transaction._id)}
@@ -317,6 +439,11 @@ const FinanceReconciliation = () => {
                         {formatDate(transaction.date)} ·{" "}
                         {transaction.category || "uncategorised"}
                       </p>
+                      {transaction.merchant && (
+                        <p className="mt-1 text-xs text-gray-400">
+                          {transaction.merchant}
+                        </p>
+                      )}
                     </div>
 
                     <p
@@ -332,9 +459,9 @@ const FinanceReconciliation = () => {
                 </button>
               ))}
 
-              {!transactions.length && (
+              {!filteredTransactions.length && (
                 <div className="py-8 text-center text-sm text-gray-500">
-                  No unreconciled transactions.
+                  No unreconciled transactions found.
                 </div>
               )}
             </div>
