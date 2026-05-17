@@ -3,7 +3,22 @@ import axios from "axios";
 import { Link } from "react-router-dom";
 import { backendUrl } from "../App";
 
-const entities = ["TSC", "BMM", "HSBC", "Monzo Joint",  "Monzo Personal", "AMEX", "CBS", "HL Investment", "HSBC Investment","Bitcoin", "Solana","Ethereum", "True Potential Penson", "Aviva Pension"];
+const entities = [
+  "TSC",
+  "BMM",
+  "HSBC",
+  "Monzo Joint",
+  "Monzo Personal",
+  "AMEX",
+  "CBS",
+  "HL Investment",
+  "HSBC Investment",
+  "Bitcoin",
+  "Solana",
+  "Ethereum",
+  "True Potential Penson",
+  "Aviva Pension",
+];
 
 const formatCurrency = (value = 0) =>
   new Intl.NumberFormat("en-GB", {
@@ -31,7 +46,9 @@ const signedTransactionAmount = (transaction) =>
     : Number(transaction.amount || 0);
 
 const matchesSearch = (item, search, signedAmount) => {
-  const q = String(search || "").toLowerCase().trim();
+  const q = String(search || "")
+    .toLowerCase()
+    .trim();
   if (!q) return true;
 
   const amountText = String(Math.abs(Number(signedAmount || 0)));
@@ -63,6 +80,8 @@ const FinanceReconciliation = () => {
 
   const [selectedEventId, setSelectedEventId] = useState("");
   const [selectedTransactionId, setSelectedTransactionId] = useState("");
+
+  const [autoMatching, setAutoMatching] = useState(false);
 
   const [forecastSearch, setForecastSearch] = useState("");
   const [transactionSearch, setTransactionSearch] = useState("");
@@ -203,6 +222,36 @@ const FinanceReconciliation = () => {
     }
   };
 
+  const handleAutoMatch = async () => {
+    try {
+      setAutoMatching(true);
+      setError("");
+      setSuccessMessage("");
+
+      const res = await axios.post(
+        `${backendUrl}/api/finance/reconcile/auto-match`,
+        {
+          entity,
+          dateWindowDays: 14,
+          dryRun: false,
+        },
+      );
+
+      if (res.data?.success) {
+        setSuccessMessage(
+          `Auto-matched ${res.data.matchedCount || 0} transaction(s).`,
+        );
+        await fetchData();
+      } else {
+        setError(res.data?.message || "Auto-match failed.");
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+    } finally {
+      setAutoMatching(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-8 sm:px-8">
       <div className="mx-auto max-w-7xl">
@@ -247,6 +296,14 @@ const FinanceReconciliation = () => {
               className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
               {loading ? "Loading..." : "Refresh"}
+            </button>
+
+            <button
+              onClick={handleAutoMatch}
+              disabled={autoMatching || loading}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 disabled:opacity-50"
+            >
+              {autoMatching ? "Auto-matching..." : "Auto-match"}
             </button>
           </div>
         </div>
