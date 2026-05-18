@@ -661,17 +661,13 @@ const DeputyForm = ({
 
     const syncStripe = async () => {
       try {
-        const res = await axios.post(
-          `${backendUrl}/api/account/stripe-connect/sync`,
-          {},
-          {
-            headers: {
-              Authorization: `Bearer ${authToken}`,
-              token: authToken,
-            },
-            withCredentials: true,
-          },
-        );
+       const res = await axios.get(
+  `${backendUrl}/api/musician/account/stripe-connect/status`,
+  {
+    headers: authHeaders,
+    withCredentials: true,
+  }
+);
 
         if (res.data?.stripeConnect) {
           setFormData((prev) => ({
@@ -689,6 +685,41 @@ const DeputyForm = ({
 
     syncStripe();
   }, [authToken, deputyId]);
+
+useEffect(() => {
+  const handleStripeReturn = async (event) => {
+    if (event.origin !== window.location.origin) return;
+    if (event.data?.type !== "STRIPE_CONNECT_RETURNED") return;
+    if (!hasValidAuthToken || !deputyId) return;
+
+    try {
+      const res = await axios.get(
+        `${backendUrl}/api/musician/account/stripe-connect/status`,
+        {
+          headers: authHeaders,
+          withCredentials: true,
+        }
+      );
+
+      if (res.data?.stripeConnect) {
+        setFormData((prev) => ({
+          ...prev,
+          stripeConnect: {
+            ...prev.stripeConnect,
+            ...res.data.stripeConnect,
+          },
+        }));
+      }
+
+      toast(<CustomToast type="success" message="Stripe connection updated." />);
+    } catch (err) {
+      console.warn("Stripe sync after popup failed:", err?.response?.data || err.message);
+    }
+  };
+
+  window.addEventListener("message", handleStripeReturn);
+  return () => window.removeEventListener("message", handleStripeReturn);
+}, [hasValidAuthToken, deputyId, authHeaders]);
 
   // Backend hydration
   useEffect(() => {

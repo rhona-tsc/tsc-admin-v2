@@ -73,7 +73,7 @@ const DeputyStepSix = ({
         "";
 
       const response = await axios.post(
-        `${backendUrl}/api/account/stripe-connect/onboarding-link`,
+        `${backendUrl}/api/musician/account/stripe-connect/onboarding-link`,
         {},
         {
           headers: {
@@ -89,7 +89,27 @@ const DeputyStepSix = ({
         throw new Error("No Stripe onboarding link returned");
       }
 
-      window.location.href = onboardingUrl;
+      localStorage.setItem("deputyAutosave", JSON.stringify(formData));
+localStorage.setItem("deputyStep", "6");
+
+const popup = window.open(
+  onboardingUrl,
+  "stripe-connect",
+  "width=900,height=800"
+);
+
+if (!popup) {
+  window.location.href = onboardingUrl;
+  return;
+}
+
+const poll = setInterval(() => {
+  if (popup.closed) {
+    clearInterval(poll);
+    window.dispatchEvent(new Event("stripe-connect-returned"));
+  }
+}, 1000);
+
     } catch (err) {
       console.error("❌ Failed to create Stripe onboarding link:", {
         message: err?.message,
