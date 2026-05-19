@@ -102,15 +102,9 @@ const RequireAuth = ({ children }) => {
 
 const PublicOnlyRoute = ({ children }) => {
   const token = localStorage.getItem("token") || "";
-  const location = useLocation();
 
   if (token) {
-    const redirectTarget =
-      location.state?.from && typeof location.state.from === "string"
-        ? location.state.from
-        : "/musicians-dashboard";
-
-    return <Navigate to={redirectTarget} replace />;
+    return <Navigate to="/musicians-dashboard" replace />;
   }
 
   return children;

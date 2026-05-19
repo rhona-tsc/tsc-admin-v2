@@ -30,10 +30,14 @@ const getPostLoginRedirect = () => {
 
   const blockedRedirects = ["/list", "/moderate", "/moderate-deputies"];
 
+  const isBlockedRedirect =
+    typeof stateRedirect === "string" &&
+    blockedRedirects.some((path) => stateRedirect.startsWith(path));
+
   if (
     typeof stateRedirect === "string" &&
     stateRedirect.startsWith("/") &&
-    !blockedRedirects.includes(stateRedirect)
+    !isBlockedRedirect
   ) {
     return stateRedirect;
   }
