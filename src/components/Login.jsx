@@ -25,20 +25,21 @@ const Login = ({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const getPostLoginRedirect = () => {
-    const stateRedirect = location.state?.from;
-    if (typeof stateRedirect === "string" && stateRedirect.startsWith("/")) {
-      return stateRedirect;
-    }
+const getPostLoginRedirect = () => {
+  const stateRedirect = location.state?.from;
 
-    const searchParams = new URLSearchParams(location.search);
-    const queryRedirect = searchParams.get("redirect");
-    if (typeof queryRedirect === "string" && queryRedirect.startsWith("/")) {
-      return queryRedirect;
-    }
+  const blockedRedirects = ["/list", "/moderate", "/moderate-deputies"];
 
-    return "/musicians-dashboard";
-  };
+  if (
+    typeof stateRedirect === "string" &&
+    stateRedirect.startsWith("/") &&
+    !blockedRedirects.includes(stateRedirect)
+  ) {
+    return stateRedirect;
+  }
+
+  return "/musicians-dashboard";
+};
 
   const onSubmitHandler = async (event) => {
     event.preventDefault();
