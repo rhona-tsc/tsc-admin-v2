@@ -437,11 +437,9 @@ const getPaymentUrl = (row) => {
     row?.payments?.balanceInvoiceUrl ||
     row?.payments?.hosted_invoice_url ||
     row?.balanceInvoiceUrl ||
-
     // Generic invoice hosted URL
     row?.payments?.invoiceUrl ||
     row?.invoiceUrl ||
-
     // Legacy / manual
     row?.paymentLink ||
     row?.checkoutUrl ||
@@ -459,7 +457,6 @@ const getInvoiceUrl = (row) => {
     row?.payments?.balanceInvoicePdfUrl ||
     row?.payments?.invoice_pdf ||
     row?.balanceInvoicePdfUrl ||
-
     // Legacy / manual
     row?.invoicePdfUrl ||
     row?.invoiceUrl ||
@@ -1793,7 +1790,9 @@ export default function BookingBoard() {
   const [editingRow, setEditingRow] = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [savingEdit, setSavingEdit] = useState(false);
-const [creatingPayLinkId, setCreatingPayLinkId] = useState(null);
+  const [creatingPayLinkId, setCreatingPayLinkId] = useState(null);
+  const [syncingFinanceId, setSyncingFinanceId] = useState(null);
+
   const buildHeaders = () => {
     const token = getAuthToken();
     return {
@@ -2120,102 +2119,150 @@ const [creatingPayLinkId, setCreatingPayLinkId] = useState(null);
     return bits.join(" • ");
   };
 
-const createPayLinkForRow = async (row) => {
-  const bookingRef = getDisplayBookingRef(row);
-
-  // Total booking value (major units)
-  const grossMajor = Number(getDisplayGross(row) || 0) || 0;
-
-  // What they've already paid (major units).
-  // Prefer explicit chargedAmount if present, otherwise fall back to deposit amount.
-  const chargedMajor = Number(
-    row?.totals?.chargedAmount ??
-      row?.payments?.depositChargedAmount ??
-      row?.payments?.depositAmount ??
-      row?.amount ??
-      0,
-  ) || 0;
-
-  // Remaining (major)
-  const remainingMajor = Math.max(0, +(grossMajor - chargedMajor).toFixed(2));
-
-  // Decide invoice stage:
-  // - remaining > 0 AND they've already paid something -> BALANCE (invoice remaining)
-  // - remaining > 0 AND they've paid nothing -> FULL (invoice gross)
-  // - remaining == 0 -> nothing to invoice
-  let stage = "";
-  let invoiceMajor = 0;
-
-  if (remainingMajor > 0 && chargedMajor > 0) {
-    stage = "balance";
-    invoiceMajor = remainingMajor;
-  } else if (remainingMajor > 0) {
-    stage = "full";
-    invoiceMajor = grossMajor;
-  } else {
-    window.alert("No outstanding amount to invoice.");
-    return;
-  }
-
-  // Pence
-  const amountPence = Math.round(invoiceMajor * 100);
-  const customerEmail = getPrimaryEmail(row);
-  const customerName = getClientFirstNames(row);
-
-  if (!bookingRef || !customerEmail || amountPence <= 0) {
-    window.alert("Missing booking ref, client email, or amount for invoice creation.");
-    return;
-  }
-
-  const busyKey = String(row?._id || bookingRef);
+const syncBookingToFinance = async (row) => {
+  const busyKey = String(row?._id || "");
 
   try {
-    setCreatingPayLinkId(busyKey);
+    setSyncingFinanceId(busyKey);
 
-    const res = await fetch(`${API_BASE}/invoices/create`, {
+    const url = `${API_BASE}/finance/bookings/sync-from-board/${row._id}`;
+    console.log("Sync finance URL:", url);
+
+    const res = await fetch(url, {
       method: "POST",
       headers: buildHeaders(),
       credentials: "include",
-      body: JSON.stringify({
-        bookingIdOrRef: bookingRef,
-        stage,
-        amountPence,
-        currency: String(row?.totals?.currency || row?.payments?.currency || "GBP"),
-        customerEmail,
-        customerName,
-        metadata: {
-          source: "admin_booking_board",
-          rowId: String(row?._id || ""),
-        },
-      }),
     });
 
     const raw = await res.text();
     let json = null;
-    try { json = JSON.parse(raw); } catch {}
 
-    if (!json?.success) {
-      console.error("create pay link failed", json || raw);
-      window.alert(json?.message || "Failed to create pay link.");
+    try {
+      json = JSON.parse(raw);
+    } catch {
+      console.error("Non-JSON sync response:", raw);
+      window.alert(`Sync failed: backend returned non-JSON. Check route/API_BASE.`);
       return;
     }
 
-    // Refresh so payment/invoice links show
+    if (!res.ok || !json?.success) {
+      window.alert(json?.message || "Could not sync booking to finance.");
+      return;
+    }
+
+    window.alert("Booking synced to finance forecast.");
     await fetchRows();
-  } catch (e) {
-    console.error("createPayLinkForRow failed", e);
-    window.alert(e?.message || "Failed to create pay link.");
+  } catch (error) {
+    console.error("sync finance failed", error);
+    window.alert(error.message || "Sync failed.");
   } finally {
-    setCreatingPayLinkId(null);
+    setSyncingFinanceId(null);
   }
 };
+
+  const createPayLinkForRow = async (row) => {
+    const bookingRef = getDisplayBookingRef(row);
+
+    // Total booking value (major units)
+    const grossMajor = Number(getDisplayGross(row) || 0) || 0;
+
+    // What they've already paid (major units).
+    // Prefer explicit chargedAmount if present, otherwise fall back to deposit amount.
+    const chargedMajor =
+      Number(
+        row?.totals?.chargedAmount ??
+          row?.payments?.depositChargedAmount ??
+          row?.payments?.depositAmount ??
+          row?.amount ??
+          0,
+      ) || 0;
+
+    // Remaining (major)
+    const remainingMajor = Math.max(0, +(grossMajor - chargedMajor).toFixed(2));
+
+    // Decide invoice stage:
+    // - remaining > 0 AND they've already paid something -> BALANCE (invoice remaining)
+    // - remaining > 0 AND they've paid nothing -> FULL (invoice gross)
+    // - remaining == 0 -> nothing to invoice
+    let stage = "";
+    let invoiceMajor = 0;
+
+    if (remainingMajor > 0 && chargedMajor > 0) {
+      stage = "balance";
+      invoiceMajor = remainingMajor;
+    } else if (remainingMajor > 0) {
+      stage = "full";
+      invoiceMajor = grossMajor;
+    } else {
+      window.alert("No outstanding amount to invoice.");
+      return;
+    }
+
+    // Pence
+    const amountPence = Math.round(invoiceMajor * 100);
+    const customerEmail = getPrimaryEmail(row);
+    const customerName = getClientFirstNames(row);
+
+    if (!bookingRef || !customerEmail || amountPence <= 0) {
+      window.alert(
+        "Missing booking ref, client email, or amount for invoice creation.",
+      );
+      return;
+    }
+
+    const busyKey = String(row?._id || bookingRef);
+
+    try {
+      setCreatingPayLinkId(busyKey);
+
+      const res = await fetch(`${API_BASE}/invoices/create`, {
+        method: "POST",
+        headers: buildHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          bookingIdOrRef: bookingRef,
+          stage,
+          amountPence,
+          currency: String(
+            row?.totals?.currency || row?.payments?.currency || "GBP",
+          ),
+          customerEmail,
+          customerName,
+          metadata: {
+            source: "admin_booking_board",
+            rowId: String(row?._id || ""),
+          },
+        }),
+      });
+
+      const raw = await res.text();
+      let json = null;
+      try {
+        json = JSON.parse(raw);
+      } catch {}
+
+      if (!json?.success) {
+        console.error("create pay link failed", json || raw);
+        window.alert(json?.message || "Failed to create pay link.");
+        return;
+      }
+
+      // Refresh so payment/invoice links show
+      await fetchRows();
+    } catch (e) {
+      console.error("createPayLinkForRow failed", e);
+      window.alert(e?.message || "Failed to create pay link.");
+    } finally {
+      setCreatingPayLinkId(null);
+    }
+  };
 
   const postManualRow = async () => {
     try {
       // --- accounting split for manual rows ---
       const grossValue = Number(newRow.grossValue || 0) || 0;
-const vatRateRaw = Number(newRow.vatRate);
-const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : 0;
+      const vatRateRaw = Number(newRow.vatRate);
+      const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : 0;
       let commissionGross = clamp0(newRow.commissionGross);
       let passThroughGross = clamp0(newRow.passThroughGross);
 
@@ -2497,18 +2544,18 @@ const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : 0;
                     className="odd:bg-white even:bg-gray-50 align-top"
                   >
                     <td className="px-3 py-2">
-  <InlineInput
-    value={clientFirstNames}
-    placeholder="Client name"
-    onCommit={(val) =>
-      onInlineEdit(r._id, {
-        clientFirstNames: val,
-        clientName: val,
-        bookerName: val,
-      })
-    }
-  />
-</td>
+                      <InlineInput
+                        value={clientFirstNames}
+                        placeholder="Client name"
+                        onCommit={(val) =>
+                          onInlineEdit(r._id, {
+                            clientFirstNames: val,
+                            clientName: val,
+                            bookerName: val,
+                          })
+                        }
+                      />
+                    </td>
                     <td className="px-3 py-2">{bookingRef}</td>
                     {/* Event Sheet */}
                     <td className="px-3 py-2">
@@ -2623,10 +2670,12 @@ const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : 0;
                           <div>{money(deposit)}</div>
 
                           {!split?.hasAccounting && (
-  <div className="text-[11px] text-gray-500 leading-4 mt-1">
-    {r?.source === "manual" ? "Manual split" : "Awaiting webhook split"}
-  </div>
-)}
+                            <div className="text-[11px] text-gray-500 leading-4 mt-1">
+                              {r?.source === "manual"
+                                ? "Manual split"
+                                : "Awaiting webhook split"}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         "—"
@@ -2663,72 +2712,84 @@ const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : 0;
                         onSave={(val) => onInlineEdit(r._id, { agent: val })}
                       />
                     </td>
-                   <td className="px-3 py-2">
-  <InlineInput
-    value={clientEmails[0]?.email || ""}
-    placeholder="Client email"
-    onCommit={(val) =>
-      onInlineEdit(r._id, {
-        clientEmail: val,
-        userEmail: val,
-        clientEmails: val ? [{ email: val }] : [],
-      })
-    }
-  />
-</td>
+                    <td className="px-3 py-2">
+                      <InlineInput
+                        value={clientEmails[0]?.email || ""}
+                        placeholder="Client email"
+                        onCommit={(val) =>
+                          onInlineEdit(r._id, {
+                            clientEmail: val,
+                            userEmail: val,
+                            clientEmails: val ? [{ email: val }] : [],
+                          })
+                        }
+                      />
+                    </td>
                     <td className="px-3 py-2">{r.eventType || "—"}</td>
-<td className="px-3 py-2">
-  <InlineInput
-    value={actName || ""}
-    placeholder="Act"
-    onCommit={(val) => onInlineEdit(r._id, { actName: val })}
-  />
-</td>
-<td className="px-3 py-2">
-  <InlineInput
-    value={actTsc || ""}
-    placeholder="Act tscName"
-    onCommit={(val) => onInlineEdit(r._id, { actTscName: val })}
-  />
-</td>
-<td className="px-3 py-2">
-  <InlineInput
-    value={address || ""}
-    placeholder="Address"
-    onCommit={(val) => onInlineEdit(r._id, { address: val })}
-  />
-</td>
-<td className="px-3 py-2">
-  <InlineInput
-    value={county || ""}
-    placeholder="County"
-    onCommit={(val) => onInlineEdit(r._id, { county: val })}
-  />
-</td>
+                    <td className="px-3 py-2">
+                      <InlineInput
+                        value={actName || ""}
+                        placeholder="Act"
+                        onCommit={(val) =>
+                          onInlineEdit(r._id, { actName: val })
+                        }
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <InlineInput
+                        value={actTsc || ""}
+                        placeholder="Act tscName"
+                        onCommit={(val) =>
+                          onInlineEdit(r._id, { actTscName: val })
+                        }
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <InlineInput
+                        value={address || ""}
+                        placeholder="Address"
+                        onCommit={(val) =>
+                          onInlineEdit(r._id, { address: val })
+                        }
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <InlineInput
+                        value={county || ""}
+                        placeholder="County"
+                        onCommit={(val) => onInlineEdit(r._id, { county: val })}
+                      />
+                    </td>
                     <td className="px-3 py-2">{extractBandSize(r)}</td>
-                   <td className="px-3 py-2">
-  <InlineInput
-    value={r.lineupSelected || ""}
-    placeholder="Lineup"
-    onCommit={(val) => onInlineEdit(r._id, { lineupSelected: val })}
-  />
-</td>
-                   <td className="px-3 py-2">
-  <div className="flex flex-col gap-2 min-w-[150px]">
-    <InlineInput
-      type="time"
-      value={arrivalTime || ""}
-      placeholder="Arrival"
-      onCommit={(val) => onInlineEdit(r._id, { arrivalTime: val })}
-    />
-    <InlineInput
-      type="time"
-      value={finishTime || ""}
-      placeholder="Finish"
-      onCommit={(val) => onInlineEdit(r._id, { finishTime: val })}
-    />
-  </div>
-</td>
+                    <td className="px-3 py-2">
+                      <InlineInput
+                        value={r.lineupSelected || ""}
+                        placeholder="Lineup"
+                        onCommit={(val) =>
+                          onInlineEdit(r._id, { lineupSelected: val })
+                        }
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-col gap-2 min-w-[150px]">
+                        <InlineInput
+                          type="time"
+                          value={arrivalTime || ""}
+                          placeholder="Arrival"
+                          onCommit={(val) =>
+                            onInlineEdit(r._id, { arrivalTime: val })
+                          }
+                        />
+                        <InlineInput
+                          type="time"
+                          value={finishTime || ""}
+                          placeholder="Finish"
+                          onCommit={(val) =>
+                            onInlineEdit(r._id, { finishTime: val })
+                          }
+                        />
+                      </div>
+                    </td>
                     <td className="px-3 py-2">
                       <div className="text-xs leading-5">
                         {summariseBookingDetails(r.bookingDetails, r)}
@@ -2792,37 +2853,63 @@ const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : 0;
                       )}
                     </td>
                     <td className="px-3 py-2">
-  {paymentUrl ? (
-    <a className="text-blue-600 underline" href={paymentUrl} target="_blank" rel="noreferrer">
-      Pay
-    </a>
-  ) : (
-    <button
-      className="px-2 py-1 border rounded hover:bg-gray-100 text-xs"
-      disabled={creatingPayLinkId === String(r?._id || bookingRef)}
-      onClick={() => createPayLinkForRow(r)}
-      title="Create a Stripe hosted invoice link"
-    >
-      {creatingPayLinkId === String(r?._id || bookingRef) ? "Creating…" : "Create pay link"}
-    </button>
-  )}
-</td>
-                   <td className="px-3 py-2">
-  {invoiceUrl ? (
-    <a className="text-blue-600 underline" href={invoiceUrl} target="_blank" rel="noreferrer">
-      Invoice
-    </a>
-  ) : (
-    <span className="text-gray-400">—</span>
-  )}
-</td>
+                      {paymentUrl ? (
+                        <a
+                          className="text-blue-600 underline"
+                          href={paymentUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Pay
+                        </a>
+                      ) : (
+                        <button
+                          className="px-2 py-1 border rounded hover:bg-gray-100 text-xs"
+                          disabled={
+                            creatingPayLinkId === String(r?._id || bookingRef)
+                          }
+                          onClick={() => createPayLinkForRow(r)}
+                          title="Create a Stripe hosted invoice link"
+                        >
+                          {creatingPayLinkId === String(r?._id || bookingRef)
+                            ? "Creating…"
+                            : "Create pay link"}
+                        </button>
+                      )}
+                    </td>
                     <td className="px-3 py-2">
-                      <button
-                        className="px-3 py-1.5 border rounded hover:bg-gray-100"
-                        onClick={() => openEditModal(r)}
-                      >
-                        Update
-                      </button>
+                      {invoiceUrl ? (
+                        <a
+                          className="text-blue-600 underline"
+                          href={invoiceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Invoice
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-col gap-2">
+                        <button
+                          className="px-3 py-1.5 border rounded hover:bg-gray-100"
+                          onClick={() => openEditModal(r)}
+                        >
+                          Update
+                        </button>
+
+                        <button
+                          className="px-3 py-1.5 border rounded hover:bg-gray-100 disabled:opacity-50"
+                          disabled={syncingFinanceId === String(r?._id || "")}
+                          onClick={() => syncBookingToFinance(r)}
+                        >
+                          {syncingFinanceId === String(r?._id || "")
+                            ? "Syncing..."
+                            : "Sync finance"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -3165,7 +3252,7 @@ const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : 0;
               <tr>
                 <td
                   className="px-3 py-6 text-center text-gray-500"
-              colSpan={32}
+                  colSpan={32}
                 >
                   No rows yet.
                   <div className="text-xs mt-2">
