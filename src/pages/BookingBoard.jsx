@@ -176,12 +176,6 @@ const getAccountingSplit = (row, gross, deposit) => {
 const fmtMoney0 = (n) =>
   `£${Number(n || 0).toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
 
-const fmtMoney2 = (n) =>
-  `£${Number(n || 0).toLocaleString("en-GB", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-
 const getDisplayArrivalTime = (row) => {
   return (
     row?.arrivalTime ||
@@ -545,7 +539,26 @@ const Tag = ({ children }) => (
   </span>
 );
 
-function InlineInput({
+const cellClass = "px-2 py-1 whitespace-nowrap align-middle";
+
+const inputClass =
+  "w-full min-w-[120px] rounded border border-gray-300 bg-white px-2 py-1 text-xs whitespace-nowrap";
+
+
+  const stickyCol1 = "sticky left-0 z-20 bg-white";
+const stickyCol2 = "sticky left-[140px] z-20 bg-white";
+const stickyHead1 = "sticky left-0 top-0 z-40 bg-gray-50";
+const stickyHead2 = "sticky left-[140px] top-0 z-40 bg-gray-50";
+
+const InlineInput = ({ value = "", className = "" }) => (
+  <input
+    value={value || ""}
+    readOnly
+    className={`${inputClass} bg-gray-50 text-gray-600 ${className}`}
+  />
+);
+
+function ReadOnlyInput({
   value,
   placeholder,
   className = "",
@@ -562,13 +575,13 @@ function InlineInput({
     <input
       type={type}
       step={type === "time" ? 300 : undefined}
-      className={`border rounded px-2 py-1 w-full ${className}`}
+      className={`${inputClass} ${className}`}
       placeholder={placeholder}
       value={v}
       onChange={(e) => setV(e.target.value)}
       onBlur={() => {
-        const next = (v || "").trim();
-        const prev = (value || "").trim();
+        const next = String(v || "").trim();
+        const prev = String(value || "").trim();
         if (next !== prev) onCommit(next);
       }}
     />
@@ -1054,6 +1067,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
     Number(value.commissionGross || 0),
     vatRateForDisplay,
   ).vat.toFixed(2);
+
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 overflow-y-auto">
@@ -2119,46 +2133,48 @@ export default function BookingBoard() {
     return bits.join(" • ");
   };
 
-const syncBookingToFinance = async (row) => {
-  const busyKey = String(row?._id || "");
-
-  try {
-    setSyncingFinanceId(busyKey);
-
-    const url = `${API_BASE}/finance/bookings/sync-from-board/${row._id}`;
-    console.log("Sync finance URL:", url);
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: buildHeaders(),
-      credentials: "include",
-    });
-
-    const raw = await res.text();
-    let json = null;
+  const syncBookingToFinance = async (row) => {
+    const busyKey = String(row?._id || "");
 
     try {
-      json = JSON.parse(raw);
-    } catch {
-      console.error("Non-JSON sync response:", raw);
-      window.alert(`Sync failed: backend returned non-JSON. Check route/API_BASE.`);
-      return;
-    }
+      setSyncingFinanceId(busyKey);
 
-    if (!res.ok || !json?.success) {
-      window.alert(json?.message || "Could not sync booking to finance.");
-      return;
-    }
+      const url = `${API_BASE}/finance/bookings/sync-from-board/${row._id}`;
+      console.log("Sync finance URL:", url);
 
-    window.alert("Booking synced to finance forecast.");
-    await fetchRows();
-  } catch (error) {
-    console.error("sync finance failed", error);
-    window.alert(error.message || "Sync failed.");
-  } finally {
-    setSyncingFinanceId(null);
-  }
-};
+      const res = await fetch(url, {
+        method: "POST",
+        headers: buildHeaders(),
+        credentials: "include",
+      });
+
+      const raw = await res.text();
+      let json = null;
+
+      try {
+        json = JSON.parse(raw);
+      } catch {
+        console.error("Non-JSON sync response:", raw);
+        window.alert(
+          `Sync failed: backend returned non-JSON. Check route/API_BASE.`,
+        );
+        return;
+      }
+
+      if (!res.ok || !json?.success) {
+        window.alert(json?.message || "Could not sync booking to finance.");
+        return;
+      }
+
+      window.alert("Booking synced to finance forecast.");
+      await fetchRows();
+    } catch (error) {
+      console.error("sync finance failed", error);
+      window.alert(error.message || "Sync failed.");
+    } finally {
+      setSyncingFinanceId(null);
+    }
+  };
 
   const createPayLinkForRow = async (row) => {
     const bookingRef = getDisplayBookingRef(row);
@@ -2411,7 +2427,7 @@ const syncBookingToFinance = async (row) => {
       </div>
 
       <div className="overflow-auto border rounded max-h-[calc(100vh-170px)]">
-        <table className="min-w-[2450px] w-full text-sm">
+        <table className="min-w-[4200px] table-fixed text-xs">
           <colgroup>
             <col style={{ width: 140 }} /> {/* First names */}
             <col style={{ width: 160 }} /> {/* Ref */}
@@ -2448,46 +2464,47 @@ const syncBookingToFinance = async (row) => {
           </colgroup>
 
           <thead className="bg-gray-50 text-left sticky top-0 z-10">
-            <tr>
-              {[
-                "First names",
-                "Ref",
-                "Event Sheet",
-                "Contract",
-                "Enquiry Date",
-                "Booking Date",
-                "Event Date",
-                "Gross",
-                "Deposit",
-                "Balance",
-                "Commission",
-                "VAT",
-                "Hold (pass-through)",
-                "Agent",
-                "Client Emails",
-                "Event Type",
-                "Act",
-                "Act tscName",
-                "Address",
-                "County",
-                "Band Size",
-                "Lineup",
-                "Booking times",
-                "Booking details",
-                "DJ",
-                "Allocated",
-                "Review",
-                "Balance Paid",
-                "Band Paid",
-                "Payment",
-                "Invoice",
-                "Actions",
-              ].map((h) => (
-                <th key={h} className="px-3 py-2 border-b">
-                  {h}
-                </th>
-              ))}
-            </tr>
+          <tr>
+  <th className={`px-3 py-2 border-b ${stickyHead1}`}>First names</th>
+  <th className={`px-3 py-2 border-b ${stickyHead2}`}>Ref</th>
+
+  {[
+    "Event Sheet",
+    "Contract",
+    "Enquiry Date",
+    "Booking Date",
+    "Event Date",
+    "Gross",
+    "Deposit",
+    "Balance",
+    "Commission",
+    "VAT",
+    "Hold (pass-through)",
+    "Agent",
+    "Client Emails",
+    "Event Type",
+    "Act",
+    "Act tscName",
+    "Address",
+    "County",
+    "Band Size",
+    "Lineup",
+    "Booking times",
+    "Booking details",
+    "DJ",
+    "Allocated",
+    "Review",
+    "Balance Paid",
+    "Band Paid",
+    "Payment",
+    "Invoice",
+    "Actions",
+  ].map((h) => (
+    <th key={h} className="px-3 py-2 border-b whitespace-nowrap">
+      {h}
+    </th>
+  ))}
+</tr>
           </thead>
 
           <tbody>
@@ -2543,22 +2560,25 @@ const syncBookingToFinance = async (row) => {
                     key={r._id}
                     className="odd:bg-white even:bg-gray-50 align-top"
                   >
-                    <td className="px-3 py-2">
-                      <InlineInput
-                        value={clientFirstNames}
-                        placeholder="Client name"
-                        onCommit={(val) =>
-                          onInlineEdit(r._id, {
-                            clientFirstNames: val,
-                            clientName: val,
-                            bookerName: val,
-                          })
-                        }
-                      />
-                    </td>
-                    <td className="px-3 py-2">{bookingRef}</td>
+                   <td className={`px-3 py-2 ${stickyCol1}`}>
+  <InlineInput
+    value={clientFirstNames}
+    placeholder="Client name"
+    onCommit={(val) =>
+      onInlineEdit(r._id, {
+        clientFirstNames: val,
+        clientName: val,
+        bookerName: val,
+      })
+    }
+  />
+</td>
+
+<td className={`px-3 py-2 ${stickyCol2}`}>
+  <ReadOnlyInput value={bookingRef} />
+</td>
                     {/* Event Sheet */}
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       {r.eventSheetLink ? (
                         <a
                           className="text-blue-600 underline"
@@ -2593,7 +2613,7 @@ const syncBookingToFinance = async (row) => {
                       )}
                     </td>
                     {/* Contract */}
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       {normalizedContractUrl ? (
                         <a
                           className="text-blue-600 underline"
@@ -2607,17 +2627,22 @@ const syncBookingToFinance = async (row) => {
                         "—"
                       )}
                     </td>
-                    <td className="px-3 py-2">
-                      {fmtShort(r.enquiryDateISO || r.createdAt)}
+                    <td className={cellClass}>
+                      <InlineInput
+                        value={fmtShort(r.enquiryDateISO || r.createdAt)}
+                      />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       {fmtShort(r.bookingDateISO || r.createdAt)}
                     </td>
-                    <td className="px-3 py-2">{fmtOrdinal(eventDate)}</td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>{fmtOrdinal(eventDate)}</td>
+                    <td className={cellClass}>
                       {gross ? (
                         <div>
-                          <div>{money(gross)}</div>
+                          <div>
+                            {" "}
+                            <InlineInput value={gross ? money(gross) : ""} />
+                          </div>
 
                           {(split?.commissionGross > 0 ||
                             split?.passThroughGross > 0) && (
@@ -2664,10 +2689,15 @@ const syncBookingToFinance = async (row) => {
                         "—"
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       {deposit != null ? (
                         <div>
-                          <div>{money(deposit)}</div>
+                          <div>
+                            {" "}
+                            <InlineInput
+                              value={deposit ? money(deposit) : ""}
+                            />
+                          </div>
 
                           {!split?.hasAccounting && (
                             <div className="text-[11px] text-gray-500 leading-4 mt-1">
@@ -2681,13 +2711,20 @@ const syncBookingToFinance = async (row) => {
                         "—"
                       )}
                     </td>{" "}
-                    <td className="px-3 py-2">
-                      {balance != null ? money(balance) : "—"}
+                    <td className={cellClass}>
+                      <InlineInput
+                        value={balance != null ? money(balance) : ""}
+                      />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       {commission ? (
                         <div className="leading-tight">
-                          <div>{fmtMoney0(commission)}</div>
+                          <div>
+                            {" "}
+                            <InlineInput
+                              value={commission ? fmtMoney0(commission) : ""}
+                            />
+                          </div>
                           {split?.hasAccounting ? (
                             <div className="text-[11px] text-gray-500">
                               from accounting
@@ -2702,17 +2739,17 @@ const syncBookingToFinance = async (row) => {
                         "—"
                       )}
                     </td>
-                    <td className="px-3 py-2">{vat ? fmtMoney0(vat) : "—"}</td>
-                    <td className="px-3 py-2">
-                      {hold ? fmtMoney0(hold) : "—"}
+                    <td className={cellClass}>{vat ? fmtMoney0(vat) : "—"}</td>
+                    <td className={cellClass}>
+                      <InlineInput value={hold ? money(hold) : ""} />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       <AgentCell
                         value={r.agent || "Direct"}
                         onSave={(val) => onInlineEdit(r._id, { agent: val })}
                       />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       <InlineInput
                         value={clientEmails[0]?.email || ""}
                         placeholder="Client email"
@@ -2725,8 +2762,8 @@ const syncBookingToFinance = async (row) => {
                         }
                       />
                     </td>
-                    <td className="px-3 py-2">{r.eventType || "—"}</td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>{r.eventType || "—"}</td>
+                    <td className={cellClass}>
                       <InlineInput
                         value={actName || ""}
                         placeholder="Act"
@@ -2735,7 +2772,7 @@ const syncBookingToFinance = async (row) => {
                         }
                       />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       <InlineInput
                         value={actTsc || ""}
                         placeholder="Act tscName"
@@ -2744,7 +2781,7 @@ const syncBookingToFinance = async (row) => {
                         }
                       />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       <InlineInput
                         value={address || ""}
                         placeholder="Address"
@@ -2753,15 +2790,15 @@ const syncBookingToFinance = async (row) => {
                         }
                       />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       <InlineInput
                         value={county || ""}
                         placeholder="County"
                         onCommit={(val) => onInlineEdit(r._id, { county: val })}
                       />
                     </td>
-                    <td className="px-3 py-2">{extractBandSize(r)}</td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>{extractBandSize(r)}</td>
+                    <td className={cellClass}>
                       <InlineInput
                         value={r.lineupSelected || ""}
                         placeholder="Lineup"
@@ -2770,7 +2807,7 @@ const syncBookingToFinance = async (row) => {
                         }
                       />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       <div className="flex flex-col gap-2 min-w-[150px]">
                         <InlineInput
                           type="time"
@@ -2790,15 +2827,19 @@ const syncBookingToFinance = async (row) => {
                         />
                       </div>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       <div className="text-xs leading-5">
-                        {summariseBookingDetails(r.bookingDetails, r)}
+                        <input
+                          readOnly
+                          value={summariseBookingDetails(r.bookingDetails, r)}
+                          className={`${inputClass} min-w-[420px] bg-gray-50 text-gray-600`}
+                        />
                       </div>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       {r.bookingDetails?.djServicesBooked ? "Yes" : "No"}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       {r.allocation?.status === "fully_allocated" ? (
                         <Tag>✅ Allocated</Tag>
                       ) : r.allocation?.status === "gap" ? (
@@ -2809,7 +2850,7 @@ const syncBookingToFinance = async (row) => {
                         <Tag>—</Tag>
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       {r.review?.received ? (
                         <Tag>⭐ Received</Tag>
                       ) : (
@@ -2830,7 +2871,7 @@ const syncBookingToFinance = async (row) => {
                         </button>
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       {balancePaid ? (
                         <span className="inline-block text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 border border-green-200">
                           Paid
@@ -2841,7 +2882,7 @@ const syncBookingToFinance = async (row) => {
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       {bandPaid ? (
                         <span className="inline-block text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 border border-green-200">
                           Paid
@@ -2852,7 +2893,7 @@ const syncBookingToFinance = async (row) => {
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       {paymentUrl ? (
                         <a
                           className="text-blue-600 underline"
@@ -2877,7 +2918,7 @@ const syncBookingToFinance = async (row) => {
                         </button>
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       {invoiceUrl ? (
                         <a
                           className="text-blue-600 underline"
@@ -2891,7 +2932,7 @@ const syncBookingToFinance = async (row) => {
                         <span className="text-gray-400">—</span>
                       )}
                     </td>
-                    <td className="px-3 py-2">
+                    <td className={cellClass}>
                       <div className="flex flex-col gap-2">
                         <button
                           className="px-3 py-1.5 border rounded hover:bg-gray-100"
@@ -2947,7 +2988,7 @@ const syncBookingToFinance = async (row) => {
                           }))
                         }
                       />
-                      <input
+                      <InlineInput
                         className="border rounded px-2 py-1 w-40"
                         placeholder="Ref"
                         value={newRow.bookingRef}
