@@ -188,32 +188,29 @@ const DeputySongModeration = ({
       log("First item:", parsed[0]);
       end();
       return parsed;
-    } catch (e) {
-      log("final JSON.parse error:", e.message);
-      end();
-      throw new Error(
-        "Invalid input. Please ensure it's a valid array of song objects.",
-      );
-    }
+  } catch (e) {
+  log("final JSON.parse error:", e.message);
+
+  const match = e.message.match(/position (\d+)/);
+  if (match) {
+    const pos = Number(match[1]);
+
+    console.log(
+      "%c[SongMod] BROKEN AREA AROUND PARSE ERROR:",
+      "color:red;font-weight:bold",
+      normalized.slice(Math.max(0, pos - 300), pos + 300),
+    );
+  }
+
+  end();
+
+  throw new Error(
+    "Invalid input. Please ensure it's a valid array of song objects.",
+  );
+}
   };
 
-  const handleParse = () => {
-    group("handleParse()");
-    try {
-      const parsed = safeParseInput(rawInput);
-      log("Parsed OK, appending to deputy selection. Count:", parsed.length);
-      setParsedSongs(parsed);
-      setSelectedSongs([...(selectedSongs || []), ...parsed]);
-      setResultMsg(
-        `Parsed ${parsed.length} songs and added to deputy selection.`,
-      );
-    } catch (err) {
-      log("Parse error:", err);
-      alert(err.message);
-    } finally {
-      end();
-    }
-  };
+
 
   // fetch all master songs → return Map by key and arrays
   const fetchMasterSongs = async () => {

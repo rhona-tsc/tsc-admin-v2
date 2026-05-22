@@ -2139,7 +2139,7 @@ export default function BookingBoard() {
     try {
       setSyncingFinanceId(busyKey);
 
-      const url = `${API_BASE}/finance/bookings/sync-from-board/${row._id}`;
+      const url = `${API_BASE}/finance/forecast/bookings/sync-from-board/${row._id}`;
       console.log("Sync finance URL:", url);
 
       const res = await fetch(url, {
