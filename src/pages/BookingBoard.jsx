@@ -89,7 +89,27 @@ const getDisplayGross = (row) => {
   );
 };
 
+const normaliseAgent = (value = "") =>
+  String(value || "").trim().toLowerCase();
+
+const DEPOSIT_AGENTS = new Set([
+  "direct",
+  "bmm",
+  "tsc",
+  "weddingjam",
+  "wedding jam",
+  "staar productions",
+  "encore",
+]);
+
+const agentTakesDeposit = (row) => {
+  const agent = normaliseAgent(row?.agent || row?.source);
+  return DEPOSIT_AGENTS.has(agent);
+};
+
 const getDisplayDeposit = (row) => {
+  if (!agentTakesDeposit(row)) return 0;
+
   const backendDeposit = Number(
     row?.payments?.depositChargedAmount ??
       row?.payments?.depositAmount ??
@@ -99,6 +119,7 @@ const getDisplayDeposit = (row) => {
       row?.depositAmount ??
       0,
   );
+
   return backendDeposit > 0 ? backendDeposit : null;
 };
 
@@ -808,11 +829,11 @@ const buildEditStateFromRow = (row) => {
   const gross = getDisplayGross(row);
   const depositFromBackend = getDisplayDeposit(row);
   const deposit =
-    depositFromBackend != null
-      ? depositFromBackend
-      : gross
-        ? Math.ceil((Number(gross) - 50) * 0.2) + 50
-        : 0;
+  depositFromBackend != null
+    ? depositFromBackend
+    : agentTakesDeposit(row) && gross
+      ? Math.ceil((Number(gross) - 50) * 0.2) + 50
+      : 0;
   const performance =
     row?.actsSummary?.[0]?.performance || row?.performanceTimes || {};
   const split = getAccountingSplit(row, gross, depositFromBackend ?? deposit);
@@ -2273,6 +2294,53 @@ export default function BookingBoard() {
     }
   };
 
+  const getFirstValidEmail = (row) => {
+  const raw =
+    row?.clientEmails?.[0]?.email ||
+    row?.clientEmail ||
+    row?.userEmail ||
+    "";
+
+  return String(raw)
+    .split(",")
+    .map((e) => e.trim())
+    .find((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) || "";
+};
+
+const createInvoiceForRow = async (row) => {
+  const bookingRef = getDisplayBookingRef(row);
+
+  try {
+    const res = await fetch(`${API_BASE}/invoices/create-board-invoice`, {
+      method: "POST",
+      headers: buildHeaders(),
+      credentials: "include",
+        body: JSON.stringify({ bookingId: row._id }),
+    });
+
+    const raw = await res.text();
+    let json = null;
+    try {
+      json = JSON.parse(raw);
+    } catch {
+      console.error("Non-JSON invoice response:", raw);
+      window.alert("Invoice failed: backend returned non-JSON.");
+      return;
+    }
+
+    if (!json?.success) {
+      window.alert(json?.message || "Could not create invoice.");
+      return;
+    }
+
+    window.alert("Invoice generated.");
+    await fetchRows();
+  } catch (error) {
+    console.error("create invoice failed", error);
+    window.alert(error.message || "Invoice failed.");
+  }
+};
+
   const postManualRow = async () => {
     try {
       // --- accounting split for manual rows ---
@@ -2349,6 +2417,7 @@ export default function BookingBoard() {
           eventDateISO: "",
           agent: "Direct",
           clientEmail: "",
+          clientAddress: "",
           actName: "",
           actTscName: "",
           address: "",
@@ -2444,6 +2513,7 @@ export default function BookingBoard() {
             <col style={{ width: 150 }} /> {/* Pass-through */}
             <col style={{ width: 230 }} /> {/* Agent */}
             <col style={{ width: 260 }} /> {/* Client Emails */}
+            <col style={{ width: 320 }} /> {/* Client Address */}
             <col style={{ width: 120 }} /> {/* Event Type */}
             <col style={{ width: 150 }} /> {/* Act */}
             <col style={{ width: 150 }} /> {/* Act tscName */}
@@ -2482,6 +2552,7 @@ export default function BookingBoard() {
     "Hold (pass-through)",
     "Agent",
     "Client Emails",
+    "Client Address",
     "Event Type",
     "Act",
     "Act tscName",
@@ -2519,9 +2590,11 @@ export default function BookingBoard() {
                 const gross = getDisplayGross(r);
                 const depositFromBackend = getDisplayDeposit(r);
                 const deposit =
-                  depositFromBackend != null
-                    ? depositFromBackend
-                    : calcDeposit(gross);
+  depositFromBackend != null
+    ? depositFromBackend
+    : agentTakesDeposit(r)
+      ? calcDeposit(gross)
+      : 0;
                 const balance = gross
                   ? Math.max(0, Math.round(gross - (deposit || 0)))
                   : null;
@@ -2762,6 +2835,15 @@ export default function BookingBoard() {
                         }
                       />
                     </td>
+                    <td className={cellClass}>
+  <InlineInput
+    value={r.clientAddress || ""}
+    placeholder="Client address"
+    onCommit={(val) =>
+      onInlineEdit(r._id, { clientAddress: val })
+    }
+  />
+</td>
                     <td className={cellClass}>{r.eventType || "—"}</td>
                     <td className={cellClass}>
                       <InlineInput
@@ -2918,20 +3000,29 @@ export default function BookingBoard() {
                         </button>
                       )}
                     </td>
-                    <td className={cellClass}>
-                      {invoiceUrl ? (
-                        <a
-                          className="text-blue-600 underline"
-                          href={invoiceUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Invoice
-                        </a>
-                      ) : (
-                        <span className="text-gray-400">—</span>
-                      )}
-                    </td>
+                  <td className={cellClass}>
+  <div className="flex flex-col gap-1">
+    {invoiceUrl ? (
+      <a
+        className="text-blue-600 underline"
+        href={invoiceUrl}
+        target="_blank"
+        rel="noreferrer"
+      >
+        Invoice
+      </a>
+    ) : (
+      <span className="text-gray-400">—</span>
+    )}
+
+    <button
+      className="px-2 py-1 border rounded hover:bg-gray-100 text-xs"
+      onClick={() => createInvoiceForRow(r)}
+    >
+      {invoiceUrl ? "Regenerate invoice" : "Create invoice"}
+    </button>
+  </div>
+</td>
                     <td className={cellClass}>
                       <div className="flex flex-col gap-2">
                         <button
@@ -3076,6 +3167,15 @@ export default function BookingBoard() {
                           }))
                         }
                       />
+
+                      <input
+  className="border rounded px-2 py-1 w-[360px]"
+  placeholder="Client address"
+  value={newRow.clientAddress}
+  onChange={(e) =>
+    setNewRow((v) => ({ ...v, clientAddress: e.target.value }))
+  }
+/>
 
                       <input
                         className="border rounded px-2 py-1 w-28"
