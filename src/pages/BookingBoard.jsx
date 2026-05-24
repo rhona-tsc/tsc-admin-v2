@@ -467,12 +467,19 @@ const getPaymentUrl = (row) => {
 };
 
 const getInvoiceUrl = (row) => {
+  const hasBoardInvoice =
+    row?.invoicePdfUrl ||
+    row?.invoiceUrl ||
+    row?.payments?.boardInvoicePdfUrl;
+
+  if (row?._id && hasBoardInvoice) {
+    return `${API_BASE}/invoices/board-invoice/${row._id}`;
+  }
+
   const raw =
-    // Stripe invoice PDF (preferred)
     row?.payments?.balanceInvoicePdfUrl ||
     row?.payments?.invoice_pdf ||
     row?.balanceInvoicePdfUrl ||
-    // Legacy / manual
     row?.invoicePdfUrl ||
     row?.invoiceUrl ||
     row?.invoice?.pdfUrl ||
@@ -571,13 +578,46 @@ const stickyCol2 = "sticky left-[140px] z-20 bg-white";
 const stickyHead1 = "sticky left-0 top-0 z-40 bg-gray-50";
 const stickyHead2 = "sticky left-[140px] top-0 z-40 bg-gray-50";
 
-const InlineInput = ({ value = "", className = "" }) => (
-  <input
-    value={value || ""}
-    readOnly
-    className={`${inputClass} bg-gray-50 text-gray-600 ${className}`}
-  />
-);
+function InlineInput({
+  value = "",
+  placeholder = "",
+  className = "",
+  onCommit,
+  onChange,
+  type = "text",
+  readOnly = false,
+}) {
+  const [v, setV] = useState(value || "");
+
+  useEffect(() => {
+    setV(value || "");
+  }, [value]);
+
+  const editable = typeof onCommit === "function" || typeof onChange === "function";
+
+  return (
+    <input
+      type={type}
+      step={type === "time" ? 300 : undefined}
+      placeholder={placeholder}
+      value={v}
+      readOnly={readOnly || !editable}
+      className={`${inputClass} ${
+        editable ? "bg-white text-gray-900" : "bg-gray-50 text-gray-600"
+      } ${className}`}
+      onChange={(e) => {
+        setV(e.target.value);
+        if (onChange) onChange(e);
+      }}
+      onBlur={() => {
+        if (!onCommit) return;
+        const next = String(v || "").trim();
+        const prev = String(value || "").trim();
+        if (next !== prev) onCommit(next);
+      }}
+    />
+  );
+}
 
 function ReadOnlyInput({
   value,
