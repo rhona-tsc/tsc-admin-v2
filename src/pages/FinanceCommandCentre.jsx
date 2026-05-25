@@ -411,21 +411,24 @@ const maxMonthlyGross = Math.max(
 
       <div className="grid grid-cols-1 md:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
         {[
-          ["Gigs", bookings.length, "count"],
-          ["Gross", totals.grossValue],
-          ["Commission gross", totals.commissionGross],
-          ["VAT", totals.commissionVat],
-          ["Commission net", totals.commissionNet],
-          ["Pass-through", totals.passThroughGross],
-          ["Deposit paid", totals.depositPaid],
-          ["Balance due", totals.balanceDue],
-        ["Cash received", cashPosition.cashReceived],
-["Expected incoming", cashPosition.expectedIncoming],
-["Total expected cash", cashPosition.totalExpectedCash],
-["Net commission expected", cashPosition.netCommissionExpected],
-["VAT owed", cashPosition.vatOwed],
-["Musician/pass-through liability", cashPosition.musicianLiability],
-        ].map(([label, value, type]) => (
+
+  ["Gigs", bookings.length, "count"],
+
+  ["Gross", totals.grossValue],
+
+  ["Commission gross", totals.commissionGross],
+
+  ["VAT", totals.commissionVat],
+
+  ["Commission net", totals.commissionNet],
+
+  ["Pass-through", totals.passThroughGross],
+
+  ["Deposit paid", totals.depositPaid],
+
+  ["Balance due", totals.balanceDue],
+
+].map(([label, value, type]) => (
           <div key={label} className="bg-white rounded-xl border p-4 shadow-sm">
             <div className="text-xs text-gray-500">{label}</div>
             <div className="text-lg font-semibold mt-1">
@@ -434,6 +437,26 @@ const maxMonthlyGross = Math.max(
           </div>
         ))}
       </div>
+
+      <div className="bg-white border rounded-xl p-4 mb-6 shadow-sm">
+  <h2 className="font-semibold mb-3">Cash Position</h2>
+
+  <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
+    {[
+      ["Cash received", cashPosition.cashReceived],
+      ["Expected incoming", cashPosition.expectedIncoming],
+      ["Total expected cash", cashPosition.totalExpectedCash],
+      ["Net commission expected", cashPosition.netCommissionExpected],
+      ["VAT owed", cashPosition.vatOwed],
+      ["Musician/pass-through liability", cashPosition.musicianLiability],
+    ].map(([label, value]) => (
+      <div key={label} className="rounded-lg border p-3 bg-gray-50">
+        <div className="text-xs text-gray-500">{label}</div>
+        <div className="font-semibold mt-1">{money(value)}</div>
+      </div>
+    ))}
+  </div>
+</div>
 
       <div className="bg-white border rounded-xl p-4 mb-6 shadow-sm">
 <h2 className="font-semibold mb-3">Cashflow Reality Check</h2>
