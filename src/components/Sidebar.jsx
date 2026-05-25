@@ -439,7 +439,8 @@ useEffect(() => {
               <p className="hidden md:block text-white">Trash</p>
             </NavLink>
       
-
+   <NavLink  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+          to="/finance-command-centre"><p className="hidden md:block text-white">Finance Command Center</p></NavLink>
           <NavLink  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
           to="/finance"><p className="hidden md:block text-white">Dashboard</p></NavLink>
           <NavLink  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"

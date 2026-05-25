@@ -43,7 +43,7 @@ import FinanceTransactionImport from "./pages/FinanceTransactionImport";
 import FinanceVatForecast from "./pages/FinanceVatForecast";
 import FinanceCorporationTaxForecast from "./pages/FinanceCorporationTaxForecast";
 import StripeConnectReturn from "./pages/StripeConnectReturn";
-
+import FinanceCommandCentre from "./pages/FinanceCommandCentre";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -355,7 +355,10 @@ const App = () => {
               }
             />
 
-            <Route path="/stripe-connect-return" element={<StripeConnectReturn />} />
+            <Route
+              path="/stripe-connect-return"
+              element={<StripeConnectReturn />}
+            />
 
             {isAdminAgent && (
               <Route
@@ -470,7 +473,12 @@ const App = () => {
                 }
               />
             )}
-
+            {isAdminAgent && (
+              <Route
+                path="/finance-command-centre"
+                element={<FinanceCommandCentre />}
+              />
+            )}
             {isAdminAgent && (
               <Route path="/finance" element={<FinanceDashboard />} />
             )}
