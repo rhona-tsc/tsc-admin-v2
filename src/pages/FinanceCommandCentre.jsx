@@ -294,6 +294,18 @@ const cashflowSummary = useMemo(() => {
   return Object.values(map).sort((a, b) => a.month.localeCompare(b.month));
 }, [bookings]);
 
+const cashPosition = useMemo(() => {
+  return {
+    cashReceived: Number(totals.depositPaid || 0),
+    expectedIncoming: Number(totals.balanceDue || 0),
+    totalExpectedCash:
+      Number(totals.depositPaid || 0) + Number(totals.balanceDue || 0),
+    netCommissionExpected: Number(totals.commissionNet || 0),
+    vatOwed: Number(totals.commissionVat || 0),
+    musicianLiability: Number(totals.passThroughGross || 0),
+  };
+}, [totals]);
+
 const maxExpectedCash = Math.max(
   ...cashflowSummary.map((m) => m.expectedCash),
   1
@@ -407,10 +419,12 @@ const maxMonthlyGross = Math.max(
           ["Pass-through", totals.passThroughGross],
           ["Deposit paid", totals.depositPaid],
           ["Balance due", totals.balanceDue],
-          ["Expected cash in", totals.balanceDue],
-["Net commission retained", totals.commissionNet],
-["VAT liability", totals.commissionVat],
-["Band/client pass-through", totals.passThroughGross],
+        ["Cash received", cashPosition.cashReceived],
+["Expected incoming", cashPosition.expectedIncoming],
+["Total expected cash", cashPosition.totalExpectedCash],
+["Net commission expected", cashPosition.netCommissionExpected],
+["VAT owed", cashPosition.vatOwed],
+["Musician/pass-through liability", cashPosition.musicianLiability],
         ].map(([label, value, type]) => (
           <div key={label} className="bg-white rounded-xl border p-4 shadow-sm">
             <div className="text-xs text-gray-500">{label}</div>
@@ -422,8 +436,7 @@ const maxMonthlyGross = Math.max(
       </div>
 
       <div className="bg-white border rounded-xl p-4 mb-6 shadow-sm">
-  <h2 className="font-semibold mb-3">Reality Check</h2>
-
+<h2 className="font-semibold mb-3">Cashflow Reality Check</h2>
   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
     <div>
       <div className="text-gray-500 text-xs">Average gross per gig</div>
