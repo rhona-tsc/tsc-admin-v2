@@ -156,6 +156,32 @@ export default function FinanceCommandCentre() {
     }
   };
 
+  const deleteBookingRow = async (booking) => {
+    if (!window.confirm(`Delete booking ${booking.bookingRef || ""}?`)) return;
+
+    const boardRowId = booking.boardRowId;
+    if (!boardRowId) {
+      alert("No booking board row ID found for this finance row.");
+      return;
+    }
+
+    const res = await fetch(`${API_BASE}/board/bookings/${boardRowId}`, {
+      method: "DELETE",
+      headers,
+      credentials: "include",
+    });
+
+    const json = await res.json();
+
+    if (!json.success) {
+      alert(json.message || "Could not delete booking.");
+      return;
+    }
+
+    setBookings((prev) => prev.filter((b) => b.boardRowId !== boardRowId));
+    await loadBookings();
+  };
+
   useEffect(() => {
     loadBookings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -311,6 +337,7 @@ TEST-CSV-003,Phoebe and Tyler,pb@example.com,2026-06-12,2105,520,1585,Entertainm
                 "Deposit",
                 "Balance",
                 "Status",
+                "Actions",
               ].map((h) => (
                 <th key={h} className="px-3 py-2 border-b whitespace-nowrap">
                   {h}
@@ -357,13 +384,21 @@ TEST-CSV-003,Phoebe and Tyler,pb@example.com,2026-06-12,2105,520,1585,Entertainm
                     {b.status || "forecast"}
                   </span>
                 </td>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  <button
+                    onClick={() => deleteBookingRow(b)}
+                    className="text-red-600 hover:underline"
+                  >
+                    Delete
+                  </button>
+                </td>
               </tr>
             ))}
 
             {!bookings.length && (
               <tr>
                 <td
-                  colSpan={14}
+                  colSpan={15}
                   className="px-4 py-8 text-center text-gray-500"
                 >
                   No finance forecast bookings found.
