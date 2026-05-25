@@ -1,7 +1,6 @@
 // admin/src/pages/FinanceCommandCentre.jsx
 import React, { useEffect, useMemo, useState } from "react";
 
-
 const API_BASE = (
   import.meta?.env?.VITE_ADMIN_API_BASE ||
   (import.meta?.env?.VITE_BACKEND_URL
@@ -51,7 +50,6 @@ export default function FinanceCommandCentre() {
   const [status, setStatus] = useState("");
   const [q, setQ] = useState("");
 
-
   const headers = useMemo(() => {
     const token = getAuthToken();
     return {
@@ -60,20 +58,20 @@ export default function FinanceCommandCentre() {
     };
   }, []);
 
-const loadBookings = async (overrides = {}) => {
-  setLoading(true);
-  try {
-    const nextFrom = overrides.from ?? from;
-    const nextTo = overrides.to ?? to;
-    const nextStatus = overrides.status ?? status;
-    const nextQ = overrides.q ?? q;
+  const loadBookings = async (overrides = {}) => {
+    setLoading(true);
+    try {
+      const nextFrom = overrides.from ?? from;
+      const nextTo = overrides.to ?? to;
+      const nextStatus = overrides.status ?? status;
+      const nextQ = overrides.q ?? q;
 
-    const params = new URLSearchParams();
-    if (nextFrom) params.set("from", nextFrom);
-    if (nextTo) params.set("to", nextTo);
-    if (nextStatus) params.set("status", nextStatus);
-    if (nextQ) params.set("q", nextQ);
-
+      const params = new URLSearchParams();
+      params.set("limit", "5000");
+      if (nextFrom) params.set("from", nextFrom);
+      if (nextTo) params.set("to", nextTo);
+      if (nextStatus) params.set("status", nextStatus);
+      if (nextQ) params.set("q", nextQ);
 
       const res = await fetch(
         `${API_BASE}/finance/forecast/bookings?${params.toString()}`,
@@ -126,37 +124,33 @@ const loadBookings = async (overrides = {}) => {
     }
   };
 
-const applyPreset = async (preset) => {
-  const now = new Date();
-  const year = now.getFullYear();
+  const applyPreset = async (preset) => {
+    const now = new Date();
+    const year = now.getFullYear();
 
-  let range = { from: "", to: "" };
+    let range = { from: "", to: "" };
 
-  if (preset === "thisMonth") {
-    range = getMonthRange(year, now.getMonth());
-  }
+    if (preset === "thisMonth") {
+      range = getMonthRange(year, now.getMonth());
+    }
 
-  if (preset === "nextMonth") {
-    range = getMonthRange(year, now.getMonth() + 1);
-  }
+    if (preset === "nextMonth") {
+      range = getMonthRange(year, now.getMonth() + 1);
+    }
 
-  if (preset === "thisYear") {
-    range = { from: `${year}-01-01`, to: `${year}-12-31` };
-  }
+    if (preset === "thisYear") {
+      range = { from: `${year}-01-01`, to: `${year}-12-31` };
+    }
 
-  if (preset === "nextYear") {
-    range = { from: `${year + 1}-01-01`, to: `${year + 1}-12-31` };
-  }
+    if (preset === "nextYear") {
+      range = { from: `${year + 1}-01-01`, to: `${year + 1}-12-31` };
+    }
 
-  setFrom(range.from);
-  setTo(range.to);
+    setFrom(range.from);
+    setTo(range.to);
 
-  await loadBookings(range);
-};
-
-
-
-
+    await loadBookings(range);
+  };
 
   const deleteBookingRow = async (booking) => {
     if (!window.confirm(`Delete booking ${booking.bookingRef || ""}?`)) return;
@@ -185,136 +179,160 @@ const applyPreset = async (preset) => {
   };
 
   const exportCsv = () => {
-  const headers = [
-    "Event Date",
-    "Due Date",
-    "Booking Ref",
-    "Client",
-    "Act",
-    "Agent",
-    "Gross",
-    "Commission Gross",
-    "VAT",
-    "Commission Net",
-    "Pass-through",
-    "Deposit Paid",
-    "Balance Due",
-    "Status",
-  ];
+    const headers = [
+      "Event Date",
+      "Due Date",
+      "Booking Ref",
+      "Client",
+      "Act",
+      "Agent",
+      "Gross",
+      "Commission Gross",
+      "VAT",
+      "Commission Net",
+      "Pass-through",
+      "Deposit Paid",
+      "Balance Due",
+      "Status",
+    ];
 
-  const rows = bookings.map((b) => [
-    b.eventDateISO || "",
-    b.expectedBalanceDueDateISO || "",
-    b.bookingRef || "",
-    b.clientName || "",
-    b.actTscName || b.actName || "",
-    b.agent || "",
-    b.grossValue || 0,
-    b.commissionGross || 0,
-    b.commissionVat || 0,
-    b.commissionNet || 0,
-    b.passThroughGross || 0,
-    b.depositPaid || 0,
-    b.balanceDue || 0,
-    b.status || "",
-  ]);
+    const rows = bookings.map((b) => [
+      b.eventDateISO || "",
+      b.expectedBalanceDueDateISO || "",
+      b.bookingRef || "",
+      b.clientName || "",
+      b.actTscName || b.actName || "",
+      b.agent || "",
+      b.grossValue || 0,
+      b.commissionGross || 0,
+      b.commissionVat || 0,
+      b.commissionNet || 0,
+      b.passThroughGross || 0,
+      b.depositPaid || 0,
+      b.balanceDue || 0,
+      b.status || "",
+    ]);
 
-  const csv = [headers, ...rows]
-    .map((row) =>
-      row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","),
-    )
-    .join("\n");
+    const csv = [headers, ...rows]
+      .map((row) =>
+        row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","),
+      )
+      .join("\n");
 
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
 
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `finance-forecast-${from || "all"}-${to || "all"}.csv`;
-  link.click();
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `finance-forecast-${from || "all"}-${to || "all"}.csv`;
+    link.click();
 
-  URL.revokeObjectURL(url);
-};
+    URL.revokeObjectURL(url);
+  };
 
   const monthlySummary = useMemo(() => {
-  const map = {};
+    const map = {};
 
-  bookings.forEach((b) => {
-    const month = b.eventMonth || String(b.eventDateISO || "").slice(0, 7) || "Unknown";
+    bookings.forEach((b) => {
+      const month =
+        b.eventMonth || String(b.eventDateISO || "").slice(0, 7) || "Unknown";
 
-    if (!map[month]) {
-      map[month] = {
-        month,
-        gigs: 0,
-        gross: 0,
-        commissionNet: 0,
-        vat: 0,
-        passThrough: 0,
-        balanceDue: 0,
-      };
-    }
+      if (!map[month]) {
+        map[month] = {
+          month,
+          gigs: 0,
+          gross: 0,
+          commissionNet: 0,
+          vat: 0,
+          passThrough: 0,
+          balanceDue: 0,
+        };
+      }
 
-    map[month].gigs += 1;
-    map[month].gross += Number(b.grossValue || 0);
-    map[month].commissionNet += Number(b.commissionNet || 0);
-    map[month].vat += Number(b.commissionVat || 0);
-    map[month].passThrough += Number(b.passThroughGross || 0);
-    map[month].balanceDue += Number(b.balanceDue || 0);
-  });
+      map[month].gigs += 1;
+      map[month].gross += Number(b.grossValue || 0);
+      map[month].commissionNet += Number(b.commissionNet || 0);
+      map[month].vat += Number(b.commissionVat || 0);
+      map[month].passThrough += Number(b.passThroughGross || 0);
+      map[month].balanceDue += Number(b.balanceDue || 0);
+    });
 
-  return Object.values(map).sort((a, b) => a.month.localeCompare(b.month));
-}, [bookings]);
+    return Object.values(map).sort((a, b) => a.month.localeCompare(b.month));
+  }, [bookings]);
 
-const cashflowSummary = useMemo(() => {
-  const map = {};
+  const cashflowSummary = useMemo(() => {
+    const map = {};
 
-  bookings.forEach((b) => {
-    const month =
-      String(b.expectedCashDateISO || b.expectedBalanceDueDateISO || b.eventDateISO || "")
-        .slice(0, 7) || "Unknown";
+    bookings.forEach((b) => {
+      const month =
+        String(
+          b.expectedCashDateISO ||
+            b.expectedBalanceDueDateISO ||
+            b.eventDateISO ||
+            "",
+        ).slice(0, 7) || "Unknown";
 
-    if (!map[month]) {
-      map[month] = {
-        month,
-        gigs: 0,
-        expectedCash: 0,
-        commissionNet: 0,
-        vat: 0,
-        passThrough: 0,
-      };
-    }
+      if (!map[month]) {
+        map[month] = {
+          month,
+          gigs: 0,
+          expectedCash: 0,
+          commissionNet: 0,
+          vat: 0,
+          passThrough: 0,
+        };
+      }
 
-    map[month].gigs += 1;
-    map[month].expectedCash += Number(b.balanceDue || 0);
-    map[month].commissionNet += Number(b.commissionNet || 0);
-    map[month].vat += Number(b.commissionVat || 0);
-    map[month].passThrough += Number(b.passThroughGross || 0);
-  });
+      map[month].gigs += 1;
+      map[month].expectedCash += Number(b.balanceDue || 0);
+      map[month].commissionNet += Number(b.commissionNet || 0);
+      map[month].vat += Number(b.commissionVat || 0);
+      map[month].passThrough += Number(b.passThroughGross || 0);
+    });
 
-  return Object.values(map).sort((a, b) => a.month.localeCompare(b.month));
-}, [bookings]);
+    return Object.values(map).sort((a, b) => a.month.localeCompare(b.month));
+  }, [bookings]);
 
-const cashPosition = useMemo(() => {
-  return {
-    cashReceived: Number(totals.depositPaid || 0),
-    expectedIncoming: Number(totals.balanceDue || 0),
-    totalExpectedCash:
-      Number(totals.depositPaid || 0) + Number(totals.balanceDue || 0),
-    netCommissionExpected: Number(totals.commissionNet || 0),
-    vatOwed: Number(totals.commissionVat || 0),
-    musicianLiability: Number(totals.passThroughGross || 0),
-  };
-}, [totals]);
+  const cashPosition = useMemo(() => {
+    return {
+      cashReceived: Number(totals.depositPaid || 0),
+      expectedIncoming: Number(totals.balanceDue || 0),
+      totalExpectedCash:
+        Number(totals.depositPaid || 0) + Number(totals.balanceDue || 0),
+      netCommissionExpected: Number(totals.commissionNet || 0),
+      vatOwed: Number(totals.commissionVat || 0),
+      musicianLiability: Number(totals.passThroughGross || 0),
+    };
+  }, [totals]);
 
-const maxExpectedCash = Math.max(
-  ...cashflowSummary.map((m) => m.expectedCash),
-  1
-);
+  const overdueBalances = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
 
-const maxMonthlyGross = Math.max(
-  ...monthlySummary.map((m) => m.gross),
-  1
-);
+    return bookings.filter((b) => {
+      const dueDate = String(
+        b.expectedBalanceDueDateISO || b.expectedCashDateISO || "",
+      ).slice(0, 10);
+
+      return (
+        dueDate &&
+        dueDate < today &&
+        Number(b.balanceDue || 0) > 0 &&
+        b.status !== "paid"
+      );
+    });
+  }, [bookings]);
+
+  const overdueTotal = overdueBalances.reduce(
+    (sum, b) => sum + Number(b.balanceDue || 0),
+    0,
+  );
+
+  const maxExpectedCash = Math.max(
+    ...cashflowSummary.map((m) => m.expectedCash),
+    1,
+  );
+
+  const maxMonthlyGross = Math.max(...monthlySummary.map((m) => m.gross), 1);
 
   useEffect(() => {
     loadBookings();
@@ -332,13 +350,12 @@ const maxMonthlyGross = Math.max(
         </div>
 
         <div className="flex gap-2">
-          
-<button
-  onClick={exportCsv}
-  className="px-4 py-2 rounded border bg-white"
->
-  Export CSV
-</button>
+          <button
+            onClick={exportCsv}
+            className="px-4 py-2 rounded border bg-white"
+          >
+            Export CSV
+          </button>
 
           <button
             onClick={syncAll}
@@ -407,28 +424,24 @@ const maxMonthlyGross = Math.max(
         </button>
       </div>
 
-  
-
       <div className="grid grid-cols-1 md:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
         {[
+          ["Gigs", bookings.length, "count"],
 
-  ["Gigs", bookings.length, "count"],
+          ["Gross", totals.grossValue],
 
-  ["Gross", totals.grossValue],
+          ["Commission gross", totals.commissionGross],
 
-  ["Commission gross", totals.commissionGross],
+          ["VAT", totals.commissionVat],
 
-  ["VAT", totals.commissionVat],
+          ["Commission net", totals.commissionNet],
 
-  ["Commission net", totals.commissionNet],
+          ["Pass-through", totals.passThroughGross],
 
-  ["Pass-through", totals.passThroughGross],
+          ["Deposit paid", totals.depositPaid],
 
-  ["Deposit paid", totals.depositPaid],
-
-  ["Balance due", totals.balanceDue],
-
-].map(([label, value, type]) => (
+          ["Balance due", totals.balanceDue],
+        ].map(([label, value, type]) => (
           <div key={label} className="bg-white rounded-xl border p-4 shadow-sm">
             <div className="text-xs text-gray-500">{label}</div>
             <div className="text-lg font-semibold mt-1">
@@ -439,169 +452,269 @@ const maxMonthlyGross = Math.max(
       </div>
 
       <div className="bg-white border rounded-xl p-4 mb-6 shadow-sm">
-  <h2 className="font-semibold mb-3">Cash Position</h2>
+        <h2 className="font-semibold mb-3">Cash Position</h2>
 
-  <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
-    {[
-      ["Cash received", cashPosition.cashReceived],
-      ["Expected incoming", cashPosition.expectedIncoming],
-      ["Total expected cash", cashPosition.totalExpectedCash],
-      ["Net commission expected", cashPosition.netCommissionExpected],
-      ["VAT owed", cashPosition.vatOwed],
-      ["Musician/pass-through liability", cashPosition.musicianLiability],
-    ].map(([label, value]) => (
-      <div key={label} className="rounded-lg border p-3 bg-gray-50">
-        <div className="text-xs text-gray-500">{label}</div>
-        <div className="font-semibold mt-1">{money(value)}</div>
+        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-3">
+          {[
+            ["Cash received", cashPosition.cashReceived],
+            ["Expected incoming", cashPosition.expectedIncoming],
+            ["Total expected cash", cashPosition.totalExpectedCash],
+            ["Net commission expected", cashPosition.netCommissionExpected],
+            ["VAT owed", cashPosition.vatOwed],
+            ["Musician/pass-through liability", cashPosition.musicianLiability],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-lg border p-3 bg-gray-50">
+              <div className="text-xs text-gray-500">{label}</div>
+              <div className="font-semibold mt-1">{money(value)}</div>
+            </div>
+          ))}
+        </div>
       </div>
-    ))}
-  </div>
-</div>
 
       <div className="bg-white border rounded-xl p-4 mb-6 shadow-sm">
-<h2 className="font-semibold mb-3">Cashflow Reality Check</h2>
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-    <div>
-      <div className="text-gray-500 text-xs">Average gross per gig</div>
-      <div className="font-semibold">
-        {money(bookings.length ? totals.grossValue / bookings.length : 0)}
+        <div className="flex items-start justify-between gap-4 mb-3">
+          <div>
+            <h2 className="font-semibold">Overdue Balances</h2>
+            <p className="text-xs text-gray-500 mt-1">
+              Balances where the expected due date has passed and payment is not
+              marked paid.
+            </p>
+          </div>
+
+          <div className="text-right">
+            <div className="text-xs text-gray-500">Total overdue</div>
+            <div className="text-lg font-semibold">{money(overdueTotal)}</div>
+          </div>
+        </div>
+
+        {overdueBalances.length ? (
+          <div className="overflow-auto">
+            <table className="min-w-[900px] w-full text-sm">
+              <thead className="bg-gray-100 text-left">
+                <tr>
+                  {[
+                    "Due",
+                    "Event",
+                    "Ref",
+                    "Client",
+                    "Act",
+                    "Balance",
+                    "Action",
+                  ].map((h) => (
+                    <th
+                      key={h}
+                      className="px-3 py-2 border-b whitespace-nowrap"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+
+              <tbody>
+                {overdueBalances.map((b) => (
+                  <tr key={b._id} className="odd:bg-white even:bg-gray-50">
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {dateFmt(
+                        b.expectedBalanceDueDateISO || b.expectedCashDateISO,
+                      )}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {dateFmt(b.eventDateISO)}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {b.bookingRef}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {b.clientName || "—"}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      {b.actTscName || b.actName || "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right font-semibold">
+                      {money(b.balanceDue)}
+                    </td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <button
+                        onClick={() => {
+  setQ(b.bookingRef || "");
+  loadBookings({ q: b.bookingRef || "" });
+}}
+                        className="text-blue-600 hover:underline"
+                      >
+                        Find
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-sm text-gray-500">
+            No overdue balances in this filtered period.
+          </div>
+        )}
       </div>
-    </div>
 
-    <div>
-      <div className="text-gray-500 text-xs">Average net commission per gig</div>
-      <div className="font-semibold">
-        {money(bookings.length ? totals.commissionNet / bookings.length : 0)}
-      </div>
-    </div>
+      <div className="bg-white border rounded-xl p-4 mb-6 shadow-sm">
+        <h2 className="font-semibold mb-3">Cashflow Reality Check</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+          <div>
+            <div className="text-gray-500 text-xs">Average gross per gig</div>
+            <div className="font-semibold">
+              {money(bookings.length ? totals.grossValue / bookings.length : 0)}
+            </div>
+          </div>
 
-    <div>
-      <div className="text-gray-500 text-xs">Commission margin</div>
-      <div className="font-semibold">
-        {totals.grossValue
-          ? `${((totals.commissionNet / totals.grossValue) * 100).toFixed(1)}%`
-          : "0%"}
-      </div>
-    </div>
-  </div>
-</div>
+          <div>
+            <div className="text-gray-500 text-xs">
+              Average net commission per gig
+            </div>
+            <div className="font-semibold">
+              {money(
+                bookings.length ? totals.commissionNet / bookings.length : 0,
+              )}
+            </div>
+          </div>
 
-<div className="bg-white border rounded-xl p-4 mb-6 shadow-sm">
-  <h2 className="font-semibold mb-3">Monthly Cashflow Summary</h2>
-
-  <div className="space-y-3">
-    {monthlySummary.map((m) => (
-      <div key={m.month} className="border rounded-lg p-3">
-        <div className="flex justify-between text-sm mb-2">
-          <div className="font-medium">{m.month}</div>
-          <div>{m.gigs} gigs · {money(m.gross)}</div>
-        </div>
-
-        <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
-          <div
-            className="h-full bg-black rounded-full"
-            style={{ width: `${(m.gross / maxMonthlyGross) * 100}%` }}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs text-gray-600">
-          <div>Net comm: {money(m.commissionNet)}</div>
-          <div>VAT: {money(m.vat)}</div>
-          <div>Pass-through: {money(m.passThrough)}</div>
-          <div>Balance due: {money(m.balanceDue)}</div>
-          <div>Avg/gig: {money(m.gigs ? m.gross / m.gigs : 0)}</div>
-        </div>
-      </div>
-    ))}
-
-    {!monthlySummary.length && (
-      <div className="text-sm text-gray-500">No monthly data for this period.</div>
-    )}
-  </div>
-</div>
-
-<div className="bg-white border rounded-xl overflow-auto shadow-sm mb-6">
-  <div className="p-4 border-b">
-    <h2 className="font-semibold">Monthly Forecast Table</h2>
-  </div>
-
-  <table className="min-w-[1000px] w-full text-sm">
-    <thead className="bg-gray-100 text-left">
-      <tr>
-        {[
-          "Month",
-          "Gigs",
-          "Gross",
-          "Net commission",
-          "VAT",
-          "Pass-through",
-          "Balance due",
-          "Avg/gig",
-        ].map((h) => (
-          <th key={h} className="px-3 py-2 border-b whitespace-nowrap">
-            {h}
-          </th>
-        ))}
-      </tr>
-    </thead>
-
-    <tbody>
-      {monthlySummary.map((m) => (
-        <tr key={m.month} className="odd:bg-white even:bg-gray-50">
-          <td className="px-3 py-2 whitespace-nowrap font-medium">
-            {m.month}
-          </td>
-          <td className="px-3 py-2 text-right">{m.gigs}</td>
-          <td className="px-3 py-2 text-right">{money(m.gross)}</td>
-          <td className="px-3 py-2 text-right">{money(m.commissionNet)}</td>
-          <td className="px-3 py-2 text-right">{money(m.vat)}</td>
-          <td className="px-3 py-2 text-right">{money(m.passThrough)}</td>
-          <td className="px-3 py-2 text-right">{money(m.balanceDue)}</td>
-          <td className="px-3 py-2 text-right">
-            {money(m.gigs ? m.gross / m.gigs : 0)}
-          </td>
-        </tr>
-      ))}
-
-      {!monthlySummary.length && (
-        <tr>
-          <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
-            No monthly forecast data for this period.
-          </td>
-        </tr>
-      )}
-    </tbody>
-  </table>
-</div>
-
-<div className="bg-white border rounded-xl p-4 mb-6 shadow-sm">
-  <h2 className="font-semibold mb-3">Expected Cash In by Month</h2>
-
-  <div className="space-y-3">
-    {cashflowSummary.map((m) => (
-      <div key={m.month} className="border rounded-lg p-3">
-        <div className="flex justify-between text-sm mb-2">
-          <div className="font-medium">{m.month}</div>
-          <div>{m.gigs} gigs · {money(m.expectedCash)}</div>
-        </div>
-
-        <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
-          <div
-            className="h-full bg-black rounded-full"
-            style={{ width: `${(m.expectedCash / maxExpectedCash) * 100}%` }}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-gray-600">
-          <div>Net comm: {money(m.commissionNet)}</div>
-          <div>VAT: {money(m.vat)}</div>
-          <div>Pass-through: {money(m.passThrough)}</div>
-          <div>Expected cash: {money(m.expectedCash)}</div>
+          <div>
+            <div className="text-gray-500 text-xs">Commission margin</div>
+            <div className="font-semibold">
+              {totals.grossValue
+                ? `${((totals.commissionNet / totals.grossValue) * 100).toFixed(1)}%`
+                : "0%"}
+            </div>
+          </div>
         </div>
       </div>
-    ))}
-  </div>
-</div>
+
+      <div className="bg-white border rounded-xl p-4 mb-6 shadow-sm">
+        <h2 className="font-semibold mb-3">Monthly Cashflow Summary</h2>
+
+        <div className="space-y-3">
+          {monthlySummary.map((m) => (
+            <div key={m.month} className="border rounded-lg p-3">
+              <div className="flex justify-between text-sm mb-2">
+                <div className="font-medium">{m.month}</div>
+                <div>
+                  {m.gigs} gigs · {money(m.gross)}
+                </div>
+              </div>
+
+              <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
+                <div
+                  className="h-full bg-black rounded-full"
+                  style={{ width: `${(m.gross / maxMonthlyGross) * 100}%` }}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs text-gray-600">
+                <div>Net comm: {money(m.commissionNet)}</div>
+                <div>VAT: {money(m.vat)}</div>
+                <div>Pass-through: {money(m.passThrough)}</div>
+                <div>Balance due: {money(m.balanceDue)}</div>
+                <div>Avg/gig: {money(m.gigs ? m.gross / m.gigs : 0)}</div>
+              </div>
+            </div>
+          ))}
+
+          {!monthlySummary.length && (
+            <div className="text-sm text-gray-500">
+              No monthly data for this period.
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-white border rounded-xl overflow-auto shadow-sm mb-6">
+        <div className="p-4 border-b">
+          <h2 className="font-semibold">Monthly Forecast Table</h2>
+        </div>
+
+        <table className="min-w-[1000px] w-full text-sm">
+          <thead className="bg-gray-100 text-left">
+            <tr>
+              {[
+                "Month",
+                "Gigs",
+                "Gross",
+                "Net commission",
+                "VAT",
+                "Pass-through",
+                "Balance due",
+                "Avg/gig",
+              ].map((h) => (
+                <th key={h} className="px-3 py-2 border-b whitespace-nowrap">
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody>
+            {monthlySummary.map((m) => (
+              <tr key={m.month} className="odd:bg-white even:bg-gray-50">
+                <td className="px-3 py-2 whitespace-nowrap font-medium">
+                  {m.month}
+                </td>
+                <td className="px-3 py-2 text-right">{m.gigs}</td>
+                <td className="px-3 py-2 text-right">{money(m.gross)}</td>
+                <td className="px-3 py-2 text-right">
+                  {money(m.commissionNet)}
+                </td>
+                <td className="px-3 py-2 text-right">{money(m.vat)}</td>
+                <td className="px-3 py-2 text-right">{money(m.passThrough)}</td>
+                <td className="px-3 py-2 text-right">{money(m.balanceDue)}</td>
+                <td className="px-3 py-2 text-right">
+                  {money(m.gigs ? m.gross / m.gigs : 0)}
+                </td>
+              </tr>
+            ))}
+
+            {!monthlySummary.length && (
+              <tr>
+                <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                  No monthly forecast data for this period.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="bg-white border rounded-xl p-4 mb-6 shadow-sm">
+        <h2 className="font-semibold mb-3">Expected Cash In by Month</h2>
+
+        <div className="space-y-3">
+          {cashflowSummary.map((m) => (
+            <div key={m.month} className="border rounded-lg p-3">
+              <div className="flex justify-between text-sm mb-2">
+                <div className="font-medium">{m.month}</div>
+                <div>
+                  {m.gigs} gigs · {money(m.expectedCash)}
+                </div>
+              </div>
+
+              <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
+                <div
+                  className="h-full bg-black rounded-full"
+                  style={{
+                    width: `${(m.expectedCash / maxExpectedCash) * 100}%`,
+                  }}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-gray-600">
+                <div>Net comm: {money(m.commissionNet)}</div>
+                <div>VAT: {money(m.vat)}</div>
+                <div>Pass-through: {money(m.passThrough)}</div>
+                <div>Expected cash: {money(m.expectedCash)}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="bg-white border rounded-xl overflow-auto shadow-sm">
         <table className="min-w-[1400px] w-full text-sm">
