@@ -1,5 +1,7 @@
 // admin/src/pages/FinanceCommandCentre.jsx
 import React, { useEffect, useMemo, useState } from "react";
+const [csvFile, setCsvFile] = useState(null);
+const [importingCsvFile, setImportingCsvFile] = useState(false);
 
 const API_BASE = (
   import.meta?.env?.VITE_ADMIN_API_BASE ||
@@ -156,6 +158,54 @@ export default function FinanceCommandCentre() {
     }
   };
 
+  const importCsvFile = async () => {
+    if (!csvFile) {
+      window.alert("Choose a CSV file first.");
+      return;
+    }
+
+    setImportingCsvFile(true);
+    setCsvResult(null);
+
+    try {
+      const token = getAuthToken();
+      const formData = new FormData();
+      formData.append("file", csvFile);
+
+      const res = await fetch(
+        `${API_BASE}/board/bookings/bulk-import-csv-file`,
+        {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}`, token } : {},
+          credentials: "include",
+          body: formData,
+        },
+      );
+
+      const json = await res.json();
+      setCsvResult(json);
+
+      if (!json?.success) {
+        window.alert(json?.message || "CSV file import failed.");
+        return;
+      }
+
+      window.alert(
+        `Imported ${json.imported || 0}. Synced to finance: ${
+          json.syncedToFinance || 0
+        }. Skipped: ${json.skippedRows || 0}.`,
+      );
+
+      setCsvFile(null);
+      await loadBookings();
+    } catch (err) {
+      console.error("CSV file import failed:", err);
+      window.alert(err.message || "CSV file import failed.");
+    } finally {
+      setImportingCsvFile(false);
+    }
+  };
+
   const deleteBookingRow = async (booking) => {
     if (!window.confirm(`Delete booking ${booking.bookingRef || ""}?`)) return;
 
@@ -273,7 +323,34 @@ export default function FinanceCommandCentre() {
               {importingCsv ? "Importing…" : "Import + Sync"}
             </button>
           </div>
+          <div className="mb-4 rounded-lg border bg-gray-50 p-3">
+            <label className="block text-sm font-medium mb-2">
+              Upload CSV file
+            </label>
 
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                className="block text-sm"
+              />
+
+              <button
+                onClick={importCsvFile}
+                disabled={importingCsvFile || !csvFile}
+                className="px-4 py-2 rounded bg-black text-white disabled:opacity-50"
+              >
+                {importingCsvFile ? "Uploading…" : "Upload + Sync"}
+              </button>
+
+              {csvFile && (
+                <span className="text-xs text-gray-500">
+                  Selected: {csvFile.name}
+                </span>
+              )}
+            </div>
+          </div>
           <textarea
             className="w-full min-h-[180px] border rounded px-3 py-2 font-mono text-xs"
             placeholder={`bookingRef,clientFirstNames,clientEmail,eventDateISO,grossValue,commissionGross,passThroughGross,agent,actName,actTscName,address,county,lineupSelected,arrivalTime,finishTime,clientAddress
