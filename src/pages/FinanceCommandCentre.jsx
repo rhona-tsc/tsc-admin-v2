@@ -34,6 +34,14 @@ const dateFmt = (iso) => {
   });
 };
 
+const iso = (d) => d.toISOString().slice(0, 10);
+
+const getMonthRange = (year, monthIndex) => {
+  const start = new Date(year, monthIndex, 1);
+  const end = new Date(year, monthIndex + 1, 0);
+  return { from: iso(start), to: iso(end) };
+};
+
 export default function FinanceCommandCentre() {
   const [bookings, setBookings] = useState([]);
   const [totals, setTotals] = useState({});
@@ -113,6 +121,38 @@ export default function FinanceCommandCentre() {
       window.alert(err.message || "Sync failed.");
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const applyPreset = (preset) => {
+    const now = new Date();
+    const year = now.getFullYear();
+
+    if (preset === "thisMonth") {
+      const range = getMonthRange(year, now.getMonth());
+      setFrom(range.from);
+      setTo(range.to);
+    }
+
+    if (preset === "nextMonth") {
+      const range = getMonthRange(year, now.getMonth() + 1);
+      setFrom(range.from);
+      setTo(range.to);
+    }
+
+    if (preset === "thisYear") {
+      setFrom(`${year}-01-01`);
+      setTo(`${year}-12-31`);
+    }
+
+    if (preset === "nextYear") {
+      setFrom(`${year + 1}-01-01`);
+      setTo(`${year + 1}-12-31`);
+    }
+
+    if (preset === "all") {
+      setFrom("");
+      setTo("");
     }
   };
 
@@ -263,6 +303,24 @@ export default function FinanceCommandCentre() {
             {syncing ? "Syncing…" : "Sync from Booking Board"}
           </button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-4">
+        {[
+          ["This month", "thisMonth"],
+          ["Next month", "nextMonth"],
+          ["This year", "thisYear"],
+          ["Next year", "nextYear"],
+          ["All", "all"],
+        ].map(([label, value]) => (
+          <button
+            key={value}
+            onClick={() => applyPreset(value)}
+            className="px-3 py-1.5 rounded-full border bg-white text-sm hover:bg-gray-100"
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-7 gap-3 mb-5">
