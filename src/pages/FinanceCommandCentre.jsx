@@ -50,12 +50,7 @@ export default function FinanceCommandCentre() {
   const [to, setTo] = useState("");
   const [status, setStatus] = useState("");
   const [q, setQ] = useState("");
-  const [csvOpen, setCsvOpen] = useState(false);
-  const [csvText, setCsvText] = useState("");
-  const [importingCsv, setImportingCsv] = useState(false);
-  const [csvResult, setCsvResult] = useState(null);
-const [csvFile, setCsvFile] = useState(null);
-const [importingCsvFile, setImportingCsvFile] = useState(false);
+
 
   const headers = useMemo(() => {
     const token = getAuthToken();
@@ -135,124 +130,33 @@ const applyPreset = async (preset) => {
   const now = new Date();
   const year = now.getFullYear();
 
-  const setAndLoad = async (nextFrom, nextTo) => {
-    setFrom(nextFrom);
-    setTo(nextTo);
-    await loadBookings({ from: nextFrom, to: nextTo });
-  };
+  let range = { from: "", to: "" };
 
   if (preset === "thisMonth") {
-    const range = getMonthRange(year, now.getMonth());
-    return setAndLoad(range.from, range.to);
+    range = getMonthRange(year, now.getMonth());
   }
 
   if (preset === "nextMonth") {
-    const range = getMonthRange(year, now.getMonth() + 1);
-    return setAndLoad(range.from, range.to);
+    range = getMonthRange(year, now.getMonth() + 1);
   }
 
   if (preset === "thisYear") {
-    return setAndLoad(`${year}-01-01`, `${year}-12-31`);
+    range = { from: `${year}-01-01`, to: `${year}-12-31` };
   }
 
   if (preset === "nextYear") {
-    return setAndLoad(`${year + 1}-01-01`, `${year + 1}-12-31`);
+    range = { from: `${year + 1}-01-01`, to: `${year + 1}-12-31` };
   }
 
-  if (preset === "all") {
-    return setAndLoad("", "");
-  }
+  setFrom(range.from);
+  setTo(range.to);
+
+  await loadBookings(range);
 };
 
-  const importCsv = async () => {
-    if (!csvText.trim()) {
-      window.alert("Paste CSV first.");
-      return;
-    }
 
-    setImportingCsv(true);
-    setCsvResult(null);
 
-    try {
-      const res = await fetch(`${API_BASE}/board/bookings/bulk-import-csv`, {
-        method: "POST",
-        headers,
-        credentials: "include",
-        body: JSON.stringify({ csv: csvText }),
-      });
 
-      const json = await res.json();
-
-      setCsvResult(json);
-
-      if (!json?.success && json?.failed) {
-        window.alert(`Imported ${json.imported || 0}, failed ${json.failed}.`);
-        return;
-      }
-
-      window.alert(
-        `Imported ${json.imported || 0}. Synced to finance: ${
-          json.syncedToFinance || 0
-        }.`,
-      );
-
-      setCsvText("");
-      await loadBookings();
-    } catch (err) {
-      console.error("CSV import failed:", err);
-      window.alert(err.message || "CSV import failed.");
-    } finally {
-      setImportingCsv(false);
-    }
-  };
-
-  const importCsvFile = async () => {
-    if (!csvFile) {
-      window.alert("Choose a CSV file first.");
-      return;
-    }
-
-    setImportingCsvFile(true);
-    setCsvResult(null);
-
-    try {
-      const token = getAuthToken();
-      const formData = new FormData();
-      formData.append("file", csvFile);
-
-      const res = await fetch(
-        `${API_BASE}/board/bookings/bulk-import-csv-file`,
-        {
-          method: "POST",
-          headers: token ? { Authorization: `Bearer ${token}`, token } : {},
-          credentials: "include",
-          body: formData,
-        },
-      );
-
-      const json = await res.json();
-      setCsvResult(json);
-
-      if (!json?.success) {
-        window.alert(json?.message || "CSV file import failed.");
-        return;
-      }
-
-      window.alert(
-        `Imported ${json.imported || 0}. Synced to finance: ${
-          json.syncedToFinance || 0
-        }. Skipped: ${json.skippedRows || 0}.`,
-      );
-
-      setCsvFile(null);
-      await loadBookings();
-    } catch (err) {
-      console.error("CSV file import failed:", err);
-      window.alert(err.message || "CSV file import failed.");
-    } finally {
-      setImportingCsvFile(false);
-    }
-  };
 
   const deleteBookingRow = async (booking) => {
     if (!window.confirm(`Delete booking ${booking.bookingRef || ""}?`)) return;
@@ -280,6 +184,126 @@ const applyPreset = async (preset) => {
     await loadBookings();
   };
 
+  const exportCsv = () => {
+  const headers = [
+    "Event Date",
+    "Due Date",
+    "Booking Ref",
+    "Client",
+    "Act",
+    "Agent",
+    "Gross",
+    "Commission Gross",
+    "VAT",
+    "Commission Net",
+    "Pass-through",
+    "Deposit Paid",
+    "Balance Due",
+    "Status",
+  ];
+
+  const rows = bookings.map((b) => [
+    b.eventDateISO || "",
+    b.expectedBalanceDueDateISO || "",
+    b.bookingRef || "",
+    b.clientName || "",
+    b.actTscName || b.actName || "",
+    b.agent || "",
+    b.grossValue || 0,
+    b.commissionGross || 0,
+    b.commissionVat || 0,
+    b.commissionNet || 0,
+    b.passThroughGross || 0,
+    b.depositPaid || 0,
+    b.balanceDue || 0,
+    b.status || "",
+  ]);
+
+  const csv = [headers, ...rows]
+    .map((row) =>
+      row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","),
+    )
+    .join("\n");
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `finance-forecast-${from || "all"}-${to || "all"}.csv`;
+  link.click();
+
+  URL.revokeObjectURL(url);
+};
+
+  const monthlySummary = useMemo(() => {
+  const map = {};
+
+  bookings.forEach((b) => {
+    const month = b.eventMonth || String(b.eventDateISO || "").slice(0, 7) || "Unknown";
+
+    if (!map[month]) {
+      map[month] = {
+        month,
+        gigs: 0,
+        gross: 0,
+        commissionNet: 0,
+        vat: 0,
+        passThrough: 0,
+        balanceDue: 0,
+      };
+    }
+
+    map[month].gigs += 1;
+    map[month].gross += Number(b.grossValue || 0);
+    map[month].commissionNet += Number(b.commissionNet || 0);
+    map[month].vat += Number(b.commissionVat || 0);
+    map[month].passThrough += Number(b.passThroughGross || 0);
+    map[month].balanceDue += Number(b.balanceDue || 0);
+  });
+
+  return Object.values(map).sort((a, b) => a.month.localeCompare(b.month));
+}, [bookings]);
+
+const cashflowSummary = useMemo(() => {
+  const map = {};
+
+  bookings.forEach((b) => {
+    const month =
+      String(b.expectedCashDateISO || b.expectedBalanceDueDateISO || b.eventDateISO || "")
+        .slice(0, 7) || "Unknown";
+
+    if (!map[month]) {
+      map[month] = {
+        month,
+        gigs: 0,
+        expectedCash: 0,
+        commissionNet: 0,
+        vat: 0,
+        passThrough: 0,
+      };
+    }
+
+    map[month].gigs += 1;
+    map[month].expectedCash += Number(b.balanceDue || 0);
+    map[month].commissionNet += Number(b.commissionNet || 0);
+    map[month].vat += Number(b.commissionVat || 0);
+    map[month].passThrough += Number(b.passThroughGross || 0);
+  });
+
+  return Object.values(map).sort((a, b) => a.month.localeCompare(b.month));
+}, [bookings]);
+
+const maxExpectedCash = Math.max(
+  ...cashflowSummary.map((m) => m.expectedCash),
+  1
+);
+
+const maxMonthlyGross = Math.max(
+  ...monthlySummary.map((m) => m.gross),
+  1
+);
+
   useEffect(() => {
     loadBookings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -296,12 +320,13 @@ const applyPreset = async (preset) => {
         </div>
 
         <div className="flex gap-2">
-          <button
-            onClick={() => setCsvOpen((v) => !v)}
-            className="px-4 py-2 rounded border bg-white"
-          >
-            {csvOpen ? "Close CSV Import" : "Import CSV"}
-          </button>
+          
+<button
+  onClick={exportCsv}
+  className="px-4 py-2 rounded border bg-white"
+>
+  Export CSV
+</button>
 
           <button
             onClick={syncAll}
@@ -370,79 +395,7 @@ const applyPreset = async (preset) => {
         </button>
       </div>
 
-      {csvOpen && (
-        <div className="bg-white border rounded-xl p-4 mb-6 shadow-sm">
-          <div className="flex items-start justify-between gap-4 mb-3">
-            <div>
-              <h2 className="font-semibold">Bulk import bookings CSV</h2>
-              <p className="text-xs text-gray-500 mt-1">
-                Paste CSV with headers like bookingRef, clientFirstNames,
-                eventDateISO, grossValue, commissionGross, passThroughGross.
-              </p>
-            </div>
-
-            <button
-              onClick={importCsv}
-              disabled={importingCsv}
-              className="px-4 py-2 rounded bg-black text-white disabled:opacity-50"
-            >
-              {importingCsv ? "Importing…" : "Import + Sync"}
-            </button>
-          </div>
-          <div className="mb-4 rounded-lg border bg-gray-50 p-3">
-            <label className="block text-sm font-medium mb-2">
-              Upload CSV file
-            </label>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <input
-                type="file"
-                accept=".csv,text/csv"
-                onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-                className="block text-sm"
-              />
-
-              <button
-                onClick={importCsvFile}
-                disabled={importingCsvFile || !csvFile}
-                className="px-4 py-2 rounded bg-black text-white disabled:opacity-50"
-              >
-                {importingCsvFile ? "Uploading…" : "Upload + Sync"}
-              </button>
-
-              {csvFile && (
-                <span className="text-xs text-gray-500">
-                  Selected: {csvFile.name}
-                </span>
-              )}
-            </div>
-          </div>
-          <textarea
-            className="w-full min-h-[180px] border rounded px-3 py-2 font-mono text-xs"
-            placeholder={`bookingRef,clientFirstNames,clientEmail,eventDateISO,grossValue,commissionGross,passThroughGross,agent,actName,actTscName,address,county,lineupSelected,arrivalTime,finishTime,clientAddress
-TEST-CSV-003,Phoebe and Tyler,pb@example.com,2026-06-12,2105,520,1585,Entertainment Nation,Soul Spectrum,Soul Eras,"Meade Hall, Surrey",Surrey,5 Piece Band,17:00,00:00,"Autoguard House, Frimley"`}
-            value={csvText}
-            onChange={(e) => setCsvText(e.target.value)}
-          />
-
-          {csvResult && (
-            <div className="mt-3 text-sm">
-              <div className="flex gap-3 flex-wrap">
-                <span>Imported: {csvResult.imported || 0}</span>
-                <span>Synced: {csvResult.syncedToFinance || 0}</span>
-                <span>Failed: {csvResult.failed || 0}</span>
-              </div>
-
-              {Array.isArray(csvResult.errors) &&
-                csvResult.errors.length > 0 && (
-                  <pre className="mt-3 bg-red-50 border border-red-200 rounded p-3 text-xs overflow-auto">
-                    {JSON.stringify(csvResult.errors, null, 2)}
-                  </pre>
-                )}
-            </div>
-          )}
-        </div>
-      )}
+  
 
       <div className="grid grid-cols-1 md:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
         {[
@@ -454,6 +407,10 @@ TEST-CSV-003,Phoebe and Tyler,pb@example.com,2026-06-12,2105,520,1585,Entertainm
           ["Pass-through", totals.passThroughGross],
           ["Deposit paid", totals.depositPaid],
           ["Balance due", totals.balanceDue],
+          ["Expected cash in", totals.balanceDue],
+["Net commission retained", totals.commissionNet],
+["VAT liability", totals.commissionVat],
+["Band/client pass-through", totals.passThroughGross],
         ].map(([label, value, type]) => (
           <div key={label} className="bg-white rounded-xl border p-4 shadow-sm">
             <div className="text-xs text-gray-500">{label}</div>
@@ -463,6 +420,152 @@ TEST-CSV-003,Phoebe and Tyler,pb@example.com,2026-06-12,2105,520,1585,Entertainm
           </div>
         ))}
       </div>
+
+      <div className="bg-white border rounded-xl p-4 mb-6 shadow-sm">
+  <h2 className="font-semibold mb-3">Reality Check</h2>
+
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+    <div>
+      <div className="text-gray-500 text-xs">Average gross per gig</div>
+      <div className="font-semibold">
+        {money(bookings.length ? totals.grossValue / bookings.length : 0)}
+      </div>
+    </div>
+
+    <div>
+      <div className="text-gray-500 text-xs">Average net commission per gig</div>
+      <div className="font-semibold">
+        {money(bookings.length ? totals.commissionNet / bookings.length : 0)}
+      </div>
+    </div>
+
+    <div>
+      <div className="text-gray-500 text-xs">Commission margin</div>
+      <div className="font-semibold">
+        {totals.grossValue
+          ? `${((totals.commissionNet / totals.grossValue) * 100).toFixed(1)}%`
+          : "0%"}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div className="bg-white border rounded-xl p-4 mb-6 shadow-sm">
+  <h2 className="font-semibold mb-3">Monthly Cashflow Summary</h2>
+
+  <div className="space-y-3">
+    {monthlySummary.map((m) => (
+      <div key={m.month} className="border rounded-lg p-3">
+        <div className="flex justify-between text-sm mb-2">
+          <div className="font-medium">{m.month}</div>
+          <div>{m.gigs} gigs · {money(m.gross)}</div>
+        </div>
+
+        <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
+          <div
+            className="h-full bg-black rounded-full"
+            style={{ width: `${(m.gross / maxMonthlyGross) * 100}%` }}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs text-gray-600">
+          <div>Net comm: {money(m.commissionNet)}</div>
+          <div>VAT: {money(m.vat)}</div>
+          <div>Pass-through: {money(m.passThrough)}</div>
+          <div>Balance due: {money(m.balanceDue)}</div>
+          <div>Avg/gig: {money(m.gigs ? m.gross / m.gigs : 0)}</div>
+        </div>
+      </div>
+    ))}
+
+    {!monthlySummary.length && (
+      <div className="text-sm text-gray-500">No monthly data for this period.</div>
+    )}
+  </div>
+</div>
+
+<div className="bg-white border rounded-xl overflow-auto shadow-sm mb-6">
+  <div className="p-4 border-b">
+    <h2 className="font-semibold">Monthly Forecast Table</h2>
+  </div>
+
+  <table className="min-w-[1000px] w-full text-sm">
+    <thead className="bg-gray-100 text-left">
+      <tr>
+        {[
+          "Month",
+          "Gigs",
+          "Gross",
+          "Net commission",
+          "VAT",
+          "Pass-through",
+          "Balance due",
+          "Avg/gig",
+        ].map((h) => (
+          <th key={h} className="px-3 py-2 border-b whitespace-nowrap">
+            {h}
+          </th>
+        ))}
+      </tr>
+    </thead>
+
+    <tbody>
+      {monthlySummary.map((m) => (
+        <tr key={m.month} className="odd:bg-white even:bg-gray-50">
+          <td className="px-3 py-2 whitespace-nowrap font-medium">
+            {m.month}
+          </td>
+          <td className="px-3 py-2 text-right">{m.gigs}</td>
+          <td className="px-3 py-2 text-right">{money(m.gross)}</td>
+          <td className="px-3 py-2 text-right">{money(m.commissionNet)}</td>
+          <td className="px-3 py-2 text-right">{money(m.vat)}</td>
+          <td className="px-3 py-2 text-right">{money(m.passThrough)}</td>
+          <td className="px-3 py-2 text-right">{money(m.balanceDue)}</td>
+          <td className="px-3 py-2 text-right">
+            {money(m.gigs ? m.gross / m.gigs : 0)}
+          </td>
+        </tr>
+      ))}
+
+      {!monthlySummary.length && (
+        <tr>
+          <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+            No monthly forecast data for this period.
+          </td>
+        </tr>
+      )}
+    </tbody>
+  </table>
+</div>
+
+<div className="bg-white border rounded-xl p-4 mb-6 shadow-sm">
+  <h2 className="font-semibold mb-3">Expected Cash In by Month</h2>
+
+  <div className="space-y-3">
+    {cashflowSummary.map((m) => (
+      <div key={m.month} className="border rounded-lg p-3">
+        <div className="flex justify-between text-sm mb-2">
+          <div className="font-medium">{m.month}</div>
+          <div>{m.gigs} gigs · {money(m.expectedCash)}</div>
+        </div>
+
+        <div className="h-3 bg-gray-100 rounded-full overflow-hidden mb-2">
+          <div
+            className="h-full bg-black rounded-full"
+            style={{ width: `${(m.expectedCash / maxExpectedCash) * 100}%` }}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs text-gray-600">
+          <div>Net comm: {money(m.commissionNet)}</div>
+          <div>VAT: {money(m.vat)}</div>
+          <div>Pass-through: {money(m.passThrough)}</div>
+          <div>Expected cash: {money(m.expectedCash)}</div>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
 
       <div className="bg-white border rounded-xl overflow-auto shadow-sm">
         <table className="min-w-[1400px] w-full text-sm">
