@@ -446,7 +446,7 @@ useEffect(() => {
           <NavLink  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
           to="/finance/accounts"><p className="hidden md:block text-white">Accounts</p></NavLink>
           <NavLink  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
-          to="/finance/transactions"><p className="hidden md:block text-white">Transactions</p></ NavLink>
+          to="/finance/transactions"><p className="hidden md:block text-white">Transactions</p></NavLink>
           <NavLink  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
           to="/finance/forecast-events"><p className="hidden md:block text-white">Forecast Events</p></NavLink>
           <NavLink  className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
