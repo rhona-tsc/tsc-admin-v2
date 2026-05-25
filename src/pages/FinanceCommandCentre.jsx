@@ -178,6 +178,35 @@ export default function FinanceCommandCentre() {
     await loadBookings();
   };
 
+  const markBookingPaid = async (booking) => {
+    if (!window.confirm(`Mark ${booking.bookingRef || ""} as paid?`)) return;
+
+    const boardRowId = booking.boardRowId;
+
+    if (!boardRowId) {
+      alert("No booking board row ID found for this finance row.");
+      return;
+    }
+
+    const res = await fetch(
+      `${API_BASE}/board/bookings/${boardRowId}/mark-paid`,
+      {
+        method: "PATCH",
+        headers,
+        credentials: "include",
+      },
+    );
+
+    const json = await res.json();
+
+    if (!json.success) {
+      alert(json.message || "Could not mark booking paid.");
+      return;
+    }
+
+    await loadBookings();
+  };
+
   const exportCsv = () => {
     const headers = [
       "Event Date",
@@ -537,9 +566,10 @@ export default function FinanceCommandCentre() {
                     <td className="px-3 py-2 whitespace-nowrap">
                       <button
                         onClick={() => {
-  setQ(b.bookingRef || "");
-  loadBookings({ q: b.bookingRef || "" });
-}}
+                          const ref = b.bookingRef || "";
+                          setQ(ref);
+                          loadBookings({ q: ref });
+                        }}
                         className="text-blue-600 hover:underline"
                       >
                         Find
@@ -783,12 +813,23 @@ export default function FinanceCommandCentre() {
                   </span>
                 </td>
                 <td className="px-3 py-2 whitespace-nowrap">
-                  <button
-                    onClick={() => deleteBookingRow(b)}
-                    className="text-red-600 hover:underline"
-                  >
-                    Delete
-                  </button>
+                  <div className="flex gap-3">
+                    {b.status !== "paid" && (
+                      <button
+                        onClick={() => markBookingPaid(b)}
+                        className="text-green-700 hover:underline"
+                      >
+                        Mark paid
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => deleteBookingRow(b)}
+                      className="text-red-600 hover:underline"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
