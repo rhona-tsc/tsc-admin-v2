@@ -41,6 +41,10 @@ export default function FinanceCommandCentre() {
   const [to, setTo] = useState("");
   const [status, setStatus] = useState("");
   const [q, setQ] = useState("");
+  const [csvOpen, setCsvOpen] = useState(false);
+  const [csvText, setCsvText] = useState("");
+  const [importingCsv, setImportingCsv] = useState(false);
+  const [csvResult, setCsvResult] = useState(null);
 
   const headers = useMemo(() => {
     const token = getAuthToken();
@@ -110,6 +114,48 @@ export default function FinanceCommandCentre() {
     }
   };
 
+  const importCsv = async () => {
+    if (!csvText.trim()) {
+      window.alert("Paste CSV first.");
+      return;
+    }
+
+    setImportingCsv(true);
+    setCsvResult(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/board/bookings/bulk-import-csv`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({ csv: csvText }),
+      });
+
+      const json = await res.json();
+
+      setCsvResult(json);
+
+      if (!json?.success && json?.failed) {
+        window.alert(`Imported ${json.imported || 0}, failed ${json.failed}.`);
+        return;
+      }
+
+      window.alert(
+        `Imported ${json.imported || 0}. Synced to finance: ${
+          json.syncedToFinance || 0
+        }.`,
+      );
+
+      setCsvText("");
+      await loadBookings();
+    } catch (err) {
+      console.error("CSV import failed:", err);
+      window.alert(err.message || "CSV import failed.");
+    } finally {
+      setImportingCsv(false);
+    }
+  };
+
   useEffect(() => {
     loadBookings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -125,13 +171,22 @@ export default function FinanceCommandCentre() {
           </p>
         </div>
 
-        <button
-          onClick={syncAll}
-          disabled={syncing}
-          className="px-4 py-2 rounded bg-black text-white disabled:opacity-50"
-        >
-          {syncing ? "Syncing…" : "Sync from Booking Board"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setCsvOpen((v) => !v)}
+            className="px-4 py-2 rounded border bg-white"
+          >
+            {csvOpen ? "Close CSV Import" : "Import CSV"}
+          </button>
+
+          <button
+            onClick={syncAll}
+            disabled={syncing}
+            className="px-4 py-2 rounded bg-black text-white disabled:opacity-50"
+          >
+            {syncing ? "Syncing…" : "Sync from Booking Board"}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-7 gap-3 mb-5">
@@ -172,6 +227,53 @@ export default function FinanceCommandCentre() {
           {loading ? "Loading…" : "Apply"}
         </button>
       </div>
+
+      {csvOpen && (
+        <div className="bg-white border rounded-xl p-4 mb-6 shadow-sm">
+          <div className="flex items-start justify-between gap-4 mb-3">
+            <div>
+              <h2 className="font-semibold">Bulk import bookings CSV</h2>
+              <p className="text-xs text-gray-500 mt-1">
+                Paste CSV with headers like bookingRef, clientFirstNames,
+                eventDateISO, grossValue, commissionGross, passThroughGross.
+              </p>
+            </div>
+
+            <button
+              onClick={importCsv}
+              disabled={importingCsv}
+              className="px-4 py-2 rounded bg-black text-white disabled:opacity-50"
+            >
+              {importingCsv ? "Importing…" : "Import + Sync"}
+            </button>
+          </div>
+
+          <textarea
+            className="w-full min-h-[180px] border rounded px-3 py-2 font-mono text-xs"
+            placeholder={`bookingRef,clientFirstNames,clientEmail,eventDateISO,grossValue,commissionGross,passThroughGross,agent,actName,actTscName,address,county,lineupSelected,arrivalTime,finishTime,clientAddress
+TEST-CSV-003,Phoebe and Tyler,pb@example.com,2026-06-12,2105,520,1585,Entertainment Nation,Soul Spectrum,Soul Eras,"Meade Hall, Surrey",Surrey,5 Piece Band,17:00,00:00,"Autoguard House, Frimley"`}
+            value={csvText}
+            onChange={(e) => setCsvText(e.target.value)}
+          />
+
+          {csvResult && (
+            <div className="mt-3 text-sm">
+              <div className="flex gap-3 flex-wrap">
+                <span>Imported: {csvResult.imported || 0}</span>
+                <span>Synced: {csvResult.syncedToFinance || 0}</span>
+                <span>Failed: {csvResult.failed || 0}</span>
+              </div>
+
+              {Array.isArray(csvResult.errors) &&
+                csvResult.errors.length > 0 && (
+                  <pre className="mt-3 bg-red-50 border border-red-200 rounded p-3 text-xs overflow-auto">
+                    {JSON.stringify(csvResult.errors, null, 2)}
+                  </pre>
+                )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
         {[
@@ -232,7 +334,9 @@ export default function FinanceCommandCentre() {
                 <td className="px-3 py-2 whitespace-nowrap">
                   {b.actTscName || b.actName || "—"}
                 </td>
-                <td className="px-3 py-2 whitespace-nowrap">{b.agent || "—"}</td>
+                <td className="px-3 py-2 whitespace-nowrap">
+                  {b.agent || "—"}
+                </td>
                 <td className="px-3 py-2 text-right">{money(b.grossValue)}</td>
                 <td className="px-3 py-2 text-right">
                   {money(b.commissionGross)}
@@ -246,9 +350,7 @@ export default function FinanceCommandCentre() {
                 <td className="px-3 py-2 text-right">
                   {money(b.passThroughGross)}
                 </td>
-                <td className="px-3 py-2 text-right">
-                  {money(b.depositPaid)}
-                </td>
+                <td className="px-3 py-2 text-right">{money(b.depositPaid)}</td>
                 <td className="px-3 py-2 text-right">{money(b.balanceDue)}</td>
                 <td className="px-3 py-2 whitespace-nowrap">
                   <span className="px-2 py-1 rounded-full border text-xs bg-white">
@@ -260,7 +362,10 @@ export default function FinanceCommandCentre() {
 
             {!bookings.length && (
               <tr>
-                <td colSpan={14} className="px-4 py-8 text-center text-gray-500">
+                <td
+                  colSpan={14}
+                  className="px-4 py-8 text-center text-gray-500"
+                >
                   No finance forecast bookings found.
                 </td>
               </tr>
