@@ -1,7 +1,6 @@
 // admin/src/pages/FinanceCommandCentre.jsx
 import React, { useEffect, useMemo, useState } from "react";
-const [csvFile, setCsvFile] = useState(null);
-const [importingCsvFile, setImportingCsvFile] = useState(false);
+
 
 const API_BASE = (
   import.meta?.env?.VITE_ADMIN_API_BASE ||
@@ -55,6 +54,8 @@ export default function FinanceCommandCentre() {
   const [csvText, setCsvText] = useState("");
   const [importingCsv, setImportingCsv] = useState(false);
   const [csvResult, setCsvResult] = useState(null);
+const [csvFile, setCsvFile] = useState(null);
+const [importingCsvFile, setImportingCsvFile] = useState(false);
 
   const headers = useMemo(() => {
     const token = getAuthToken();
@@ -64,14 +65,20 @@ export default function FinanceCommandCentre() {
     };
   }, []);
 
-  const loadBookings = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (from) params.set("from", from);
-      if (to) params.set("to", to);
-      if (status) params.set("status", status);
-      if (q) params.set("q", q);
+const loadBookings = async (overrides = {}) => {
+  setLoading(true);
+  try {
+    const nextFrom = overrides.from ?? from;
+    const nextTo = overrides.to ?? to;
+    const nextStatus = overrides.status ?? status;
+    const nextQ = overrides.q ?? q;
+
+    const params = new URLSearchParams();
+    if (nextFrom) params.set("from", nextFrom);
+    if (nextTo) params.set("to", nextTo);
+    if (nextStatus) params.set("status", nextStatus);
+    if (nextQ) params.set("q", nextQ);
+
 
       const res = await fetch(
         `${API_BASE}/finance/forecast/bookings?${params.toString()}`,
@@ -124,37 +131,38 @@ export default function FinanceCommandCentre() {
     }
   };
 
-  const applyPreset = (preset) => {
-    const now = new Date();
-    const year = now.getFullYear();
+const applyPreset = async (preset) => {
+  const now = new Date();
+  const year = now.getFullYear();
 
-    if (preset === "thisMonth") {
-      const range = getMonthRange(year, now.getMonth());
-      setFrom(range.from);
-      setTo(range.to);
-    }
-
-    if (preset === "nextMonth") {
-      const range = getMonthRange(year, now.getMonth() + 1);
-      setFrom(range.from);
-      setTo(range.to);
-    }
-
-    if (preset === "thisYear") {
-      setFrom(`${year}-01-01`);
-      setTo(`${year}-12-31`);
-    }
-
-    if (preset === "nextYear") {
-      setFrom(`${year + 1}-01-01`);
-      setTo(`${year + 1}-12-31`);
-    }
-
-    if (preset === "all") {
-      setFrom("");
-      setTo("");
-    }
+  const setAndLoad = async (nextFrom, nextTo) => {
+    setFrom(nextFrom);
+    setTo(nextTo);
+    await loadBookings({ from: nextFrom, to: nextTo });
   };
+
+  if (preset === "thisMonth") {
+    const range = getMonthRange(year, now.getMonth());
+    return setAndLoad(range.from, range.to);
+  }
+
+  if (preset === "nextMonth") {
+    const range = getMonthRange(year, now.getMonth() + 1);
+    return setAndLoad(range.from, range.to);
+  }
+
+  if (preset === "thisYear") {
+    return setAndLoad(`${year}-01-01`, `${year}-12-31`);
+  }
+
+  if (preset === "nextYear") {
+    return setAndLoad(`${year + 1}-01-01`, `${year + 1}-12-31`);
+  }
+
+  if (preset === "all") {
+    return setAndLoad("", "");
+  }
+};
 
   const importCsv = async () => {
     if (!csvText.trim()) {
