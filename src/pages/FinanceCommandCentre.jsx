@@ -303,6 +303,7 @@ TEST-CSV-003,Phoebe and Tyler,pb@example.com,2026-06-12,2105,520,1585,Entertainm
 
       <div className="grid grid-cols-1 md:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
         {[
+          ["Gigs", bookings.length, "count"],
           ["Gross", totals.grossValue],
           ["Commission gross", totals.commissionGross],
           ["VAT", totals.commissionVat],
@@ -310,10 +311,12 @@ TEST-CSV-003,Phoebe and Tyler,pb@example.com,2026-06-12,2105,520,1585,Entertainm
           ["Pass-through", totals.passThroughGross],
           ["Deposit paid", totals.depositPaid],
           ["Balance due", totals.balanceDue],
-        ].map(([label, value]) => (
+        ].map(([label, value, type]) => (
           <div key={label} className="bg-white rounded-xl border p-4 shadow-sm">
             <div className="text-xs text-gray-500">{label}</div>
-            <div className="text-lg font-semibold mt-1">{money(value)}</div>
+            <div className="text-lg font-semibold mt-1">
+              {type === "count" ? value : money(value)}
+            </div>{" "}
           </div>
         ))}
       </div>
