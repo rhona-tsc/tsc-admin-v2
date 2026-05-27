@@ -1877,7 +1877,13 @@ export default function BookingBoard() {
   };
 
   const fetchRows = async () => {
-    const url = `${API_BASE}/board/bookings?q=${encodeURIComponent(q)}&sortBy=${encodeURIComponent(sortBy)}&sortDir=${encodeURIComponent(sortDir)}`;
+const params = new URLSearchParams();
+params.set("q", q);
+params.set("sortBy", sortBy);
+params.set("sortDir", sortDir);
+params.set("limit", "5000");
+
+const url = `${API_BASE}/board/bookings?${params.toString()}`;
     try {
       const res = await fetch(url, {
         headers: buildHeaders(),
