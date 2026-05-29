@@ -30,6 +30,14 @@ const formatDate = (date) => {
   });
 };
 
+  const toISODate = (date) => date.toISOString().slice(0, 10);
+
+  const addMonths = (date, months) => {
+    const d = new Date(date);
+    d.setMonth(d.getMonth() + months);
+    return d;
+  };
+
 const FinanceDashboard = () => {
   const [entity, setEntity] = useState("TSC");
   const [startingBalanceInput, setStartingBalanceInput] = useState(0);
@@ -143,13 +151,7 @@ const FinanceDashboard = () => {
     }));
   }, [data]);
 
-  const toISODate = (date) => date.toISOString().slice(0, 10);
 
-  const addMonths = (date, months) => {
-    const d = new Date(date);
-    d.setMonth(d.getMonth() + months);
-    return d;
-  };
 
   const summary = data?.summary || {};
   const startingBalance = Number(
