@@ -33,6 +33,8 @@ const formatDate = (date) => {
 const FinanceDashboard = () => {
   const [entity, setEntity] = useState("TSC");
   const [startingBalanceInput, setStartingBalanceInput] = useState(0);
+  const [fromDate, setFromDate] = useState(toISODate(new Date()));
+  const [toDate, setToDate] = useState(toISODate(addMonths(new Date(), 12)));
   const [data, setData] = useState(null);
   const [monthlyData, setMonthlyData] = useState(null);
   const [unreconciledCount, setUnreconciledCount] = useState(0);
@@ -51,10 +53,20 @@ const FinanceDashboard = () => {
       const [timelineRes, monthlyRes, transactionsRes, forecastEventsRes] =
         await Promise.all([
           axios.get(`${backendUrl}/api/finance/forecast/timeline`, {
-            params: { entity, startingBalance: Number(startingBalanceInput || 0) },
+            params: {
+              entity,
+              startingBalance: Number(startingBalanceInput || 0),
+              from: fromDate,
+              to: toDate,
+            },
           }),
           axios.get(`${backendUrl}/api/finance/forecast/monthly-summary`, {
-            params: { entity, startingBalance: Number(startingBalanceInput || 0) },
+            params: {
+              entity,
+              startingBalance: Number(startingBalanceInput || 0),
+              from: fromDate,
+              to: toDate,
+            },
           }),
           axios.get(`${backendUrl}/api/finance/transactions`, {
             params: { entity, reconciled: false },
@@ -131,8 +143,18 @@ const FinanceDashboard = () => {
     }));
   }, [data]);
 
+  const toISODate = (date) => date.toISOString().slice(0, 10);
+
+  const addMonths = (date, months) => {
+    const d = new Date(date);
+    d.setMonth(d.getMonth() + months);
+    return d;
+  };
+
   const summary = data?.summary || {};
-  const startingBalance = Number(data?.filters?.startingBalance ?? startingBalanceInput ?? 0);
+  const startingBalance = Number(
+    data?.filters?.startingBalance ?? startingBalanceInput ?? 0,
+  );
   const cashBufferNeeded =
     Number(summary.lowestBalance || 0) < 0
       ? Math.abs(Number(summary.lowestBalance || 0))
@@ -189,6 +211,30 @@ const FinanceDashboard = () => {
               </p>
             </div>
 
+            <div>
+  <label className="mb-1 block text-xs font-medium text-gray-600">
+    Forecast from
+  </label>
+  <input
+    type="date"
+    value={fromDate}
+    onChange={(e) => setFromDate(e.target.value)}
+    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+  />
+</div>
+
+<div>
+  <label className="mb-1 block text-xs font-medium text-gray-600">
+    Forecast to
+  </label>
+  <input
+    type="date"
+    value={toDate}
+    onChange={(e) => setToDate(e.target.value)}
+    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+  />
+</div>
+
             <Link
               to="/finance/transactions/import"
               className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800"
@@ -241,9 +287,18 @@ const FinanceDashboard = () => {
         )}
 
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <SummaryCard title="Total In" value={formatCurrency(summary.totalIn)} />
-          <SummaryCard title="Total Out" value={formatCurrency(summary.totalOut)} />
-          <SummaryCard title="Final Balance" value={formatCurrency(summary.finalBalance)} />
+          <SummaryCard
+            title="Total In"
+            value={formatCurrency(summary.totalIn)}
+          />
+          <SummaryCard
+            title="Total Out"
+            value={formatCurrency(summary.totalOut)}
+          />
+          <SummaryCard
+            title="Final Balance"
+            value={formatCurrency(summary.finalBalance)}
+          />
           <SummaryCard
             title="Cash Buffer Needed"
             value={formatCurrency(cashBufferNeeded)}
