@@ -30,13 +30,71 @@ const formatDate = (date) => {
   });
 };
 
-  const toISODate = (date) => date.toISOString().slice(0, 10);
+const toISODate = (date) => date.toISOString().slice(0, 10);
 
-  const addMonths = (date, months) => {
-    const d = new Date(date);
-    d.setMonth(d.getMonth() + months);
-    return d;
+const addMonths = (date, months) => {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + months);
+  return d;
+};
+
+const getEventISO = (event) => String(event?.expectedDate || "").slice(0, 10);
+
+const isWithinDateRange = (event, fromDate, toDate) => {
+  const eventISO = getEventISO(event);
+  if (!eventISO) return false;
+  if (fromDate && eventISO < fromDate) return false;
+  if (toDate && eventISO > toDate) return false;
+  return true;
+};
+
+const buildFilteredForecast = (timeline = [], startingBalance = 0) => {
+  let runningBalance = Number(startingBalance || 0);
+  let totalIn = 0;
+  let totalOut = 0;
+  let lowestBalance = runningBalance;
+  let firstNegativeDate = "";
+
+  const rebuiltTimeline = timeline.map((event) => {
+    const signedAmount = Number(
+      event?.signedAmount ??
+        (event?.direction === "out"
+          ? -Number(event?.amount || 0)
+          : Number(event?.amount || 0)),
+    );
+
+    if (signedAmount >= 0) totalIn += signedAmount;
+    else totalOut += Math.abs(signedAmount);
+
+    runningBalance += signedAmount;
+
+    if (runningBalance < lowestBalance) {
+      lowestBalance = runningBalance;
+    }
+
+    if (!firstNegativeDate && runningBalance < 0) {
+      firstNegativeDate = event?.expectedDate || "";
+    }
+
+    return {
+      ...event,
+      signedAmount,
+      runningBalance,
+    };
+  });
+
+  return {
+    timeline: rebuiltTimeline,
+    summary: {
+      totalIn,
+      totalOut,
+      netMovement: totalIn - totalOut,
+      finalBalance: runningBalance,
+      lowestBalance,
+      firstNegativeDate,
+    },
   };
+};
 
 const FinanceDashboard = () => {
   const [entity, setEntity] = useState("TSC");
@@ -52,28 +110,34 @@ const FinanceDashboard = () => {
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  const fetchForecast = async () => {
+  const fetchForecast = async (overrides = {}) => {
     try {
       setLoading(true);
       setError("");
       setSuccessMessage("");
+
+      const nextFrom = overrides.from ?? fromDate;
+      const nextTo = overrides.to ?? toDate;
+      const nextStartingBalance = Number(
+        overrides.startingBalance ?? startingBalanceInput ?? 0,
+      );
 
       const [timelineRes, monthlyRes, transactionsRes, forecastEventsRes] =
         await Promise.all([
           axios.get(`${backendUrl}/api/finance/forecast/timeline`, {
             params: {
               entity,
-              startingBalance: Number(startingBalanceInput || 0),
-              from: fromDate,
-              to: toDate,
+              startingBalance: nextStartingBalance,
+              from: nextFrom,
+              to: nextTo,
             },
           }),
           axios.get(`${backendUrl}/api/finance/forecast/monthly-summary`, {
             params: {
               entity,
-              startingBalance: Number(startingBalanceInput || 0),
-              from: fromDate,
-              to: toDate,
+              startingBalance: nextStartingBalance,
+              from: nextFrom,
+              to: nextTo,
             },
           }),
           axios.get(`${backendUrl}/api/finance/transactions`, {
@@ -111,6 +175,14 @@ const FinanceDashboard = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entity]);
 
+  const applyNext12Months = async () => {
+    const start = toISODate(new Date());
+    const end = toISODate(addMonths(new Date(), 12));
+    setFromDate(start);
+    setToDate(end);
+    await fetchForecast({ from: start, to: end });
+  };
+
   const handleAutoMatch = async () => {
     try {
       setAutoMatching(true);
@@ -142,18 +214,25 @@ const FinanceDashboard = () => {
     }
   };
 
+  const filteredForecast = useMemo(() => {
+    const rawTimeline = data?.timeline || [];
+    const filteredTimeline = rawTimeline.filter((event) =>
+      isWithinDateRange(event, fromDate, toDate),
+    );
+
+    return buildFilteredForecast(filteredTimeline, startingBalanceInput);
+  }, [data, fromDate, toDate, startingBalanceInput]);
+
   const chartData = useMemo(() => {
-    return (data?.timeline || []).map((event) => ({
+    return (filteredForecast?.timeline || []).map((event) => ({
       date: formatDate(event.expectedDate),
       balance: Number(event.runningBalance || 0),
       title: event.title,
       amount: event.signedAmount,
     }));
-  }, [data]);
+  }, [filteredForecast]);
 
-
-
-  const summary = data?.summary || {};
+  const summary = filteredForecast?.summary || {};
   const startingBalance = Number(
     data?.filters?.startingBalance ?? startingBalanceInput ?? 0,
   );
@@ -237,6 +316,15 @@ const FinanceDashboard = () => {
   />
 </div>
 
+            <button
+              type="button"
+              onClick={applyNext12Months}
+              disabled={loading}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 disabled:opacity-50"
+            >
+              Next 12 months
+            </button>
+
             <Link
               to="/finance/transactions/import"
               className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800"
@@ -260,7 +348,7 @@ const FinanceDashboard = () => {
             </button>
 
             <button
-              onClick={fetchForecast}
+              onClick={() => fetchForecast()}
               disabled={loading}
               className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
@@ -376,7 +464,14 @@ const FinanceDashboard = () => {
               </thead>
 
               <tbody>
-                {(monthlyData?.months || []).map((month) => (
+                {(monthlyData?.months || [])
+                  .filter((month) => {
+                    const monthStart = `${month.month}-01`;
+                    if (fromDate && monthStart < fromDate.slice(0, 7)) return false;
+                    if (toDate && month.month > toDate.slice(0, 7)) return false;
+                    return true;
+                  })
+                  .map((month) => (
                   <tr key={month.month} className="border-b last:border-0">
                     <td className="px-3 py-3 font-medium">{month.month}</td>
                     <td className="px-3 py-3 text-right text-green-700">
@@ -397,7 +492,12 @@ const FinanceDashboard = () => {
                   </tr>
                 ))}
 
-                {!monthlyData?.months?.length && (
+                {!monthlyData?.months?.filter((month) => {
+                  const monthStart = `${month.month}-01`;
+                  if (fromDate && monthStart < fromDate.slice(0, 7)) return false;
+                  if (toDate && month.month > toDate.slice(0, 7)) return false;
+                  return true;
+                })?.length && (
                   <tr>
                     <td
                       colSpan="6"
@@ -436,7 +536,7 @@ const FinanceDashboard = () => {
               </thead>
 
               <tbody>
-                {(data?.timeline || []).map((event) => (
+                {(filteredForecast?.timeline || []).map((event) => (
                   <tr key={event._id} className="border-b last:border-0">
                     <td className="whitespace-nowrap px-3 py-3">
                       {formatDate(event.expectedDate)}
@@ -463,7 +563,7 @@ const FinanceDashboard = () => {
                   </tr>
                 ))}
 
-                {!data?.timeline?.length && (
+                {!filteredForecast?.timeline?.length && (
                   <tr>
                     <td
                       colSpan="6"

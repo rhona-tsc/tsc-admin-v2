@@ -13,6 +13,7 @@ const EMPTY_FORM = {
   status: "forecast",
   source: "manual",
   notes: "",
+  autoCreateTaxEvents: false,
 };
 
 const entities = [
@@ -46,6 +47,138 @@ const eventTypes = [
 ];
 
 const statuses = ["forecast", "confirmed", "paid", "cancelled", "ignored"];
+
+const TAX_CONFIG = {
+  vatRegisteredFrom: "2026-02-01",
+  vatPaymentMonthOffsets: [1, 4, 7, 10],
+  vatPaymentDay: 7,
+  corporationTaxRate: 0.25,
+  companyYearEndMonth: 10,
+  companyYearEndDay: 30,
+  corporationTaxPaymentMonthOffset: 9,
+  corporationTaxPaymentDay: 1,
+};
+
+const EWAN_PAYROLL_CONFIG = {
+  salarySacrificeRate: 0.05,
+  employerPensionRate: 0.03,
+  employerNiRate: 0.15,
+  employerNiMonthlyThreshold: 417,
+};
+
+const toISODate = (date) => date.toISOString().slice(0, 10);
+
+const parseISODateOnly = (value) => {
+  if (!value) return null;
+  const date = new Date(`${String(value).slice(0, 10)}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const addMonths = (date, months) => {
+  const next = new Date(date);
+  next.setMonth(next.getMonth() + months);
+  return next;
+};
+
+const getQuarterStart = (date) => {
+  const month = date.getMonth();
+  const quarterStartMonth = Math.floor(month / 3) * 3;
+  return new Date(date.getFullYear(), quarterStartMonth, 1, 12);
+};
+
+const getVatQuarterEnd = (date) => {
+  const start = getQuarterStart(date);
+  return new Date(start.getFullYear(), start.getMonth() + 3, 0, 12);
+};
+
+const getVatPaymentDate = (sourceDateValue) => {
+  const sourceDate = parseISODateOnly(sourceDateValue);
+  if (!sourceDate) return "";
+
+  const quarterEnd = getVatQuarterEnd(sourceDate);
+  const paymentDate = addMonths(quarterEnd, 1);
+  paymentDate.setDate(TAX_CONFIG.vatPaymentDay);
+  return toISODate(paymentDate);
+};
+
+const getCompanyYearEndForDate = (sourceDateValue) => {
+  const sourceDate = parseISODateOnly(sourceDateValue);
+  if (!sourceDate) return null;
+
+  const currentYearEnd = new Date(
+    sourceDate.getFullYear(),
+    TAX_CONFIG.companyYearEndMonth,
+    TAX_CONFIG.companyYearEndDay,
+    12,
+  );
+
+  if (sourceDate <= currentYearEnd) return currentYearEnd;
+
+  return new Date(
+    sourceDate.getFullYear() + 1,
+    TAX_CONFIG.companyYearEndMonth,
+    TAX_CONFIG.companyYearEndDay,
+    12,
+  );
+};
+
+const getCorporationTaxPaymentDate = (sourceDateValue) => {
+  const yearEnd = getCompanyYearEndForDate(sourceDateValue);
+  if (!yearEnd) return "";
+
+  const paymentDate = addMonths(yearEnd, TAX_CONFIG.corporationTaxPaymentMonthOffset);
+  paymentDate.setDate(TAX_CONFIG.corporationTaxPaymentDay);
+  return toISODate(paymentDate);
+};
+
+const roundMoney = (value = 0) => Math.round(Number(value || 0) * 100) / 100;
+
+const calculateVatFromGross = (grossAmount = 0, vatRate = 0.2) => {
+  const gross = Math.abs(Number(grossAmount || 0));
+  const rate = Number(vatRate || 0);
+  if (!gross || !rate) return 0;
+  return roundMoney(gross * (rate / (1 + rate)));
+};
+
+const isPotentialVatBearingIncome = (form) => {
+  if (form?.direction !== "in") return false;
+  return ["client_deposit_in", "client_balance_in", "recurring_income", "manual_adjustment"].includes(form?.type);
+};
+
+const isPotentialProfitEvent = (form) => {
+  return ["client_deposit_in", "client_balance_in", "recurring_income", "manual_adjustment"].includes(form?.type);
+};
+
+const isEwanSalaryForm = (form) => {
+  const title = String(form?.title || "").toLowerCase();
+  return form?.type === "salary_out" && title.includes("ewan");
+};
+
+const calculateEwanPayrollCosts = (salaryAfterSacrifice = 0) => {
+  const salary = Math.abs(Number(salaryAfterSacrifice || 0));
+  const sacrificeRate = EWAN_PAYROLL_CONFIG.salarySacrificeRate;
+  const employerPensionRate = EWAN_PAYROLL_CONFIG.employerPensionRate;
+
+  const preSacrificeSalary = sacrificeRate < 1 ? salary / (1 - sacrificeRate) : salary;
+  const salarySacrificePension = preSacrificeSalary * sacrificeRate;
+  const employerPension = preSacrificeSalary * employerPensionRate;
+  const totalPension = salarySacrificePension + employerPension;
+
+  const employerNi = Math.max(
+    0,
+    (salary - EWAN_PAYROLL_CONFIG.employerNiMonthlyThreshold) *
+      EWAN_PAYROLL_CONFIG.employerNiRate,
+  );
+
+  return {
+    salary: roundMoney(salary),
+    preSacrificeSalary: roundMoney(preSacrificeSalary),
+    salarySacrificePension: roundMoney(salarySacrificePension),
+    employerPension: roundMoney(employerPension),
+    totalPension: roundMoney(totalPension),
+    employerNi: roundMoney(employerNi),
+  };
+};
 
 const formatCurrency = (value = 0) =>
   new Intl.NumberFormat("en-GB", {
@@ -98,6 +231,8 @@ const matchesSearch = (event, search) => {
 const FinanceForecastEvents = () => {
   const [events, setEvents] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [autoCreateEwanPayrollCosts, setAutoCreateEwanPayrollCosts] = useState(true);
+  const [autoCreateTaxEvents, setAutoCreateTaxEvents] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
   const [entityFilter, setEntityFilter] = useState("TSC");
@@ -113,6 +248,41 @@ const FinanceForecastEvents = () => {
   const filteredEvents = useMemo(() => {
     return events.filter((event) => matchesSearch(event, search));
   }, [events, search]);
+
+  const ewanPayrollPreview = useMemo(() => {
+    if (!isEwanSalaryForm(form)) return null;
+    return calculateEwanPayrollCosts(form.amount);
+  }, [form]);
+
+  const taxPreview = useMemo(() => {
+    if (!autoCreateTaxEvents) return null;
+
+    const amount = Math.abs(Number(form.amount || 0));
+    if (!amount || !form.expectedDate) return null;
+
+    const eventDate = parseISODateOnly(form.expectedDate);
+    const vatStartDate = parseISODateOnly(TAX_CONFIG.vatRegisteredFrom);
+    const canCreateVat =
+      isPotentialVatBearingIncome(form) &&
+      eventDate &&
+      vatStartDate &&
+      eventDate >= vatStartDate;
+
+    const vatAmount = canCreateVat ? calculateVatFromGross(amount, 0.2) : 0;
+    const profitBeforeTax =
+      form.direction === "in" ? Math.max(0, amount - vatAmount) : 0;
+    const corporationTaxAmount = isPotentialProfitEvent(form)
+      ? roundMoney(profitBeforeTax * TAX_CONFIG.corporationTaxRate)
+      : 0;
+
+    return {
+      vatAmount,
+      vatPaymentDate: getVatPaymentDate(form.expectedDate),
+      corporationTaxAmount,
+      corporationTaxPaymentDate: getCorporationTaxPaymentDate(form.expectedDate),
+      profitBeforeTax,
+    };
+  }, [autoCreateTaxEvents, form]);
 
   const fetchEvents = async () => {
     try {
@@ -147,6 +317,8 @@ const FinanceForecastEvents = () => {
 
   const resetForm = () => {
     setForm(EMPTY_FORM);
+    setAutoCreateEwanPayrollCosts(true);
+    setAutoCreateTaxEvents(false);
     setEditingId(null);
     setError("");
   };
@@ -167,6 +339,8 @@ const FinanceForecastEvents = () => {
     }
 
     setEditingId(event._id);
+    setAutoCreateEwanPayrollCosts(false);
+    setAutoCreateTaxEvents(false);
 
     setForm({
       entity: event.entity || "TSC",
@@ -218,6 +392,109 @@ const FinanceForecastEvents = () => {
           payload,
         );
         setSuccessMessage("Forecast event updated.");
+      } else if (isEwanSalaryForm(form) && autoCreateEwanPayrollCosts) {
+        const payroll = calculateEwanPayrollCosts(form.amount);
+        const baseNotes = [
+          form.notes,
+          "Auto-created Ewan payroll set.",
+          `Salary sacrifice: ${(EWAN_PAYROLL_CONFIG.salarySacrificeRate * 100).toFixed(1)}%`,
+          `Employer pension: ${(EWAN_PAYROLL_CONFIG.employerPensionRate * 100).toFixed(1)}%`,
+          `Employer NI: ${(EWAN_PAYROLL_CONFIG.employerNiRate * 100).toFixed(1)}% above £${EWAN_PAYROLL_CONFIG.employerNiMonthlyThreshold}/month`,
+        ]
+          .filter(Boolean)
+          .join("\n");
+
+        const payrollEvents = [
+          {
+            ...payload,
+            amount: payroll.salary,
+            notes: baseNotes,
+          },
+          {
+            ...payload,
+            type: "ni_out",
+            title: "Ewan employer NI",
+            description: `Employer NI linked to ${form.title}`,
+            amount: payroll.employerNi,
+            notes: [
+              `Auto-created from salary event: ${form.title}`,
+              `Salary after sacrifice: ${formatCurrency(payroll.salary)}`,
+              `NI threshold used: £${EWAN_PAYROLL_CONFIG.employerNiMonthlyThreshold}/month`,
+              `Employer NI rate used: ${(EWAN_PAYROLL_CONFIG.employerNiRate * 100).toFixed(1)}%`,
+            ].join("\n"),
+          },
+          {
+            ...payload,
+            type: "recurring_expense",
+            title: "Ewan pension",
+            description: `Salary sacrifice pension + employer pension linked to ${form.title}`,
+            amount: payroll.totalPension,
+            notes: [
+              `Auto-created from salary event: ${form.title}`,
+              `Estimated pre-sacrifice salary: ${formatCurrency(payroll.preSacrificeSalary)}`,
+              `Salary sacrifice pension: ${formatCurrency(payroll.salarySacrificePension)}`,
+              `Employer pension: ${formatCurrency(payroll.employerPension)}`,
+            ].join("\n"),
+          },
+        ].filter((event) => Number(event.amount || 0) > 0);
+
+        await Promise.all(
+          payrollEvents.map((eventPayload) =>
+            axios.post(`${backendUrl}/api/finance/forecast-events`, eventPayload),
+          ),
+        );
+
+        setSuccessMessage(
+          `Forecast event added with ${payrollEvents.length - 1} linked payroll cost event(s).`,
+        );
+      } else if (autoCreateTaxEvents && taxPreview) {
+        const taxEvents = [payload];
+
+        if (taxPreview.vatAmount > 0) {
+          taxEvents.push({
+            ...payload,
+            type: "vat_out",
+            title: `VAT payment - ${form.title}`,
+            description: `Estimated VAT linked to ${form.title}`,
+            expectedDate: taxPreview.vatPaymentDate,
+            amount: taxPreview.vatAmount,
+            direction: "out",
+            notes: [
+              `Auto-created from forecast event: ${form.title}`,
+              `VAT registration start assumed: ${TAX_CONFIG.vatRegisteredFrom}`,
+              `VAT estimated from gross income at 20% VAT inclusive: ${formatCurrency(taxPreview.vatAmount)}`,
+            ].join("\n"),
+          });
+        }
+
+        if (taxPreview.corporationTaxAmount > 0) {
+          taxEvents.push({
+            ...payload,
+            type: "corporation_tax_out",
+            title: `Corporation tax - ${form.title}`,
+            description: `Estimated corporation tax linked to ${form.title}`,
+            expectedDate: taxPreview.corporationTaxPaymentDate,
+            amount: taxPreview.corporationTaxAmount,
+            direction: "out",
+            notes: [
+              `Auto-created from forecast event: ${form.title}`,
+              `Company year end assumed: 30 November`,
+              `Payment date assumed: 1 September after year end`,
+              `Corporation tax estimated at ${(TAX_CONFIG.corporationTaxRate * 100).toFixed(1)}% of estimated profit before tax.`,
+              `Estimated profit before corporation tax: ${formatCurrency(taxPreview.profitBeforeTax)}`,
+            ].join("\n"),
+          });
+        }
+
+        await Promise.all(
+          taxEvents.map((eventPayload) =>
+            axios.post(`${backendUrl}/api/finance/forecast-events`, eventPayload),
+          ),
+        );
+
+        setSuccessMessage(
+          `Forecast event added with ${taxEvents.length - 1} linked tax event(s).`,
+        );
       } else {
         await axios.post(`${backendUrl}/api/finance/forecast-events`, payload);
         setSuccessMessage("Forecast event added.");
@@ -367,6 +644,82 @@ const FinanceForecastEvents = () => {
                   options={statuses}
                 />
               </div>
+
+              {!editingId && isPotentialVatBearingIncome(form) && (
+                <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-sm text-amber-950">
+                  <label className="mb-3 flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={autoCreateTaxEvents}
+                      onChange={(e) => setAutoCreateTaxEvents(e.target.checked)}
+                      className="mt-1"
+                    />
+                    <span>
+                      Auto-create estimated VAT and corporation tax forecast events
+                    </span>
+                  </label>
+
+                  {taxPreview && (
+                    <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+                      <div>VAT estimate: {formatCurrency(taxPreview.vatAmount)}</div>
+                      <div>VAT payment date: {taxPreview.vatPaymentDate || "TBC"}</div>
+                      <div>
+                        Corporation tax estimate: {formatCurrency(taxPreview.corporationTaxAmount)}
+                      </div>
+                      <div>
+                        Corporation tax payment date: {taxPreview.corporationTaxPaymentDate || "TBC"}
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="mt-2 text-[11px] text-amber-800">
+                    Assumes VAT registration from 1 Feb 2026, quarterly VAT paid one month and 7 days after quarter end, and corporation tax paid 9 months and 1 day after the 30 Nov year end.
+                  </p>
+                </div>
+              )}
+
+              {ewanPayrollPreview && !editingId && (
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-3 text-sm text-blue-950">
+                  <label className="mb-3 flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={autoCreateEwanPayrollCosts}
+                      onChange={(e) =>
+                        setAutoCreateEwanPayrollCosts(e.target.checked)
+                      }
+                      className="mt-1"
+                    />
+                    <span>
+                      Auto-create Ewan employer NI and pension forecast events
+                    </span>
+                  </label>
+
+                  <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
+                    <div>
+                      Salary after sacrifice: {formatCurrency(ewanPayrollPreview.salary)}
+                    </div>
+                    <div>
+                      Estimated pre-sacrifice salary: {formatCurrency(ewanPayrollPreview.preSacrificeSalary)}
+                    </div>
+                    <div>
+                      Employer NI: {formatCurrency(ewanPayrollPreview.employerNi)}
+                    </div>
+                    <div>
+                      Pension total: {formatCurrency(ewanPayrollPreview.totalPension)}
+                    </div>
+                    <div>
+                      Salary sacrifice pension: {formatCurrency(ewanPayrollPreview.salarySacrificePension)}
+                    </div>
+                    <div>
+                      Employer pension: {formatCurrency(ewanPayrollPreview.employerPension)}
+                    </div>
+                  </div>
+
+                  <p className="mt-2 text-[11px] text-blue-800">
+                    Assumes salary amount entered is after 5% salary sacrifice. Employer NI uses 15% above £417/month. Check these rates against payroll before filing.
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">
