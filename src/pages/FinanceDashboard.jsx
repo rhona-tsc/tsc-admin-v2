@@ -32,6 +32,7 @@ const formatDate = (date) => {
 
 const FinanceDashboard = () => {
   const [entity, setEntity] = useState("TSC");
+  const [startingBalanceInput, setStartingBalanceInput] = useState(0);
   const [data, setData] = useState(null);
   const [monthlyData, setMonthlyData] = useState(null);
   const [unreconciledCount, setUnreconciledCount] = useState(0);
@@ -50,10 +51,10 @@ const FinanceDashboard = () => {
       const [timelineRes, monthlyRes, transactionsRes, forecastEventsRes] =
         await Promise.all([
           axios.get(`${backendUrl}/api/finance/forecast/timeline`, {
-            params: { entity },
+            params: { entity, startingBalance: Number(startingBalanceInput || 0) },
           }),
           axios.get(`${backendUrl}/api/finance/forecast/monthly-summary`, {
-            params: { entity },
+            params: { entity, startingBalance: Number(startingBalanceInput || 0) },
           }),
           axios.get(`${backendUrl}/api/finance/transactions`, {
             params: { entity, reconciled: false },
@@ -87,6 +88,7 @@ const FinanceDashboard = () => {
 
   useEffect(() => {
     fetchForecast();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entity]);
 
   const handleAutoMatch = async () => {
@@ -130,7 +132,7 @@ const FinanceDashboard = () => {
   }, [data]);
 
   const summary = data?.summary || {};
-  const startingBalance = data?.filters?.startingBalance ?? 0;
+  const startingBalance = Number(data?.filters?.startingBalance ?? startingBalanceInput ?? 0);
   const cashBufferNeeded =
     Number(summary.lowestBalance || 0) < 0
       ? Math.abs(Number(summary.lowestBalance || 0))
@@ -174,10 +176,17 @@ const FinanceDashboard = () => {
               </label>
               <input
                 type="number"
-                value={startingBalance}
-                readOnly
-                className="w-32 rounded-lg border border-gray-300 bg-gray-100 px-3 py-2 text-sm"
+                step="0.01"
+                value={startingBalanceInput}
+                onChange={(e) => setStartingBalanceInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") fetchForecast();
+                }}
+                className="w-32 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
               />
+              <p className="mt-1 text-[11px] text-gray-500">
+                Press Refresh after editing.
+              </p>
             </div>
 
             <Link
