@@ -12,7 +12,7 @@ import {
 } from "recharts";
 import { backendUrl } from "../App";
 
-const entities = ["TSC", "BMM", "Personal", "Savings", "Investment", "Crypto"];
+const entities = ["TSC", "BMM", "HSBC", "Monzo Joint", "Monzo Personal", "AMEX", "CBS", "HL Investment", "HSBC Investment","Bitcoin", "Solana","Ethereum", "True Potential Penson", "Aviva Pension"];
 
 const formatCurrency = (value = 0) =>
   new Intl.NumberFormat("en-GB", {
