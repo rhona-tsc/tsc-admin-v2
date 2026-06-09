@@ -865,19 +865,39 @@ const getBandExtraOptions = (row) => {
   return options;
 };
 
+const INVOICE_COMPANIES = {
+  TSC: {
+    label: "The Supreme Collective",
+    vatRate: 0,
+  },
+  BMM: {
+    label: "Bamboo Music Management",
+    vatRate: 0.2,
+  },
+};
+
 const buildEditStateFromRow = (row) => {
   const gross = getDisplayGross(row);
   const depositFromBackend = getDisplayDeposit(row);
   const deposit =
-  depositFromBackend != null
-    ? depositFromBackend
-    : agentTakesDeposit(row) && gross
-      ? Math.ceil((Number(gross) - 50) * 0.2) + 50
-      : 0;
+    depositFromBackend != null
+      ? depositFromBackend
+      : agentTakesDeposit(row) && gross
+        ? Math.ceil((Number(gross) - 50) * 0.2) + 50
+        : 0;
+
   const performance =
     row?.actsSummary?.[0]?.performance || row?.performanceTimes || {};
+
   const split = getAccountingSplit(row, gross, depositFromBackend ?? deposit);
-  const vatRate = Number(row?.accounting?.vatRate ?? 0.2);
+
+  const invoiceCompany = String(
+    row?.invoiceCompany || row?.accounting?.invoiceCompany || "TSC",
+  ).toUpperCase();
+
+  const defaultVatRate = INVOICE_COMPANIES[invoiceCompany]?.vatRate ?? 0;
+  const vatRate = Number(row?.accounting?.vatRate ?? defaultVatRate);
+
   const commissionGross = clamp0(split?.commissionGross);
   const passThroughGross = clamp0(split?.passThroughGross);
 
@@ -907,6 +927,7 @@ const buildEditStateFromRow = (row) => {
     manualAdjustmentLabel: "",
     manualAdjustmentAmount: "",
     notes: row?.notes || "",
+    invoiceCompany,
     vatRate,
     commissionGross,
     passThroughGross,
@@ -1123,7 +1144,12 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
     }
   };
 
-  const vatRateForDisplay = Number(value.vatRate ?? 0.2);
+  const selectedInvoiceCompany = String(
+    value.invoiceCompany || "TSC",
+  ).toUpperCase();
+  const vatRateForDisplay = Number(
+    value.vatRate ?? INVOICE_COMPANIES[selectedInvoiceCompany]?.vatRate ?? 0,
+  );
   const vatDisplay = calcVatFromVatInclusiveGross(
     Number(value.commissionGross || 0),
     vatRateForDisplay,
@@ -1164,6 +1190,29 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
               value={value.bookingRef || ""}
               readOnly
             />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">
+              Invoice company
+            </label>
+            <select
+              className="border rounded px-3 py-2 w-full"
+              value={value.invoiceCompany || "TSC"}
+              onChange={(e) => {
+                const invoiceCompany = e.target.value;
+                const vatRate = INVOICE_COMPANIES[invoiceCompany]?.vatRate ?? 0;
+                onChange({
+                  ...value,
+                  invoiceCompany,
+                  vatRate,
+                });
+              }}
+            >
+              <option value="TSC">The Supreme Collective — no VAT</option>
+              <option value="BMM">
+                Bamboo Music Management — VAT registered
+              </option>
+            </select>
           </div>
           <div>
             <label className="block text-xs text-gray-600 mb-1">Arrival</label>
@@ -1227,6 +1276,16 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
 
         <div className="mb-5 border rounded-lg p-4">
           <div className="font-medium mb-3">Accounting split</div>
+          <div className="text-xs text-gray-600 mb-3">
+            Invoice will be generated as{" "}
+            <strong>
+              {INVOICE_COMPANIES[selectedInvoiceCompany]?.label ||
+                selectedInvoiceCompany}
+            </strong>
+            {vatRateForDisplay > 0
+              ? ` with VAT calculated at ${(vatRateForDisplay * 100).toFixed(0)}% on the commission bucket.`
+              : " with no VAT applied."}
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -1999,22 +2058,30 @@ useEffect(() => {
           extra.finishTime ||
           extra.arrivalTime,
       );
+
     const extrasTotal = cleanedExtras.reduce(
       (sum, extra) => sum + extra.price * extra.quantity,
       0,
     );
+
     const manualAdjustmentAmount =
       Number(editForm.manualAdjustmentAmount || 0) || 0;
+
     const newGross = Math.max(
       0,
       Number(editForm.baseGross || 0) + extrasTotal + manualAdjustmentAmount,
     );
-    const vatRateRaw = Number(editForm.vatRate ?? 0.2);
-    const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : 0.2;
+
+    const invoiceCompany = String(editForm.invoiceCompany || "TSC").toUpperCase();
+    const defaultVatRate = INVOICE_COMPANIES[invoiceCompany]?.vatRate ?? 0;
+    const vatRateRaw = Number(editForm.vatRate ?? defaultVatRate);
+    const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : defaultVatRate;
+
     const commissionGross = clamp0(editForm.commissionGross);
     const passThroughGross = clamp0(editForm.passThroughGross);
     const { vat: commissionVat, net: commissionNet } =
       calcVatFromVatInclusiveGross(commissionGross, vatRate);
+
     const depositAmount = Number(editForm.depositAmount || 0) || 0;
     const newBalance = Math.max(0, newGross - depositAmount);
 
@@ -2038,6 +2105,7 @@ useEffect(() => {
     };
 
     const patch = {
+      invoiceCompany,
       totals: {
         ...(editingRow?.totals || {}),
         fullAmount: Number(newGross.toFixed(2)),
@@ -2058,6 +2126,7 @@ useEffect(() => {
           : [],
       },
       accounting: {
+        invoiceCompany,
         paymentStage: String(editingRow?.accounting?.paymentStage || ""),
         vatRate,
         commissionGross: Number(commissionGross.toFixed(2)),
