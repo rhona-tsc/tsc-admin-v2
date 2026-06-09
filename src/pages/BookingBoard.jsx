@@ -1833,8 +1833,9 @@ export default function BookingBoard() {
   const [q, setQ] = useState("");
 
   // sorting ui state
-  const [sortBy, setSortBy] = useState("eventDateISO"); // eventDateISO | clientFirstNames | createdAt
-  const [sortDir, setSortDir] = useState("asc"); // asc | desc
+ const [sortBy, setSortBy] = useState("eventDateISO");
+
+const [sortDir, setSortDir] = useState("asc");
 
   // manual add row
   const [newRow, setNewRow] = useState({
@@ -1867,6 +1868,8 @@ export default function BookingBoard() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [creatingPayLinkId, setCreatingPayLinkId] = useState(null);
   const [syncingFinanceId, setSyncingFinanceId] = useState(null);
+const [page, setPage] = useState(1);
+const [limit, setLimit] = useState(100);
 
   const buildHeaders = () => {
     const token = getAuthToken();
@@ -1876,38 +1879,43 @@ export default function BookingBoard() {
     };
   };
 
-  const fetchRows = async () => {
-const params = new URLSearchParams();
-params.set("q", q);
-params.set("sortBy", sortBy);
-params.set("sortDir", sortDir);
-params.set("limit", "50");
+const fetchRows = async () => {
+  const params = new URLSearchParams();
+  params.set("q", q);
+  params.set("sortBy", sortBy);
+  params.set("sortDir", sortDir);
+  params.set("limit", String(limit));
+  params.set("page", String(page));
 
-const url = `${API_BASE}/board/bookings?${params.toString()}`;
+  const url = `${API_BASE}/board/bookings?${params.toString()}`;
+
+  try {
+    const res = await fetch(url, {
+      headers: buildHeaders(),
+      credentials: "include",
+    });
+
+    const raw = await res.text();
+    let json = null;
+
     try {
-      const res = await fetch(url, {
-        headers: buildHeaders(),
-        credentials: "include",
-      });
-      const raw = await res.text();
-      let json = null;
-      try {
-        json = JSON.parse(raw);
-      } catch {}
-      if (json?.success) setRows(json.rows || []);
-      else setRows([]);
-    } catch (e) {
-      console.error("Board load failed", e);
-      setRows([]);
-    }
-  };
+      json = JSON.parse(raw);
+    } catch {}
+
+    if (json?.success) setRows(json.rows || []);
+    else setRows([]);
+  } catch (e) {
+    console.error("Board load failed", e);
+    setRows([]);
+  }
+};
 
   useEffect(() => {
     fetchRows(); /* eslint-disable-next-line */
   }, []);
-  useEffect(() => {
-    fetchRows(); /* when sort changes */
-  }, [sortBy, sortDir]);
+useEffect(() => {
+  fetchRows();
+}, [page, limit, sortBy, sortDir]);
 
   const mergedRows = useMemo(() => {
     const map = new Map();
@@ -2499,11 +2507,14 @@ const createInvoiceForRow = async (row) => {
           onKeyDown={(e) => e.key === "Enter" && fetchRows()}
         />
         <button
-          className="px-4 py-2 rounded bg-black text-white"
-          onClick={fetchRows}
-        >
-          Search
-        </button>
+  className="px-4 py-2 rounded bg-black text-white"
+  onClick={() => {
+    setPage(1);
+    fetchRows();
+  }}
+>
+  Search
+</button>
 
         <div className="flex items-center gap-2 ml-auto">
           <span className="text-sm text-gray-600">Sort by</span>
@@ -2540,6 +2551,36 @@ const createInvoiceForRow = async (row) => {
           </button>
         </div>
       </div>
+
+      <select
+  className="border rounded px-2 py-1"
+  value={limit}
+  onChange={(e) => {
+    setPage(1);
+    setLimit(Number(e.target.value));
+  }}
+>
+  <option value={50}>50 rows</option>
+  <option value={100}>100 rows</option>
+  <option value={250}>250 rows</option>
+</select>
+
+<button
+  className="px-3 py-2 border rounded"
+  disabled={page <= 1}
+  onClick={() => setPage((p) => Math.max(1, p - 1))}
+>
+  Prev
+</button>
+
+<span className="text-sm text-gray-600">Page {page}</span>
+
+<button
+  className="px-3 py-2 border rounded"
+  onClick={() => setPage((p) => p + 1)}
+>
+  Next
+</button>
 
       <div className="overflow-auto border rounded max-h-[calc(100vh-170px)]">
         <table className="min-w-[4200px] table-fixed text-xs">
