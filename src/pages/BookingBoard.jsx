@@ -1881,7 +1881,7 @@ const params = new URLSearchParams();
 params.set("q", q);
 params.set("sortBy", sortBy);
 params.set("sortDir", sortDir);
-params.set("limit", "5000");
+params.set("limit", "50");
 
 const url = `${API_BASE}/board/bookings?${params.toString()}`;
     try {
