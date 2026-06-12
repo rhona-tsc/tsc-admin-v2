@@ -2438,7 +2438,10 @@ const createInvoiceForRow = async (row) => {
       method: "POST",
       headers: buildHeaders(),
       credentials: "include",
-        body: JSON.stringify({ bookingId: row._id }),
+      body: JSON.stringify({
+        bookingId: row._id,
+        includePaymentLink: false,
+      }),
     });
 
     const raw = await res.text();
@@ -2461,6 +2464,39 @@ const createInvoiceForRow = async (row) => {
   } catch (error) {
     console.error("create invoice failed", error);
     window.alert(error.message || "Invoice failed.");
+  }
+};
+
+const createCardPaymentInvoiceForRow = async (row) => {
+  const confirmed = window.confirm(
+    "Create a CARD PAYMENT invoice?\n\nMake sure you have updated the commission to include the card processing fee first.",
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/invoices/create-board-invoice`, {
+      method: "POST",
+      headers: buildHeaders(),
+      credentials: "include",
+      body: JSON.stringify({
+        bookingId: row._id,
+        includePaymentLink: true,
+      }),
+    });
+
+    const json = await res.json();
+
+    if (!json?.success) {
+      window.alert(json?.message || "Could not create card payment invoice.");
+      return;
+    }
+
+    window.alert("Card payment invoice generated.");
+    await fetchRows();
+  } catch (error) {
+    console.error("create card payment invoice failed", error);
+    window.alert(error.message || "Card payment invoice failed.");
   }
 };
 
@@ -3176,6 +3212,14 @@ const createInvoiceForRow = async (row) => {
       onClick={() => createInvoiceForRow(r)}
     >
       {invoiceUrl ? "Regenerate invoice" : "Create invoice"}
+    </button>
+
+    <button
+      type="button"
+      className="px-2 py-1 rounded border text-xs bg-white hover:bg-gray-50"
+      onClick={() => createCardPaymentInvoiceForRow(r)}
+    >
+      Create card payment invoice
     </button>
   </div>
 </td>
