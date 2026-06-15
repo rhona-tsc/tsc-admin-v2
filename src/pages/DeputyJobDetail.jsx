@@ -869,6 +869,30 @@ const DeputyJobDetail = () => {
     );
   }
 
+  const getJobDisplayStatus = (job = {}) => {
+  const status = normaliseString(job.status).toLowerCase();
+  const stage = normaliseString(job.workflowStage).toLowerCase();
+
+  if (["closed", "cancelled", "filled"].includes(status)) {
+    return { label: getStatusLabel(status), tone: statusToneMap[status] || "default" };
+  }
+
+  if (status === "allocated") {
+    return { label: "Allocation Requested", tone: "yellow" };
+  }
+
+  if (stage === "allocated") {
+    return { label: "Allocated", tone: "yellow" };
+  }
+
+  return {
+    label: getStatusLabel(status || stage || "open", "Open"),
+    tone: statusToneMap[status || stage] || "default",
+  };
+};
+
+  const displayStatus = getJobDisplayStatus(job);
+
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="rounded-2xl bg-white p-6 shadow">
@@ -890,8 +914,7 @@ const DeputyJobDetail = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone={statusTone}>{getStatusLabel(job.status, "Unknown")}</Badge>
-            <Badge tone={workflowTone}>{formatLabel(job.workflowStage)}</Badge>
+            <Badge tone={displayStatus.tone}>{displayStatus.label}</Badge>
 
             {hasApplied ? (
               <span className="inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
