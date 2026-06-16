@@ -1902,11 +1902,9 @@ const getReceiptUrl = (row) => {
     row?.payments?.boardReceiptPdfUrl ||
     row?.payments?.receiptPdfUrl;
 
-  if (row?._id && hasReceipt) {
-    return `${API_BASE}/invoices/board-receipt/${row._id}`;
-  }
-
-  return "";
+  return hasReceipt && row?._id
+    ? `${API_BASE}/invoices/board-receipt/${row._id}`
+    : "";
 };
 
 export default function BookingBoard() {
