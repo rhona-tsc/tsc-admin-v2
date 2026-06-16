@@ -2586,8 +2586,13 @@ export default function BookingBoard() {
       return;
     }
 
-    window.alert("Receipt generated.");
     await fetchRows();
+
+    if (json.receiptUrl) {
+      window.open(json.receiptUrl, "_blank", "noopener,noreferrer");
+    } else {
+      window.alert("Receipt generated, but no receipt URL was returned.");
+    }
   };
 
   const markInvoicePaidForRow = async (row) => {
@@ -2981,7 +2986,15 @@ export default function BookingBoard() {
                   "";
                 const normalizedContractUrl = normalizeUrl(contractUrl);
                 const paymentUrl = getPaymentUrl(r);
+
                 const invoiceUrl = getInvoiceUrl(r);
+                const receiptUrl = normalizeUrl(
+                  r?.receiptPdfUrl ||
+                    r?.receiptUrl ||
+                    r?.payments?.receiptPdfUrl ||
+                    r?.payments?.boardReceiptPdfUrl ||
+                    "",
+                );
                 const actName = getDisplayActName(r);
                 const actTsc = getDisplayActTscName(r);
                 const address = getDisplayAddress(r);
@@ -3345,29 +3358,42 @@ export default function BookingBoard() {
                       )}
                     </td>
                     <td className={cellClass}>
-                      {paymentUrl ? (
-                        <a
-                          className="text-blue-600 underline"
-                          href={paymentUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Pay
-                        </a>
-                      ) : (
-                        <button
-                          className="px-2 py-1 border rounded hover:bg-gray-100 text-xs"
-                          disabled={
-                            creatingPayLinkId === String(r?._id || bookingRef)
-                          }
-                          onClick={() => createPayLinkForRow(r)}
-                          title="Create a Stripe hosted invoice link"
-                        >
-                          {creatingPayLinkId === String(r?._id || bookingRef)
-                            ? "Creating…"
-                            : "Create pay link"}
-                        </button>
-                      )}
+                      <div className="flex flex-col gap-1">
+                        {paymentUrl ? (
+                          <a
+                            className="text-blue-600 underline"
+                            href={paymentUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Pay
+                          </a>
+                        ) : (
+                          <button
+                            className="px-2 py-1 border rounded hover:bg-gray-100 text-xs"
+                            disabled={
+                              creatingPayLinkId === String(r?._id || bookingRef)
+                            }
+                            onClick={() => createPayLinkForRow(r)}
+                            title="Create a Stripe hosted invoice link"
+                          >
+                            {creatingPayLinkId === String(r?._id || bookingRef)
+                              ? "Creating…"
+                              : "Create pay link"}
+                          </button>
+                        )}
+
+                        {receiptUrl ? (
+                          <a
+                            className="text-purple-700 underline text-xs"
+                            href={receiptUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Download receipt
+                          </a>
+                        ) : null}
+                      </div>
                     </td>
                     <td className={cellClass}>
                       <div className="flex flex-col gap-1">
