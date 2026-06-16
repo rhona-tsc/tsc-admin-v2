@@ -1895,6 +1895,13 @@ function AgentCell({ value, onSave }) {
 }
 
 
+const isBookingPaid = (row) =>
+  Boolean(
+    row?.payments?.balancePaymentReceived ||
+      row?.payments?.invoicePaid ||
+      row?.balancePaid ||
+      row?.balanceStatus === "paid",
+  );
 
 export default function BookingBoard() {
   const [rows, setRows] = useState([]);
@@ -2569,6 +2576,55 @@ export default function BookingBoard() {
   const createReceiptForRow = async (row) => {
     const isPaid = isBookingPaid(row);
 
+    if (!isPaid) {
+      window.alert("Please mark the invoice as paid before generating a receipt.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/invoices/create-board-receipt`, {
+        method: "POST",
+        headers: buildHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          bookingId: row._id,
+        }),
+      });
+
+      const raw = await res.text();
+      let json = null;
+      try {
+        json = JSON.parse(raw);
+      } catch {
+        console.error("Non-JSON receipt response:", raw);
+        window.alert("Receipt failed: backend returned non-JSON.");
+        return;
+      }
+
+      if (!res.ok || !json?.success) {
+        console.error("create receipt failed", json || raw);
+        window.alert(json?.message || "Could not create receipt.");
+        return;
+      }
+
+      const updatedRow = json.row || json.booking || null;
+      if (updatedRow?._id) {
+        setRows((prev) =>
+          prev.map((existingRow) =>
+            existingRow._id === updatedRow._id ? updatedRow : existingRow,
+          ),
+        );
+      } else {
+        await fetchRows();
+      }
+
+      window.alert("Receipt generated.");
+    } catch (error) {
+      console.error("create receipt failed", error);
+      window.alert(error?.message || "Receipt failed.");
+    }
+  };
+
   const markInvoicePaidForRow = async (row) => {
     const confirmed = window.confirm(
       `Mark invoice as paid for ${getDisplayBookingRef(row)}?`,
@@ -2979,9 +3035,6 @@ export default function BookingBoard() {
                 const clientEmails = getDisplayClientEmails(r);
                 const performanceTimes =
                   r?.performanceTimes || r?.actsSummary?.[0]?.performance || {};
-                const balancePaid = Boolean(
-                  r?.payments?.balancePaymentReceived ?? r?.balancePaid,
-                );
                 const bandPaid = Boolean(
                   r?.payments?.bandPaymentsSent ?? r?.bandPaymentsSent,
                 );
@@ -3360,12 +3413,12 @@ export default function BookingBoard() {
 
                         {receiptUrl ? (
                           <a
-                            className="text-purple-700 underline text-xs"
+                            className="inline-flex items-center justify-center px-2 py-1 border rounded hover:bg-gray-100 text-xs text-purple-700 bg-white"
                             href={receiptUrl}
                             target="_blank"
                             rel="noreferrer"
                           >
-                            Download receipt
+                            Receipt
                           </a>
                         ) : null}
                       </div>
@@ -3417,32 +3470,25 @@ export default function BookingBoard() {
                             ? "Paid"
                             : "Mark paid"}
                         </button>
-                       {receiptUrl ? (
-  <a
-    className="text-xs underline text-purple-700"
-    href={receiptUrl}
-    target="_blank"
-    rel="noreferrer"
-  >
-    Receipt
-  </a>
-) : (
-  <button
-    type="button"
-    className="text-xs underline text-purple-700 disabled:opacity-50"
-    disabled={
-      !(
-        r?.payments?.balancePaymentReceived ||
-        r?.payments?.invoicePaid ||
-        r?.balancePaid ||
-        r?.balanceStatus === "paid"
-      )
-    }
-    onClick={() => createReceiptForRow(r)}
-  >
-    Generate receipt
-  </button>
-)}
+                        {receiptUrl ? (
+                          <a
+                            className="inline-flex items-center justify-center px-2 py-1 border rounded hover:bg-gray-100 text-xs text-purple-700 bg-white"
+                            href={receiptUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Receipt
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            className="text-xs underline text-purple-700 disabled:opacity-50"
+                            disabled={!balancePaid}
+                            onClick={() => createReceiptForRow(r)}
+                          >
+                            Generate receipt
+                          </button>
+                        )}
                       </div>
                     </td>
                     <td className={cellClass}>
