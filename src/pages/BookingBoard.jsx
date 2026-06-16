@@ -2281,8 +2281,96 @@ export default function BookingBoard() {
   const syncBookingToFinance = async (row) => {
     const busyKey = String(row?._id || "");
 
+    const eventDateISO = String(
+      row?.eventDateISO || row?.eventDate || getDisplayEventDate(row) || "",
+    ).slice(0, 10);
+
+    const clientName = String(
+      getClientFirstNames(row) ||
+        row?.clientName ||
+        row?.bookerName ||
+        row?.clientFirstNames ||
+        "",
+    ).trim();
+
+    const actName = String(
+      getDisplayActTscName(row) ||
+        getDisplayActName(row) ||
+        row?.actTscName ||
+        row?.actName ||
+        row?.actsSummary?.[0]?.tscName ||
+        row?.actsSummary?.[0]?.name ||
+        "",
+    ).trim();
+
+    const grossValue =
+      Number(getDisplayGross(row) || row?.grossValue || 0) || 0;
+
+    const missing = [];
+    if (!eventDateISO) missing.push("event date");
+    if (!clientName) missing.push("client name");
+    if (!actName) missing.push("act name");
+    if (!grossValue) missing.push("gross value");
+
+    if (missing.length) {
+      window.alert(
+        `Finance sync needs the following before it can continue: ${missing.join(
+          ", ",
+        )}.\n\nPlease add these to the booking board row, then try syncing again.`,
+      );
+      return;
+    }
+
     try {
       setSyncingFinanceId(busyKey);
+
+      const repairPatch = {
+        eventDateISO,
+        clientFirstNames: clientName,
+        clientName,
+        bookerName: row?.bookerName || clientName,
+        actName,
+        actTscName: row?.actTscName || actName,
+        grossValue,
+        fee: grossValue,
+        totals: {
+          ...(row?.totals || {}),
+          fullAmount: grossValue,
+        },
+      };
+
+      const patchRes = await fetch(`${API_BASE}/board/bookings/${row._id}`, {
+        method: "PATCH",
+        headers: buildHeaders(),
+        credentials: "include",
+        body: JSON.stringify(repairPatch),
+      });
+
+      const patchRaw = await patchRes.text();
+      let patchJson = null;
+      try {
+        patchJson = JSON.parse(patchRaw);
+      } catch {}
+
+      if (!patchRes.ok || !patchJson?.success) {
+        console.error(
+          "Finance sync repair patch failed:",
+          patchJson || patchRaw,
+        );
+        window.alert(
+          patchJson?.message ||
+            "Could not update the booking board row before syncing to finance.",
+        );
+        return;
+      }
+
+      const repairedRow = patchJson.row || { ...row, ...repairPatch };
+
+      setRows((prev) =>
+        prev.map((existingRow) =>
+          existingRow._id === row._id ? repairedRow : existingRow,
+        ),
+      );
 
       const url = `${API_BASE}/finance/forecast/bookings/sync-from-board/${row._id}`;
       console.log("Sync finance URL:", url);
@@ -2307,6 +2395,7 @@ export default function BookingBoard() {
       }
 
       if (!res.ok || !json?.success) {
+        console.error("Finance sync failed:", json);
         window.alert(json?.message || "Could not sync booking to finance.");
         return;
       }
@@ -2465,6 +2554,40 @@ export default function BookingBoard() {
       console.error("create invoice failed", error);
       window.alert(error.message || "Invoice failed.");
     }
+  };
+
+  const createReceiptForRow = async (row) => {
+    const isPaid =
+      row?.payments?.balancePaymentReceived ||
+      row?.payments?.invoicePaid ||
+      row?.balancePaid ||
+      row?.balanceStatus === "paid";
+
+    if (!isPaid) {
+      window.alert("Mark as paid before generating a receipt.");
+      return;
+    }
+
+    const res = await fetch(`${API_BASE}/invoices/create-board-invoice`, {
+      method: "POST",
+      headers: buildHeaders(),
+      credentials: "include",
+      body: JSON.stringify({
+        bookingId: row._id,
+        includePaymentLink: false,
+        documentType: "receipt",
+      }),
+    });
+
+    const json = await res.json();
+
+    if (!json?.success) {
+      window.alert(json?.message || "Could not create receipt.");
+      return;
+    }
+
+    window.alert("Receipt generated.");
+    await fetchRows();
   };
 
   const markInvoicePaidForRow = async (row) => {
@@ -3292,6 +3415,21 @@ export default function BookingBoard() {
                           r?.balanceStatus === "paid"
                             ? "Paid"
                             : "Mark paid"}
+                        </button>
+                        <button
+                          type="button"
+                          className="text-xs underline text-purple-700 disabled:opacity-50"
+                          disabled={
+                            !(
+                              r?.payments?.balancePaymentReceived ||
+                              r?.payments?.invoicePaid ||
+                              r?.balancePaid ||
+                              r?.balanceStatus === "paid"
+                            )
+                          }
+                          onClick={() => createReceiptForRow(r)}
+                        >
+                          Generate receipt
                         </button>
                       </div>
                     </td>
