@@ -1895,13 +1895,19 @@ function AgentCell({ value, onSave }) {
 }
 
 
-const isBookingPaid = (row) =>
-  Boolean(
-    row?.payments?.balancePaymentReceived ||
-      row?.payments?.invoicePaid ||
-      row?.balancePaid ||
-      row?.balanceStatus === "paid",
-  );
+const getReceiptUrl = (row) => {
+  const hasReceipt =
+    row?.receiptPdfUrl ||
+    row?.receiptUrl ||
+    row?.payments?.boardReceiptPdfUrl ||
+    row?.payments?.receiptPdfUrl;
+
+  if (row?._id && hasReceipt) {
+    return `${API_BASE}/invoices/board-receipt/${row._id}`;
+  }
+
+  return "";
+};
 
 export default function BookingBoard() {
   const [rows, setRows] = useState([]);
@@ -3019,13 +3025,7 @@ export default function BookingBoard() {
                 const paymentUrl = getPaymentUrl(r);
 
                 const invoiceUrl = getInvoiceUrl(r);
-                const receiptUrl = normalizeUrl(
-                  r?.receiptPdfUrl ||
-                    r?.receiptUrl ||
-                    r?.payments?.receiptPdfUrl ||
-                    r?.payments?.boardReceiptPdfUrl ||
-                    "",
-                );
+                const receiptUrl = getReceiptUrl(r);
                 const actName = getDisplayActName(r);
                 const actTsc = getDisplayActTscName(r);
                 const address = getDisplayAddress(r);
