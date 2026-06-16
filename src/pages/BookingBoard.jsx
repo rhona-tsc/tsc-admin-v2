@@ -90,7 +90,9 @@ const getDisplayGross = (row) => {
 };
 
 const normaliseAgent = (value = "") =>
-  String(value || "").trim().toLowerCase();
+  String(value || "")
+    .trim()
+    .toLowerCase();
 
 const DEPOSIT_AGENTS = new Set([
   "direct",
@@ -468,9 +470,7 @@ const getPaymentUrl = (row) => {
 
 const getInvoiceUrl = (row) => {
   const hasBoardInvoice =
-    row?.invoicePdfUrl ||
-    row?.invoiceUrl ||
-    row?.payments?.boardInvoicePdfUrl;
+    row?.invoicePdfUrl || row?.invoiceUrl || row?.payments?.boardInvoicePdfUrl;
 
   if (row?._id && hasBoardInvoice) {
     return `${API_BASE}/invoices/board-invoice/${row._id}`;
@@ -572,8 +572,7 @@ const cellClass = "px-2 py-1 whitespace-nowrap align-middle";
 const inputClass =
   "w-full min-w-[120px] rounded border border-gray-300 bg-white px-2 py-1 text-xs whitespace-nowrap";
 
-
-  const stickyCol1 = "sticky left-0 z-20 bg-white";
+const stickyCol1 = "sticky left-0 z-20 bg-white";
 const stickyCol2 = "sticky left-[140px] z-20 bg-white";
 const stickyHead1 = "sticky left-0 top-0 z-40 bg-gray-50";
 const stickyHead2 = "sticky left-[140px] top-0 z-40 bg-gray-50";
@@ -593,7 +592,8 @@ function InlineInput({
     setV(value || "");
   }, [value]);
 
-  const editable = typeof onCommit === "function" || typeof onChange === "function";
+  const editable =
+    typeof onCommit === "function" || typeof onChange === "function";
 
   return (
     <input
@@ -1154,7 +1154,6 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
     Number(value.commissionGross || 0),
     vatRateForDisplay,
   ).vat.toFixed(2);
-
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 overflow-y-auto">
@@ -1892,9 +1891,9 @@ export default function BookingBoard() {
   const [q, setQ] = useState("");
 
   // sorting ui state
- const [sortBy, setSortBy] = useState("eventDateISO");
+  const [sortBy, setSortBy] = useState("eventDateISO");
 
-const [sortDir, setSortDir] = useState("asc");
+  const [sortDir, setSortDir] = useState("asc");
 
   // manual add row
   const [newRow, setNewRow] = useState({
@@ -1927,8 +1926,8 @@ const [sortDir, setSortDir] = useState("asc");
   const [savingEdit, setSavingEdit] = useState(false);
   const [creatingPayLinkId, setCreatingPayLinkId] = useState(null);
   const [syncingFinanceId, setSyncingFinanceId] = useState(null);
-const [page, setPage] = useState(1);
-const [limit, setLimit] = useState(100);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(100);
 
   const buildHeaders = () => {
     const token = getAuthToken();
@@ -1938,43 +1937,43 @@ const [limit, setLimit] = useState(100);
     };
   };
 
-const fetchRows = async () => {
-  const params = new URLSearchParams();
-  params.set("q", q);
-  params.set("sortBy", sortBy);
-  params.set("sortDir", sortDir);
-  params.set("limit", String(limit));
-  params.set("page", String(page));
+  const fetchRows = async () => {
+    const params = new URLSearchParams();
+    params.set("q", q);
+    params.set("sortBy", sortBy);
+    params.set("sortDir", sortDir);
+    params.set("limit", String(limit));
+    params.set("page", String(page));
 
-  const url = `${API_BASE}/board/bookings?${params.toString()}`;
-
-  try {
-    const res = await fetch(url, {
-      headers: buildHeaders(),
-      credentials: "include",
-    });
-
-    const raw = await res.text();
-    let json = null;
+    const url = `${API_BASE}/board/bookings?${params.toString()}`;
 
     try {
-      json = JSON.parse(raw);
-    } catch {}
+      const res = await fetch(url, {
+        headers: buildHeaders(),
+        credentials: "include",
+      });
 
-    if (json?.success) setRows(json.rows || []);
-    else setRows([]);
-  } catch (e) {
-    console.error("Board load failed", e);
-    setRows([]);
-  }
-};
+      const raw = await res.text();
+      let json = null;
+
+      try {
+        json = JSON.parse(raw);
+      } catch {}
+
+      if (json?.success) setRows(json.rows || []);
+      else setRows([]);
+    } catch (e) {
+      console.error("Board load failed", e);
+      setRows([]);
+    }
+  };
 
   useEffect(() => {
     fetchRows(); /* eslint-disable-next-line */
   }, []);
-useEffect(() => {
-  fetchRows();
-}, [page, limit, sortBy, sortDir]);
+  useEffect(() => {
+    fetchRows();
+  }, [page, limit, sortBy, sortDir]);
 
   const mergedRows = useMemo(() => {
     const map = new Map();
@@ -2072,7 +2071,9 @@ useEffect(() => {
       Number(editForm.baseGross || 0) + extrasTotal + manualAdjustmentAmount,
     );
 
-    const invoiceCompany = String(editForm.invoiceCompany || "TSC").toUpperCase();
+    const invoiceCompany = String(
+      editForm.invoiceCompany || "TSC",
+    ).toUpperCase();
     const defaultVatRate = INVOICE_COMPANIES[invoiceCompany]?.vatRate ?? 0;
     const vatRateRaw = Number(editForm.vatRate ?? defaultVatRate);
     const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : defaultVatRate;
@@ -2418,87 +2419,139 @@ useEffect(() => {
   };
 
   const getFirstValidEmail = (row) => {
-  const raw =
-    row?.clientEmails?.[0]?.email ||
-    row?.clientEmail ||
-    row?.userEmail ||
-    "";
+    const raw =
+      row?.clientEmails?.[0]?.email || row?.clientEmail || row?.userEmail || "";
 
-  return String(raw)
-    .split(",")
-    .map((e) => e.trim())
-    .find((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) || "";
-};
+    return (
+      String(raw)
+        .split(",")
+        .map((e) => e.trim())
+        .find((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) || ""
+    );
+  };
 
-const createInvoiceForRow = async (row) => {
-  const bookingRef = getDisplayBookingRef(row);
+  const createInvoiceForRow = async (row) => {
+    const bookingRef = getDisplayBookingRef(row);
 
-  try {
-    const res = await fetch(`${API_BASE}/invoices/create-board-invoice`, {
-      method: "POST",
-      headers: buildHeaders(),
-      credentials: "include",
-      body: JSON.stringify({
-        bookingId: row._id,
-        includePaymentLink: false,
-      }),
-    });
-
-    const raw = await res.text();
-    let json = null;
     try {
-      json = JSON.parse(raw);
-    } catch {
-      console.error("Non-JSON invoice response:", raw);
-      window.alert("Invoice failed: backend returned non-JSON.");
-      return;
+      const res = await fetch(`${API_BASE}/invoices/create-board-invoice`, {
+        method: "POST",
+        headers: buildHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          bookingId: row._id,
+          includePaymentLink: false,
+        }),
+      });
+
+      const raw = await res.text();
+      let json = null;
+      try {
+        json = JSON.parse(raw);
+      } catch {
+        console.error("Non-JSON invoice response:", raw);
+        window.alert("Invoice failed: backend returned non-JSON.");
+        return;
+      }
+
+      if (!json?.success) {
+        window.alert(json?.message || "Could not create invoice.");
+        return;
+      }
+
+      window.alert("Invoice generated.");
+      await fetchRows();
+    } catch (error) {
+      console.error("create invoice failed", error);
+      window.alert(error.message || "Invoice failed.");
     }
+  };
 
-    if (!json?.success) {
-      window.alert(json?.message || "Could not create invoice.");
-      return;
-    }
+  const markInvoicePaidForRow = async (row) => {
+    const confirmed = window.confirm(
+      `Mark invoice as paid for ${getDisplayBookingRef(row)}?`,
+    );
 
-    window.alert("Invoice generated.");
-    await fetchRows();
-  } catch (error) {
-    console.error("create invoice failed", error);
-    window.alert(error.message || "Invoice failed.");
-  }
-};
+    if (!confirmed) return;
 
-const createCardPaymentInvoiceForRow = async (row) => {
-  const confirmed = window.confirm(
-    "Create a CARD PAYMENT invoice?\n\nMake sure you have updated the commission to include the card processing fee first.",
-  );
+    const now = new Date().toISOString();
+    const grossValue = Number(getDisplayGross(row) || 0) || 0;
+    const depositAmount = Number(getDisplayDeposit(row) || 0) || 0;
 
-  if (!confirmed) return;
+    const patch = {
+      balancePaid: true,
+      balanceStatus: "paid",
+      balanceAmountPence: 0,
+      payments: {
+        ...(row.payments || {}),
+        balancePaymentReceived: true,
+        balancePaymentReceivedAt: now,
+        invoicePaid: true,
+        invoicePaidAt: now,
+        invoicePaidManually: true,
+      },
+      totals: {
+        ...(row.totals || {}),
+        fullAmount: grossValue,
+        depositAmount,
+        chargedAmount: grossValue,
+        balanceDue: 0,
+      },
+    };
 
-  try {
-    const res = await fetch(`${API_BASE}/invoices/create-board-invoice`, {
-      method: "POST",
+    const res = await fetch(`${API_BASE}/board/bookings/${row._id}`, {
+      method: "PATCH",
       headers: buildHeaders(),
       credentials: "include",
-      body: JSON.stringify({
-        bookingId: row._id,
-        includePaymentLink: true,
-      }),
+      body: JSON.stringify(patch),
     });
 
     const json = await res.json();
 
     if (!json?.success) {
-      window.alert(json?.message || "Could not create card payment invoice.");
+      window.alert(json?.message || "Could not mark invoice as paid.");
       return;
     }
 
-    window.alert("Card payment invoice generated.");
-    await fetchRows();
-  } catch (error) {
-    console.error("create card payment invoice failed", error);
-    window.alert(error.message || "Card payment invoice failed.");
-  }
-};
+    setRows((prev) =>
+      prev.map((r) => (r._id === row._id ? json.row || { ...r, ...patch } : r)),
+    );
+
+    window.alert("Invoice marked as paid. You can now sync to finance.");
+  };
+
+  const createCardPaymentInvoiceForRow = async (row) => {
+    const confirmed = window.confirm(
+      "Create a CARD PAYMENT invoice?\n\nMake sure you have updated the commission to include the card processing fee first.",
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/invoices/create-board-invoice`, {
+        method: "POST",
+        headers: buildHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          bookingId: row._id,
+          includePaymentLink: true,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!json?.success) {
+        window.alert(json?.message || "Could not create card payment invoice.");
+        return;
+      }
+
+      window.alert("Card payment invoice generated.");
+      await fetchRows();
+    } catch (error) {
+      console.error("create card payment invoice failed", error);
+      window.alert(error.message || "Card payment invoice failed.");
+    }
+  };
 
   const postManualRow = async () => {
     try {
@@ -2612,14 +2665,14 @@ const createCardPaymentInvoiceForRow = async (row) => {
           onKeyDown={(e) => e.key === "Enter" && fetchRows()}
         />
         <button
-  className="px-4 py-2 rounded bg-black text-white"
-  onClick={() => {
-    setPage(1);
-    fetchRows();
-  }}
->
-  Search
-</button>
+          className="px-4 py-2 rounded bg-black text-white"
+          onClick={() => {
+            setPage(1);
+            fetchRows();
+          }}
+        >
+          Search
+        </button>
 
         <div className="flex items-center gap-2 ml-auto">
           <span className="text-sm text-gray-600">Sort by</span>
@@ -2658,34 +2711,34 @@ const createCardPaymentInvoiceForRow = async (row) => {
       </div>
 
       <select
-  className="border rounded px-2 py-1"
-  value={limit}
-  onChange={(e) => {
-    setPage(1);
-    setLimit(Number(e.target.value));
-  }}
->
-  <option value={50}>50 rows</option>
-  <option value={100}>100 rows</option>
-  <option value={250}>250 rows</option>
-</select>
+        className="border rounded px-2 py-1"
+        value={limit}
+        onChange={(e) => {
+          setPage(1);
+          setLimit(Number(e.target.value));
+        }}
+      >
+        <option value={50}>50 rows</option>
+        <option value={100}>100 rows</option>
+        <option value={250}>250 rows</option>
+      </select>
 
-<button
-  className="px-3 py-2 border rounded"
-  disabled={page <= 1}
-  onClick={() => setPage((p) => Math.max(1, p - 1))}
->
-  Prev
-</button>
+      <button
+        className="px-3 py-2 border rounded"
+        disabled={page <= 1}
+        onClick={() => setPage((p) => Math.max(1, p - 1))}
+      >
+        Prev
+      </button>
 
-<span className="text-sm text-gray-600">Page {page}</span>
+      <span className="text-sm text-gray-600">Page {page}</span>
 
-<button
-  className="px-3 py-2 border rounded"
-  onClick={() => setPage((p) => p + 1)}
->
-  Next
-</button>
+      <button
+        className="px-3 py-2 border rounded"
+        onClick={() => setPage((p) => p + 1)}
+      >
+        Next
+      </button>
 
       <div className="overflow-auto border rounded max-h-[calc(100vh-170px)]">
         <table className="min-w-[4200px] table-fixed text-xs">
@@ -2726,48 +2779,50 @@ const createCardPaymentInvoiceForRow = async (row) => {
           </colgroup>
 
           <thead className="bg-gray-50 text-left sticky top-0 z-10">
-          <tr>
-  <th className={`px-3 py-2 border-b ${stickyHead1}`}>First names</th>
-  <th className={`px-3 py-2 border-b ${stickyHead2}`}>Ref</th>
+            <tr>
+              <th className={`px-3 py-2 border-b ${stickyHead1}`}>
+                First names
+              </th>
+              <th className={`px-3 py-2 border-b ${stickyHead2}`}>Ref</th>
 
-  {[
-    "Event Sheet",
-    "Contract",
-    "Enquiry Date",
-    "Booking Date",
-    "Event Date",
-    "Gross",
-    "Deposit",
-    "Balance",
-    "Commission",
-    "VAT",
-    "Hold (pass-through)",
-    "Agent",
-    "Client Emails",
-    "Client Address",
-    "Event Type",
-    "Act",
-    "Act tscName",
-    "Address",
-    "County",
-    "Band Size",
-    "Lineup",
-    "Booking times",
-    "Booking details",
-    "DJ",
-    "Allocated",
-    "Review",
-    "Balance Paid",
-    "Band Paid",
-    "Payment",
-    "Invoice",
-    "Actions",
-  ].map((h) => (
-    <th key={h} className="px-3 py-2 border-b whitespace-nowrap">
-      {h}
-    </th>
-  ))}
-</tr>
+              {[
+                "Event Sheet",
+                "Contract",
+                "Enquiry Date",
+                "Booking Date",
+                "Event Date",
+                "Gross",
+                "Deposit",
+                "Balance",
+                "Commission",
+                "VAT",
+                "Hold (pass-through)",
+                "Agent",
+                "Client Emails",
+                "Client Address",
+                "Event Type",
+                "Act",
+                "Act tscName",
+                "Address",
+                "County",
+                "Band Size",
+                "Lineup",
+                "Booking times",
+                "Booking details",
+                "DJ",
+                "Allocated",
+                "Review",
+                "Balance Paid",
+                "Band Paid",
+                "Payment",
+                "Invoice",
+                "Actions",
+              ].map((h) => (
+                <th key={h} className="px-3 py-2 border-b whitespace-nowrap">
+                  {h}
+                </th>
+              ))}
+            </tr>
           </thead>
 
           <tbody>
@@ -2782,11 +2837,11 @@ const createCardPaymentInvoiceForRow = async (row) => {
                 const gross = getDisplayGross(r);
                 const depositFromBackend = getDisplayDeposit(r);
                 const deposit =
-  depositFromBackend != null
-    ? depositFromBackend
-    : agentTakesDeposit(r)
-      ? calcDeposit(gross)
-      : 0;
+                  depositFromBackend != null
+                    ? depositFromBackend
+                    : agentTakesDeposit(r)
+                      ? calcDeposit(gross)
+                      : 0;
                 const balance = gross
                   ? Math.max(0, Math.round(gross - (deposit || 0)))
                   : null;
@@ -2825,23 +2880,22 @@ const createCardPaymentInvoiceForRow = async (row) => {
                     key={r._id}
                     className="odd:bg-white even:bg-gray-50 align-top"
                   >
-                   <td className={`px-3 py-2 ${stickyCol1}`}>
-  <InlineInput
-    value={clientFirstNames}
-    placeholder="Client name"
-    onCommit={(val) =>
-      onInlineEdit(r._id, {
-        clientFirstNames: val,
-        clientName: val,
-        bookerName: val,
-      })
-    }
-  />
-</td>
-
-<td className={`px-3 py-2 ${stickyCol2}`}>
-  <ReadOnlyInput value={bookingRef} />
-</td>
+                    <td className={`px-3 py-2 ${stickyCol1}`}>
+                      <InlineInput
+                        value={clientFirstNames}
+                        placeholder="Client name"
+                        onCommit={(val) =>
+                          onInlineEdit(r._id, {
+                            clientFirstNames: val,
+                            clientName: val,
+                            bookerName: val,
+                          })
+                        }
+                      />
+                    </td>
+                    <td className={`px-3 py-2 ${stickyCol2}`}>
+                      <ReadOnlyInput value={bookingRef} />
+                    </td>
                     {/* Event Sheet */}
                     <td className={cellClass}>
                       {r.eventSheetLink ? (
@@ -3028,14 +3082,14 @@ const createCardPaymentInvoiceForRow = async (row) => {
                       />
                     </td>
                     <td className={cellClass}>
-  <InlineInput
-    value={r.clientAddress || ""}
-    placeholder="Client address"
-    onCommit={(val) =>
-      onInlineEdit(r._id, { clientAddress: val })
-    }
-  />
-</td>
+                      <InlineInput
+                        value={r.clientAddress || ""}
+                        placeholder="Client address"
+                        onCommit={(val) =>
+                          onInlineEdit(r._id, { clientAddress: val })
+                        }
+                      />
+                    </td>
                     <td className={cellClass}>{r.eventType || "—"}</td>
                     <td className={cellClass}>
                       <InlineInput
@@ -3192,37 +3246,55 @@ const createCardPaymentInvoiceForRow = async (row) => {
                         </button>
                       )}
                     </td>
-                  <td className={cellClass}>
-  <div className="flex flex-col gap-1">
-    {invoiceUrl ? (
-      <a
-        className="text-blue-600 underline"
-        href={invoiceUrl}
-        target="_blank"
-        rel="noreferrer"
-      >
-        Invoice
-      </a>
-    ) : (
-      <span className="text-gray-400">—</span>
-    )}
+                    <td className={cellClass}>
+                      <div className="flex flex-col gap-1">
+                        {invoiceUrl ? (
+                          <a
+                            className="text-blue-600 underline"
+                            href={invoiceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Invoice
+                          </a>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
 
-    <button
-      className="px-2 py-1 border rounded hover:bg-gray-100 text-xs"
-      onClick={() => createInvoiceForRow(r)}
-    >
-      {invoiceUrl ? "Regenerate invoice" : "Create invoice"}
-    </button>
+                        <button
+                          className="px-2 py-1 border rounded hover:bg-gray-100 text-xs"
+                          onClick={() => createInvoiceForRow(r)}
+                        >
+                          {invoiceUrl ? "Regenerate invoice" : "Create invoice"}
+                        </button>
 
-    <button
-      type="button"
-      className="px-2 py-1 rounded border text-xs bg-white hover:bg-gray-50"
-      onClick={() => createCardPaymentInvoiceForRow(r)}
-    >
-      Create card payment invoice
-    </button>
-  </div>
-</td>
+                        <button
+                          type="button"
+                          className="px-2 py-1 rounded border text-xs bg-white hover:bg-gray-50"
+                          onClick={() => createCardPaymentInvoiceForRow(r)}
+                        >
+                          Create card payment invoice
+                        </button>
+                        <button
+                          type="button"
+                          className="text-xs underline text-green-700 disabled:opacity-50"
+                          disabled={
+                            r?.payments?.balancePaymentReceived ||
+                            r?.payments?.invoicePaid ||
+                            r?.balancePaid ||
+                            r?.balanceStatus === "paid"
+                          }
+                          onClick={() => markInvoicePaidForRow(r)}
+                        >
+                          {r?.payments?.balancePaymentReceived ||
+                          r?.payments?.invoicePaid ||
+                          r?.balancePaid ||
+                          r?.balanceStatus === "paid"
+                            ? "Paid"
+                            : "Mark paid"}
+                        </button>
+                      </div>
+                    </td>
                     <td className={cellClass}>
                       <div className="flex flex-col gap-2">
                         <button
@@ -3369,13 +3441,16 @@ const createCardPaymentInvoiceForRow = async (row) => {
                       />
 
                       <input
-  className="border rounded px-2 py-1 w-[360px]"
-  placeholder="Client address"
-  value={newRow.clientAddress}
-  onChange={(e) =>
-    setNewRow((v) => ({ ...v, clientAddress: e.target.value }))
-  }
-/>
+                        className="border rounded px-2 py-1 w-[360px]"
+                        placeholder="Client address"
+                        value={newRow.clientAddress}
+                        onChange={(e) =>
+                          setNewRow((v) => ({
+                            ...v,
+                            clientAddress: e.target.value,
+                          }))
+                        }
+                      />
 
                       <input
                         className="border rounded px-2 py-1 w-28"

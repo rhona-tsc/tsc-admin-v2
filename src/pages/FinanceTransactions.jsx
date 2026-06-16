@@ -120,8 +120,16 @@ const FinanceTransactions = () => {
     fetchTransactions();
   }, [entityFilter, categoryFilter, reconciledFilter]);
 
-  const activeAccounts = useMemo(
-    () => accounts.filter((account) => account.isActive),
+  const selectableAccounts = useMemo(
+    () =>
+      accounts
+        .filter((account) => account.isActive !== false)
+        .sort((a, b) => {
+          const aEntity = String(a.entity || "");
+          const bEntity = String(b.entity || "");
+          if (aEntity !== bEntity) return aEntity.localeCompare(bEntity);
+          return String(a.name || "").localeCompare(String(b.name || ""));
+        }),
     [accounts],
   );
 
@@ -305,7 +313,7 @@ const FinanceTransactions = () => {
                 onChange={handleChange}
                 options={[
                   { value: "", label: "Select account" },
-                  ...activeAccounts.map((account) => ({
+                  ...selectableAccounts.map((account) => ({
                     value: account._id,
                     label: `${account.name} (${account.entity})`,
                   })),
