@@ -489,6 +489,14 @@ const getInvoiceUrl = (row) => {
   return normalizeUrl(raw);
 };
 
+const isBookingPaid = (row) =>
+  Boolean(
+    row?.payments?.balancePaymentReceived ||
+      row?.payments?.invoicePaid ||
+      row?.balancePaid ||
+      row?.balanceStatus === "paid"
+  );
+
 const buildFullLineup = (row) => {
   const label =
     row?.lineupSelected ||
@@ -1886,6 +1894,8 @@ function AgentCell({ value, onSave }) {
   );
 }
 
+
+
 export default function BookingBoard() {
   const [rows, setRows] = useState([]);
   const [q, setQ] = useState("");
@@ -2557,43 +2567,7 @@ export default function BookingBoard() {
   };
 
   const createReceiptForRow = async (row) => {
-    const isPaid =
-      row?.payments?.balancePaymentReceived ||
-      row?.payments?.invoicePaid ||
-      row?.balancePaid ||
-      row?.balanceStatus === "paid";
-
-    if (!isPaid) {
-      window.alert("Mark as paid before generating a receipt.");
-      return;
-    }
-
-    const res = await fetch(`${API_BASE}/invoices/create-board-invoice`, {
-      method: "POST",
-      headers: buildHeaders(),
-      credentials: "include",
-      body: JSON.stringify({
-        bookingId: row._id,
-        includePaymentLink: false,
-        documentType: "receipt",
-      }),
-    });
-
-    const json = await res.json();
-
-    if (!json?.success) {
-      window.alert(json?.message || "Could not create receipt.");
-      return;
-    }
-
-    await fetchRows();
-
-    if (json.receiptUrl) {
-      window.open(json.receiptUrl, "_blank", "noopener,noreferrer");
-    } else {
-      window.alert("Receipt generated, but no receipt URL was returned.");
-    }
-  };
+    const isPaid = isBookingPaid(row);
 
   const markInvoicePaidForRow = async (row) => {
     const confirmed = window.confirm(
@@ -2963,6 +2937,7 @@ export default function BookingBoard() {
                 const bookingRef = getDisplayBookingRef(r);
                 const eventDate = getDisplayEventDate(r);
                 const gross = getDisplayGross(r);
+                const balancePaid = isBookingPaid(r);
                 const depositFromBackend = getDisplayDeposit(r);
                 const deposit =
                   depositFromBackend != null
@@ -3442,21 +3417,32 @@ export default function BookingBoard() {
                             ? "Paid"
                             : "Mark paid"}
                         </button>
-                        <button
-                          type="button"
-                          className="text-xs underline text-purple-700 disabled:opacity-50"
-                          disabled={
-                            !(
-                              r?.payments?.balancePaymentReceived ||
-                              r?.payments?.invoicePaid ||
-                              r?.balancePaid ||
-                              r?.balanceStatus === "paid"
-                            )
-                          }
-                          onClick={() => createReceiptForRow(r)}
-                        >
-                          Generate receipt
-                        </button>
+                       {receiptUrl ? (
+  <a
+    className="text-xs underline text-purple-700"
+    href={receiptUrl}
+    target="_blank"
+    rel="noreferrer"
+  >
+    Receipt
+  </a>
+) : (
+  <button
+    type="button"
+    className="text-xs underline text-purple-700 disabled:opacity-50"
+    disabled={
+      !(
+        r?.payments?.balancePaymentReceived ||
+        r?.payments?.invoicePaid ||
+        r?.balancePaid ||
+        r?.balanceStatus === "paid"
+      )
+    }
+    onClick={() => createReceiptForRow(r)}
+  >
+    Generate receipt
+  </button>
+)}
                       </div>
                     </td>
                     <td className={cellClass}>
