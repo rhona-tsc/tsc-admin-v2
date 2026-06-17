@@ -12,13 +12,20 @@ const Moderate = ({ token: tokenProp }) => {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState("");
 
-  // Pull token from prop OR storage (matches your working List page pattern)
+  const getStoredValue = (key) => {
+    try {
+      return localStorage.getItem(key) || sessionStorage.getItem(key) || "";
+    } catch {
+      return "";
+    }
+  };
+
   const getToken = () =>
     tokenProp ||
-    localStorage.getItem("authToken") ||
-    localStorage.getItem("token") ||
-    sessionStorage.getItem("authToken") ||
-    sessionStorage.getItem("token") ||
+    getStoredValue("adminToken") ||
+    getStoredValue("authToken") ||
+    getStoredValue("token") ||
+    getStoredValue("musicianToken") ||
     "";
 
   const buildHeaders = (token) => ({
@@ -31,18 +38,28 @@ const Moderate = ({ token: tokenProp }) => {
   const updateStatusEndpoint = useMemo(() => {
     const base = `${backendUrl}`.replace(/\/$/, "");
     return [
-      `${base}/api/act/update-status`,
       `${base}/api/musician/act-v2/update-status`,
+      `${base}/api/act/update-status`,
     ];
   }, []);
 
   const extractErrorMessage = (error) => {
-    return (
+    const message = String(
       error?.response?.data?.message ||
-      error?.response?.data?.error ||
-      error?.message ||
-      "Error updating status"
+        error?.response?.data?.error ||
+        error?.message ||
+        "Error updating status"
     );
+
+    if (
+      message.toLowerCase().includes("invalid login") ||
+      message.toLowerCase().includes("badcredentials") ||
+      message.toLowerCase().includes("gmail")
+    ) {
+      return "The act status may have updated, but the email notification failed because Gmail rejected the SMTP login. Please check the backend email/app-password settings.";
+    }
+
+    return message;
   };
 
   const isModerationStatus = (act) => {
@@ -138,6 +155,22 @@ const Moderate = ({ token: tokenProp }) => {
             `❌ updateStatus error via ${endpoint}:`,
             error?.response?.data || error
           );
+
+          const message = String(
+            error?.response?.data?.message ||
+              error?.response?.data?.error ||
+              error?.message ||
+              ""
+          ).toLowerCase();
+
+          if (
+            message.includes("invalid login") ||
+            message.includes("badcredentials") ||
+            message.includes("gmail")
+          ) {
+            await fetchPendingActs();
+            break;
+          }
         }
       }
 
