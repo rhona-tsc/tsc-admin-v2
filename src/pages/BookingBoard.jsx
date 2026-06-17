@@ -2029,6 +2029,32 @@ const [collapsedSections, setCollapsedSections] = useState({
   "missing-event-date": false,
   "past-clients": true,
 });
+const [expandedRows, setExpandedRows] = useState({});
+
+const toggleExpandedRow = (rowId) => {
+  setExpandedRows((prev) => ({
+    ...prev,
+    [rowId]: !prev[rowId],
+  }));
+};
+
+const getCompactRowSummary = (r) => {
+  const bookingRef = getDisplayBookingRef(r);
+  const eventDate = getDisplayEventDate(r);
+  const gross = getDisplayGross(r);
+  const actName = getDisplayActTscName(r) || getDisplayActName(r);
+  const arrivalTime = getDisplayArrivalTime(r);
+  const finishTime = getDisplayFinishTime(r);
+
+  return {
+    bookingRef,
+    eventDate,
+    gross,
+    actName,
+    arrivalTime,
+    finishTime,
+  };
+};
 
   const buildHeaders = () => {
     const token = getAuthToken();
@@ -2277,10 +2303,10 @@ const pastRows = useMemo(
           extra.arrivalTime,
       );
 
-    const extrasTotal = cleanedExtras.reduce(
-      (sum, extra) => sum + extra.prEfiercice * extra.quantity,
-      0,
-    );
+   const extrasTotal = cleanedExtras.reduce(
+  (sum, extra) => sum + Number(extra.price || 0) * Number(extra.quantity || 1),
+  0,
+);
 
     const manualAdjustmentAmount =
       Number(editForm.manualAdjustmentAmount || 0) || 0;
@@ -3147,95 +3173,34 @@ const pastRows = useMemo(
             </div>
 
             <div className="overflow-auto max-h-[38vh]">
-              <table className="min-w-[4200px] table-fixed text-xs">
+              <table className="min-w-[900px] table-fixed text-xs">
                 <colgroup>
-                  <col style={{ width: 140 }} /> {/* First names */}
+                  <col style={{ width: 260 }} /> {/* Client */}
                   <col style={{ width: 160 }} /> {/* Ref */}
-                  <col style={{ width: 110 }} /> {/* Event Sheet */}
-                  <col style={{ width: 110 }} /> {/* Contract */}
-                  <col style={{ width: 150 }} /> {/* Enquiry Date */}
-                  <col style={{ width: 150 }} /> {/* Booking Date */}
-                  <col style={{ width: 150 }} /> {/* Event Date */}
-                  <col style={{ width: 110 }} /> {/* Gross */}
-                  <col style={{ width: 110 }} /> {/* Deposit */}
-                  <col style={{ width: 110 }} /> {/* Balance */}
-                  <col style={{ width: 130 }} /> {/* Commission */}
-                  <col style={{ width: 110 }} /> {/* VAT */}
-                  <col style={{ width: 150 }} /> {/* Pass-through */}
-                  <col style={{ width: 230 }} /> {/* Agent */}
-                  <col style={{ width: 260 }} /> {/* Client Emails */}
-                  <col style={{ width: 320 }} /> {/* Client Address */}
-                  <col style={{ width: 120 }} /> {/* Event Type */}
-                  <col style={{ width: 150 }} /> {/* Act */}
-                  <col style={{ width: 150 }} /> {/* Act tscName */}
-                  <col style={{ width: 320 }} /> {/* Address */}
-                  <col style={{ width: 110 }} /> {/* County */}
-                  <col style={{ width: 110 }} /> {/* Band Size */}
-                  <col style={{ width: 200 }} /> {/* Lineup */}
-                  <col style={{ width: 120 }} /> {/* Arrival */}
-                  <col style={{ width: 260 }} /> {/* Booking details */}
-                  <col style={{ width: 80 }} /> {/* DJ */}
-                  <col style={{ width: 140 }} /> {/* Allocated */}
-                  <col style={{ width: 140 }} /> {/* Review */}
-                  <col style={{ width: 120 }} /> {/* Balance Paid */}
-                  <col style={{ width: 120 }} /> {/* Band Paid */}
-                  <col style={{ width: 120 }} /> {/* Payment */}
-                  <col style={{ width: 120 }} /> {/* Invoice */}
-                  <col style={{ width: 130 }} /> {/* Actions */}
+                  <col style={{ width: 140 }} /> {/* Event Date */}
+                  <col style={{ width: 220 }} /> {/* Act */}
+                  <col style={{ width: 140 }} /> {/* Gross */}
+                  <col style={{ width: 180 }} /> {/* Times */}
+                  <col style={{ width: 180 }} /> {/* Actions */}
                 </colgroup>
 
                 <thead className="bg-gray-50 text-left sticky top-0 z-10">
                   <tr>
-                    <th className={`px-3 py-2 border-b ${stickyHead1}`}>
-                      First names
-                    </th>
-                    <th className={`px-3 py-2 border-b ${stickyHead2}`}>Ref</th>
-
-                    {[
-                      "Event Sheet",
-                      "Contract",
-                      "Enquiry Date",
-                      "Booking Date",
-                      "Event Date",
-                      "Gross",
-                      "Deposit",
-                      "Balance",
-                      "Commission",
-                      "VAT",
-                      "Hold (pass-through)",
-                      "Agent",
-                      "Client Emails",
-                      "Client Address",
-                      "Event Type",
-                      "Act",
-                      "Act tscName",
-                      "Address",
-                      "County",
-                      "Band Size",
-                      "Lineup",
-                      "Booking times",
-                      "Booking details",
-                      "DJ",
-                      "Allocated",
-                      "Review",
-                      "Balance Paid",
-                      "Band Paid",
-                      "Payment",
-                      "Invoice",
-                      "Actions",
-                    ].map((h) => (
-                      <th
-                        key={h}
-                        className="px-3 py-2 border-b whitespace-nowrap"
-                      >
-                        {h}
-                      </th>
-                    ))}
+                    <th className="px-3 py-2 border-b">Client</th>
+                    <th className="px-3 py-2 border-b">Ref</th>
+                    <th className="px-3 py-2 border-b">Event Date</th>
+                    <th className="px-3 py-2 border-b">Act</th>
+                    <th className="px-3 py-2 border-b">Gross</th>
+                    <th className="px-3 py-2 border-b">Times</th>
+                    <th className="px-3 py-2 border-b">Actions</th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {section.rows.map((r) => {
+                    const rowId = String(r._id || getDisplayBookingRef(r));
+                    const isExpanded = Boolean(expandedRows[rowId]);
+                    const summary = getCompactRowSummary(r);
                     const clientFirstNames = getClientFirstNames(r);
                     const bookingRef = getDisplayBookingRef(r);
                     const eventDate = getDisplayEventDate(r);
@@ -3283,11 +3248,52 @@ const pastRows = useMemo(
                     );
 
                     return (
-                      <tr
-                        key={r._id}
-                        className="odd:bg-white even:bg-gray-50 align-top"
-                      >
-                        <td className={`px-3 py-2 ${stickyCol1}`}>
+                      <React.Fragment key={rowId}>
+                        <tr className="odd:bg-white even:bg-gray-50 align-top">
+                          <td className="px-3 py-2">
+                            <div className="font-medium text-gray-900">{clientFirstNames}</div>
+                            <div className="text-[11px] text-gray-500">{getPrimaryEmail(r) || "No email"}</div>
+                          </td>
+                          <td className="px-3 py-2">{summary.bookingRef}</td>
+                          <td className="px-3 py-2">{fmtShort(summary.eventDate)}</td>
+                          <td className="px-3 py-2">{summary.actName || "—"}</td>
+                          <td className="px-3 py-2">{summary.gross ? money(summary.gross) : "—"}</td>
+                          <td className="px-3 py-2">
+                            <div className="text-[11px] text-gray-600">
+                              {summary.arrivalTime ? `Arrive ${summary.arrivalTime}` : "Arrival —"}
+                            </div>
+                            <div className="text-[11px] text-gray-600">
+                              {summary.finishTime ? `Finish ${summary.finishTime}` : "Finish —"}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                className="px-3 py-1.5 border rounded hover:bg-gray-100"
+                                onClick={() => toggleExpandedRow(rowId)}
+                              >
+                                {isExpanded ? "Hide" : "Edit details"}
+                              </button>
+                              <button
+                                type="button"
+                                className="px-3 py-1.5 border rounded hover:bg-gray-100"
+                                onClick={() => openEditModal(r)}
+                              >
+                                Update
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+
+                        {isExpanded ? (
+                          <tr className="bg-yellow-50 align-top">
+                            <td colSpan={7} className="p-0">
+                              <div className="overflow-x-auto border-t border-yellow-200">
+                                <table className="min-w-[4200px] table-fixed text-xs">
+                                  <tbody>
+                                    <tr className="align-top">
+                        <td className="px-3 py-2">
                           <InlineInput
                             value={clientFirstNames}
                             placeholder="Client name"
@@ -3300,7 +3306,7 @@ const pastRows = useMemo(
                             }
                           />
                         </td>
-                        <td className={`px-3 py-2 ${stickyCol2}`}>
+                        <td className="px-3 py-2">
                           <ReadOnlyInput value={bookingRef} />
                         </td>
                         {/* Event Sheet */}
@@ -3789,7 +3795,14 @@ const pastRows = useMemo(
                             </button>
                           </div>
                         </td>
-                      </tr>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </React.Fragment>
                     );
                   })}
 
