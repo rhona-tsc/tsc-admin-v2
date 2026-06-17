@@ -73,7 +73,16 @@ const getDisplayBookingRef = (row) => {
 
 const getDisplayEventDate = (row) => {
   return (
-    row?.eventDateISO || row?.date || row?.eventDate || row?.bookingDate || ""
+    row?.eventDateISO ||
+    row?.date ||
+    row?.eventDate ||
+    row?.bookingDetails?.eventDate ||
+    row?.eventSheet?.eventDate ||
+    row?.eventSheet?.answers?.event_date ||
+    row?.eventSheet?.complete?.event_date ||
+    row?.bookingDateISO ||
+    row?.bookingDate ||
+    ""
   );
 };
 
@@ -492,9 +501,9 @@ const getInvoiceUrl = (row) => {
 const isBookingPaid = (row) =>
   Boolean(
     row?.payments?.balancePaymentReceived ||
-      row?.payments?.invoicePaid ||
-      row?.balancePaid ||
-      row?.balanceStatus === "paid"
+    row?.payments?.invoicePaid ||
+    row?.balancePaid ||
+    row?.balanceStatus === "paid",
   );
 
 const buildFullLineup = (row) => {
@@ -1894,7 +1903,6 @@ function AgentCell({ value, onSave }) {
   );
 }
 
-
 const getReceiptUrl = (row) => {
   const hasReceipt =
     row?.receiptPdfUrl ||
@@ -1905,6 +1913,74 @@ const getReceiptUrl = (row) => {
   return hasReceipt && row?._id
     ? `${API_BASE}/invoices/board-receipt/${row._id}`
     : "";
+};
+
+const todayISODate = () => new Date().toISOString().slice(0, 10);
+
+const getSortableEventDate = (row) => {
+  const raw =
+    row?.eventDateISO ||
+    row?.eventDate ||
+    row?.date ||
+    row?.bookingDetails?.eventDate ||
+    row?.bookingDateISO ||
+    row?.eventSheet?.eventDate ||
+    row?.eventSheet?.answers?.event_date ||
+    row?.eventSheet?.complete?.event_date ||
+    "";
+
+  if (!raw) return "";
+
+  if (raw instanceof Date && !Number.isNaN(raw.getTime())) {
+    return raw.toISOString().slice(0, 10);
+  }
+
+  const rawString = String(raw).trim();
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(rawString)) {
+    return rawString.slice(0, 10);
+  }
+
+  const parsed = new Date(rawString);
+  if (Number.isNaN(parsed.getTime())) return "";
+
+  return parsed.toISOString().slice(0, 10);
+};
+
+const isPastClientRow = (row) => {
+  const eventDate = getSortableEventDate(row);
+  return Boolean(eventDate && eventDate < todayISODate());
+};
+
+const hasSortableEventDate = (row) => Boolean(getSortableEventDate(row));
+
+const isEnquiryRow = (row) => {
+  const status = String(
+    row?.status ||
+      row?.bookingStatus ||
+      row?.pipelineStatus ||
+      row?.enquiryStatus ||
+      row?.allocation?.status ||
+      "",
+  ).toLowerCase();
+
+  if (status.includes("enquiry") || status.includes("lead")) return true;
+
+  const hasBookingRef = Boolean(
+    String(row?.bookingRef || row?.bookingId || "").trim(),
+  );
+  const hasBookingDate = Boolean(
+    String(row?.bookingDateISO || row?.bookingDate || "").trim(),
+  );
+  const hasInvoiceOrPayment = Boolean(
+    row?.invoiceUrl ||
+    row?.invoicePdfUrl ||
+    row?.paymentLink ||
+    row?.balanceInvoiceUrl ||
+    row?.payments?.boardInvoicePdfUrl,
+  );
+
+  return !hasBookingRef && !hasBookingDate && !hasInvoiceOrPayment;
 };
 
 export default function BookingBoard() {
@@ -1947,8 +2023,12 @@ export default function BookingBoard() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [creatingPayLinkId, setCreatingPayLinkId] = useState(null);
   const [syncingFinanceId, setSyncingFinanceId] = useState(null);
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(100);
+const [collapsedSections, setCollapsedSections] = useState({
+  enquiries: false,
+  "upcoming-bookings": false,
+  "missing-event-date": false,
+  "past-clients": true,
+});
 
   const buildHeaders = () => {
     const token = getAuthToken();
@@ -1958,13 +2038,16 @@ export default function BookingBoard() {
     };
   };
 
-  const fetchRows = async () => {
+  const fetchRows = async (overrides = {}) => {
+    const nextQ = overrides.q ?? q;
+    const nextSortBy = overrides.sortBy ?? sortBy;
+    const nextSortDir = overrides.sortDir ?? sortDir;
+
     const params = new URLSearchParams();
-    params.set("q", q);
-    params.set("sortBy", sortBy);
-    params.set("sortDir", sortDir);
-    params.set("limit", String(limit));
-    params.set("page", String(page));
+    params.set("q", nextQ.trim());
+    params.set("sortBy", nextSortBy);
+    params.set("sortDir", nextSortDir);
+
 
     const url = `${API_BASE}/board/bookings?${params.toString()}`;
 
@@ -1990,11 +2073,8 @@ export default function BookingBoard() {
   };
 
   useEffect(() => {
-    fetchRows(); /* eslint-disable-next-line */
-  }, []);
-  useEffect(() => {
-    fetchRows();
-  }, [page, limit, sortBy, sortDir]);
+    fetchRows({  sortBy, sortDir });
+  }, [sortBy, sortDir]);
 
   const mergedRows = useMemo(() => {
     const map = new Map();
@@ -2007,6 +2087,124 @@ export default function BookingBoard() {
 
     return [...map.values()];
   }, [rows]);
+
+  const visibleRows = useMemo(
+    () =>
+      mergedRows.filter((row) =>
+        hideInternalTests ? !isInternalTestBooking(row) : true,
+      ),
+    [mergedRows, hideInternalTests],
+  );
+
+  const enquiryRows = useMemo(
+    () => visibleRows.filter((row) => isEnquiryRow(row)),
+    [visibleRows],
+  );
+
+  const missingDateRows = useMemo(
+    () =>
+      visibleRows.filter(
+        (row) => !isEnquiryRow(row) && !hasSortableEventDate(row),
+      ),
+    [visibleRows],
+  );
+
+const upcomingRows = useMemo(
+  () =>
+    visibleRows
+      .filter((row) => !isEnquiryRow(row) && hasSortableEventDate(row) && !isPastClientRow(row))
+      .sort((a, b) => getSortableEventDate(a).localeCompare(getSortableEventDate(b))),
+  [visibleRows],
+);
+
+const pastRows = useMemo(
+  () =>
+    visibleRows
+      .filter((row) => !isEnquiryRow(row) && hasSortableEventDate(row) && isPastClientRow(row))
+      .sort((a, b) => getSortableEventDate(b).localeCompare(getSortableEventDate(a))),
+  [visibleRows],
+);
+
+
+
+  useEffect(() => {
+    window.bookingBoardDebug = {
+      rows,
+      mergedRows,
+      visibleRows,
+      enquiryRows,
+      missingDateRows,
+      upcomingRows,
+      pastRows,
+      counts: {
+        rows: rows.length,
+        mergedRows: mergedRows.length,
+        visibleRows: visibleRows.length,
+        enquiries: enquiryRows.length,
+        missingDates: missingDateRows.length,
+        upcoming: upcomingRows.length,
+        past: pastRows.length,
+      },
+    };
+  }, [
+    rows,
+    mergedRows,
+    visibleRows,
+    enquiryRows,
+    missingDateRows,
+    upcomingRows,
+    pastRows,
+  ]);
+
+  const boardSections = useMemo(
+    () => [
+      {
+        key: "enquiries",
+        title: "Enquiries",
+        count: enquiryRows.length,
+        rows: enquiryRows,
+        accentClass: "border-l-sky-500",
+        titleClass: "text-sky-700",
+        emptyText: "No enquiries to show.",
+      },
+      {
+        key: "upcoming-bookings",
+        title: "Upcoming Bookings",
+        count: upcomingRows.length,
+        rows: upcomingRows,
+        accentClass: "border-l-emerald-500",
+        titleClass: "text-emerald-700",
+        emptyText: "No upcoming bookings to show.",
+      },
+      {
+        key: "missing-event-date",
+        title: "Missing Event Date",
+        count: missingDateRows.length,
+        rows: missingDateRows,
+        accentClass: "border-l-amber-500",
+        titleClass: "text-amber-700",
+        emptyText:
+          "No bookings are missing event dates. These rows are real bookings, but they need an event date before they can move into Upcoming Bookings or Past Clients.",
+      },
+      {
+        key: "past-clients",
+        title: "Past Clients",
+        count: pastRows.length,
+        rows: pastRows,
+        accentClass: "border-l-orange-500",
+        titleClass: "text-orange-700",
+        emptyText: `No past clients to show. Past clients are events before ${todayISODate()}.`,
+      },
+    ],
+    [enquiryRows, upcomingRows, missingDateRows, pastRows],
+  );
+
+  const toggleSection = (sectionKey) => {
+  setCollapsedSections((prev) => ({
+    ...prev,
+    [sectionKey]: !prev[sectionKey],
+  }));
+};
 
   const onInlineEdit = async (id, patch) => {
     const url = `${API_BASE}/board/bookings/${id}`;
@@ -2080,7 +2278,7 @@ export default function BookingBoard() {
       );
 
     const extrasTotal = cleanedExtras.reduce(
-      (sum, extra) => sum + extra.price * extra.quantity,
+      (sum, extra) => sum + extra.prEfiercice * extra.quantity,
       0,
     );
 
@@ -2125,8 +2323,18 @@ export default function BookingBoard() {
       paLightsFinishDayOffset:
         Number(editForm.paLightsFinishDayOffset || 0) || 0,
     };
+    const existingEventDate =
+      editingRow?.eventDateISO ||
+      editingRow?.eventDate ||
+      editingRow?.date ||
+      editingRow?.bookingDetails?.eventDate ||
+      editingRow?.eventSheet?.eventDate ||
+      "";
 
     const patch = {
+      ...(editForm.eventDateISO || existingEventDate
+        ? { eventDateISO: editForm.eventDateISO || existingEventDate }
+        : {}),
       invoiceCompany,
       totals: {
         ...(editingRow?.totals || {}),
@@ -2431,6 +2639,8 @@ export default function BookingBoard() {
     }
   };
 
+  
+
   const createPayLinkForRow = async (row) => {
     const bookingRef = getDisplayBookingRef(row);
 
@@ -2581,7 +2791,9 @@ export default function BookingBoard() {
     const isPaid = isBookingPaid(row);
 
     if (!isPaid) {
-      window.alert("Please mark the invoice as paid before generating a receipt.");
+      window.alert(
+        "Please mark the invoice as paid before generating a receipt.",
+      );
       return;
     }
 
@@ -2824,13 +3036,19 @@ export default function BookingBoard() {
           placeholder="Search name, ref, act, county…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && fetchRows()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+             
+              fetchRows({ page: 1, q });
+            }
+          }}
         />
         <button
           className="px-4 py-2 rounded bg-black text-white"
           onClick={() => {
-            setPage(1);
-            fetchRows();
+           
+
+            fetchRows({ page: 1, q });
           }}
         >
           Search
@@ -2872,1008 +3090,1085 @@ export default function BookingBoard() {
         </div>
       </div>
 
-      <select
-        className="border rounded px-2 py-1"
-        value={limit}
-        onChange={(e) => {
-          setPage(1);
-          setLimit(Number(e.target.value));
-        }}
-      >
-        <option value={50}>50 rows</option>
-        <option value={100}>100 rows</option>
-        <option value={250}>250 rows</option>
-      </select>
+<div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+  <div className="rounded-lg border bg-white p-3">
+    <div className="text-xs text-gray-500">Enquiries</div>
+    <div className="text-xl font-semibold text-sky-700">{enquiryRows.length}</div>
+  </div>
+  <div className="rounded-lg border bg-white p-3">
+    <div className="text-xs text-gray-500">Upcoming</div>
+    <div className="text-xl font-semibold text-emerald-700">{upcomingRows.length}</div>
+  </div>
+  <div className="rounded-lg border bg-white p-3">
+    <div className="text-xs text-gray-500">Missing Dates</div>
+    <div className="text-xl font-semibold text-red-700">{missingDateRows.length}</div>
+  </div>
+  <div className="rounded-lg border bg-white p-3">
+    <div className="text-xs text-gray-500">Past Clients</div>
+    <div className="text-xl font-semibold text-orange-700">{pastRows.length}</div>
+  </div>
+  <div className="rounded-lg border bg-white p-3">
+    <div className="text-xs text-gray-500">Total Records</div>
+    <div className="text-xl font-semibold text-gray-900">{visibleRows.length}</div>
+  </div>
+</div>
 
-      <button
-        className="px-3 py-2 border rounded"
-        disabled={page <= 1}
-        onClick={() => setPage((p) => Math.max(1, p - 1))}
-      >
-        Prev
-      </button>
+      <div className="space-y-6 mt-4">
+        {boardSections.map((section) => (
+          <section
+            key={section.key}
+            className={`border rounded-lg bg-white border-l-4 ${section.accentClass}`}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
+              <div>
+               <button
+  type="button"
+  className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
+  onClick={() => toggleSection(section.key)}
+>
+  <h2 className={`text-xl font-semibold ${section.titleClass}`}>
+    <span className="inline-block w-5">
+      {collapsedSections[section.key] ? "▸" : "▾"}
+    </span>
+    {section.title} ({section.count})
+  </h2>
+</button>
+               {!collapsedSections[section.key] && (
+                  <>
+                 {section.key === "past-clients" && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Events before {todayISODate()}
+                  </p>
+                )}
+                 </>
 
-      <span className="text-sm text-gray-600">Page {page}</span>
+)}
+              </div>
+            </div>
 
-      <button
-        className="px-3 py-2 border rounded"
-        onClick={() => setPage((p) => p + 1)}
-      >
-        Next
-      </button>
+            <div className="overflow-auto max-h-[38vh]">
+              <table className="min-w-[4200px] table-fixed text-xs">
+                <colgroup>
+                  <col style={{ width: 140 }} /> {/* First names */}
+                  <col style={{ width: 160 }} /> {/* Ref */}
+                  <col style={{ width: 110 }} /> {/* Event Sheet */}
+                  <col style={{ width: 110 }} /> {/* Contract */}
+                  <col style={{ width: 150 }} /> {/* Enquiry Date */}
+                  <col style={{ width: 150 }} /> {/* Booking Date */}
+                  <col style={{ width: 150 }} /> {/* Event Date */}
+                  <col style={{ width: 110 }} /> {/* Gross */}
+                  <col style={{ width: 110 }} /> {/* Deposit */}
+                  <col style={{ width: 110 }} /> {/* Balance */}
+                  <col style={{ width: 130 }} /> {/* Commission */}
+                  <col style={{ width: 110 }} /> {/* VAT */}
+                  <col style={{ width: 150 }} /> {/* Pass-through */}
+                  <col style={{ width: 230 }} /> {/* Agent */}
+                  <col style={{ width: 260 }} /> {/* Client Emails */}
+                  <col style={{ width: 320 }} /> {/* Client Address */}
+                  <col style={{ width: 120 }} /> {/* Event Type */}
+                  <col style={{ width: 150 }} /> {/* Act */}
+                  <col style={{ width: 150 }} /> {/* Act tscName */}
+                  <col style={{ width: 320 }} /> {/* Address */}
+                  <col style={{ width: 110 }} /> {/* County */}
+                  <col style={{ width: 110 }} /> {/* Band Size */}
+                  <col style={{ width: 200 }} /> {/* Lineup */}
+                  <col style={{ width: 120 }} /> {/* Arrival */}
+                  <col style={{ width: 260 }} /> {/* Booking details */}
+                  <col style={{ width: 80 }} /> {/* DJ */}
+                  <col style={{ width: 140 }} /> {/* Allocated */}
+                  <col style={{ width: 140 }} /> {/* Review */}
+                  <col style={{ width: 120 }} /> {/* Balance Paid */}
+                  <col style={{ width: 120 }} /> {/* Band Paid */}
+                  <col style={{ width: 120 }} /> {/* Payment */}
+                  <col style={{ width: 120 }} /> {/* Invoice */}
+                  <col style={{ width: 130 }} /> {/* Actions */}
+                </colgroup>
 
-      <div className="overflow-auto border rounded max-h-[calc(100vh-170px)]">
-        <table className="min-w-[4200px] table-fixed text-xs">
-          <colgroup>
-            <col style={{ width: 140 }} /> {/* First names */}
-            <col style={{ width: 160 }} /> {/* Ref */}
-            <col style={{ width: 110 }} /> {/* Event Sheet */}
-            <col style={{ width: 110 }} /> {/* Contract */}
-            <col style={{ width: 150 }} /> {/* Enquiry Date */}
-            <col style={{ width: 150 }} /> {/* Booking Date */}
-            <col style={{ width: 150 }} /> {/* Event Date */}
-            <col style={{ width: 110 }} /> {/* Gross */}
-            <col style={{ width: 110 }} /> {/* Deposit */}
-            <col style={{ width: 110 }} /> {/* Balance */}
-            <col style={{ width: 130 }} /> {/* Commission */}
-            <col style={{ width: 110 }} /> {/* VAT */}
-            <col style={{ width: 150 }} /> {/* Pass-through */}
-            <col style={{ width: 230 }} /> {/* Agent */}
-            <col style={{ width: 260 }} /> {/* Client Emails */}
-            <col style={{ width: 320 }} /> {/* Client Address */}
-            <col style={{ width: 120 }} /> {/* Event Type */}
-            <col style={{ width: 150 }} /> {/* Act */}
-            <col style={{ width: 150 }} /> {/* Act tscName */}
-            <col style={{ width: 320 }} /> {/* Address */}
-            <col style={{ width: 110 }} /> {/* County */}
-            <col style={{ width: 110 }} /> {/* Band Size */}
-            <col style={{ width: 200 }} /> {/* Lineup */}
-            <col style={{ width: 120 }} /> {/* Arrival */}
-            <col style={{ width: 260 }} /> {/* Booking details */}
-            <col style={{ width: 80 }} /> {/* DJ */}
-            <col style={{ width: 140 }} /> {/* Allocated */}
-            <col style={{ width: 140 }} /> {/* Review */}
-            <col style={{ width: 120 }} /> {/* Balance Paid */}
-            <col style={{ width: 120 }} /> {/* Band Paid */}
-            <col style={{ width: 120 }} /> {/* Payment */}
-            <col style={{ width: 120 }} /> {/* Invoice */}
-            <col style={{ width: 130 }} /> {/* Actions */}
-          </colgroup>
+                <thead className="bg-gray-50 text-left sticky top-0 z-10">
+                  <tr>
+                    <th className={`px-3 py-2 border-b ${stickyHead1}`}>
+                      First names
+                    </th>
+                    <th className={`px-3 py-2 border-b ${stickyHead2}`}>Ref</th>
 
-          <thead className="bg-gray-50 text-left sticky top-0 z-10">
-            <tr>
-              <th className={`px-3 py-2 border-b ${stickyHead1}`}>
-                First names
-              </th>
-              <th className={`px-3 py-2 border-b ${stickyHead2}`}>Ref</th>
+                    {[
+                      "Event Sheet",
+                      "Contract",
+                      "Enquiry Date",
+                      "Booking Date",
+                      "Event Date",
+                      "Gross",
+                      "Deposit",
+                      "Balance",
+                      "Commission",
+                      "VAT",
+                      "Hold (pass-through)",
+                      "Agent",
+                      "Client Emails",
+                      "Client Address",
+                      "Event Type",
+                      "Act",
+                      "Act tscName",
+                      "Address",
+                      "County",
+                      "Band Size",
+                      "Lineup",
+                      "Booking times",
+                      "Booking details",
+                      "DJ",
+                      "Allocated",
+                      "Review",
+                      "Balance Paid",
+                      "Band Paid",
+                      "Payment",
+                      "Invoice",
+                      "Actions",
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className="px-3 py-2 border-b whitespace-nowrap"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
 
-              {[
-                "Event Sheet",
-                "Contract",
-                "Enquiry Date",
-                "Booking Date",
-                "Event Date",
-                "Gross",
-                "Deposit",
-                "Balance",
-                "Commission",
-                "VAT",
-                "Hold (pass-through)",
-                "Agent",
-                "Client Emails",
-                "Client Address",
-                "Event Type",
-                "Act",
-                "Act tscName",
-                "Address",
-                "County",
-                "Band Size",
-                "Lineup",
-                "Booking times",
-                "Booking details",
-                "DJ",
-                "Allocated",
-                "Review",
-                "Balance Paid",
-                "Band Paid",
-                "Payment",
-                "Invoice",
-                "Actions",
-              ].map((h) => (
-                <th key={h} className="px-3 py-2 border-b whitespace-nowrap">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
+                <tbody>
+                  {section.rows.map((r) => {
+                    const clientFirstNames = getClientFirstNames(r);
+                    const bookingRef = getDisplayBookingRef(r);
+                    const eventDate = getDisplayEventDate(r);
+                    const gross = getDisplayGross(r);
+                    const balancePaid = isBookingPaid(r);
+                    const depositFromBackend = getDisplayDeposit(r);
+                    const deposit =
+                      depositFromBackend != null
+                        ? depositFromBackend
+                        : agentTakesDeposit(r)
+                          ? calcDeposit(gross)
+                          : 0;
+                    const balance = gross
+                      ? Math.max(0, Math.round(gross - (deposit || 0)))
+                      : null;
+                    const split = getAccountingSplit(r, gross, deposit);
 
-          <tbody>
-            {mergedRows
-              .filter((r) =>
-                hideInternalTests ? !isInternalTestBooking(r) : true,
-              )
-              .map((r) => {
-                const clientFirstNames = getClientFirstNames(r);
-                const bookingRef = getDisplayBookingRef(r);
-                const eventDate = getDisplayEventDate(r);
-                const gross = getDisplayGross(r);
-                const balancePaid = isBookingPaid(r);
-                const depositFromBackend = getDisplayDeposit(r);
-                const deposit =
-                  depositFromBackend != null
-                    ? depositFromBackend
-                    : agentTakesDeposit(r)
-                      ? calcDeposit(gross)
-                      : 0;
-                const balance = gross
-                  ? Math.max(0, Math.round(gross - (deposit || 0)))
-                  : null;
-                const split = getAccountingSplit(r, gross, deposit);
+                    const commission = split?.commissionGross || 0;
+                    const vat = split?.commissionVat || 0;
+                    const hold = split?.passThroughGross || 0;
+                    const fallbackEventSheetUrl = `${PUBLIC_SITE_BASE}/event-sheet/${encodeURIComponent(bookingRef || "")}`;
+                    const contractUrl =
+                      r?.contractUrl ||
+                      r?.pdfUrl ||
+                      (r?.contract && (r.contract.url || r.contract.href)) ||
+                      "";
+                    const normalizedContractUrl = normalizeUrl(contractUrl);
+                    const paymentUrl = getPaymentUrl(r);
 
-                const commission = split?.commissionGross || 0;
-                const vat = split?.commissionVat || 0;
-                const hold = split?.passThroughGross || 0;
-                const fallbackEventSheetUrl = `${PUBLIC_SITE_BASE}/event-sheet/${encodeURIComponent(bookingRef || "")}`;
-                const contractUrl =
-                  r?.contractUrl ||
-                  r?.pdfUrl ||
-                  (r?.contract && (r.contract.url || r.contract.href)) ||
-                  "";
-                const normalizedContractUrl = normalizeUrl(contractUrl);
-                const paymentUrl = getPaymentUrl(r);
+                    const invoiceUrl = getInvoiceUrl(r);
+                    const receiptUrl = getReceiptUrl(r);
+                    const actName = getDisplayActName(r);
+                    const actTsc = getDisplayActTscName(r);
+                    const address = getDisplayAddress(r);
+                    const county = getDisplayCounty(r);
+                    const arrivalTime = getDisplayArrivalTime(r);
+                    const finishTime = getDisplayFinishTime(r);
+                    const clientEmails = getDisplayClientEmails(r);
+                    const performanceTimes =
+                      r?.performanceTimes ||
+                      r?.actsSummary?.[0]?.performance ||
+                      {};
+                    const bandPaid = Boolean(
+                      r?.payments?.bandPaymentsSent ?? r?.bandPaymentsSent,
+                    );
 
-                const invoiceUrl = getInvoiceUrl(r);
-                const receiptUrl = getReceiptUrl(r);
-                const actName = getDisplayActName(r);
-                const actTsc = getDisplayActTscName(r);
-                const address = getDisplayAddress(r);
-                const county = getDisplayCounty(r);
-                const arrivalTime = getDisplayArrivalTime(r);
-                const finishTime = getDisplayFinishTime(r);
-                const clientEmails = getDisplayClientEmails(r);
-                const performanceTimes =
-                  r?.performanceTimes || r?.actsSummary?.[0]?.performance || {};
-                const bandPaid = Boolean(
-                  r?.payments?.bandPaymentsSent ?? r?.bandPaymentsSent,
-                );
-
-                return (
-                  <tr
-                    key={r._id}
-                    className="odd:bg-white even:bg-gray-50 align-top"
-                  >
-                    <td className={`px-3 py-2 ${stickyCol1}`}>
-                      <InlineInput
-                        value={clientFirstNames}
-                        placeholder="Client name"
-                        onCommit={(val) =>
-                          onInlineEdit(r._id, {
-                            clientFirstNames: val,
-                            clientName: val,
-                            bookerName: val,
-                          })
-                        }
-                      />
-                    </td>
-                    <td className={`px-3 py-2 ${stickyCol2}`}>
-                      <ReadOnlyInput value={bookingRef} />
-                    </td>
-                    {/* Event Sheet */}
-                    <td className={cellClass}>
-                      {r.eventSheetLink ? (
-                        <a
-                          className="text-blue-600 underline"
-                          href={r.eventSheetLink}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Open
-                        </a>
-                      ) : (
-                        <button
-                          className="px-2 py-1 border rounded hover:bg-gray-100"
-                          onClick={() => {
-                            if (
-                              !PUBLIC_SITE_BASE ||
-                              PUBLIC_SITE_BASE.includes("localhost:5174")
-                            ) {
-                              window.alert(
-                                "Event sheet fallback URL is not configured yet. Please set VITE_PUBLIC_SITE_URL to the live public site URL.",
-                              );
-                              return;
+                    return (
+                      <tr
+                        key={r._id}
+                        className="odd:bg-white even:bg-gray-50 align-top"
+                      >
+                        <td className={`px-3 py-2 ${stickyCol1}`}>
+                          <InlineInput
+                            value={clientFirstNames}
+                            placeholder="Client name"
+                            onCommit={(val) =>
+                              onInlineEdit(r._id, {
+                                clientFirstNames: val,
+                                clientName: val,
+                                bookerName: val,
+                              })
                             }
-                            window.open(
-                              fallbackEventSheetUrl,
-                              "_blank",
-                              "noopener,noreferrer",
-                            );
-                          }}
-                        >
-                          Open
-                        </button>
-                      )}
-                    </td>
-                    {/* Contract */}
-                    <td className={cellClass}>
-                      {normalizedContractUrl ? (
-                        <a
-                          className="text-blue-600 underline"
-                          href={normalizedContractUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Open
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className={cellClass}>
-                      <InlineInput
-                        value={fmtShort(r.enquiryDateISO || r.createdAt)}
-                      />
-                    </td>
-                    <td className={cellClass}>
-                      {fmtShort(r.bookingDateISO || r.createdAt)}
-                    </td>
-                    <td className={cellClass}>{fmtOrdinal(eventDate)}</td>
-                    <td className={cellClass}>
-                      {gross ? (
-                        <div>
-                          <div>
-                            {" "}
-                            <InlineInput value={gross ? money(gross) : ""} />
-                          </div>
+                          />
+                        </td>
+                        <td className={`px-3 py-2 ${stickyCol2}`}>
+                          <ReadOnlyInput value={bookingRef} />
+                        </td>
+                        {/* Event Sheet */}
+                        <td className={cellClass}>
+                          {r.eventSheetLink ? (
+                            <a
+                              className="text-blue-600 underline"
+                              href={r.eventSheetLink}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Open
+                            </a>
+                          ) : (
+                            <button
+                              className="px-2 py-1 border rounded hover:bg-gray-100"
+                              onClick={() => {
+                                if (
+                                  !PUBLIC_SITE_BASE ||
+                                  PUBLIC_SITE_BASE.includes("localhost:5174")
+                                ) {
+                                  window.alert(
+                                    "Event sheet fallback URL is not configured yet. Please set VITE_PUBLIC_SITE_URL to the live public site URL.",
+                                  );
+                                  return;
+                                }
+                                window.open(
+                                  fallbackEventSheetUrl,
+                                  "_blank",
+                                  "noopener,noreferrer",
+                                );
+                              }}
+                            >
+                              Open
+                            </button>
+                          )}
+                        </td>
+                        {/* Contract */}
+                        <td className={cellClass}>
+                          {normalizedContractUrl ? (
+                            <a
+                              className="text-blue-600 underline"
+                              href={normalizedContractUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Open
+                            </a>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className={cellClass}>
+                          <InlineInput
+                            value={fmtShort(r.enquiryDateISO || r.createdAt)}
+                          />
+                        </td>
+                        <td className={cellClass}>
+                          {fmtShort(r.bookingDateISO || r.createdAt)}
+                        </td>
+                        <td className={cellClass}>
+                          <InlineInput
+                            type="date"
+                            value={String(getSortableEventDate(r) || "").slice(
+                              0,
+                              10,
+                            )}
+                            placeholder="Event date"
+                            onCommit={(val) =>
+                              onInlineEdit(r._id, {
+                                eventDateISO: val,
+                                eventDate: val,
+                                date: val,
+                              })
+                            }
+                          />
+                        </td>{" "}
+                        <td className={cellClass}>
+                          {gross ? (
+                            <div>
+                              <div>
+                                {" "}
+                                <InlineInput
+                                  value={gross ? money(gross) : ""}
+                                />
+                              </div>
 
-                          {(split?.commissionGross > 0 ||
-                            split?.passThroughGross > 0) && (
-                            <div className="text-[11px] text-gray-600 leading-4 mt-1">
-                              <span title={`Source: ${split.source}`}>
-                                Comm
-                              </span>
-                              : £
-                              {Number(
-                                split.commissionGross || 0,
-                              ).toLocaleString("en-GB", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              })}
-                              {split?.commissionVat ? (
-                                <>
-                                  {" "}
-                                  (VAT £
+                              {(split?.commissionGross > 0 ||
+                                split?.passThroughGross > 0) && (
+                                <div className="text-[11px] text-gray-600 leading-4 mt-1">
+                                  <span title={`Source: ${split.source}`}>
+                                    Comm
+                                  </span>
+                                  : £
                                   {Number(
-                                    split.commissionVat || 0,
+                                    split.commissionGross || 0,
                                   ).toLocaleString("en-GB", {
                                     minimumFractionDigits: 2,
                                     maximumFractionDigits: 2,
                                   })}
-                                  )
-                                </>
-                              ) : null}
-                              {split?.passThroughGross ? (
-                                <>
-                                  {" "}
-                                  • Held: £
-                                  {Number(
-                                    split.passThroughGross || 0,
-                                  ).toLocaleString("en-GB", {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  })}
-                                </>
-                              ) : null}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className={cellClass}>
-                      {deposit != null ? (
-                        <div>
-                          <div>
-                            {" "}
-                            <InlineInput
-                              value={deposit ? money(deposit) : ""}
-                            />
-                          </div>
-
-                          {!split?.hasAccounting && (
-                            <div className="text-[11px] text-gray-500 leading-4 mt-1">
-                              {r?.source === "manual"
-                                ? "Manual split"
-                                : "Awaiting webhook split"}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        "—"
-                      )}
-                    </td>{" "}
-                    <td className={cellClass}>
-                      <InlineInput
-                        value={balance != null ? money(balance) : ""}
-                      />
-                    </td>
-                    <td className={cellClass}>
-                      {commission ? (
-                        <div className="leading-tight">
-                          <div>
-                            {" "}
-                            <InlineInput
-                              value={commission ? fmtMoney0(commission) : ""}
-                            />
-                          </div>
-                          {split?.hasAccounting ? (
-                            <div className="text-[11px] text-gray-500">
-                              from accounting
+                                  {split?.commissionVat ? (
+                                    <>
+                                      {" "}
+                                      (VAT £
+                                      {Number(
+                                        split.commissionVat || 0,
+                                      ).toLocaleString("en-GB", {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      })}
+                                      )
+                                    </>
+                                  ) : null}
+                                  {split?.passThroughGross ? (
+                                    <>
+                                      {" "}
+                                      • Held: £
+                                      {Number(
+                                        split.passThroughGross || 0,
+                                      ).toLocaleString("en-GB", {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      })}
+                                    </>
+                                  ) : null}
+                                </div>
+                              )}
                             </div>
                           ) : (
-                            <div className="text-[11px] text-gray-500">
-                              estimated
-                            </div>
+                            "—"
                           )}
-                        </div>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className={cellClass}>{vat ? fmtMoney0(vat) : "—"}</td>
-                    <td className={cellClass}>
-                      <InlineInput value={hold ? money(hold) : ""} />
-                    </td>
-                    <td className={cellClass}>
-                      <AgentCell
-                        value={r.agent || "Direct"}
-                        onSave={(val) => onInlineEdit(r._id, { agent: val })}
-                      />
-                    </td>
-                    <td className={cellClass}>
-                      <InlineInput
-                        value={clientEmails[0]?.email || ""}
-                        placeholder="Client email"
-                        onCommit={(val) =>
-                          onInlineEdit(r._id, {
-                            clientEmail: val,
-                            userEmail: val,
-                            clientEmails: val ? [{ email: val }] : [],
-                          })
-                        }
-                      />
-                    </td>
-                    <td className={cellClass}>
-                      <InlineInput
-                        value={r.clientAddress || ""}
-                        placeholder="Client address"
-                        onCommit={(val) =>
-                          onInlineEdit(r._id, { clientAddress: val })
-                        }
-                      />
-                    </td>
-                    <td className={cellClass}>{r.eventType || "—"}</td>
-                    <td className={cellClass}>
-                      <InlineInput
-                        value={actName || ""}
-                        placeholder="Act"
-                        onCommit={(val) =>
-                          onInlineEdit(r._id, { actName: val })
-                        }
-                      />
-                    </td>
-                    <td className={cellClass}>
-                      <InlineInput
-                        value={actTsc || ""}
-                        placeholder="Act tscName"
-                        onCommit={(val) =>
-                          onInlineEdit(r._id, { actTscName: val })
-                        }
-                      />
-                    </td>
-                    <td className={cellClass}>
-                      <InlineInput
-                        value={address || ""}
-                        placeholder="Address"
-                        onCommit={(val) =>
-                          onInlineEdit(r._id, { address: val })
-                        }
-                      />
-                    </td>
-                    <td className={cellClass}>
-                      <InlineInput
-                        value={county || ""}
-                        placeholder="County"
-                        onCommit={(val) => onInlineEdit(r._id, { county: val })}
-                      />
-                    </td>
-                    <td className={cellClass}>{extractBandSize(r)}</td>
-                    <td className={cellClass}>
-                      <InlineInput
-                        value={r.lineupSelected || ""}
-                        placeholder="Lineup"
-                        onCommit={(val) =>
-                          onInlineEdit(r._id, { lineupSelected: val })
-                        }
-                      />
-                    </td>
-                    <td className={cellClass}>
-                      <div className="flex flex-col gap-2 min-w-[150px]">
-                        <InlineInput
-                          type="time"
-                          value={arrivalTime || ""}
-                          placeholder="Arrival"
-                          onCommit={(val) =>
-                            onInlineEdit(r._id, { arrivalTime: val })
-                          }
-                        />
-                        <InlineInput
-                          type="time"
-                          value={finishTime || ""}
-                          placeholder="Finish"
-                          onCommit={(val) =>
-                            onInlineEdit(r._id, { finishTime: val })
-                          }
-                        />
-                      </div>
-                    </td>
-                    <td className={cellClass}>
-                      <div className="text-xs leading-5">
-                        <input
-                          readOnly
-                          value={summariseBookingDetails(r.bookingDetails, r)}
-                          className={`${inputClass} min-w-[420px] bg-gray-50 text-gray-600`}
-                        />
-                      </div>
-                    </td>
-                    <td className={cellClass}>
-                      {r.bookingDetails?.djServicesBooked ? "Yes" : "No"}
-                    </td>
-                    <td className={cellClass}>
-                      {r.allocation?.status === "fully_allocated" ? (
-                        <Tag>✅ Allocated</Tag>
-                      ) : r.allocation?.status === "gap" ? (
-                        <Tag>⚠️ Gap</Tag>
-                      ) : r.allocation?.status === "in_progress" ? (
-                        <Tag>⏳ In progress</Tag>
-                      ) : (
-                        <Tag>—</Tag>
-                      )}
-                    </td>
-                    <td className={cellClass}>
-                      {r.review?.received ? (
-                        <Tag>⭐ Received</Tag>
-                      ) : (
-                        <button
-                          className="text-xs underline"
-                          onClick={() =>
-                            onInlineEdit(r._id, {
-                              review: {
-                                ...(r.review || {}),
-                                requestedCount:
-                                  (r.review?.requestedCount || 0) + 1,
-                                lastRequestedAt: new Date().toISOString(),
-                              },
-                            })
-                          }
-                        >
-                          Send request
-                        </button>
-                      )}
-                    </td>
-                    <td className={cellClass}>
-                      {balancePaid ? (
-                        <span className="inline-block text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 border border-green-200">
-                          Paid
-                        </span>
-                      ) : (
-                        <span className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-800 border border-gray-200">
-                          —
-                        </span>
-                      )}
-                    </td>
-                    <td className={cellClass}>
-                      {bandPaid ? (
-                        <span className="inline-block text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 border border-green-200">
-                          Paid
-                        </span>
-                      ) : (
-                        <span className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-800 border border-gray-200">
-                          —
-                        </span>
-                      )}
-                    </td>
-                    <td className={cellClass}>
-                      <div className="flex flex-col gap-1">
-                        {paymentUrl ? (
-                          <a
-                            className="text-blue-600 underline"
-                            href={paymentUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Pay
-                          </a>
-                        ) : (
-                          <button
-                            className="px-2 py-1 border rounded hover:bg-gray-100 text-xs"
-                            disabled={
-                              creatingPayLinkId === String(r?._id || bookingRef)
+                        </td>
+                        <td className={cellClass}>
+                          {deposit != null ? (
+                            <div>
+                              <div>
+                                {" "}
+                                <InlineInput
+                                  value={deposit ? money(deposit) : ""}
+                                />
+                              </div>
+
+                              {!split?.hasAccounting && (
+                                <div className="text-[11px] text-gray-500 leading-4 mt-1">
+                                  {r?.source === "manual"
+                                    ? "Manual split"
+                                    : "Awaiting webhook split"}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
+                        </td>{" "}
+                        <td className={cellClass}>
+                          <InlineInput
+                            value={balance != null ? money(balance) : ""}
+                          />
+                        </td>
+                        <td className={cellClass}>
+                          {commission ? (
+                            <div className="leading-tight">
+                              <div>
+                                {" "}
+                                <InlineInput
+                                  value={
+                                    commission ? fmtMoney0(commission) : ""
+                                  }
+                                />
+                              </div>
+                              {split?.hasAccounting ? (
+                                <div className="text-[11px] text-gray-500">
+                                  from accounting
+                                </div>
+                              ) : (
+                                <div className="text-[11px] text-gray-500">
+                                  estimated
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className={cellClass}>
+                          {vat ? fmtMoney0(vat) : "—"}
+                        </td>
+                        <td className={cellClass}>
+                          <InlineInput value={hold ? money(hold) : ""} />
+                        </td>
+                        <td className={cellClass}>
+                          <AgentCell
+                            value={r.agent || "Direct"}
+                            onSave={(val) =>
+                              onInlineEdit(r._id, { agent: val })
                             }
-                            onClick={() => createPayLinkForRow(r)}
-                            title="Create a Stripe hosted invoice link"
-                          >
-                            {creatingPayLinkId === String(r?._id || bookingRef)
-                              ? "Creating…"
-                              : "Create pay link"}
-                          </button>
-                        )}
+                          />
+                        </td>
+                        <td className={cellClass}>
+                          <InlineInput
+                            value={clientEmails[0]?.email || ""}
+                            placeholder="Client email"
+                            onCommit={(val) =>
+                              onInlineEdit(r._id, {
+                                clientEmail: val,
+                                userEmail: val,
+                                clientEmails: val ? [{ email: val }] : [],
+                              })
+                            }
+                          />
+                        </td>
+                        <td className={cellClass}>
+                          <InlineInput
+                            value={r.clientAddress || ""}
+                            placeholder="Client address"
+                            onCommit={(val) =>
+                              onInlineEdit(r._id, { clientAddress: val })
+                            }
+                          />
+                        </td>
+                        <td className={cellClass}>{r.eventType || "—"}</td>
+                        <td className={cellClass}>
+                          <InlineInput
+                            value={actName || ""}
+                            placeholder="Act"
+                            onCommit={(val) =>
+                              onInlineEdit(r._id, { actName: val })
+                            }
+                          />
+                        </td>
+                        <td className={cellClass}>
+                          <InlineInput
+                            value={actTsc || ""}
+                            placeholder="Act tscName"
+                            onCommit={(val) =>
+                              onInlineEdit(r._id, { actTscName: val })
+                            }
+                          />
+                        </td>
+                        <td className={cellClass}>
+                          <InlineInput
+                            value={address || ""}
+                            placeholder="Address"
+                            onCommit={(val) =>
+                              onInlineEdit(r._id, { address: val })
+                            }
+                          />
+                        </td>
+                        <td className={cellClass}>
+                          <InlineInput
+                            value={county || ""}
+                            placeholder="County"
+                            onCommit={(val) =>
+                              onInlineEdit(r._id, { county: val })
+                            }
+                          />
+                        </td>
+                        <td className={cellClass}>{extractBandSize(r)}</td>
+                        <td className={cellClass}>
+                          <InlineInput
+                            value={r.lineupSelected || ""}
+                            placeholder="Lineup"
+                            onCommit={(val) =>
+                              onInlineEdit(r._id, { lineupSelected: val })
+                            }
+                          />
+                        </td>
+                        <td className={cellClass}>
+                          <div className="flex flex-col gap-2 min-w-[150px]">
+                            <InlineInput
+                              type="time"
+                              value={arrivalTime || ""}
+                              placeholder="Arrival"
+                              onCommit={(val) =>
+                                onInlineEdit(r._id, { arrivalTime: val })
+                              }
+                            />
+                            <InlineInput
+                              type="time"
+                              value={finishTime || ""}
+                              placeholder="Finish"
+                              onCommit={(val) =>
+                                onInlineEdit(r._id, { finishTime: val })
+                              }
+                            />
+                          </div>
+                        </td>
+                        <td className={cellClass}>
+                          <div className="text-xs leading-5">
+                            <input
+                              readOnly
+                              value={summariseBookingDetails(
+                                r.bookingDetails,
+                                r,
+                              )}
+                              className={`${inputClass} min-w-[420px] bg-gray-50 text-gray-600`}
+                            />
+                          </div>
+                        </td>
+                        <td className={cellClass}>
+                          {r.bookingDetails?.djServicesBooked ? "Yes" : "No"}
+                        </td>
+                        <td className={cellClass}>
+                          {r.allocation?.status === "fully_allocated" ? (
+                            <Tag>✅ Allocated</Tag>
+                          ) : r.allocation?.status === "gap" ? (
+                            <Tag>⚠️ Gap</Tag>
+                          ) : r.allocation?.status === "in_progress" ? (
+                            <Tag>⏳ In progress</Tag>
+                          ) : (
+                            <Tag>—</Tag>
+                          )}
+                        </td>
+                        <td className={cellClass}>
+                          {r.review?.received ? (
+                            <Tag>⭐ Received</Tag>
+                          ) : (
+                            <button
+                              className="text-xs underline"
+                              onClick={() =>
+                                onInlineEdit(r._id, {
+                                  review: {
+                                    ...(r.review || {}),
+                                    requestedCount:
+                                      (r.review?.requestedCount || 0) + 1,
+                                    lastRequestedAt: new Date().toISOString(),
+                                  },
+                                })
+                              }
+                            >
+                              Send request
+                            </button>
+                          )}
+                        </td>
+                        <td className={cellClass}>
+                          {balancePaid ? (
+                            <span className="inline-block text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 border border-green-200">
+                              Paid
+                            </span>
+                          ) : (
+                            <span className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-800 border border-gray-200">
+                              —
+                            </span>
+                          )}
+                        </td>
+                        <td className={cellClass}>
+                          {bandPaid ? (
+                            <span className="inline-block text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 border border-green-200">
+                              Paid
+                            </span>
+                          ) : (
+                            <span className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-800 border border-gray-200">
+                              —
+                            </span>
+                          )}
+                        </td>
+                        <td className={cellClass}>
+                          <div className="flex flex-col gap-1">
+                            {paymentUrl ? (
+                              <a
+                                className="text-blue-600 underline"
+                                href={paymentUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Pay
+                              </a>
+                            ) : (
+                              <button
+                                className="px-2 py-1 border rounded hover:bg-gray-100 text-xs"
+                                disabled={
+                                  creatingPayLinkId ===
+                                  String(r?._id || bookingRef)
+                                }
+                                onClick={() => createPayLinkForRow(r)}
+                                title="Create a Stripe hosted invoice link"
+                              >
+                                {creatingPayLinkId ===
+                                String(r?._id || bookingRef)
+                                  ? "Creating…"
+                                  : "Create pay link"}
+                              </button>
+                            )}
 
-                        {receiptUrl ? (
-                          <a
-                            className="inline-flex items-center justify-center px-2 py-1 border rounded hover:bg-gray-100 text-xs text-purple-700 bg-white"
-                            href={receiptUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Receipt
-                          </a>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td className={cellClass}>
-                      <div className="flex flex-col gap-1">
-                        {invoiceUrl ? (
-                          <a
-                            className="text-blue-600 underline"
-                            href={invoiceUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Invoice
-                          </a>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
+                            {receiptUrl ? (
+                              <a
+                                className="inline-flex items-center justify-center px-2 py-1 border rounded hover:bg-gray-100 text-xs text-purple-700 bg-white"
+                                href={receiptUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Receipt
+                              </a>
+                            ) : null}
+                          </div>
+                        </td>
+                        <td className={cellClass}>
+                          <div className="flex flex-col gap-1">
+                            {invoiceUrl ? (
+                              <a
+                                className="text-blue-600 underline"
+                                href={invoiceUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Invoice
+                              </a>
+                            ) : (
+                              <span className="text-gray-400">—</span>
+                            )}
 
-                        <button
-                          className="px-2 py-1 border rounded hover:bg-gray-100 text-xs"
-                          onClick={() => createInvoiceForRow(r)}
-                        >
-                          {invoiceUrl ? "Regenerate invoice" : "Create invoice"}
-                        </button>
+                            <button
+                              className="px-2 py-1 border rounded hover:bg-gray-100 text-xs"
+                              onClick={() => createInvoiceForRow(r)}
+                            >
+                              {invoiceUrl
+                                ? "Regenerate invoice"
+                                : "Create invoice"}
+                            </button>
 
-                        <button
-                          type="button"
-                          className="px-2 py-1 rounded border text-xs bg-white hover:bg-gray-50"
-                          onClick={() => createCardPaymentInvoiceForRow(r)}
-                        >
-                          Create card payment invoice
-                        </button>
-                        <button
-                          type="button"
-                          className="text-xs underline text-green-700 disabled:opacity-50"
-                          disabled={
-                            r?.payments?.balancePaymentReceived ||
-                            r?.payments?.invoicePaid ||
-                            r?.balancePaid ||
-                            r?.balanceStatus === "paid"
-                          }
-                          onClick={() => markInvoicePaidForRow(r)}
-                        >
-                          {r?.payments?.balancePaymentReceived ||
-                          r?.payments?.invoicePaid ||
-                          r?.balancePaid ||
-                          r?.balanceStatus === "paid"
-                            ? "Paid"
-                            : "Mark paid"}
-                        </button>
-                        {receiptUrl ? (
-                          <a
-                            className="inline-flex items-center justify-center px-2 py-1 border rounded hover:bg-gray-100 text-xs text-purple-700 bg-white"
-                            href={receiptUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Receipt
-                          </a>
-                        ) : (
-                          <button
-                            type="button"
-                            className="text-xs underline text-purple-700 disabled:opacity-50"
-                            disabled={!balancePaid}
-                            onClick={() => createReceiptForRow(r)}
-                          >
-                            Generate receipt
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                    <td className={cellClass}>
-                      <div className="flex flex-col gap-2">
-                        <button
-                          className="px-3 py-1.5 border rounded hover:bg-gray-100"
-                          onClick={() => openEditModal(r)}
-                        >
-                          Update
-                        </button>
+                            <button
+                              type="button"
+                              className="px-2 py-1 rounded border text-xs bg-white hover:bg-gray-50"
+                              onClick={() => createCardPaymentInvoiceForRow(r)}
+                            >
+                              Create card payment invoice
+                            </button>
+                            <button
+                              type="button"
+                              className="text-xs underline text-green-700 disabled:opacity-50"
+                              disabled={
+                                r?.payments?.balancePaymentReceived ||
+                                r?.payments?.invoicePaid ||
+                                r?.balancePaid ||
+                                r?.balanceStatus === "paid"
+                              }
+                              onClick={() => markInvoicePaidForRow(r)}
+                            >
+                              {r?.payments?.balancePaymentReceived ||
+                              r?.payments?.invoicePaid ||
+                              r?.balancePaid ||
+                              r?.balanceStatus === "paid"
+                                ? "Paid"
+                                : "Mark paid"}
+                            </button>
+                            {receiptUrl ? (
+                              <a
+                                className="inline-flex items-center justify-center px-2 py-1 border rounded hover:bg-gray-100 text-xs text-purple-700 bg-white"
+                                href={receiptUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Receipt
+                              </a>
+                            ) : (
+                              <button
+                                type="button"
+                                className="text-xs underline text-purple-700 disabled:opacity-50"
+                                disabled={!balancePaid}
+                                onClick={() => createReceiptForRow(r)}
+                              >
+                                Generate receipt
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                        <td className={cellClass}>
+                          <div className="flex flex-col gap-2">
+                            <button
+                              className="px-3 py-1.5 border rounded hover:bg-gray-100"
+                              onClick={() => openEditModal(r)}
+                            >
+                              Update
+                            </button>
 
-                        <button
-                          className="px-3 py-1.5 border rounded hover:bg-gray-100 disabled:opacity-50"
-                          disabled={syncingFinanceId === String(r?._id || "")}
-                          onClick={() => syncBookingToFinance(r)}
-                        >
-                          {syncingFinanceId === String(r?._id || "")
-                            ? "Syncing..."
-                            : "Sync finance"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                            <button
+                              className="px-3 py-1.5 border rounded hover:bg-gray-100 disabled:opacity-50"
+                              disabled={
+                                syncingFinanceId === String(r?._id || "")
+                              }
+                              onClick={() => syncBookingToFinance(r)}
+                            >
+                              {syncingFinanceId === String(r?._id || "")
+                                ? "Syncing..."
+                                : "Sync finance"}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
 
-            {adding && (
-              <tr className="bg-yellow-50 sticky top-[49px] z-[5]">
-                <td
-                  colSpan={999}
-                  className="px-3 py-3 border-b border-yellow-200"
-                >
-                  <div className="flex flex-col gap-3">
-                    {/* Row 1: core id + dates */}
-                    <div className="flex flex-wrap gap-2 items-end">
-                      <input
-                        className="border rounded px-2 py-1 w-56"
-                        placeholder="Booker full name"
-                        value={newRow.bookerName}
-                        onChange={(e) =>
-                          setNewRow((v) => ({
-                            ...v,
-                            bookerName: e.target.value,
-                          }))
-                        }
-                      />
+                  
 
-                      <input
-                        className="border rounded px-2 py-1 w-56"
-                        placeholder="Client first names"
-                        value={newRow.clientFirstNames}
-                        onChange={(e) =>
-                          setNewRow((v) => ({
-                            ...v,
-                            clientFirstNames: e.target.value,
-                          }))
-                        }
-                      />
-                      <InlineInput
-                        className="border rounded px-2 py-1 w-40"
-                        placeholder="Ref"
-                        value={newRow.bookingRef}
-                        onChange={(e) =>
-                          setNewRow((v) => ({
-                            ...v,
-                            bookingRef: e.target.value,
-                          }))
-                        }
-                      />
-                      <div className="flex flex-col">
-                        <label className="text-xs text-gray-600">
-                          Event date
-                        </label>
-                        <input
-                          type="date"
-                          className="border rounded px-2 py-1"
-                          value={newRow.eventDateISO}
-                          onChange={(e) =>
-                            setNewRow((v) => ({
-                              ...v,
-                              eventDateISO: e.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="flex flex-col">
-                        <label className="text-xs text-gray-600">
-                          Enquiry date
-                        </label>
-                        <input
-                          type="date"
-                          className="border rounded px-2 py-1"
-                          value={newRow.enquiryDateISO}
-                          onChange={(e) =>
-                            setNewRow((v) => ({
-                              ...v,
-                              enquiryDateISO: e.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="flex flex-col">
-                        <label className="text-xs text-gray-600">
-                          Booking date
-                        </label>
-                        <input
-                          type="date"
-                          className="border rounded px-2 py-1"
-                          value={newRow.bookingDateISO}
-                          onChange={(e) =>
-                            setNewRow((v) => ({
-                              ...v,
-                              bookingDateISO: e.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    {/* Row 2: agent + contact + money */}
-                    <div className="flex flex-wrap gap-2 items-end">
-                      <select
-                        className="border rounded px-2 py-1 w-48"
-                        value={newRow.agent}
-                        onChange={(e) =>
-                          setNewRow((v) => ({ ...v, agent: e.target.value }))
-                        }
+                  {adding && (
+                    <tr className="bg-yellow-50 sticky top-[49px] z-[5]">
+                      <td
+                        colSpan={999}
+                        className="px-3 py-3 border-b border-yellow-200"
                       >
-                        {AGENTS.map((a) => (
-                          <option key={a} value={a}>
-                            {a}
-                          </option>
-                        ))}
-                      </select>
+                        <div className="flex flex-col gap-3">
+                          {/* Row 1: core id + dates */}
+                          <div className="flex flex-wrap gap-2 items-end">
+                            <input
+                              className="border rounded px-2 py-1 w-56"
+                              placeholder="Booker full name"
+                              value={newRow.bookerName}
+                              onChange={(e) =>
+                                setNewRow((v) => ({
+                                  ...v,
+                                  bookerName: e.target.value,
+                                }))
+                              }
+                            />
 
-                      <input
-                        className="border rounded px-2 py-1 w-56"
-                        placeholder="Client email"
-                        value={newRow.clientEmail}
-                        onChange={(e) =>
-                          setNewRow((v) => ({
-                            ...v,
-                            clientEmail: e.target.value,
-                          }))
-                        }
-                      />
+                            <input
+                              className="border rounded px-2 py-1 w-56"
+                              placeholder="Client first names"
+                              value={newRow.clientFirstNames}
+                              onChange={(e) =>
+                                setNewRow((v) => ({
+                                  ...v,
+                                  clientFirstNames: e.target.value,
+                                }))
+                              }
+                            />
+                            <InlineInput
+                              className="border rounded px-2 py-1 w-40"
+                              placeholder="Ref"
+                              value={newRow.bookingRef}
+                              onChange={(e) =>
+                                setNewRow((v) => ({
+                                  ...v,
+                                  bookingRef: e.target.value,
+                                }))
+                              }
+                            />
+                            <div className="flex flex-col">
+                              <label className="text-xs text-gray-600">
+                                Event date
+                              </label>
+                              <input
+                                type="date"
+                                className="border rounded px-2 py-1"
+                                value={newRow.eventDateISO}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    eventDateISO: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div className="flex flex-col">
+                              <label className="text-xs text-gray-600">
+                                Enquiry date
+                              </label>
+                              <input
+                                type="date"
+                                className="border rounded px-2 py-1"
+                                value={newRow.enquiryDateISO}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    enquiryDateISO: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div className="flex flex-col">
+                              <label className="text-xs text-gray-600">
+                                Booking date
+                              </label>
+                              <input
+                                type="date"
+                                className="border rounded px-2 py-1"
+                                value={newRow.bookingDateISO}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    bookingDateISO: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                          </div>
 
-                      <input
-                        className="border rounded px-2 py-1 w-[360px]"
-                        placeholder="Client address"
-                        value={newRow.clientAddress}
-                        onChange={(e) =>
-                          setNewRow((v) => ({
-                            ...v,
-                            clientAddress: e.target.value,
-                          }))
-                        }
-                      />
+                          {/* Row 2: agent + contact + money */}
+                          <div className="flex flex-wrap gap-2 items-end">
+                            <select
+                              className="border rounded px-2 py-1 w-48"
+                              value={newRow.agent}
+                              onChange={(e) =>
+                                setNewRow((v) => ({
+                                  ...v,
+                                  agent: e.target.value,
+                                }))
+                              }
+                            >
+                              {AGENTS.map((a) => (
+                                <option key={a} value={a}>
+                                  {a}
+                                </option>
+                              ))}
+                            </select>
 
-                      <input
-                        className="border rounded px-2 py-1 w-28"
-                        placeholder="Gross"
-                        value={newRow.grossValue}
-                        onChange={(e) =>
-                          setNewRow((v) => ({
-                            ...v,
-                            grossValue: e.target.value,
-                          }))
-                        }
-                      />
+                            <input
+                              className="border rounded px-2 py-1 w-56"
+                              placeholder="Client email"
+                              value={newRow.clientEmail}
+                              onChange={(e) =>
+                                setNewRow((v) => ({
+                                  ...v,
+                                  clientEmail: e.target.value,
+                                }))
+                              }
+                            />
 
-                      {/* NEW: Commission (VAT-inc) */}
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="border rounded px-2 py-1 w-36"
-                        placeholder="Commission"
-                        value={newRow.commissionGross ?? ""}
-                        onChange={(e) =>
-                          setNewRow((v) => ({
-                            ...v,
-                            commissionGross: e.target.value,
-                          }))
-                        }
-                      />
+                            <input
+                              className="border rounded px-2 py-1 w-[360px]"
+                              placeholder="Client address"
+                              value={newRow.clientAddress}
+                              onChange={(e) =>
+                                setNewRow((v) => ({
+                                  ...v,
+                                  clientAddress: e.target.value,
+                                }))
+                              }
+                            />
 
-                      {/* NEW: Pass-through (band fee / held) */}
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="border rounded px-2 py-1 w-36"
-                        placeholder="Pass-through"
-                        value={newRow.passThroughGross ?? ""}
-                        onChange={(e) =>
-                          setNewRow((v) => ({
-                            ...v,
-                            passThroughGross: e.target.value,
-                          }))
-                        }
-                      />
+                            <input
+                              className="border rounded px-2 py-1 w-28"
+                              placeholder="Gross"
+                              value={newRow.grossValue}
+                              onChange={(e) =>
+                                setNewRow((v) => ({
+                                  ...v,
+                                  grossValue: e.target.value,
+                                }))
+                              }
+                            />
 
-                      {/* NEW: VAT rate */}
-                      <div className="flex flex-col">
-                        <label className="text-xs text-gray-600">
-                          VAT rate
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          max="1"
-                          className="border rounded px-2 py-1 w-24"
-                          value={newRow.vatRate ?? 0.2}
-                          onChange={(e) =>
-                            setNewRow((v) => ({
-                              ...v,
-                              vatRate:
-                                e.target.value === ""
-                                  ? ""
-                                  : Number(e.target.value),
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
+                            {/* NEW: Commission (VAT-inc) */}
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="border rounded px-2 py-1 w-36"
+                              placeholder="Commission"
+                              value={newRow.commissionGross ?? ""}
+                              onChange={(e) =>
+                                setNewRow((v) => ({
+                                  ...v,
+                                  commissionGross: e.target.value,
+                                }))
+                              }
+                            />
 
-                    {/* Row 2b: payment + invoice links */}
-                    <div className="flex flex-wrap gap-2 items-end">
-                      <input
-                        className="border rounded px-2 py-1 w-[360px]"
-                        placeholder="Payment link / checkout URL (optional)"
-                        value={newRow.paymentLink}
-                        onChange={(e) =>
-                          setNewRow((v) => ({
-                            ...v,
-                            paymentLink: e.target.value,
-                          }))
-                        }
-                      />
-                      <input
-                        className="border rounded px-2 py-1 w-[360px]"
-                        placeholder="Invoice PDF URL (optional)"
-                        value={newRow.invoiceUrl}
-                        onChange={(e) =>
-                          setNewRow((v) => ({
-                            ...v,
-                            invoiceUrl: e.target.value,
-                          }))
-                        }
-                      />
-                    </div>
+                            {/* NEW: Pass-through (band fee / held) */}
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="border rounded px-2 py-1 w-36"
+                              placeholder="Pass-through"
+                              value={newRow.passThroughGross ?? ""}
+                              onChange={(e) =>
+                                setNewRow((v) => ({
+                                  ...v,
+                                  passThroughGross: e.target.value,
+                                }))
+                              }
+                            />
 
-                    {/* Row 3: lineup + times */}
-                    <div className="flex flex-wrap gap-4 items-end">
-                      <div className="flex flex-col">
-                        <label className="text-xs text-gray-600">
-                          Lineup label
-                        </label>
-                        <input
-                          className="border rounded px-2 py-1 w-56"
-                          placeholder="e.g., 4-Piece"
-                          value={newRow.lineupSelected}
-                          onChange={(e) =>
-                            setNewRow((v) => ({
-                              ...v,
-                              lineupSelected: e.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="flex flex-col">
-                        <label className="text-xs text-gray-600">
-                          Arrival time
-                        </label>
-                        <input
-                          type="time"
-                          className="border rounded px-2 py-1 w-36"
-                          step="300"
-                          value={newRow.arrivalTime}
-                          onChange={(e) =>
-                            setNewRow((v) => ({
-                              ...v,
-                              arrivalTime: e.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                      <div className="flex flex-col">
-                        <label className="text-xs text-gray-600">
-                          Finish time
-                        </label>
-                        <input
-                          type="time"
-                          className="border rounded px-2 py-1 w-36"
-                          step="300"
-                          value={newRow.finishTime}
-                          onChange={(e) =>
-                            setNewRow((v) => ({
-                              ...v,
-                              finishTime: e.target.value,
-                            }))
-                          }
-                        />
-                      </div>
-                    </div>
+                            {/* NEW: VAT rate */}
+                            <div className="flex flex-col">
+                              <label className="text-xs text-gray-600">
+                                VAT rate
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="1"
+                                className="border rounded px-2 py-1 w-24"
+                                value={newRow.vatRate ?? 0.2}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    vatRate:
+                                      e.target.value === ""
+                                        ? ""
+                                        : Number(e.target.value),
+                                  }))
+                                }
+                              />
+                            </div>
+                          </div>
 
-                    {/* Row 4: act names */}
-                    <div className="flex flex-wrap gap-2 items-end">
-                      <input
-                        className="border rounded px-2 py-1 w-48"
-                        placeholder="Act"
-                        value={newRow.actName}
-                        onChange={(e) =>
-                          setNewRow((v) => ({ ...v, actName: e.target.value }))
-                        }
-                      />
-                      <input
-                        className="border rounded px-2 py-1 w-48"
-                        placeholder="Act tscName"
-                        value={newRow.actTscName}
-                        onChange={(e) =>
-                          setNewRow((v) => ({
-                            ...v,
-                            actTscName: e.target.value,
-                          }))
-                        }
-                      />
-                    </div>
+                          {/* Row 2b: payment + invoice links */}
+                          <div className="flex flex-wrap gap-2 items-end">
+                            <input
+                              className="border rounded px-2 py-1 w-[360px]"
+                              placeholder="Payment link / checkout URL (optional)"
+                              value={newRow.paymentLink}
+                              onChange={(e) =>
+                                setNewRow((v) => ({
+                                  ...v,
+                                  paymentLink: e.target.value,
+                                }))
+                              }
+                            />
+                            <input
+                              className="border rounded px-2 py-1 w-[360px]"
+                              placeholder="Invoice PDF URL (optional)"
+                              value={newRow.invoiceUrl}
+                              onChange={(e) =>
+                                setNewRow((v) => ({
+                                  ...v,
+                                  invoiceUrl: e.target.value,
+                                }))
+                              }
+                            />
+                          </div>
 
-                    {/* Row 5: address */}
-                    <div className="flex flex-wrap gap-2 items-end">
-                      <input
-                        className="border rounded px-2 py-1 w-72"
-                        placeholder="Address"
-                        value={newRow.address}
-                        onChange={(e) =>
-                          setNewRow((v) => ({ ...v, address: e.target.value }))
-                        }
-                      />
-                      <input
-                        className="border rounded px-2 py-1 w-44"
-                        placeholder="County"
-                        value={newRow.county}
-                        onChange={(e) =>
-                          setNewRow((v) => ({ ...v, county: e.target.value }))
-                        }
-                      />
-                    </div>
+                          {/* Row 3: lineup + times */}
+                          <div className="flex flex-wrap gap-4 items-end">
+                            <div className="flex flex-col">
+                              <label className="text-xs text-gray-600">
+                                Lineup label
+                              </label>
+                              <input
+                                className="border rounded px-2 py-1 w-56"
+                                placeholder="e.g., 4-Piece"
+                                value={newRow.lineupSelected}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    lineupSelected: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div className="flex flex-col">
+                              <label className="text-xs text-gray-600">
+                                Arrival time
+                              </label>
+                              <input
+                                type="time"
+                                className="border rounded px-2 py-1 w-36"
+                                step="300"
+                                value={newRow.arrivalTime}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    arrivalTime: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div className="flex flex-col">
+                              <label className="text-xs text-gray-600">
+                                Finish time
+                              </label>
+                              <input
+                                type="time"
+                                className="border rounded px-2 py-1 w-36"
+                                step="300"
+                                value={newRow.finishTime}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    finishTime: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                          </div>
 
-                    {/* Actions */}
-                    <div className="flex gap-2 mt-1">
-                      <button
-                        className="px-3 py-2 bg-black text-white rounded"
-                        onClick={postManualRow}
+                          {/* Row 4: act names */}
+                          <div className="flex flex-wrap gap-2 items-end">
+                            <input
+                              className="border rounded px-2 py-1 w-48"
+                              placeholder="Act"
+                              value={newRow.actName}
+                              onChange={(e) =>
+                                setNewRow((v) => ({
+                                  ...v,
+                                  actName: e.target.value,
+                                }))
+                              }
+                            />
+                            <input
+                              className="border rounded px-2 py-1 w-48"
+                              placeholder="Act tscName"
+                              value={newRow.actTscName}
+                              onChange={(e) =>
+                                setNewRow((v) => ({
+                                  ...v,
+                                  actTscName: e.target.value,
+                                }))
+                              }
+                            />
+                          </div>
+
+                          {/* Row 5: address */}
+                          <div className="flex flex-wrap gap-2 items-end">
+                            <input
+                              className="border rounded px-2 py-1 w-72"
+                              placeholder="Address"
+                              value={newRow.address}
+                              onChange={(e) =>
+                                setNewRow((v) => ({
+                                  ...v,
+                                  address: e.target.value,
+                                }))
+                              }
+                            />
+                            <input
+                              className="border rounded px-2 py-1 w-44"
+                              placeholder="County"
+                              value={newRow.county}
+                              onChange={(e) =>
+                                setNewRow((v) => ({
+                                  ...v,
+                                  county: e.target.value,
+                                }))
+                              }
+                            />
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex gap-2 mt-1">
+                            <button
+                              className="px-3 py-2 bg-black text-white rounded"
+                              onClick={postManualRow}
+                            >
+                              Save
+                            </button>
+                            <button
+                              className="px-3 py-2 border rounded"
+                              onClick={() => setAdding(false)}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+
+                  {section.rows.length === 0 && !adding && (
+                    <tr>
+                      <td
+                        className="px-3 py-6 text-center text-gray-500"
+                        colSpan={32}
                       >
-                        Save
-                      </button>
-                      <button
-                        className="px-3 py-2 border rounded"
-                        onClick={() => setAdding(false)}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            )}
-
-            {mergedRows.filter((r) =>
-              hideInternalTests ? !isInternalTestBooking(r) : true,
-            ).length === 0 && (
-              <tr>
-                <td
-                  className="px-3 py-6 text-center text-gray-500"
-                  colSpan={32}
-                >
-                  No rows yet.
-                  <div className="text-xs mt-2">
-                    API: {API_BASE}/board/bookings • token:{" "}
-                    {getAuthToken() ? "found" : "missing"}
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                        {section.emptyText}
+                        <div className="text-xs mt-2">
+                          API: {API_BASE}/board/bookings • token:{" "}
+                          {getAuthToken() ? "found" : "missing"}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        ))}
       </div>
 
       {editingRow && editForm && (

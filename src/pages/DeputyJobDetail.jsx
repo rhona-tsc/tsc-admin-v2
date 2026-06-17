@@ -50,10 +50,18 @@ const clearStoredAuthTokens = () => {
   });
 };
 
+const getStoredValue = (key) => {
+  try {
+    return localStorage.getItem(key) || sessionStorage.getItem(key) || "";
+  } catch {
+    return "";
+  }
+};
+
 const getPreferredAuthToken = () => {
-  const musicianToken = localStorage.getItem("musicianToken") || "";
-  const adminToken = localStorage.getItem("adminToken") || "";
-  const generalToken = localStorage.getItem("token") || "";
+  const musicianToken = getStoredValue("musicianToken");
+  const adminToken = getStoredValue("adminToken");
+  const generalToken = getStoredValue("token");
 
   const candidates = [musicianToken, generalToken, adminToken].filter(Boolean);
   const firstValid = candidates.find((candidate) => !isJwtExpired(candidate));
@@ -206,10 +214,10 @@ const getStoredUserEmail = () => {
   }
 
   const directEmail =
-    normaliseString(localStorage.getItem("email")) ||
-    normaliseString(localStorage.getItem("userEmail")) ||
-    normaliseString(localStorage.getItem("adminEmail")) ||
-    normaliseString(localStorage.getItem("musicianEmail"));
+    normaliseString(getStoredValue("email")) ||
+    normaliseString(getStoredValue("userEmail")) ||
+    normaliseString(getStoredValue("adminEmail")) ||
+    normaliseString(getStoredValue("musicianEmail"));
 
   return directEmail.toLowerCase();
 };
@@ -302,7 +310,7 @@ const DeputyJobDetail = () => {
   );
 
   const { adminToken, token } = useMemo(() => getPreferredAuthToken(), []);
-  const hasAnyUserToken = Boolean(token);
+  const hasAnyUserToken = Boolean(token || adminToken);
 
   const currentUser = useMemo(() => {
     const tokenPayload = parseJwtPayload(token);
@@ -313,8 +321,10 @@ const DeputyJobDetail = () => {
       email: String(
         tokenPayload?.email ||
           tokenPayload?.useremail ||
-          localStorage.getItem("userEmail") ||
-          sessionStorage.getItem("userEmail") ||
+          getStoredValue("userEmail") ||
+          getStoredValue("adminEmail") ||
+          getStoredValue("musicianEmail") ||
+          getStoredValue("email") ||
           ""
       )
         .trim()
@@ -322,8 +332,9 @@ const DeputyJobDetail = () => {
       role: String(
         tokenPayload?.role ||
           tokenPayload?.userrole ||
-          localStorage.getItem("userRole") ||
-          sessionStorage.getItem("userRole") ||
+          getStoredValue("userRole") ||
+          getStoredValue("adminRole") ||
+          getStoredValue("musicianRole") ||
           ""
       )
         .trim()
@@ -454,6 +465,7 @@ const DeputyJobDetail = () => {
       job &&
       !hasApplied &&
       !isJobManager &&
+      !canManageThisJob &&
       !["allocated", "filled", "closed", "cancelled"].includes(
         normaliseString(job?.status).toLowerCase()
       )
@@ -462,6 +474,7 @@ const DeputyJobDetail = () => {
   const shouldShowSignInToApply = Boolean(
     !isAdminViewer &&
       !hasAnyUserToken &&
+      !canManageThisJob &&
       job &&
       !["allocated", "filled", "closed", "cancelled"].includes(
         normaliseString(job?.status).toLowerCase()
