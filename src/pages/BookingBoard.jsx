@@ -2893,11 +2893,18 @@ const pastRows = useMemo(
 
       const raw = await res.text();
       let json = null;
+
       try {
         json = JSON.parse(raw);
       } catch {
-        console.error("Non-JSON receipt response:", raw);
-        window.alert("Receipt failed: backend returned non-JSON.");
+        console.error("Non-JSON receipt response:", {
+          status: res.status,
+          statusText: res.statusText,
+          body: raw,
+        });
+        window.alert(
+          `Receipt failed: backend returned non-JSON.\n\n${raw.slice(0, 250)}`,
+        );
         return;
       }
 
@@ -2908,6 +2915,7 @@ const pastRows = useMemo(
       }
 
       const updatedRow = json.row || json.booking || null;
+
       if (updatedRow?._id) {
         setRows((prev) =>
           prev.map((existingRow) =>
@@ -2918,7 +2926,28 @@ const pastRows = useMemo(
         await fetchRows();
       }
 
-      window.alert("Receipt generated.");
+      const apiRoot = String(API_BASE || "").replace(/\/api\/?$/, "");
+      const previewUrl = json.previewUrl
+        ? `${apiRoot}${json.previewUrl}`
+        : row?._id
+          ? `${API_BASE}/invoices/board-receipt/${row._id}`
+          : "";
+
+      const nextReceiptUrl =
+        previewUrl ||
+        json.receiptUrl ||
+        json.receiptPdfUrl ||
+        updatedRow?.receiptUrl ||
+        updatedRow?.receiptPdfUrl ||
+        updatedRow?.payments?.receiptPdfUrl ||
+        updatedRow?.payments?.boardReceiptPdfUrl ||
+        "";
+
+      if (nextReceiptUrl) {
+        window.open(nextReceiptUrl, "_blank", "noopener,noreferrer");
+      } else {
+        window.alert("Receipt generated, but no receipt URL was returned.");
+      }
     } catch (error) {
       console.error("create receipt failed", error);
       window.alert(error?.message || "Receipt failed.");
