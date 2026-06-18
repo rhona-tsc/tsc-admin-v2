@@ -3679,7 +3679,7 @@ const pastRows = useMemo(
                                 target="_blank"
                                 rel="noreferrer"
                               >
-                                Pay
+                                Invoice
                               </a>
                             ) : (
                               <button
@@ -3712,18 +3712,7 @@ const pastRows = useMemo(
                         </td>
                         <td className={cellClass}>
                           <div className="flex flex-col gap-1">
-                            {invoiceUrl ? (
-                              <a
-                                className="text-blue-600 underline"
-                                href={invoiceUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                Invoice
-                              </a>
-                            ) : (
-                              <span className="text-gray-400">—</span>
-                            )}
+                          
 
                             <button
                               className="px-2 py-1 border rounded hover:bg-gray-100 text-xs"
