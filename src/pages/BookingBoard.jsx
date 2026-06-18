@@ -2844,7 +2844,15 @@ const pastRows = useMemo(
         await fetchRows();
       }
 
+      const apiRoot = String(API_BASE || "").replace(/\/api\/?$/, "");
+      const previewUrl = json.previewUrl
+        ? `${apiRoot}${json.previewUrl}`
+        : row?._id
+          ? `${API_BASE}/invoices/board-invoice/${row._id}`
+          : "";
+
       const nextInvoiceUrl =
+        previewUrl ||
         json.invoiceUrl ||
         json.invoicePdfUrl ||
         updatedRow?.invoiceUrl ||
