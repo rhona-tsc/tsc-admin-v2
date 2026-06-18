@@ -59,6 +59,27 @@ const DeputyStepSix = ({
   const [isSignaturePresent, setIsSignaturePresent] = useState(false);
   const [stripeLoading, setStripeLoading] = useState(false);
   const [stripeError, setStripeError] = useState("");
+  const [stripeReturnMessage, setStripeReturnMessage] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search || "");
+    const stripeStatus = params.get("stripe");
+
+    if (stripeStatus === "return") {
+      setStripeReturnMessage(
+        "Thanks — you’ve returned from Stripe. If your verification is complete, your payout status should update shortly.",
+      );
+      localStorage.setItem("deputyStep", "6");
+      window.dispatchEvent(new Event("stripe-connect-returned"));
+    }
+
+    if (stripeStatus === "refresh") {
+      setStripeError(
+        "Stripe onboarding needs to be refreshed. Please click the Stripe button again to continue.",
+      );
+      localStorage.setItem("deputyStep", "6");
+    }
+  }, []);
 
   const handleConnectStripe = async () => {
     try {
@@ -74,7 +95,10 @@ const DeputyStepSix = ({
 
       const response = await axios.post(
         `${backendUrl}/api/musician/account/stripe-connect/onboarding-link`,
-        {},
+        {
+          returnUrl: `${window.location.origin}${window.location.pathname}?stripe=return&step=6`,
+          refreshUrl: `${window.location.origin}${window.location.pathname}?stripe=refresh&step=6`,
+        },
         {
           headers: {
             ...(tokenToUse ? { Authorization: `Bearer ${tokenToUse}` } : {}),
@@ -90,26 +114,12 @@ const DeputyStepSix = ({
       }
 
       localStorage.setItem("deputyAutosave", JSON.stringify(formData));
-localStorage.setItem("deputyStep", "6");
+      localStorage.setItem("deputyStep", "6");
 
-const popup = window.open(
-  onboardingUrl,
-  "stripe-connect",
-  "width=900,height=800"
-);
-
-if (!popup) {
-  window.location.href = onboardingUrl;
-  return;
-}
-
-const poll = setInterval(() => {
-  if (popup.closed) {
-    clearInterval(poll);
-    window.dispatchEvent(new Event("stripe-connect-returned"));
-  }
-}, 1000);
-
+      // Stripe Connect onboarding is more reliable as a full-page redirect than a popup.
+      // The backend should pass the returnUrl/refreshUrl above into Stripe's accountLinks.create().
+      window.location.assign(onboardingUrl);
+      return;
     } catch (err) {
       console.error("❌ Failed to create Stripe onboarding link:", {
         message: err?.message,
@@ -293,6 +303,12 @@ const poll = setInterval(() => {
             </span>
           ) : null}
         </div>
+
+        {stripeReturnMessage && (
+          <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2 mt-3">
+            {stripeReturnMessage}
+          </p>
+        )}
 
         {stripeError && (
           <p className="text-sm text-red-600 mt-3">{stripeError}</p>

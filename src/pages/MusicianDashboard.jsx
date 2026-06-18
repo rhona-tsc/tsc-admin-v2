@@ -88,6 +88,58 @@ const getStripePayoutUi = (u) => {
   };
 };
 
+const DashboardFeatureCard = ({ title, subtitle, imageLabel, badge, onClick, dark = false }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className="group text-left"
+  >
+    <div className="overflow-hidden rounded-none bg-white">
+      <div
+        className={`relative aspect-[4/5] overflow-hidden ${
+          dark
+            ? "bg-gradient-to-br from-gray-950 via-gray-800 to-[#ff6667]"
+            : "bg-gradient-to-br from-[#fff1f1] via-white to-gray-100"
+        }`}
+      >
+        <div className="absolute inset-0 opacity-70 bg-[radial-gradient(circle_at_30%_20%,rgba(255,102,103,0.30),transparent_34%),radial-gradient(circle_at_80%_70%,rgba(17,17,17,0.16),transparent_35%)]" />
+        <div className="absolute inset-x-6 top-6 flex items-center justify-between">
+          <span
+            className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+              dark ? "bg-white/15 text-white" : "bg-white/80 text-gray-600"
+            }`}
+          >
+            {badge}
+          </span>
+          <span
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-full text-lg transition group-hover:scale-110 ${
+              dark ? "bg-white/15 text-white" : "bg-white text-[#ff6667]"
+            }`}
+          >
+            →
+          </span>
+        </div>
+        <div className="absolute inset-x-6 bottom-6">
+          <p
+            className={`text-3xl font-semibold leading-tight tracking-tight ${
+              dark ? "text-white" : "text-gray-900"
+            }`}
+          >
+            {imageLabel}
+          </p>
+        </div>
+      </div>
+
+      <div className="pt-3">
+        <p className="text-sm font-semibold text-gray-900 transition group-hover:text-[#ff6667]">
+          {title}
+        </p>
+        <p className="mt-1 text-sm leading-5 text-gray-500">{subtitle}</p>
+      </div>
+    </div>
+  </button>
+);
+
 
 
 /* -------------------- Right Profile Card -------------------- */
@@ -130,7 +182,10 @@ const YourProfileCard = ({ me, fallbackFirstName, deputyCTA, token }) => {
 
       const response = await axios.post(
         `${backendUrl}/api/musician/account/stripe-connect/onboarding-link`,
-        {},
+        {
+          returnUrl: `${window.location.origin}${window.location.pathname}?stripe=return`,
+          refreshUrl: `${window.location.origin}${window.location.pathname}?stripe=refresh`,
+        },
         {
           headers: {
             token: tokenToUse,
@@ -448,6 +503,42 @@ const deputyCTA = useMemo(
   [myDeputyStatus, musicianId]
 );
 
+const dashboardCards = useMemo(
+  () => [
+    {
+      title: "Deputy Job Board",
+      subtitle: "Browse live opportunities, apply quickly, and track jobs you’ve applied for.",
+      imageLabel: "Deputy Jobs",
+      badge: "Live roles",
+      onClick: () => navigate("/deputy-jobs"),
+    },
+    {
+      title: "Notice Board",
+      subtitle: "Latest portal updates, reminders, and useful notes for musicians.",
+      imageLabel: "Notice Board",
+      badge: "Updates",
+      onClick: () => navigate("/notice-board"),
+      dark: true,
+    },
+    {
+      title: deputyCTA?.label || "Join The Books",
+      subtitle: "Keep your musician profile, media, skills, repertoire, and payout details up to date.",
+      imageLabel: "Your Profile",
+      badge: "Profile",
+      onClick: () => navigate(deputyCTA?.path || "/register-as-deputy"),
+    },
+    {
+      title: "Submit Act",
+      subtitle: "Register a new act or band for review by The Supreme Collective.",
+      imageLabel: "Submit Act",
+      badge: "Acts",
+      onClick: () => navigate("/add-act-2"),
+      dark: true,
+    },
+  ],
+  [deputyCTA, navigate],
+);
+
 const isAdminAgent = useMemo(() => {
   const meEmail = String(
     me?.email || me?.basicInfo?.email || localStorage.getItem("userEmail") || ""
@@ -635,105 +726,24 @@ useEffect(() => {
           {/* 🚧 UNDER CONSTRUCTION BANNER */}
           <DashboardUnderConstruction firstname={firstName} />
  
-  <div className="my-6 overflow-hidden rounded-2xl border border-[#ffd6d6] bg-gradient-to-br from-[#fff7f7] via-white to-[#fff1f1] p-5 shadow-[0_12px_35px_rgba(255,102,103,0.14)] ring-1 ring-[#ff6667]/10">
-    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-      <div>
-        <div className="inline-flex items-center rounded-full bg-[#ff6667]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#ff6667]">
-          New on the portal
-        </div>
-        <h3 className="mt-3 text-xl font-semibold text-gray-900">Deputy Jobs are live</h3>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
-          You can now post your own deputy jobs, apply to opportunities in one click, and keep your profile updated so bands and bookers can check out your experience, skills, and media when you apply.
-        </p>
-      </div>
+          <div className="my-10">
+            <div className="text-center py-8 text-3xl">
+              <div className="inline-flex items-center gap-3">
+                <span className="text-gray-500 font-light">MUSICIAN</span>
+                <span className="text-gray-900 font-semibold">PORTAL</span>
+                <span className="h-[2px] w-12 bg-[#ff6667]" />
+              </div>
+              <p className="mt-4 mx-auto max-w-2xl text-xs sm:text-sm md:text-base text-gray-600">
+                Quick access to the tools you’ll use most often — styled to feel more like The Supreme Collective front-end.
+              </p>
+            </div>
 
-      <div className="shrink-0 rounded-xl border border-white/70 bg-white/80 px-4 py-3 shadow-sm backdrop-blur md:max-w-[250px]">
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-          Quick reminder
-        </p>
-       
-      </div>
-    </div>
-
-    <div className="mt-5 rounded-2xl border border-[#ffe1e1] bg-white/80 p-4">
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <div className="rounded-xl bg-[#fff7f7] p-4 border border-[#ffdede]">
-          <p className="text-sm font-semibold text-gray-900">Post your own deputy jobs</p>
-          <p className="mt-1 text-sm leading-6 text-gray-600">
-            Create opportunities directly from the portal and reach matched musicians faster.
-          </p>
-        </div>
-
-        <div className="rounded-xl bg-[#fff7f7] p-4 border border-[#ffdede]">
-          <p className="text-sm font-semibold text-gray-900">Apply in one click</p>
-          <p className="mt-1 text-sm leading-6 text-gray-600">
-            See relevant deputy roles and send your application quickly when something suits you.
-          </p>
-        </div>
-
-        <div className="rounded-xl bg-[#fff7f7] p-4 border border-[#ffdede]">
-          <p className="text-sm font-semibold text-gray-900">Keep your profile fresh</p>
-          <p className="mt-1 text-sm leading-6 text-gray-600">
-            Bands may check your profile before choosing a deputy, so it’s worth keeping your skills, media, and experience up to date.
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-      <span className="inline-flex items-center rounded-full bg-white/80 px-3 py-1 border border-[#ffe1e1]">
-        One-click applications
-      </span>
-      <span className="inline-flex items-center rounded-full bg-white/80 px-3 py-1 border border-[#ffe1e1]">
-        Post your own deputy jobs
-      </span>
-      <span className="inline-flex items-center rounded-full bg-white/80 px-3 py-1 border border-[#ffe1e1]">
-        Keep your profile fresh
-      </span>
-    </div>
-
-    <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-      <button
-        type="button"
-        onClick={() => navigate("/deputy-jobs")}
-        className="group w-full rounded-2xl border border-[#ffd0d1] bg-white p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#ff6667] hover:shadow-md"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-base font-semibold text-gray-900 transition group-hover:text-[#ff6667]">
-              Open Deputy Jobs Board
-            </p>
-            <p className="mt-2 text-sm leading-6 text-gray-500">
-              Browse live jobs, apply quickly, and keep track of deputy opportunities.
-            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 gap-y-8">
+              {dashboardCards.map((card) => (
+                <DashboardFeatureCard key={card.title} {...card} />
+              ))}
+            </div>
           </div>
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#fff1f1] text-[#ff6667] transition group-hover:bg-[#ff6667] group-hover:text-white">
-            →
-          </span>
-        </div>
-      </button>
-
-      <button
-        type="button"
-        onClick={() => navigate("/deputy-jobs/create")}
-        className="group w-full rounded-2xl border border-[#ffd0d1] bg-[#111111] p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:bg-[#ff6667] hover:shadow-md"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-base font-semibold text-white">
-              Create Deputy Job
-            </p>
-            <p className="mt-2 text-sm leading-6 text-white/80">
-              Post a new deputy opportunity and notify matching musicians.
-            </p>
-          </div>
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition group-hover:bg-white/20">
-            +
-          </span>
-        </div>
-      </button>
-    </div>
-  </div>
 
           {/* ------- Quick Stats ------- */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 space-y-2 md:space-y-0 my-6">
