@@ -3003,6 +3003,7 @@ const pastRows = useMemo(
         allocation: { status: "in_progress" },
         review: { requestedCount: 0, received: false },
         source: "manual",
+        invoiceDueDateISO: newRow.invoiceDueDateISO || "",
         enquiryDateISO: newRow.enquiryDateISO || "", // optional
         bookingDateISO: newRow.bookingDateISO || "", // optional
         arrivalTime: newRow.arrivalTime || "",
@@ -3032,6 +3033,7 @@ const pastRows = useMemo(
           clientFirstNames: "",
           bookingRef: "",
           eventDateISO: "",
+          invoiceDueDateISO: "",
           agent: "Direct",
           clientEmail: "",
           clientAddress: "",
@@ -3904,18 +3906,22 @@ const pastRows = useMemo(
                                 }
                               />
                             </div>
-                            <input
-  type="date"
-  className="border rounded px-2 py-1 w-44"
-  title="Invoice due date"
-  value={newRow.invoiceDueDateISO}
-  onChange={(e) =>
-    setNewRow((v) => ({
-      ...v,
-      invoiceDueDateISO: e.target.value,
-    }))
-  }
-/>
+                          <div className="flex flex-col">
+  <label className="text-xs text-gray-600">
+    Invoice due date
+  </label>
+  <input
+    type="date"
+    className="border rounded px-2 py-1 w-44"
+    value={newRow.invoiceDueDateISO}
+    onChange={(e) =>
+      setNewRow((v) => ({
+        ...v,
+        invoiceDueDateISO: e.target.value,
+      }))
+    }
+  />
+</div>
                           </div>
 
                           {/* Row 2: agent + contact + money */}
