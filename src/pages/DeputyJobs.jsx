@@ -33,10 +33,24 @@ const formatDate = (dateString) => {
   });
 };
 
+
 const getFeeLabel = (job) => {
   const fee = Number(job?.fee || 0);
   if (!fee) return "Fee TBC";
   return `£${fee.toLocaleString("en-GB")}`;
+};
+
+const isPastJobDate = (job = {}) => {
+  const rawDate = String(job?.date || job?.eventDate || "").trim();
+  if (!rawDate) return false;
+
+  const dateOnly = rawDate.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) return false;
+
+  const [year, month, day] = dateOnly.split("-").map(Number);
+  const jobDateEnd = new Date(year, month - 1, day, 23, 59, 59, 999);
+
+  return jobDateEnd.getTime() < Date.now();
 };
 
 const hasStoredCardForJob = (job = {}) => {
@@ -142,10 +156,10 @@ const DeputyJobs = () => {
     currentUserRole === "agent" ||
     currentUserEmail === "hello@thesupremecollective.co.uk";
 
-    const isLoggedIn = Boolean(authToken);
-const isAdminLike =
-  ["admin", "superadmin", "tsc_admin", "agent"].includes(currentUserRole) ||
-  currentUserEmail === "hello@thesupremecollective.co.uk";
+  const isLoggedIn = Boolean(authToken);
+  const isAdminLike =
+    ["admin", "superadmin", "tsc_admin", "agent"].includes(currentUserRole) ||
+    currentUserEmail === "hello@thesupremecollective.co.uk";
 
   const toDateInputValue = (value) => {
     if (!value) return "";
@@ -269,6 +283,8 @@ const isAdminLike =
     const next = jobs.filter((job) => {
       const status = String(job?.status || "open").toLowerCase();
       const jobType = String(job?.jobType || "booked").toLowerCase();
+
+      if (isPastJobDate(job)) return false;
 
       const requiresStoredCard =
         jobType !== "enquiry" &&
