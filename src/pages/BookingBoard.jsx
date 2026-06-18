@@ -928,6 +928,8 @@ const buildEditStateFromRow = (row) => {
     actName: getDisplayActName(row),
     actTscName: getDisplayActTscName(row),
     eventDate: getDisplayEventDate(row),
+    invoiceDueDateISO:
+  row?.invoiceDueDateISO || row?.invoiceDueDate || row?.dueDateISO || row?.dueDate || "",
     baseGross: Number(coreGross || 0),
     depositAmount: Number(deposit || 0),
     eventType: row?.eventType || "",
@@ -949,6 +951,7 @@ const buildEditStateFromRow = (row) => {
     commissionGross,
     passThroughGross,
     coreGross,
+    
   };
 };
 
@@ -1998,6 +2001,7 @@ export default function BookingBoard() {
     clientFirstNames: "", // already there
     bookingRef: "",
     eventDateISO: "",
+    invoiceDueDateISO: "",
     enquiryDateISO: "",
     bookingDateISO: "",
     agent: "Direct",
@@ -2362,6 +2366,7 @@ const pastRows = useMemo(
         ? { eventDateISO: editForm.eventDateISO || existingEventDate }
         : {}),
       invoiceCompany,
+      invoiceDueDateISO: editForm.invoiceDueDateISO || "",
       totals: {
         ...(editingRow?.totals || {}),
         fullAmount: Number(newGross.toFixed(2)),
@@ -3899,6 +3904,18 @@ const pastRows = useMemo(
                                 }
                               />
                             </div>
+                            <input
+  type="date"
+  className="border rounded px-2 py-1 w-44"
+  title="Invoice due date"
+  value={newRow.invoiceDueDateISO}
+  onChange={(e) =>
+    setNewRow((v) => ({
+      ...v,
+      invoiceDueDateISO: e.target.value,
+    }))
+  }
+/>
                           </div>
 
                           {/* Row 2: agent + contact + money */}
