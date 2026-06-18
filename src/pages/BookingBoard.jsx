@@ -928,8 +928,14 @@ const buildEditStateFromRow = (row) => {
     actName: getDisplayActName(row),
     actTscName: getDisplayActTscName(row),
     eventDate: getDisplayEventDate(row),
-    invoiceDueDateISO:
-  row?.invoiceDueDateISO || row?.invoiceDueDate || row?.dueDateISO || row?.dueDate || "",
+eventDateISO: String(getDisplayEventDate(row) || "").slice(0, 10),
+invoiceDueDateISO: String(
+  row?.invoiceDueDateISO ||
+    row?.invoiceDueDate ||
+    row?.dueDateISO ||
+    row?.dueDate ||
+    "",
+).slice(0, 10),
     baseGross: Number(coreGross || 0),
     depositAmount: Number(deposit || 0),
     eventType: row?.eventType || "",
@@ -1233,6 +1239,21 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
               </option>
             </select>
           </div>
+
+          <div>
+  <label className="block text-xs text-gray-600 mb-1">
+    Invoice due date
+  </label>
+  <input
+    type="date"
+    className="border rounded px-3 py-2 w-full"
+    value={value.invoiceDueDateISO || ""}
+    onChange={(e) =>
+      onChange({ ...value, invoiceDueDateISO: e.target.value })
+    }
+  />
+</div>
+
           <div>
             <label className="block text-xs text-gray-600 mb-1">Arrival</label>
             <input
@@ -2002,6 +2023,7 @@ export default function BookingBoard() {
     bookingRef: "",
     eventDateISO: "",
     invoiceDueDateISO: "",
+    
     enquiryDateISO: "",
     bookingDateISO: "",
     agent: "Direct",
@@ -2782,8 +2804,6 @@ const pastRows = useMemo(
   };
 
   const createInvoiceForRow = async (row) => {
-    const bookingRef = getDisplayBookingRef(row);
-
     try {
       const res = await fetch(`${API_BASE}/invoices/create-board-invoice`, {
         method: "POST",
@@ -2797,6 +2817,7 @@ const pastRows = useMemo(
 
       const raw = await res.text();
       let json = null;
+
       try {
         json = JSON.parse(raw);
       } catch {
@@ -2805,16 +2826,40 @@ const pastRows = useMemo(
         return;
       }
 
-      if (!json?.success) {
+      if (!res.ok || !json?.success) {
+        console.error("create invoice failed:", json || raw);
         window.alert(json?.message || "Could not create invoice.");
         return;
       }
 
-      window.alert("Invoice generated.");
-      await fetchRows();
+      const updatedRow = json.row || json.booking || null;
+
+      if (updatedRow?._id) {
+        setRows((prev) =>
+          prev.map((existingRow) =>
+            existingRow._id === updatedRow._id ? updatedRow : existingRow,
+          ),
+        );
+      } else {
+        await fetchRows();
+      }
+
+      const nextInvoiceUrl =
+        json.invoiceUrl ||
+        json.invoicePdfUrl ||
+        updatedRow?.invoiceUrl ||
+        updatedRow?.invoicePdfUrl ||
+        updatedRow?.payments?.boardInvoicePdfUrl ||
+        "";
+
+      if (nextInvoiceUrl) {
+        window.open(nextInvoiceUrl, "_blank", "noopener,noreferrer");
+      } else {
+        window.alert("Invoice generated, but no invoice URL was returned.");
+      }
     } catch (error) {
       console.error("create invoice failed", error);
-      window.alert(error.message || "Invoice failed.");
+      window.alert(error?.message || "Invoice failed.");
     }
   };
 
