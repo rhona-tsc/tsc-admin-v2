@@ -91,11 +91,11 @@ const DashboardFeatureCard = ({ title, subtitle, imageLabel, badge, onClick, dar
   <button
     type="button"
     onClick={onClick}
-    className="group text-left"
+    className="group text-left w-full h-full self-start"
   >
-    <div className="overflow-hidden rounded-none bg-white">
+    <div className="flex h-full flex-col overflow-hidden rounded-none bg-white">
       <div
-        className={`relative aspect-[4/5] overflow-hidden ${
+        className={`relative h-[280px] shrink-0 overflow-hidden ${
           dark
             ? "bg-gradient-to-br from-gray-950 via-gray-800 to-[#ff6667]"
             : "bg-gradient-to-br from-[#fff1f1] via-white to-gray-100"
@@ -735,7 +735,7 @@ useEffect(() => {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 gap-y-8">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 gap-y-8 items-start">
               {dashboardCards.map((card) => (
                 <DashboardFeatureCard key={card.title} {...card} />
               ))}
