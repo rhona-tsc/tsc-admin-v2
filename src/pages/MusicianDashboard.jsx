@@ -517,7 +517,7 @@ const dashboardCards = useMemo(
       subtitle: "Latest portal updates, reminders, and useful notes for musicians.",
       imageLabel: "Notice Board",
       badge: "Updates",
-      onClick: () => navigate("/notice-board"),
+      onClick: () => navigate("/noticeboard"),
       dark: true,
     },
     {
