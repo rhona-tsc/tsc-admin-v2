@@ -731,7 +731,7 @@ useEffect(() => {
                 <span className="h-[2px] w-12 bg-[#ff6667]" />
               </div>
               <p className="mt-4 mx-auto max-w-2xl text-xs sm:text-sm md:text-base text-gray-600">
-                Quick access to the tools you’ll use most often — styled to feel more like The Supreme Collective front-end.
+                Quick access to the tools you’ll use most often.
               </p>
             </div>
 

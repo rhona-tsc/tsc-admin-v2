@@ -466,7 +466,7 @@ const DeputyJobDetail = () => {
       !hasApplied &&
       !isJobManager &&
       !canManageThisJob &&
-      !["allocated", "filled", "closed", "cancelled"].includes(
+      !["filled", "closed", "cancelled"].includes(
         normaliseString(job?.status).toLowerCase()
       )
   );
@@ -476,7 +476,7 @@ const DeputyJobDetail = () => {
       !hasAnyUserToken &&
       !canManageThisJob &&
       job &&
-      !["allocated", "filled", "closed", "cancelled"].includes(
+      !["filled", "closed", "cancelled"].includes(
         normaliseString(job?.status).toLowerCase()
       )
   );
