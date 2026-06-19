@@ -44,6 +44,7 @@ import FinanceVatForecast from "./pages/FinanceVatForecast";
 import FinanceCorporationTaxForecast from "./pages/FinanceCorporationTaxForecast";
 import StripeConnectReturn from "./pages/StripeConnectReturn";
 import FinanceCommandCentre from "./pages/FinanceCommandCentre";
+import Noticeboard from "./pages/Noticeboard";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -261,6 +262,19 @@ const App = () => {
                   />
                 </RequireAuth>
               }
+            />
+            <Route
+              path="/notice-board"
+              element={
+                <RequireAuth>
+                  <Noticeboard userRole={userRole} />
+                </RequireAuth>
+              }
+            />
+
+            <Route
+              path="/noticeboard"
+              element={<Navigate to="/notice-board" replace />}
             />
 
             <Route
