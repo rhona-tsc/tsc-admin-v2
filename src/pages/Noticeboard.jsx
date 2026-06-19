@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
-import { Editor } from "@tinymce/tinymce-react";
 import { backendUrl } from "../App";
 import assets from "../assets/assets";
 
-const Noticeboard = ({ userRole }) => {
-  const isAgent = ["agent", "admin", "superadmin"].includes(
-    String(userRole || "").toLowerCase()
-  );
+const Noticeboard = ({ userRole, email }) => {
+  const normalizedRole = String(userRole || "").toLowerCase().trim();
+  const normalizedEmail = String(email || localStorage.getItem("userEmail") || "")
+    .toLowerCase()
+    .trim();
+
+  const isAgent =
+    ["agent", "admin", "superadmin", "tsc_admin"].includes(normalizedRole) ||
+    normalizedEmail === "hello@thesupremecollective.co.uk";
 
   const [items, setItems] = useState([]);
   const [editorContent, setEditorContent] = useState("");
@@ -73,18 +77,12 @@ const Noticeboard = ({ userRole }) => {
             onChange={(e) => setTitle(e.target.value)}
           />
 
-          <Editor
-            apiKey="no-api-key-needed"
-            value={editorContent}
-            onEditorChange={(newValue) => setEditorContent(newValue)}
-            init={{
-              height: 250,
-              menubar: false,
-              plugins: "link lists table autoresize",
-              toolbar:
-                "undo redo | bold italic underline | bullist numlist | link",
-            }}
-          />
+         <textarea
+  className="border rounded px-3 py-2 w-full min-h-[220px] text-sm"
+  placeholder="Write your announcement here. You can use simple HTML if needed, e.g. <p>, <strong>, <ul>, <li>."
+  value={editorContent}
+  onChange={(e) => setEditorContent(e.target.value)}
+/>
 
           <button
             onClick={handleSubmit}

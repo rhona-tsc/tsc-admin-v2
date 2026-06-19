@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import DashboardUnderConstruction from "../components/DashboardUnderConstruction";
 
 const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -723,8 +722,6 @@ useEffect(() => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT: dashboard content */}
         <div className="lg:col-span-9 ">
-          {/* 🚧 UNDER CONSTRUCTION BANNER */}
-          <DashboardUnderConstruction firstname={firstName} />
  
           <div className="my-10">
             <div className="text-center py-8 text-3xl">

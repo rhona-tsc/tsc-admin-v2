@@ -267,7 +267,7 @@ const App = () => {
               path="/notice-board"
               element={
                 <RequireAuth>
-                  <Noticeboard userRole={userRole} />
+<Noticeboard userRole={userRole} email={email} />
                 </RequireAuth>
               }
             />
