@@ -928,14 +928,14 @@ const buildEditStateFromRow = (row) => {
     actName: getDisplayActName(row),
     actTscName: getDisplayActTscName(row),
     eventDate: getDisplayEventDate(row),
-eventDateISO: String(getDisplayEventDate(row) || "").slice(0, 10),
-invoiceDueDateISO: String(
-  row?.invoiceDueDateISO ||
-    row?.invoiceDueDate ||
-    row?.dueDateISO ||
-    row?.dueDate ||
-    "",
-).slice(0, 10),
+    eventDateISO: String(getDisplayEventDate(row) || "").slice(0, 10),
+    invoiceDueDateISO: String(
+      row?.invoiceDueDateISO ||
+        row?.invoiceDueDate ||
+        row?.dueDateISO ||
+        row?.dueDate ||
+        "",
+    ).slice(0, 10),
     baseGross: Number(coreGross || 0),
     depositAmount: Number(deposit || 0),
     eventType: row?.eventType || "",
@@ -957,7 +957,6 @@ invoiceDueDateISO: String(
     commissionGross,
     passThroughGross,
     coreGross,
-    
   };
 };
 
@@ -1241,18 +1240,18 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
           </div>
 
           <div>
-  <label className="block text-xs text-gray-600 mb-1">
-    Invoice due date
-  </label>
-  <input
-    type="date"
-    className="border rounded px-3 py-2 w-full"
-    value={value.invoiceDueDateISO || ""}
-    onChange={(e) =>
-      onChange({ ...value, invoiceDueDateISO: e.target.value })
-    }
-  />
-</div>
+            <label className="block text-xs text-gray-600 mb-1">
+              Invoice due date
+            </label>
+            <input
+              type="date"
+              className="border rounded px-3 py-2 w-full"
+              value={value.invoiceDueDateISO || ""}
+              onChange={(e) =>
+                onChange({ ...value, invoiceDueDateISO: e.target.value })
+              }
+            />
+          </div>
 
           <div>
             <label className="block text-xs text-gray-600 mb-1">Arrival</label>
@@ -2023,7 +2022,7 @@ export default function BookingBoard() {
     bookingRef: "",
     eventDateISO: "",
     invoiceDueDateISO: "",
-    
+
     enquiryDateISO: "",
     bookingDateISO: "",
     agent: "Direct",
@@ -2049,38 +2048,38 @@ export default function BookingBoard() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [creatingPayLinkId, setCreatingPayLinkId] = useState(null);
   const [syncingFinanceId, setSyncingFinanceId] = useState(null);
-const [collapsedSections, setCollapsedSections] = useState({
-  enquiries: false,
-  "upcoming-bookings": false,
-  "missing-event-date": false,
-  "past-clients": true,
-});
-const [expandedRows, setExpandedRows] = useState({});
+  const [collapsedSections, setCollapsedSections] = useState({
+    enquiries: false,
+    "upcoming-bookings": false,
+    "missing-event-date": false,
+    "past-clients": true,
+  });
+  const [expandedRows, setExpandedRows] = useState({});
 
-const toggleExpandedRow = (rowId) => {
-  setExpandedRows((prev) => ({
-    ...prev,
-    [rowId]: !prev[rowId],
-  }));
-};
-
-const getCompactRowSummary = (r) => {
-  const bookingRef = getDisplayBookingRef(r);
-  const eventDate = getDisplayEventDate(r);
-  const gross = getDisplayGross(r);
-  const actName = getDisplayActTscName(r) || getDisplayActName(r);
-  const arrivalTime = getDisplayArrivalTime(r);
-  const finishTime = getDisplayFinishTime(r);
-
-  return {
-    bookingRef,
-    eventDate,
-    gross,
-    actName,
-    arrivalTime,
-    finishTime,
+  const toggleExpandedRow = (rowId) => {
+    setExpandedRows((prev) => ({
+      ...prev,
+      [rowId]: !prev[rowId],
+    }));
   };
-};
+
+  const getCompactRowSummary = (r) => {
+    const bookingRef = getDisplayBookingRef(r);
+    const eventDate = getDisplayEventDate(r);
+    const gross = getDisplayGross(r);
+    const actName = getDisplayActTscName(r) || getDisplayActName(r);
+    const arrivalTime = getDisplayArrivalTime(r);
+    const finishTime = getDisplayFinishTime(r);
+
+    return {
+      bookingRef,
+      eventDate,
+      gross,
+      actName,
+      arrivalTime,
+      finishTime,
+    };
+  };
 
   const buildHeaders = () => {
     const token = getAuthToken();
@@ -2099,7 +2098,6 @@ const getCompactRowSummary = (r) => {
     params.set("q", nextQ.trim());
     params.set("sortBy", nextSortBy);
     params.set("sortDir", nextSortDir);
-
 
     const url = `${API_BASE}/board/bookings?${params.toString()}`;
 
@@ -2125,7 +2123,7 @@ const getCompactRowSummary = (r) => {
   };
 
   useEffect(() => {
-    fetchRows({  sortBy, sortDir });
+    fetchRows({ sortBy, sortDir });
   }, [sortBy, sortDir]);
 
   const mergedRows = useMemo(() => {
@@ -2161,23 +2159,35 @@ const getCompactRowSummary = (r) => {
     [visibleRows],
   );
 
-const upcomingRows = useMemo(
-  () =>
-    visibleRows
-      .filter((row) => !isEnquiryRow(row) && hasSortableEventDate(row) && !isPastClientRow(row))
-      .sort((a, b) => getSortableEventDate(a).localeCompare(getSortableEventDate(b))),
-  [visibleRows],
-);
+  const upcomingRows = useMemo(
+    () =>
+      visibleRows
+        .filter(
+          (row) =>
+            !isEnquiryRow(row) &&
+            hasSortableEventDate(row) &&
+            !isPastClientRow(row),
+        )
+        .sort((a, b) =>
+          getSortableEventDate(a).localeCompare(getSortableEventDate(b)),
+        ),
+    [visibleRows],
+  );
 
-const pastRows = useMemo(
-  () =>
-    visibleRows
-      .filter((row) => !isEnquiryRow(row) && hasSortableEventDate(row) && isPastClientRow(row))
-      .sort((a, b) => getSortableEventDate(b).localeCompare(getSortableEventDate(a))),
-  [visibleRows],
-);
-
-
+  const pastRows = useMemo(
+    () =>
+      visibleRows
+        .filter(
+          (row) =>
+            !isEnquiryRow(row) &&
+            hasSortableEventDate(row) &&
+            isPastClientRow(row),
+        )
+        .sort((a, b) =>
+          getSortableEventDate(b).localeCompare(getSortableEventDate(a)),
+        ),
+    [visibleRows],
+  );
 
   useEffect(() => {
     window.bookingBoardDebug = {
@@ -2252,11 +2262,11 @@ const pastRows = useMemo(
   );
 
   const toggleSection = (sectionKey) => {
-  setCollapsedSections((prev) => ({
-    ...prev,
-    [sectionKey]: !prev[sectionKey],
-  }));
-};
+    setCollapsedSections((prev) => ({
+      ...prev,
+      [sectionKey]: !prev[sectionKey],
+    }));
+  };
 
   const onInlineEdit = async (id, patch) => {
     const url = `${API_BASE}/board/bookings/${id}`;
@@ -2329,10 +2339,11 @@ const pastRows = useMemo(
           extra.arrivalTime,
       );
 
-   const extrasTotal = cleanedExtras.reduce(
-  (sum, extra) => sum + Number(extra.price || 0) * Number(extra.quantity || 1),
-  0,
-);
+    const extrasTotal = cleanedExtras.reduce(
+      (sum, extra) =>
+        sum + Number(extra.price || 0) * Number(extra.quantity || 1),
+      0,
+    );
 
     const manualAdjustmentAmount =
       Number(editForm.manualAdjustmentAmount || 0) || 0;
@@ -2394,6 +2405,14 @@ const pastRows = useMemo(
         fullAmount: Number(newGross.toFixed(2)),
         depositAmount: Number(depositAmount.toFixed(2)),
       },
+      grossValue: Number(newGross.toFixed(2)),
+      extras: cleanedExtras,
+      manualAdjustment: {
+        label: String(editForm.manualAdjustmentLabel || ""),
+        amount: Number(manualAdjustmentAmount.toFixed(2)),
+      },
+      manualAdjustmentLabel: String(editForm.manualAdjustmentLabel || ""),
+      manualAdjustmentAmount: Number(manualAdjustmentAmount.toFixed(2)),
       amount: Number(
         editingRow?.amount || editingRow?.totals?.chargedAmount || 0,
       ),
@@ -2691,8 +2710,6 @@ const pastRows = useMemo(
       setSyncingFinanceId(null);
     }
   };
-
-  
 
   const createPayLinkForRow = async (row) => {
     const bookingRef = getDisplayBookingRef(row);
@@ -3153,7 +3170,6 @@ const pastRows = useMemo(
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-             
               fetchRows({ page: 1, q });
             }
           }}
@@ -3161,8 +3177,6 @@ const pastRows = useMemo(
         <button
           className="px-4 py-2 rounded bg-black text-white"
           onClick={() => {
-           
-
             fetchRows({ page: 1, q });
           }}
         >
@@ -3205,28 +3219,38 @@ const pastRows = useMemo(
         </div>
       </div>
 
-<div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
-  <div className="rounded-lg border bg-white p-3">
-    <div className="text-xs text-gray-500">Enquiries</div>
-    <div className="text-xl font-semibold text-sky-700">{enquiryRows.length}</div>
-  </div>
-  <div className="rounded-lg border bg-white p-3">
-    <div className="text-xs text-gray-500">Upcoming</div>
-    <div className="text-xl font-semibold text-emerald-700">{upcomingRows.length}</div>
-  </div>
-  <div className="rounded-lg border bg-white p-3">
-    <div className="text-xs text-gray-500">Missing Dates</div>
-    <div className="text-xl font-semibold text-red-700">{missingDateRows.length}</div>
-  </div>
-  <div className="rounded-lg border bg-white p-3">
-    <div className="text-xs text-gray-500">Past Clients</div>
-    <div className="text-xl font-semibold text-orange-700">{pastRows.length}</div>
-  </div>
-  <div className="rounded-lg border bg-white p-3">
-    <div className="text-xs text-gray-500">Total Records</div>
-    <div className="text-xl font-semibold text-gray-900">{visibleRows.length}</div>
-  </div>
-</div>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+        <div className="rounded-lg border bg-white p-3">
+          <div className="text-xs text-gray-500">Enquiries</div>
+          <div className="text-xl font-semibold text-sky-700">
+            {enquiryRows.length}
+          </div>
+        </div>
+        <div className="rounded-lg border bg-white p-3">
+          <div className="text-xs text-gray-500">Upcoming</div>
+          <div className="text-xl font-semibold text-emerald-700">
+            {upcomingRows.length}
+          </div>
+        </div>
+        <div className="rounded-lg border bg-white p-3">
+          <div className="text-xs text-gray-500">Missing Dates</div>
+          <div className="text-xl font-semibold text-red-700">
+            {missingDateRows.length}
+          </div>
+        </div>
+        <div className="rounded-lg border bg-white p-3">
+          <div className="text-xs text-gray-500">Past Clients</div>
+          <div className="text-xl font-semibold text-orange-700">
+            {pastRows.length}
+          </div>
+        </div>
+        <div className="rounded-lg border bg-white p-3">
+          <div className="text-xs text-gray-500">Total Records</div>
+          <div className="text-xl font-semibold text-gray-900">
+            {visibleRows.length}
+          </div>
+        </div>
+      </div>
 
       <div className="space-y-6 mt-4">
         {boardSections.map((section) => (
@@ -3236,28 +3260,27 @@ const pastRows = useMemo(
           >
             <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
               <div>
-               <button
-  type="button"
-  className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
-  onClick={() => toggleSection(section.key)}
->
-  <h2 className={`text-xl font-semibold ${section.titleClass}`}>
-    <span className="inline-block w-5">
-      {collapsedSections[section.key] ? "▸" : "▾"}
-    </span>
-    {section.title} ({section.count})
-  </h2>
-</button>
-               {!collapsedSections[section.key] && (
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
+                  onClick={() => toggleSection(section.key)}
+                >
+                  <h2 className={`text-xl font-semibold ${section.titleClass}`}>
+                    <span className="inline-block w-5">
+                      {collapsedSections[section.key] ? "▸" : "▾"}
+                    </span>
+                    {section.title} ({section.count})
+                  </h2>
+                </button>
+                {!collapsedSections[section.key] && (
                   <>
-                 {section.key === "past-clients" && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Events before {todayISODate()}
-                  </p>
+                    {section.key === "past-clients" && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Events before {todayISODate()}
+                      </p>
+                    )}
+                  </>
                 )}
-                 </>
-
-)}
               </div>
             </div>
 
@@ -3340,19 +3363,33 @@ const pastRows = useMemo(
                       <React.Fragment key={rowId}>
                         <tr className="odd:bg-white even:bg-gray-50 align-top">
                           <td className="px-3 py-2">
-                            <div className="font-medium text-gray-900">{clientFirstNames}</div>
-                            <div className="text-[11px] text-gray-500">{getPrimaryEmail(r) || "No email"}</div>
+                            <div className="font-medium text-gray-900">
+                              {clientFirstNames}
+                            </div>
+                            <div className="text-[11px] text-gray-500">
+                              {getPrimaryEmail(r) || "No email"}
+                            </div>
                           </td>
                           <td className="px-3 py-2">{summary.bookingRef}</td>
-                          <td className="px-3 py-2">{fmtShort(summary.eventDate)}</td>
-                          <td className="px-3 py-2">{summary.actName || "—"}</td>
-                          <td className="px-3 py-2">{summary.gross ? money(summary.gross) : "—"}</td>
+                          <td className="px-3 py-2">
+                            {fmtShort(summary.eventDate)}
+                          </td>
+                          <td className="px-3 py-2">
+                            {summary.actName || "—"}
+                          </td>
+                          <td className="px-3 py-2">
+                            {summary.gross ? money(summary.gross) : "—"}
+                          </td>
                           <td className="px-3 py-2">
                             <div className="text-[11px] text-gray-600">
-                              {summary.arrivalTime ? `Arrive ${summary.arrivalTime}` : "Arrival —"}
+                              {summary.arrivalTime
+                                ? `Arrive ${summary.arrivalTime}`
+                                : "Arrival —"}
                             </div>
                             <div className="text-[11px] text-gray-600">
-                              {summary.finishTime ? `Finish ${summary.finishTime}` : "Finish —"}
+                              {summary.finishTime
+                                ? `Finish ${summary.finishTime}`
+                                : "Finish —"}
                             </div>
                           </td>
                           <td className="px-3 py-2">
@@ -3382,497 +3419,557 @@ const pastRows = useMemo(
                                 <table className="min-w-[4200px] table-fixed text-xs">
                                   <tbody>
                                     <tr className="align-top">
-                        <td className="px-3 py-2">
-                          <InlineInput
-                            value={clientFirstNames}
-                            placeholder="Client name"
-                            onCommit={(val) =>
-                              onInlineEdit(r._id, {
-                                clientFirstNames: val,
-                                clientName: val,
-                                bookerName: val,
-                              })
-                            }
-                          />
-                        </td>
-                        <td className="px-3 py-2">
-                          <ReadOnlyInput value={bookingRef} />
-                        </td>
-                        {/* Event Sheet */}
-                        <td className={cellClass}>
-                          {r.eventSheetLink ? (
-                            <a
-                              className="text-blue-600 underline"
-                              href={r.eventSheetLink}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              Open
-                            </a>
-                          ) : (
-                            <button
-                              className="px-2 py-1 border rounded hover:bg-gray-100"
-                              onClick={() => {
-                                if (
-                                  !PUBLIC_SITE_BASE ||
-                                  PUBLIC_SITE_BASE.includes("localhost:5174")
-                                ) {
-                                  window.alert(
-                                    "Event sheet fallback URL is not configured yet. Please set VITE_PUBLIC_SITE_URL to the live public site URL.",
-                                  );
-                                  return;
-                                }
-                                window.open(
-                                  fallbackEventSheetUrl,
-                                  "_blank",
-                                  "noopener,noreferrer",
-                                );
-                              }}
-                            >
-                              Open
-                            </button>
-                          )}
-                        </td>
-                        {/* Contract */}
-                        <td className={cellClass}>
-                          {normalizedContractUrl ? (
-                            <a
-                              className="text-blue-600 underline"
-                              href={normalizedContractUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              Open
-                            </a>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td className={cellClass}>
-                          <InlineInput
-                            value={fmtShort(r.enquiryDateISO || r.createdAt)}
-                          />
-                        </td>
-                        <td className={cellClass}>
-                          {fmtShort(r.bookingDateISO || r.createdAt)}
-                        </td>
-                        <td className={cellClass}>
-                          <InlineInput
-                            type="date"
-                            value={String(getSortableEventDate(r) || "").slice(
-                              0,
-                              10,
-                            )}
-                            placeholder="Event date"
-                            onCommit={(val) =>
-                              onInlineEdit(r._id, {
-                                eventDateISO: val,
-                                eventDate: val,
-                                date: val,
-                              })
-                            }
-                          />
-                        </td>{" "}
-                        <td className={cellClass}>
-                          {gross ? (
-                            <div>
-                              <div>
-                                {" "}
-                                <InlineInput
-                                  value={gross ? money(gross) : ""}
-                                />
-                              </div>
+                                      <td className="px-3 py-2">
+                                        <InlineInput
+                                          value={clientFirstNames}
+                                          placeholder="Client name"
+                                          onCommit={(val) =>
+                                            onInlineEdit(r._id, {
+                                              clientFirstNames: val,
+                                              clientName: val,
+                                              bookerName: val,
+                                            })
+                                          }
+                                        />
+                                      </td>
+                                      <td className="px-3 py-2">
+                                        <ReadOnlyInput value={bookingRef} />
+                                      </td>
+                                      {/* Event Sheet */}
+                                      <td className={cellClass}>
+                                        {r.eventSheetLink ? (
+                                          <a
+                                            className="text-blue-600 underline"
+                                            href={r.eventSheetLink}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                          >
+                                            Open
+                                          </a>
+                                        ) : (
+                                          <button
+                                            className="px-2 py-1 border rounded hover:bg-gray-100"
+                                            onClick={() => {
+                                              if (
+                                                !PUBLIC_SITE_BASE ||
+                                                PUBLIC_SITE_BASE.includes(
+                                                  "localhost:5174",
+                                                )
+                                              ) {
+                                                window.alert(
+                                                  "Event sheet fallback URL is not configured yet. Please set VITE_PUBLIC_SITE_URL to the live public site URL.",
+                                                );
+                                                return;
+                                              }
+                                              window.open(
+                                                fallbackEventSheetUrl,
+                                                "_blank",
+                                                "noopener,noreferrer",
+                                              );
+                                            }}
+                                          >
+                                            Open
+                                          </button>
+                                        )}
+                                      </td>
+                                      {/* Contract */}
+                                      <td className={cellClass}>
+                                        {normalizedContractUrl ? (
+                                          <a
+                                            className="text-blue-600 underline"
+                                            href={normalizedContractUrl}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                          >
+                                            Open
+                                          </a>
+                                        ) : (
+                                          "—"
+                                        )}
+                                      </td>
+                                      <td className={cellClass}>
+                                        <InlineInput
+                                          value={fmtShort(
+                                            r.enquiryDateISO || r.createdAt,
+                                          )}
+                                        />
+                                      </td>
+                                      <td className={cellClass}>
+                                        {fmtShort(
+                                          r.bookingDateISO || r.createdAt,
+                                        )}
+                                      </td>
+                                      <td className={cellClass}>
+                                        <InlineInput
+                                          type="date"
+                                          value={String(
+                                            getSortableEventDate(r) || "",
+                                          ).slice(0, 10)}
+                                          placeholder="Event date"
+                                          onCommit={(val) =>
+                                            onInlineEdit(r._id, {
+                                              eventDateISO: val,
+                                              eventDate: val,
+                                              date: val,
+                                            })
+                                          }
+                                        />
+                                      </td>{" "}
+                                      <td className={cellClass}>
+                                        {gross ? (
+                                          <div>
+                                            <div>
+                                              {" "}
+                                              <InlineInput
+                                                value={
+                                                  gross ? money(gross) : ""
+                                                }
+                                              />
+                                            </div>
 
-                              {(split?.commissionGross > 0 ||
-                                split?.passThroughGross > 0) && (
-                                <div className="text-[11px] text-gray-600 leading-4 mt-1">
-                                  <span title={`Source: ${split.source}`}>
-                                    Comm
-                                  </span>
-                                  : £
-                                  {Number(
-                                    split.commissionGross || 0,
-                                  ).toLocaleString("en-GB", {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  })}
-                                  {split?.commissionVat ? (
-                                    <>
-                                      {" "}
-                                      (VAT £
-                                      {Number(
-                                        split.commissionVat || 0,
-                                      ).toLocaleString("en-GB", {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2,
-                                      })}
-                                      )
-                                    </>
-                                  ) : null}
-                                  {split?.passThroughGross ? (
-                                    <>
-                                      {" "}
-                                      • Held: £
-                                      {Number(
-                                        split.passThroughGross || 0,
-                                      ).toLocaleString("en-GB", {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2,
-                                      })}
-                                    </>
-                                  ) : null}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td className={cellClass}>
-                          {deposit != null ? (
-                            <div>
-                              <div>
-                                {" "}
-                                <InlineInput
-                                  value={deposit ? money(deposit) : ""}
-                                />
-                              </div>
+                                            {(split?.commissionGross > 0 ||
+                                              split?.passThroughGross > 0) && (
+                                              <div className="text-[11px] text-gray-600 leading-4 mt-1">
+                                                <span
+                                                  title={`Source: ${split.source}`}
+                                                >
+                                                  Comm
+                                                </span>
+                                                : £
+                                                {Number(
+                                                  split.commissionGross || 0,
+                                                ).toLocaleString("en-GB", {
+                                                  minimumFractionDigits: 2,
+                                                  maximumFractionDigits: 2,
+                                                })}
+                                                {split?.commissionVat ? (
+                                                  <>
+                                                    {" "}
+                                                    (VAT £
+                                                    {Number(
+                                                      split.commissionVat || 0,
+                                                    ).toLocaleString("en-GB", {
+                                                      minimumFractionDigits: 2,
+                                                      maximumFractionDigits: 2,
+                                                    })}
+                                                    )
+                                                  </>
+                                                ) : null}
+                                                {split?.passThroughGross ? (
+                                                  <>
+                                                    {" "}
+                                                    • Held: £
+                                                    {Number(
+                                                      split.passThroughGross ||
+                                                        0,
+                                                    ).toLocaleString("en-GB", {
+                                                      minimumFractionDigits: 2,
+                                                      maximumFractionDigits: 2,
+                                                    })}
+                                                  </>
+                                                ) : null}
+                                              </div>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          "—"
+                                        )}
+                                      </td>
+                                      <td className={cellClass}>
+                                        {deposit != null ? (
+                                          <div>
+                                            <div>
+                                              {" "}
+                                              <InlineInput
+                                                value={
+                                                  deposit ? money(deposit) : ""
+                                                }
+                                              />
+                                            </div>
 
-                              {!split?.hasAccounting && (
-                                <div className="text-[11px] text-gray-500 leading-4 mt-1">
-                                  {r?.source === "manual"
-                                    ? "Manual split"
-                                    : "Awaiting webhook split"}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            "—"
-                          )}
-                        </td>{" "}
-                        <td className={cellClass}>
-                          <InlineInput
-                            value={balance != null ? money(balance) : ""}
-                          />
-                        </td>
-                        <td className={cellClass}>
-                          {commission ? (
-                            <div className="leading-tight">
-                              <div>
-                                {" "}
-                                <InlineInput
-                                  value={
-                                    commission ? fmtMoney0(commission) : ""
-                                  }
-                                />
-                              </div>
-                              {split?.hasAccounting ? (
-                                <div className="text-[11px] text-gray-500">
-                                  from accounting
-                                </div>
-                              ) : (
-                                <div className="text-[11px] text-gray-500">
-                                  estimated
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                        <td className={cellClass}>
-                          {vat ? fmtMoney0(vat) : "—"}
-                        </td>
-                        <td className={cellClass}>
-                          <InlineInput value={hold ? money(hold) : ""} />
-                        </td>
-                        <td className={cellClass}>
-                          <AgentCell
-                            value={r.agent || "Direct"}
-                            onSave={(val) =>
-                              onInlineEdit(r._id, { agent: val })
-                            }
-                          />
-                        </td>
-                        <td className={cellClass}>
-                          <InlineInput
-                            value={clientEmails[0]?.email || ""}
-                            placeholder="Client email"
-                            onCommit={(val) =>
-                              onInlineEdit(r._id, {
-                                clientEmail: val,
-                                userEmail: val,
-                                clientEmails: val ? [{ email: val }] : [],
-                              })
-                            }
-                          />
-                        </td>
-                        <td className={cellClass}>
-                          <InlineInput
-                            value={r.clientAddress || ""}
-                            placeholder="Client address"
-                            onCommit={(val) =>
-                              onInlineEdit(r._id, { clientAddress: val })
-                            }
-                          />
-                        </td>
-                        <td className={cellClass}>{r.eventType || "—"}</td>
-                        <td className={cellClass}>
-                          <InlineInput
-                            value={actName || ""}
-                            placeholder="Act"
-                            onCommit={(val) =>
-                              onInlineEdit(r._id, { actName: val })
-                            }
-                          />
-                        </td>
-                        <td className={cellClass}>
-                          <InlineInput
-                            value={actTsc || ""}
-                            placeholder="Act tscName"
-                            onCommit={(val) =>
-                              onInlineEdit(r._id, { actTscName: val })
-                            }
-                          />
-                        </td>
-                        <td className={cellClass}>
-                          <InlineInput
-                            value={address || ""}
-                            placeholder="Address"
-                            onCommit={(val) =>
-                              onInlineEdit(r._id, { address: val })
-                            }
-                          />
-                        </td>
-                        <td className={cellClass}>
-                          <InlineInput
-                            value={county || ""}
-                            placeholder="County"
-                            onCommit={(val) =>
-                              onInlineEdit(r._id, { county: val })
-                            }
-                          />
-                        </td>
-                        <td className={cellClass}>{extractBandSize(r)}</td>
-                        <td className={cellClass}>
-                          <InlineInput
-                            value={r.lineupSelected || ""}
-                            placeholder="Lineup"
-                            onCommit={(val) =>
-                              onInlineEdit(r._id, { lineupSelected: val })
-                            }
-                          />
-                        </td>
-                        <td className={cellClass}>
-                          <div className="flex flex-col gap-2 min-w-[150px]">
-                            <InlineInput
-                              type="time"
-                              value={arrivalTime || ""}
-                              placeholder="Arrival"
-                              onCommit={(val) =>
-                                onInlineEdit(r._id, { arrivalTime: val })
-                              }
-                            />
-                            <InlineInput
-                              type="time"
-                              value={finishTime || ""}
-                              placeholder="Finish"
-                              onCommit={(val) =>
-                                onInlineEdit(r._id, { finishTime: val })
-                              }
-                            />
-                          </div>
-                        </td>
-                        <td className={cellClass}>
-                          <div className="text-xs leading-5">
-                            <input
-                              readOnly
-                              value={summariseBookingDetails(
-                                r.bookingDetails,
-                                r,
-                              )}
-                              className={`${inputClass} min-w-[420px] bg-gray-50 text-gray-600`}
-                            />
-                          </div>
-                        </td>
-                        <td className={cellClass}>
-                          {r.bookingDetails?.djServicesBooked ? "Yes" : "No"}
-                        </td>
-                        <td className={cellClass}>
-                          {r.allocation?.status === "fully_allocated" ? (
-                            <Tag>✅ Allocated</Tag>
-                          ) : r.allocation?.status === "gap" ? (
-                            <Tag>⚠️ Gap</Tag>
-                          ) : r.allocation?.status === "in_progress" ? (
-                            <Tag>⏳ In progress</Tag>
-                          ) : (
-                            <Tag>—</Tag>
-                          )}
-                        </td>
-                        <td className={cellClass}>
-                          {r.review?.received ? (
-                            <Tag>⭐ Received</Tag>
-                          ) : (
-                            <button
-                              className="text-xs underline"
-                              onClick={() =>
-                                onInlineEdit(r._id, {
-                                  review: {
-                                    ...(r.review || {}),
-                                    requestedCount:
-                                      (r.review?.requestedCount || 0) + 1,
-                                    lastRequestedAt: new Date().toISOString(),
-                                  },
-                                })
-                              }
-                            >
-                              Send request
-                            </button>
-                          )}
-                        </td>
-                        <td className={cellClass}>
-                          {balancePaid ? (
-                            <span className="inline-block text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 border border-green-200">
-                              Paid
-                            </span>
-                          ) : (
-                            <span className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-800 border border-gray-200">
-                              —
-                            </span>
-                          )}
-                        </td>
-                        <td className={cellClass}>
-                          {bandPaid ? (
-                            <span className="inline-block text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 border border-green-200">
-                              Paid
-                            </span>
-                          ) : (
-                            <span className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-800 border border-gray-200">
-                              —
-                            </span>
-                          )}
-                        </td>
-                        <td className={cellClass}>
-                          <div className="flex flex-col gap-1">
-                            {paymentUrl ? (
-                              <a
-                                className="text-blue-600 underline"
-                                href={paymentUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                Invoice
-                              </a>
-                            ) : (
-                              <button
-                                className="px-2 py-1 border rounded hover:bg-gray-100 text-xs"
-                                disabled={
-                                  creatingPayLinkId ===
-                                  String(r?._id || bookingRef)
-                                }
-                                onClick={() => createPayLinkForRow(r)}
-                                title="Create a Stripe hosted invoice link"
-                              >
-                                {creatingPayLinkId ===
-                                String(r?._id || bookingRef)
-                                  ? "Creating…"
-                                  : "Create pay link"}
-                              </button>
-                            )}
+                                            {!split?.hasAccounting && (
+                                              <div className="text-[11px] text-gray-500 leading-4 mt-1">
+                                                {r?.source === "manual"
+                                                  ? "Manual split"
+                                                  : "Awaiting webhook split"}
+                                              </div>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          "—"
+                                        )}
+                                      </td>{" "}
+                                      <td className={cellClass}>
+                                        <InlineInput
+                                          value={
+                                            balance != null
+                                              ? money(balance)
+                                              : ""
+                                          }
+                                        />
+                                      </td>
+                                      <td className={cellClass}>
+                                        {commission ? (
+                                          <div className="leading-tight">
+                                            <div>
+                                              {" "}
+                                              <InlineInput
+                                                value={
+                                                  commission
+                                                    ? fmtMoney0(commission)
+                                                    : ""
+                                                }
+                                              />
+                                            </div>
+                                            {split?.hasAccounting ? (
+                                              <div className="text-[11px] text-gray-500">
+                                                from accounting
+                                              </div>
+                                            ) : (
+                                              <div className="text-[11px] text-gray-500">
+                                                estimated
+                                              </div>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          "—"
+                                        )}
+                                      </td>
+                                      <td className={cellClass}>
+                                        {vat ? fmtMoney0(vat) : "—"}
+                                      </td>
+                                      <td className={cellClass}>
+                                        <InlineInput
+                                          value={hold ? money(hold) : ""}
+                                        />
+                                      </td>
+                                      <td className={cellClass}>
+                                        <AgentCell
+                                          value={r.agent || "Direct"}
+                                          onSave={(val) =>
+                                            onInlineEdit(r._id, { agent: val })
+                                          }
+                                        />
+                                      </td>
+                                      <td className={cellClass}>
+                                        <InlineInput
+                                          value={clientEmails[0]?.email || ""}
+                                          placeholder="Client email"
+                                          onCommit={(val) =>
+                                            onInlineEdit(r._id, {
+                                              clientEmail: val,
+                                              userEmail: val,
+                                              clientEmails: val
+                                                ? [{ email: val }]
+                                                : [],
+                                            })
+                                          }
+                                        />
+                                      </td>
+                                      <td className={cellClass}>
+                                        <InlineInput
+                                          value={r.clientAddress || ""}
+                                          placeholder="Client address"
+                                          onCommit={(val) =>
+                                            onInlineEdit(r._id, {
+                                              clientAddress: val,
+                                            })
+                                          }
+                                        />
+                                      </td>
+                                      <td className={cellClass}>
+                                        {r.eventType || "—"}
+                                      </td>
+                                      <td className={cellClass}>
+                                        <InlineInput
+                                          value={actName || ""}
+                                          placeholder="Act"
+                                          onCommit={(val) =>
+                                            onInlineEdit(r._id, {
+                                              actName: val,
+                                            })
+                                          }
+                                        />
+                                      </td>
+                                      <td className={cellClass}>
+                                        <InlineInput
+                                          value={actTsc || ""}
+                                          placeholder="Act tscName"
+                                          onCommit={(val) =>
+                                            onInlineEdit(r._id, {
+                                              actTscName: val,
+                                            })
+                                          }
+                                        />
+                                      </td>
+                                      <td className={cellClass}>
+                                        <InlineInput
+                                          value={address || ""}
+                                          placeholder="Address"
+                                          onCommit={(val) =>
+                                            onInlineEdit(r._id, {
+                                              address: val,
+                                            })
+                                          }
+                                        />
+                                      </td>
+                                      <td className={cellClass}>
+                                        <InlineInput
+                                          value={county || ""}
+                                          placeholder="County"
+                                          onCommit={(val) =>
+                                            onInlineEdit(r._id, { county: val })
+                                          }
+                                        />
+                                      </td>
+                                      <td className={cellClass}>
+                                        {extractBandSize(r)}
+                                      </td>
+                                      <td className={cellClass}>
+                                        <InlineInput
+                                          value={r.lineupSelected || ""}
+                                          placeholder="Lineup"
+                                          onCommit={(val) =>
+                                            onInlineEdit(r._id, {
+                                              lineupSelected: val,
+                                            })
+                                          }
+                                        />
+                                      </td>
+                                      <td className={cellClass}>
+                                        <div className="flex flex-col gap-2 min-w-[150px]">
+                                          <InlineInput
+                                            type="time"
+                                            value={arrivalTime || ""}
+                                            placeholder="Arrival"
+                                            onCommit={(val) =>
+                                              onInlineEdit(r._id, {
+                                                arrivalTime: val,
+                                              })
+                                            }
+                                          />
+                                          <InlineInput
+                                            type="time"
+                                            value={finishTime || ""}
+                                            placeholder="Finish"
+                                            onCommit={(val) =>
+                                              onInlineEdit(r._id, {
+                                                finishTime: val,
+                                              })
+                                            }
+                                          />
+                                        </div>
+                                      </td>
+                                      <td className={cellClass}>
+                                        <div className="text-xs leading-5">
+                                          <input
+                                            readOnly
+                                            value={summariseBookingDetails(
+                                              r.bookingDetails,
+                                              r,
+                                            )}
+                                            className={`${inputClass} min-w-[420px] bg-gray-50 text-gray-600`}
+                                          />
+                                        </div>
+                                      </td>
+                                      <td className={cellClass}>
+                                        {r.bookingDetails?.djServicesBooked
+                                          ? "Yes"
+                                          : "No"}
+                                      </td>
+                                      <td className={cellClass}>
+                                        {r.allocation?.status ===
+                                        "fully_allocated" ? (
+                                          <Tag>✅ Allocated</Tag>
+                                        ) : r.allocation?.status === "gap" ? (
+                                          <Tag>⚠️ Gap</Tag>
+                                        ) : r.allocation?.status ===
+                                          "in_progress" ? (
+                                          <Tag>⏳ In progress</Tag>
+                                        ) : (
+                                          <Tag>—</Tag>
+                                        )}
+                                      </td>
+                                      <td className={cellClass}>
+                                        {r.review?.received ? (
+                                          <Tag>⭐ Received</Tag>
+                                        ) : (
+                                          <button
+                                            className="text-xs underline"
+                                            onClick={() =>
+                                              onInlineEdit(r._id, {
+                                                review: {
+                                                  ...(r.review || {}),
+                                                  requestedCount:
+                                                    (r.review?.requestedCount ||
+                                                      0) + 1,
+                                                  lastRequestedAt:
+                                                    new Date().toISOString(),
+                                                },
+                                              })
+                                            }
+                                          >
+                                            Send request
+                                          </button>
+                                        )}
+                                      </td>
+                                      <td className={cellClass}>
+                                        {balancePaid ? (
+                                          <span className="inline-block text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 border border-green-200">
+                                            Paid
+                                          </span>
+                                        ) : (
+                                          <span className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-800 border border-gray-200">
+                                            —
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className={cellClass}>
+                                        {bandPaid ? (
+                                          <span className="inline-block text-xs px-2 py-1 rounded-full bg-green-100 text-green-800 border border-green-200">
+                                            Paid
+                                          </span>
+                                        ) : (
+                                          <span className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-800 border border-gray-200">
+                                            —
+                                          </span>
+                                        )}
+                                      </td>
+                                      <td className={cellClass}>
+                                        <div className="flex flex-col gap-1">
+                                          {paymentUrl ? (
+                                            <a
+                                              className="text-blue-600 underline"
+                                              href={paymentUrl}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                            >
+                                              Invoice
+                                            </a>
+                                          ) : (
+                                            <button
+                                              className="px-2 py-1 border rounded hover:bg-gray-100 text-xs"
+                                              disabled={
+                                                creatingPayLinkId ===
+                                                String(r?._id || bookingRef)
+                                              }
+                                              onClick={() =>
+                                                createPayLinkForRow(r)
+                                              }
+                                              title="Create a Stripe hosted invoice link"
+                                            >
+                                              {creatingPayLinkId ===
+                                              String(r?._id || bookingRef)
+                                                ? "Creating…"
+                                                : "Create pay link"}
+                                            </button>
+                                          )}
 
-                            {receiptUrl ? (
-                              <a
-                                className="inline-flex items-center justify-center px-2 py-1 border rounded hover:bg-gray-100 text-xs text-purple-700 bg-white"
-                                href={receiptUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                Receipt
-                              </a>
-                            ) : null}
-                          </div>
-                        </td>
-                        <td className={cellClass}>
-                          <div className="flex flex-col gap-1">
-                          
+                                          {receiptUrl ? (
+                                            <a
+                                              className="inline-flex items-center justify-center px-2 py-1 border rounded hover:bg-gray-100 text-xs text-purple-700 bg-white"
+                                              href={receiptUrl}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                            >
+                                              Receipt
+                                            </a>
+                                          ) : null}
+                                        </div>
+                                      </td>
+                                      <td className={cellClass}>
+                                        <div className="flex flex-col gap-1">
+                                          <button
+                                            className="px-2 py-1 border rounded hover:bg-gray-100 text-xs"
+                                            onClick={() =>
+                                              createInvoiceForRow(r)
+                                            }
+                                          >
+                                            {invoiceUrl
+                                              ? "Regenerate invoice"
+                                              : "Create invoice"}
+                                          </button>
 
-                            <button
-                              className="px-2 py-1 border rounded hover:bg-gray-100 text-xs"
-                              onClick={() => createInvoiceForRow(r)}
-                            >
-                              {invoiceUrl
-                                ? "Regenerate invoice"
-                                : "Create invoice"}
-                            </button>
+                                          <button
+                                            type="button"
+                                            className="px-2 py-1 rounded border text-xs bg-white hover:bg-gray-50"
+                                            onClick={() =>
+                                              createCardPaymentInvoiceForRow(r)
+                                            }
+                                          >
+                                            Create card payment invoice
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="text-xs underline text-green-700 disabled:opacity-50"
+                                            disabled={
+                                              r?.payments
+                                                ?.balancePaymentReceived ||
+                                              r?.payments?.invoicePaid ||
+                                              r?.balancePaid ||
+                                              r?.balanceStatus === "paid"
+                                            }
+                                            onClick={() =>
+                                              markInvoicePaidForRow(r)
+                                            }
+                                          >
+                                            {r?.payments
+                                              ?.balancePaymentReceived ||
+                                            r?.payments?.invoicePaid ||
+                                            r?.balancePaid ||
+                                            r?.balanceStatus === "paid"
+                                              ? "Paid"
+                                              : "Mark paid"}
+                                          </button>
+                                          {receiptUrl ? (
+                                            <a
+                                              className="inline-flex items-center justify-center px-2 py-1 border rounded hover:bg-gray-100 text-xs text-purple-700 bg-white"
+                                              href={receiptUrl}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                            >
+                                              Receipt
+                                            </a>
+                                          ) : (
+                                            <button
+                                              type="button"
+                                              className="text-xs underline text-purple-700 disabled:opacity-50"
+                                              disabled={!balancePaid}
+                                              onClick={() =>
+                                                createReceiptForRow(r)
+                                              }
+                                            >
+                                              Generate receipt
+                                            </button>
+                                          )}
+                                        </div>
+                                      </td>
+                                      <td className={cellClass}>
+                                        <div className="flex flex-col gap-2">
+                                          <button
+                                            className="px-3 py-1.5 border rounded hover:bg-gray-100"
+                                            onClick={() => openEditModal(r)}
+                                          >
+                                            Update
+                                          </button>
 
-                            <button
-                              type="button"
-                              className="px-2 py-1 rounded border text-xs bg-white hover:bg-gray-50"
-                              onClick={() => createCardPaymentInvoiceForRow(r)}
-                            >
-                              Create card payment invoice
-                            </button>
-                            <button
-                              type="button"
-                              className="text-xs underline text-green-700 disabled:opacity-50"
-                              disabled={
-                                r?.payments?.balancePaymentReceived ||
-                                r?.payments?.invoicePaid ||
-                                r?.balancePaid ||
-                                r?.balanceStatus === "paid"
-                              }
-                              onClick={() => markInvoicePaidForRow(r)}
-                            >
-                              {r?.payments?.balancePaymentReceived ||
-                              r?.payments?.invoicePaid ||
-                              r?.balancePaid ||
-                              r?.balanceStatus === "paid"
-                                ? "Paid"
-                                : "Mark paid"}
-                            </button>
-                            {receiptUrl ? (
-                              <a
-                                className="inline-flex items-center justify-center px-2 py-1 border rounded hover:bg-gray-100 text-xs text-purple-700 bg-white"
-                                href={receiptUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                Receipt
-                              </a>
-                            ) : (
-                              <button
-                                type="button"
-                                className="text-xs underline text-purple-700 disabled:opacity-50"
-                                disabled={!balancePaid}
-                                onClick={() => createReceiptForRow(r)}
-                              >
-                                Generate receipt
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                        <td className={cellClass}>
-                          <div className="flex flex-col gap-2">
-                            <button
-                              className="px-3 py-1.5 border rounded hover:bg-gray-100"
-                              onClick={() => openEditModal(r)}
-                            >
-                              Update
-                            </button>
-
-                            <button
-                              className="px-3 py-1.5 border rounded hover:bg-gray-100 disabled:opacity-50"
-                              disabled={
-                                syncingFinanceId === String(r?._id || "")
-                              }
-                              onClick={() => syncBookingToFinance(r)}
-                            >
-                              {syncingFinanceId === String(r?._id || "")
-                                ? "Syncing..."
-                                : "Sync finance"}
-                            </button>
-                          </div>
-                        </td>
+                                          <button
+                                            className="px-3 py-1.5 border rounded hover:bg-gray-100 disabled:opacity-50"
+                                            disabled={
+                                              syncingFinanceId ===
+                                              String(r?._id || "")
+                                            }
+                                            onClick={() =>
+                                              syncBookingToFinance(r)
+                                            }
+                                          >
+                                            {syncingFinanceId ===
+                                            String(r?._id || "")
+                                              ? "Syncing..."
+                                              : "Sync finance"}
+                                          </button>
+                                        </div>
+                                      </td>
                                     </tr>
                                   </tbody>
                                 </table>
@@ -3883,8 +3980,6 @@ const pastRows = useMemo(
                       </React.Fragment>
                     );
                   })}
-
-                  
 
                   {adding && (
                     <tr className="bg-yellow-50 sticky top-[49px] z-[5]">
@@ -3977,22 +4072,22 @@ const pastRows = useMemo(
                                 }
                               />
                             </div>
-                          <div className="flex flex-col">
-  <label className="text-xs text-gray-600">
-    Invoice due date
-  </label>
-  <input
-    type="date"
-    className="border rounded px-2 py-1 w-44"
-    value={newRow.invoiceDueDateISO}
-    onChange={(e) =>
-      setNewRow((v) => ({
-        ...v,
-        invoiceDueDateISO: e.target.value,
-      }))
-    }
-  />
-</div>
+                            <div className="flex flex-col">
+                              <label className="text-xs text-gray-600">
+                                Invoice due date
+                              </label>
+                              <input
+                                type="date"
+                                className="border rounded px-2 py-1 w-44"
+                                value={newRow.invoiceDueDateISO}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    invoiceDueDateISO: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
                           </div>
 
                           {/* Row 2: agent + contact + money */}
