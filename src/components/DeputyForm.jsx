@@ -103,6 +103,48 @@ const DeputyForm = ({
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [successPopupMessage, setSuccessPopupMessage] = useState("");
 
+  const saveDeputyDraftForStripe = async () => {
+    try {
+      const safe = JSON.parse(
+        JSON.stringify(formData, (key, value) => {
+          if (value instanceof File) return undefined;
+          if (value instanceof Blob) return undefined;
+          if (typeof value === "function") return undefined;
+          return value;
+        }),
+      );
+
+      safe.tscApprovedBio = tscApprovedBio || safe.tscApprovedBio || "";
+
+      // local backup
+      localStorage.setItem("deputyAutosave", JSON.stringify(safe));
+
+      // backend backup
+      if (deputyId && hasValidAuthToken) {
+        await axios.post(
+          `${backendUrl}/api/musician/autosave`,
+          {
+            musicianId: deputyId,
+            formKey: "deputy",
+            snapshot: safe,
+            updatedAtIso: new Date().toISOString(),
+          },
+          {
+            headers: authHeaders,
+            withCredentials: true,
+          },
+        );
+      }
+
+      console.log("✅ Deputy draft saved before Stripe redirect");
+    } catch (err) {
+      console.error(
+        "❌ Failed to save deputy draft before Stripe redirect",
+        err,
+      );
+    }
+  };
+
   // Handles final form submission for step 6
   const handleSubmit = async () => {
     try {
@@ -292,7 +334,8 @@ const DeputyForm = ({
       const res = await axios.post(
         `${backendUrl}/api/musician/moderation/register-deputy`,
         fd,
-{ headers: authHeaders, withCredentials: true },      );
+        { headers: authHeaders, withCredentials: true },
+      );
 
       if (res.data?.success) {
         // Decide which message to show
@@ -361,7 +404,25 @@ const DeputyForm = ({
 
   const totalSteps = 6;
   // Persist step in localStorage
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlStep = Number(params.get("step"));
+    const savedStep = Number(localStorage.getItem("deputyStep"));
+
+    if (urlStep >= 1 && urlStep <= 6) return urlStep;
+    if (savedStep >= 1 && savedStep <= 6) return savedStep;
+    return 1;
+  });
+
+  console.log(
+    "🚨 INITIAL STEP",
+    step,
+    "url:",
+    window.location.search,
+    "localStorage:",
+    localStorage.getItem("deputyStep"),
+  );
+
   // Add tscApprovedBio state for moderation/step 2
   const [tscApprovedBio, setTscApprovedBio] = useState("");
   const isEdit = Boolean(deputyId);
@@ -645,6 +706,16 @@ const DeputyForm = ({
   });
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    const stepFromUrl = Number(params.get("step"));
+
+    if (stepFromUrl >= 1 && stepFromUrl <= totalSteps && stepFromUrl !== step) {
+      setStep(stepFromUrl);
+    }
+  }, []);
+
+  useEffect(() => {
     console.log(
       "[DeputyForm] authToken present?",
       !!authToken,
@@ -661,13 +732,13 @@ const DeputyForm = ({
 
     const syncStripe = async () => {
       try {
-       const res = await axios.get(
-  `${backendUrl}/api/musician/account/stripe-connect/status`,
-  {
-    headers: authHeaders,
-    withCredentials: true,
-  }
-);
+        const res = await axios.get(
+          `${backendUrl}/api/musician/account/stripe-connect/status`,
+          {
+            headers: authHeaders,
+            withCredentials: true,
+          },
+        );
 
         if (res.data?.stripeConnect) {
           setFormData((prev) => ({
@@ -686,40 +757,45 @@ const DeputyForm = ({
     syncStripe();
   }, [authToken, deputyId]);
 
-useEffect(() => {
-  const handleStripeReturn = async (event) => {
-    if (event.origin !== window.location.origin) return;
-    if (event.data?.type !== "STRIPE_CONNECT_RETURNED") return;
-    if (!hasValidAuthToken || !deputyId) return;
+  useEffect(() => {
+    const handleStripeReturn = async (event) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== "STRIPE_CONNECT_RETURNED") return;
+      if (!hasValidAuthToken || !deputyId) return;
 
-    try {
-      const res = await axios.get(
-        `${backendUrl}/api/musician/account/stripe-connect/status`,
-        {
-          headers: authHeaders,
-          withCredentials: true,
-        }
-      );
-
-      if (res.data?.stripeConnect) {
-        setFormData((prev) => ({
-          ...prev,
-          stripeConnect: {
-            ...prev.stripeConnect,
-            ...res.data.stripeConnect,
+      try {
+        const res = await axios.get(
+          `${backendUrl}/api/musician/account/stripe-connect/status`,
+          {
+            headers: authHeaders,
+            withCredentials: true,
           },
-        }));
+        );
+
+        if (res.data?.stripeConnect) {
+          setFormData((prev) => ({
+            ...prev,
+            stripeConnect: {
+              ...prev.stripeConnect,
+              ...res.data.stripeConnect,
+            },
+          }));
+        }
+
+        toast(
+          <CustomToast type="success" message="Stripe connection updated." />,
+        );
+      } catch (err) {
+        console.warn(
+          "Stripe sync after popup failed:",
+          err?.response?.data || err.message,
+        );
       }
+    };
 
-      toast(<CustomToast type="success" message="Stripe connection updated." />);
-    } catch (err) {
-      console.warn("Stripe sync after popup failed:", err?.response?.data || err.message);
-    }
-  };
-
-  window.addEventListener("message", handleStripeReturn);
-  return () => window.removeEventListener("message", handleStripeReturn);
-}, [hasValidAuthToken, deputyId, authHeaders]);
+    window.addEventListener("message", handleStripeReturn);
+    return () => window.removeEventListener("message", handleStripeReturn);
+  }, [hasValidAuthToken, deputyId, authHeaders]);
 
   // Backend hydration
   useEffect(() => {
@@ -728,9 +804,9 @@ useEffect(() => {
       return;
     }
     if (!hasValidAuthToken) {
-  console.warn("⚠️ No valid auth token yet; skipping deputy hydration");
-  return;
-}
+      console.warn("⚠️ No valid auth token yet; skipping deputy hydration");
+      return;
+    }
 
     // If we've already hydrated this deputyId, don't hydrate again
     if (hasHydratedRef.current && hydratedIdRef.current === deputyId) {
@@ -847,7 +923,7 @@ useEffect(() => {
         console.error("❌ Failed to fetch deputy:", err);
       }
     })();
-}, [deputyId, authHeaders, hasValidAuthToken]);
+  }, [deputyId, authHeaders, hasValidAuthToken]);
 
   // Autosave hydration
   useEffect(() => {
@@ -918,7 +994,7 @@ useEffect(() => {
     email,
     hasRestoredAutosave,
     hasHydratedFromBackend,
-    hasValidAuthToken
+    hasValidAuthToken,
   ]);
 
   /* -------------------------------- nav helpers ------------------------------ */
@@ -996,13 +1072,13 @@ useEffect(() => {
       case 4:
         return (
           <DeputyStepFour
-  formData={formData}
-  setFormData={setFormData}
-  userRole={userRole}
-  deputyId={deputyId}
-  authHeaders={authHeaders}
-  {...stepProps}
-/>
+            formData={formData}
+            setFormData={setFormData}
+            userRole={userRole}
+            deputyId={deputyId}
+            authHeaders={authHeaders}
+            {...stepProps}
+          />
         );
       case 5:
         return (
@@ -1016,14 +1092,15 @@ useEffect(() => {
       case 6:
         return (
           <DeputyStepSix
-  formData={formData}
-  setFormData={setFormData}
-  userRole={userRole}
-  setHasDrawnSignature={setHasDrawnSignature}
-  authToken={authToken}
-  authHeaders={authHeaders}
-  {...stepProps}
-/>
+            formData={formData}
+            setFormData={setFormData}
+            userRole={userRole}
+            setHasDrawnSignature={setHasDrawnSignature}
+            authToken={authToken}
+            authHeaders={authHeaders}
+            saveDeputyDraftBeforeStripe={saveDeputyDraftForStripe}
+            {...stepProps}
+          />
         );
       default:
         return null;
@@ -1155,7 +1232,7 @@ useEffect(() => {
         // backend autosave (server archives previous)
         (async () => {
           try {
-if (!deputyId || !hasValidAuthToken) return;
+            if (!deputyId || !hasValidAuthToken) return;
             const snapshotStr = JSON.stringify(safe);
             let hash = 0;
             for (let i = 0; i < snapshotStr.length; i++) {
@@ -1208,7 +1285,7 @@ if (!deputyId || !hasValidAuthToken) return;
     isEdit,
     hasHydratedFromBackend,
     authHeaders,
-    hasValidAuthToken
+    hasValidAuthToken,
   ]);
 
   /* ---------------------------- DEBUG: track changes -------------------------- */

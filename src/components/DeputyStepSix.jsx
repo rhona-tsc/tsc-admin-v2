@@ -13,6 +13,8 @@ const DeputyStepSix = ({
   setHasDrawnSignature,
   authToken,
   authHeaders = {},
+  currentStep = 6,
+  saveDeputyDraftBeforeStripe,
 }) => {
   console.log("🟣 [DeputyStepSix] RENDER — formData:", formData);
   const sigCanvas = useRef(null);
@@ -107,13 +109,24 @@ useEffect(() => {
         localStorage.getItem("adminToken") ||
         localStorage.getItem("musicianToken") ||
         "";
-      const currentStep =
-        localStorage.getItem("deputyStep") || stepProps?.currentStep || "1";
+
+      const returnStep = String(
+        currentStep || stepProps?.currentStep || localStorage.getItem("deputyStep") || 6,
+      );
+
+      localStorage.setItem("deputyAutosave", JSON.stringify(formData));
+      localStorage.setItem("deputyStep", returnStep);
+      localStorage.setItem("stripeReturnStep", returnStep);
+
+      if (typeof saveDeputyDraftBeforeStripe === "function") {
+        await saveDeputyDraftBeforeStripe();
+      }
+
       const response = await axios.post(
         `${backendUrl}/api/musician/account/stripe-connect/onboarding-link`,
         {
-          returnUrl: `${window.location.origin}${window.location.pathname}?stripe=return&step=${currentStep}`,
-          refreshUrl: `${window.location.origin}${window.location.pathname}?stripe=refresh&step=${currentStep}`,
+          returnUrl: `${window.location.origin}${window.location.pathname}?stripe=return&step=${returnStep}`,
+          refreshUrl: `${window.location.origin}${window.location.pathname}?stripe=refresh&step=${returnStep}`,
         },
         {
           headers: {
@@ -129,15 +142,6 @@ useEffect(() => {
         throw new Error("No Stripe onboarding link returned");
       }
 
-      localStorage.setItem("deputyAutosave", JSON.stringify(formData));
-
-      const currentStep =
-        localStorage.getItem("deputyStep") || stepProps?.currentStep || "1";
-
-      localStorage.setItem("stripeReturnStep", String(currentStep));
-
-      // Stripe Connect onboarding is more reliable as a full-page redirect than a popup.
-      // The backend should pass the returnUrl/refreshUrl above into Stripe's accountLinks.create().
       window.location.assign(onboardingUrl);
       return;
     } catch (err) {
