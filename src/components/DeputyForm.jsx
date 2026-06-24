@@ -105,8 +105,49 @@ const DeputyForm = ({
 
   const saveDeputyDraftForStripe = async () => {
     try {
+      let nextFormData = { ...formData };
+
+      const mediaFd = new FormData();
+
+      if (formData.profilePicture instanceof File) {
+        mediaFd.append("profilePicture", formData.profilePicture);
+      }
+
+      if (formData.coverHeroImage instanceof File) {
+        mediaFd.append("coverHeroImage", formData.coverHeroImage);
+      }
+
+      if ([...mediaFd.keys()].length > 0 && hasValidAuthToken) {
+        const uploadRes = await axios.post(
+          `${backendUrl}/api/musician/autosave/media`,
+          mediaFd,
+          {
+            headers: authHeaders,
+            withCredentials: true,
+          },
+        );
+
+        const uploaded = uploadRes.data || {};
+
+        nextFormData = {
+          ...nextFormData,
+          profilePicture:
+            uploaded.profilePhoto ||
+            uploaded.profilePicture ||
+            nextFormData.profilePicture,
+          profilePhoto:
+            uploaded.profilePhoto ||
+            uploaded.profilePicture ||
+            nextFormData.profilePhoto,
+          coverHeroImage:
+            uploaded.coverHeroImage || nextFormData.coverHeroImage,
+        };
+
+        setFormData(nextFormData);
+      }
+
       const safe = JSON.parse(
-        JSON.stringify(formData, (key, value) => {
+        JSON.stringify(nextFormData, (key, value) => {
           if (value instanceof File) return undefined;
           if (value instanceof Blob) return undefined;
           if (typeof value === "function") return undefined;

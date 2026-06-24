@@ -14,6 +14,7 @@ const DeputyStepSix = ({
   authToken,
   authHeaders = {},
   currentStep = 6,
+  
   saveDeputyDraftBeforeStripe,
 }) => {
   console.log("🟣 [DeputyStepSix] RENDER — formData:", formData);
@@ -98,69 +99,68 @@ useEffect(() => {
   }
 }, []);
 
-  const handleConnectStripe = async () => {
-    try {
-      setStripeLoading(true);
-      setStripeError("");
+ const handleConnectStripe = async () => {
+  try {
+    setStripeLoading(true);
+    setStripeError("");
 
-      const tokenToUse =
-        authToken ||
-        localStorage.getItem("token") ||
-        localStorage.getItem("adminToken") ||
-        localStorage.getItem("musicianToken") ||
-        "";
+    const tokenToUse =
+      authToken ||
+      localStorage.getItem("token") ||
+      localStorage.getItem("adminToken") ||
+      localStorage.getItem("musicianToken") ||
+      "";
 
-      const returnStep = String(
-        currentStep || stepProps?.currentStep || localStorage.getItem("deputyStep") || 6,
-      );
+    const returnStep = String(
+      stepProps?.currentStep || localStorage.getItem("deputyStep") || 6,
+    );
 
-      localStorage.setItem("deputyAutosave", JSON.stringify(formData));
-      localStorage.setItem("deputyStep", returnStep);
-      localStorage.setItem("stripeReturnStep", returnStep);
+    localStorage.setItem("deputyAutosave", JSON.stringify(formData));
+    localStorage.setItem("deputyStep", returnStep);
+    localStorage.setItem("stripeReturnStep", returnStep);
 
-      if (typeof saveDeputyDraftBeforeStripe === "function") {
-        await saveDeputyDraftBeforeStripe();
-      }
-
-      const response = await axios.post(
-        `${backendUrl}/api/musician/account/stripe-connect/onboarding-link`,
-        {
-          returnUrl: `${window.location.origin}${window.location.pathname}?stripe=return&step=${returnStep}`,
-          refreshUrl: `${window.location.origin}${window.location.pathname}?stripe=refresh&step=${returnStep}`,
-        },
-        {
-          headers: {
-            ...(tokenToUse ? { Authorization: `Bearer ${tokenToUse}` } : {}),
-            ...(tokenToUse ? { token: tokenToUse } : {}),
-          },
-          withCredentials: true,
-        },
-      );
-
-      const onboardingUrl = response?.data?.url || "";
-      if (!onboardingUrl) {
-        throw new Error("No Stripe onboarding link returned");
-      }
-
-      window.location.assign(onboardingUrl);
-      return;
-    } catch (err) {
-      console.error("❌ Failed to create Stripe onboarding link:", {
-        message: err?.message,
-        response: err?.response?.data,
-        status: err?.response?.status,
-      });
-
-      setStripeError(
-        err?.response?.data?.message ||
-          err?.response?.data?.error ||
-          err?.message ||
-          "We couldn't start Stripe onboarding right now. Please try again.",
-      );
-    } finally {
-      setStripeLoading(false);
+    if (typeof saveDeputyDraftBeforeStripe === "function") {
+      await saveDeputyDraftBeforeStripe();
     }
-  };
+
+    const response = await axios.post(
+      `${backendUrl}/api/musician/account/stripe-connect/onboarding-link`,
+      {
+        returnUrl: `${window.location.origin}${window.location.pathname}?stripe=return&step=${returnStep}`,
+        refreshUrl: `${window.location.origin}${window.location.pathname}?stripe=refresh&step=${returnStep}`,
+      },
+      {
+        headers: {
+          ...(tokenToUse ? { Authorization: `Bearer ${tokenToUse}` } : {}),
+          ...(tokenToUse ? { token: tokenToUse } : {}),
+        },
+        withCredentials: true,
+      },
+    );
+
+    const onboardingUrl = response?.data?.url || "";
+    if (!onboardingUrl) {
+      throw new Error("No Stripe onboarding link returned");
+    }
+
+    window.location.assign(onboardingUrl);
+  } catch (err) {
+    console.error("❌ Failed to create Stripe onboarding link:", {
+      message: err?.message,
+      response: err?.response?.data,
+      status: err?.response?.status,
+    });
+
+    setStripeError(
+      err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "We couldn't start Stripe onboarding right now. Please try again.",
+    );
+  } finally {
+    setStripeLoading(false);
+  }
+};
 
   const validateBankDetails = (field, value) => {
     let error = "";
