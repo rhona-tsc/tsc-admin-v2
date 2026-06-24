@@ -8,13 +8,14 @@ const backendUrl =
 const publicSiteBase =
   import.meta.env.VITE_PUBLIC_SITE_URL || "http://localhost:5174";
 
-  const ADMIN_EMAIL = "hello@thesupremecollective.co.uk";
+const ADMIN_EMAIL = "hello@thesupremecollective.co.uk";
 /* -------------------- avatar helpers (same idea as DeputiesInput) -------------------- */
 const pickUrl = (v) => {
   if (!v) return "";
   if (typeof v === "string") return v.trim();
   if (typeof v === "object") {
-    const u = v.secure_url || v.secureUrl || v.url || v.path || v.location || v.src;
+    const u =
+      v.secure_url || v.secureUrl || v.url || v.path || v.location || v.src;
     return typeof u === "string" ? u.trim() : "";
   }
   return "";
@@ -28,7 +29,9 @@ const getProfileImageUrl = (u) => {
     pickUrl(u?.profileImage) ||
     pickUrl(u?.profile_image);
 
-  const additional0 = Array.isArray(u?.additionalImages) ? pickUrl(u.additionalImages[0]) : "";
+  const additional0 = Array.isArray(u?.additionalImages)
+    ? pickUrl(u.additionalImages[0])
+    : "";
   return (direct || additional0 || "").trim();
 };
 
@@ -55,7 +58,11 @@ const getStripeConnectSummary = (u) => {
   const onboardingComplete = Boolean(stripeConnect?.onboardingComplete);
   const detailsSubmitted = Boolean(stripeConnect?.detailsSubmitted);
 
-  const isReady = Boolean(accountId && payoutsEnabled && (chargesEnabled || onboardingComplete || detailsSubmitted));
+  const isReady = Boolean(
+    accountId &&
+    payoutsEnabled &&
+    (chargesEnabled || onboardingComplete || detailsSubmitted),
+  );
 
   return {
     accountId,
@@ -87,7 +94,14 @@ const getStripePayoutUi = (u) => {
   };
 };
 
-const DashboardFeatureCard = ({ title, subtitle, imageLabel, badge, onClick, dark = false }) => (
+const DashboardFeatureCard = ({
+  title,
+  subtitle,
+  imageLabel,
+  badge,
+  onClick,
+  dark = false,
+}) => (
   <button
     type="button"
     onClick={onClick}
@@ -139,8 +153,6 @@ const DashboardFeatureCard = ({ title, subtitle, imageLabel, badge, onClick, dar
   </button>
 );
 
-
-
 /* -------------------- Right Profile Card -------------------- */
 const YourProfileCard = ({ me, fallbackFirstName, deputyCTA, token }) => {
   const navigate = useNavigate();
@@ -191,7 +203,7 @@ const YourProfileCard = ({ me, fallbackFirstName, deputyCTA, token }) => {
             Authorization: tokenToUse ? `Bearer ${tokenToUse}` : "",
           },
           withCredentials: true,
-        }
+        },
       );
 
       const onboardingUrl = response?.data?.url || "";
@@ -205,7 +217,7 @@ const YourProfileCard = ({ me, fallbackFirstName, deputyCTA, token }) => {
       setStripeError(
         err?.response?.data?.message ||
           err?.message ||
-          "We couldn't start Stripe onboarding right now. Please try again."
+          "We couldn't start Stripe onboarding right now. Please try again.",
       );
     } finally {
       setStripeLoading(false);
@@ -214,7 +226,9 @@ const YourProfileCard = ({ me, fallbackFirstName, deputyCTA, token }) => {
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-      <p className="text-xs uppercase tracking-widest text-gray-500">Your Profile</p>
+      <p className="text-xs uppercase tracking-widest text-gray-500">
+        Your Profile
+      </p>
 
       <div className="mt-4 flex flex-col items-center text-center">
         {imgUrl && !imgBroken ? (
@@ -264,11 +278,15 @@ const YourProfileCard = ({ me, fallbackFirstName, deputyCTA, token }) => {
         </div>
 
         <div className="mt-4 w-full rounded-xl border border-gray-200 bg-gray-50 p-4 text-left">
-          <p className="text-xs uppercase tracking-widest text-gray-500 mb-2">Deputy payouts</p>
+          <p className="text-xs uppercase tracking-widest text-gray-500 mb-2">
+            Deputy payouts
+          </p>
 
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-sm font-semibold text-gray-900">{payoutUi.label}</p>
+              <p className="text-sm font-semibold text-gray-900">
+                {payoutUi.label}
+              </p>
               <p className="text-xs text-gray-500 mt-1">{payoutUi.helper}</p>
             </div>
 
@@ -314,7 +332,11 @@ const StarRow = ({ value = 0 }) => {
         return (
           <span
             key={i}
-            className={filled || halfStar ? "text-[#ff6667] text-lg" : "text-gray-300 text-lg"}
+            className={
+              filled || halfStar
+                ? "text-[#ff6667] text-lg"
+                : "text-gray-300 text-lg"
+            }
             aria-hidden="true"
             title={`${v}/5`}
           >
@@ -341,7 +363,9 @@ const PeerReviewCard = ({ peer }) => {
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-      <p className="text-xs uppercase tracking-widest text-gray-500">Peer Review</p>
+      <p className="text-xs uppercase tracking-widest text-gray-500">
+        Peer Review
+      </p>
 
       <div className="mt-4">
         <div className="flex items-center justify-between">
@@ -356,7 +380,9 @@ const PeerReviewCard = ({ peer }) => {
           <div className="text-right">
             <StarRow value={typeof avg === "number" ? avg : 0} />
             <p className="mt-1 text-xs text-gray-500">
-              {typeof count === "number" ? `${count} review${count === 1 ? "" : "s"}` : "No reviews yet"}
+              {typeof count === "number"
+                ? `${count} review${count === 1 ? "" : "s"}`
+                : "No reviews yet"}
             </p>
           </div>
         </div>
@@ -374,14 +400,14 @@ const PeerReviewCard = ({ peer }) => {
           ))}
         </div>
 
-       <button
-  type="button"
-  className="mt-5 inline-flex items-center justify-center w-full px-4 py-2 rounded-md
+        <button
+          type="button"
+          className="mt-5 inline-flex items-center justify-center w-full px-4 py-2 rounded-md
              bg-gray-200 text-gray-500 font-semibold border border-gray-300
              opacity-80 cursor-not-allowed pointer-events-none"
->
-  Request a peer review — Coming Soon
-</button>
+        >
+          Request a peer review — Coming Soon
+        </button>
       </div>
     </div>
   );
@@ -389,8 +415,8 @@ const PeerReviewCard = ({ peer }) => {
 
 const MusicianDashboard = ({ token, userId, firstName }) => {
   const navigate = useNavigate();
-const [peerReview, setPeerReview] = useState(null);
-const adminEmail = ADMIN_EMAIL.toLowerCase();
+  const [peerReview, setPeerReview] = useState(null);
+  const adminEmail = ADMIN_EMAIL.toLowerCase();
   const [myActs, setMyActs] = useState([]);
   const [deppingActs, setDeppingActs] = useState([]);
   const [appliedJobs, setAppliedJobs] = useState([]);
@@ -414,139 +440,161 @@ const adminEmail = ADMIN_EMAIL.toLowerCase();
     console.error("❌ No stored userId!");
   }
 
-  
   // add near the top of the file (or inside MusicianDashboard)
-const normalize = (s) => (s || "").toLowerCase().trim();
-const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
+  const normalize = (s) => (s || "").toLowerCase().trim();
+  const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
 
-// ✅ same CTA helper as Sidebar
-const getDeputyCTA = (status, id) => {
-  const st = normalize(status);
-  if (st === "approved" || st === "approved, changes pending") {
-    return id
-      ? {
-          label:
-            st === "approved"
-              ? "Update My Profile"
-              : "Update My Profile Submission",
-          path: `/edit-deputy/${id}`,
-        }
-      : { label: "Join The Books", path: "/register-as-deputy" };
-  }
-  return { label: "Join The Books", path: "/register-as-deputy" };
-};
+  // ✅ same CTA helper as Sidebar
+  const getDeputyCTA = (status, id) => {
+    const st = normalize(status);
 
-const [myDeputyStatus, setMyDeputyStatus] = useState(
-  localStorage.getItem("myDeputyStatus") ||
-    localStorage.getItem("deputyStatus") ||
-    null
-);
+    const hasExistingProfile =
+      id &&
+      [
+        "approved",
+        "approved, changes pending",
+        "pending",
+        "rejected",
+        "in_progress",
+      ].includes(st);
 
-const fetchAppliedJobs = async () => {
-  try {
-    const id = storedUserId || userId;
-    if (!id) return;
-
-    const res = await axios.get(
-      `${backendUrl}/api/deputy-jobs?appliedBy=${id}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          token,
-        },
-        withCredentials: true,
-      }
-    );
-
-    const jobs = Array.isArray(res.data?.jobs) ? res.data.jobs : [];
-    setAppliedJobs(jobs);
-  } catch (err) {
-    console.error("Error fetching applied jobs", err);
-    setAppliedJobs([]);
-  }
-};
-
-const musicianId = useMemo(() => {
-  const fromProps = userId;
-  const fromLS = localStorage.getItem("musicianId") || localStorage.getItem("userId");
-  if (isObjectId(fromProps)) return fromProps;
-  if (isObjectId(fromLS)) return fromLS;
-  return null;
-}, [userId]);
-
-useEffect(() => {
-  if (!musicianId) return;
-
-  (async () => {
-    try {
-      const t = localStorage.getItem("token");
-      const res = await axios.get(`${backendUrl}/api/moderation/deputy/${musicianId}`, {
-        headers: t ? { Authorization: `Bearer ${t}` } : {},
-        withCredentials: true,
-      });
-
-      if (res.data?.success && res.data.deputy) {
-        const status = (res.data.deputy.status || "").trim();
-        setMyDeputyStatus(status);
-        localStorage.setItem("myDeputyStatus", status);
-        localStorage.setItem("deputyStatus", status);
-      }
-    } catch (e) {
-      console.error("❌ Failed to fetch deputy:", e);
+    if (hasExistingProfile) {
+      return {
+        label:
+          st === "approved, changes pending"
+            ? "Update My Profile Submission"
+            : "Update My Profile",
+        path: `/edit-deputy/${id}`,
+      };
     }
-  })();
-}, [musicianId]);
 
-const deputyCTA = useMemo(
-  () => getDeputyCTA(myDeputyStatus, musicianId),
-  [myDeputyStatus, musicianId]
-);
+    return { label: "Join The Books", path: "/register-as-deputy" };
+  };
 
-const dashboardCards = useMemo(
-  () => [
-    {
-      title: "Deputy Job Board",
-      subtitle: "Browse live opportunities, apply quickly, and track jobs you’ve applied for.",
-      imageLabel: "Deputy Jobs",
-      badge: "Live roles",
-      onClick: () => navigate("/deputy-jobs"),
-    },
-    {
-      title: "Notice Board",
-      subtitle: "Latest portal updates, reminders, and useful notes for musicians.",
-      imageLabel: "Notice Board",
-      badge: "Updates",
-      onClick: () => navigate("/noticeboard"),
-      dark: true,
-    },
-    {
-      title: deputyCTA?.label || "Join The Books",
-      subtitle: "Keep your musician profile, media, skills, repertoire, and payout details up to date.",
-      imageLabel: "Your Profile",
-      badge: "Profile",
-      onClick: () => navigate(deputyCTA?.path || "/register-as-deputy"),
-    },
-    {
-      title: "Submit Act",
-      subtitle: "Register a new act or band for review by The Supreme Collective.",
-      imageLabel: "Submit Act",
-      badge: "Acts",
-      onClick: () => navigate("/add-act-2"),
-      dark: true,
-    },
-  ],
-  [deputyCTA, navigate],
-);
+  const [myDeputyStatus, setMyDeputyStatus] = useState(
+    localStorage.getItem("myDeputyStatus") ||
+      localStorage.getItem("deputyStatus") ||
+      null,
+  );
 
-const isAdminAgent = useMemo(() => {
-  const meEmail = String(
-    me?.email || me?.basicInfo?.email || localStorage.getItem("userEmail") || ""
-  )
-    .toLowerCase()
-    .trim();
+  const fetchAppliedJobs = async () => {
+    try {
+      const id = storedUserId || userId;
+      if (!id) return;
 
-  return meEmail === adminEmail;
-}, [me, adminEmail]);
+      const res = await axios.get(
+        `${backendUrl}/api/deputy-jobs?appliedBy=${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            token,
+          },
+          withCredentials: true,
+        },
+      );
+
+      const jobs = Array.isArray(res.data?.jobs) ? res.data.jobs : [];
+      setAppliedJobs(jobs);
+    } catch (err) {
+      console.error("Error fetching applied jobs", err);
+      setAppliedJobs([]);
+    }
+  };
+
+  const musicianId = useMemo(() => {
+    const fromProps = userId;
+    const fromLS =
+      localStorage.getItem("musicianId") || localStorage.getItem("userId");
+    if (isObjectId(fromProps)) return fromProps;
+    if (isObjectId(fromLS)) return fromLS;
+    return null;
+  }, [userId]);
+
+  useEffect(() => {
+    if (!musicianId) return;
+
+    (async () => {
+      try {
+        const t = localStorage.getItem("token");
+        const res = await axios.get(
+          `${backendUrl}/api/moderation/deputy/${musicianId}`,
+          {
+            headers: t ? { Authorization: `Bearer ${t}` } : {},
+            withCredentials: true,
+          },
+        );
+
+        if (res.data?.success && res.data.deputy) {
+          console.log("✅ Deputy status for CTA:", res.data.deputy.status);
+
+          const status = (res.data.deputy.status || "").trim();
+          setMyDeputyStatus(status);
+          localStorage.setItem("myDeputyStatus", status);
+          localStorage.setItem("deputyStatus", status);
+        }
+      } catch (e) {
+        console.error("❌ Failed to fetch deputy:", e);
+      }
+    })();
+  }, [musicianId]);
+
+  const deputyCTA = useMemo(
+    () => getDeputyCTA(myDeputyStatus, musicianId),
+    [myDeputyStatus, musicianId],
+  );
+
+  const dashboardCards = useMemo(
+    () => [
+      {
+        title: "Deputy Job Board",
+        subtitle:
+          "Browse live opportunities, apply quickly, and track jobs you’ve applied for.",
+        imageLabel: "Deputy Jobs",
+        badge: "Live roles",
+        onClick: () => navigate("/deputy-jobs"),
+      },
+      {
+        title: "Notice Board",
+        subtitle:
+          "Latest portal updates, reminders, and useful notes for musicians.",
+        imageLabel: "Notice Board",
+        badge: "Updates",
+        onClick: () => navigate("/noticeboard"),
+        dark: true,
+      },
+      {
+        title: deputyCTA?.label || "Join The Books",
+        subtitle:
+          "Keep your musician profile, media, skills, repertoire, and payout details up to date.",
+        imageLabel: "Your Profile",
+        badge: "Profile",
+        onClick: () => navigate(deputyCTA?.path || "/register-as-deputy"),
+      },
+      {
+        title: "Submit Act",
+        subtitle:
+          "Register a new act or band for review by The Supreme Collective.",
+        imageLabel: "Submit Act",
+        badge: "Acts",
+        onClick: () => navigate("/add-act-2"),
+        dark: true,
+      },
+    ],
+    [deputyCTA, navigate],
+  );
+
+  const isAdminAgent = useMemo(() => {
+    const meEmail = String(
+      me?.email ||
+        me?.basicInfo?.email ||
+        localStorage.getItem("userEmail") ||
+        "",
+    )
+      .toLowerCase()
+      .trim();
+
+    return meEmail === adminEmail;
+  }, [me, adminEmail]);
 
   // helper headers: some endpoints want token, others want Bearer
   const headers = useMemo(
@@ -554,44 +602,48 @@ const isAdminAgent = useMemo(() => {
       token,
       Authorization: token ? `Bearer ${token}` : undefined,
     }),
-    [token]
+    [token],
   );
 
   const fetchPeerReview = async () => {
-  const id = storedUserId || userId;
-  if (!id) return;
+    const id = storedUserId || userId;
+    if (!id) return;
 
-  const candidates = [
-    `${backendUrl}/api/peer-review/summary/${id}`,
-    `${backendUrl}/api/peer-reviews/summary/${id}`,
-    `${backendUrl}/api/reviews/peer/summary/${id}`,
-    `${backendUrl}/api/musician/${id}/peer-review-summary`,
-  ];
+    const candidates = [
+      `${backendUrl}/api/peer-review/summary/${id}`,
+      `${backendUrl}/api/peer-reviews/summary/${id}`,
+      `${backendUrl}/api/reviews/peer/summary/${id}`,
+      `${backendUrl}/api/musician/${id}/peer-review-summary`,
+    ];
 
-  for (const url of candidates) {
-    try {
-      const res = await axios.get(url, { headers });
-      const payload = res?.data;
+    for (const url of candidates) {
+      try {
+        const res = await axios.get(url, { headers });
+        const payload = res?.data;
 
-      const summary =
-        payload?.summary ||
-        payload?.peerReview ||
-        payload?.data ||
-        payload ||
-        null;
+        const summary =
+          payload?.summary ||
+          payload?.peerReview ||
+          payload?.data ||
+          payload ||
+          null;
 
-      if (summary && (typeof summary.average === "number" || typeof summary.count === "number")) {
-        setPeerReview(summary);
-        return;
+        if (
+          summary &&
+          (typeof summary.average === "number" ||
+            typeof summary.count === "number")
+        ) {
+          setPeerReview(summary);
+          return;
+        }
+      } catch {
+        // keep trying
       }
-    } catch {
-      // keep trying
     }
-  }
 
-  // no endpoint yet? don’t error — just show placeholders
-  setPeerReview(null);
-};
+    // no endpoint yet? don’t error — just show placeholders
+    setPeerReview(null);
+  };
 
   // -------- Fetch my musician profile for avatar card (robust endpoint attempts) --------
   const fetchMe = async () => {
@@ -638,7 +690,7 @@ const isAdminAgent = useMemo(() => {
     try {
       const res = await axios.get(
         `${backendUrl}/api/musician/stats/${storedUserId}`,
-        { headers }
+        { headers },
       );
       setStats(res.data || {});
     } catch (err) {
@@ -649,7 +701,8 @@ const isAdminAgent = useMemo(() => {
   // Fetch user’s acts (created by them)
   const fetchMyActs = async () => {
     try {
-      const resolvedUserId = storedUserId || userId || localStorage.getItem("musicianId") || "";
+      const resolvedUserId =
+        storedUserId || userId || localStorage.getItem("musicianId") || "";
 
       const res = await axios.get(
         `${backendUrl}/api/musician/act-v2/list?mine=true&limit=200`,
@@ -660,7 +713,7 @@ const isAdminAgent = useMemo(() => {
             userid: resolvedUserId,
             userrole: "musician",
           },
-        }
+        },
       );
 
       const payload = res?.data || {};
@@ -690,15 +743,15 @@ const isAdminAgent = useMemo(() => {
     }
   };
 
-useEffect(() => {
-  fetchMe();
-  fetchMyActs();
-  fetchDeppingActs();
-  fetchStats();
-  fetchPeerReview();
-  fetchAppliedJobs();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);
+  useEffect(() => {
+    fetchMe();
+    fetchMyActs();
+    fetchDeppingActs();
+    fetchStats();
+    fetchPeerReview();
+    fetchAppliedJobs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // (You had this duplicate; leaving it, but it may overwrite stats shape)
   useEffect(() => {
@@ -722,7 +775,6 @@ useEffect(() => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT: dashboard content */}
         <div className="lg:col-span-9 ">
- 
           <div className="my-10">
             <div className="text-center py-8 text-3xl">
               <div className="inline-flex items-center gap-3">
@@ -754,10 +806,10 @@ useEffect(() => {
               <p className="text-3xl font-bold">{deppingActs.length}</p>
             </div>
 
-        
-
             <div className="p-4 bg-white shadow rounded">
-              <p className="text-sm text-gray-500">Booking Enquiries (Last 30d)</p>
+              <p className="text-sm text-gray-500">
+                Booking Enquiries (Last 30d)
+              </p>
               <p className="text-3xl font-bold">
                 {stats.enquiries?.slice(-1)[0]?.count || 0}
               </p>
@@ -768,7 +820,9 @@ useEffect(() => {
           <div className="bg-white shadow rounded gap-4 space-y-2 md:space-y-0 my-6 p-4">
             <h3 className="text-lg font-semibold mb-3">Acts You Lead</h3>
             {myActs.length === 0 ? (
-              <p className="text-gray-600">You haven't registered any acts yet.</p>
+              <p className="text-gray-600">
+                You haven't registered any acts yet.
+              </p>
             ) : (
               myActs.map((act) => (
                 <div
@@ -784,7 +838,9 @@ useEffect(() => {
 
           {/* ------- Acts You're Depping For ------- */}
           <div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
-            <h3 className="text-lg font-semibold mb-3">Acts You're Depping For</h3>
+            <h3 className="text-lg font-semibold mb-3">
+              Acts You're Depping For
+            </h3>
             {deppingActs.length === 0 ? (
               <p className="text-gray-600">No depping roles yet.</p>
             ) : (
@@ -802,38 +858,45 @@ useEffect(() => {
 
           {/* ------- Deputy Jobs Applied For ------- */}
 
-<div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
-  <h3 className="text-lg font-semibold mb-3">Jobs You’ve Applied For</h3>
+          <div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
+            <h3 className="text-lg font-semibold mb-3">
+              Jobs You’ve Applied For
+            </h3>
 
-  {appliedJobs.length === 0 ? (
-    <p className="text-gray-600">You haven’t applied for any deputy jobs yet.</p>
-  ) : (
-    appliedJobs.map((job) => (
-      <div
-        key={job._id}
-        className="p-3 border-b hover:bg-gray-50 cursor-pointer"
-        onClick={() => navigate(`/deputy-jobs/${job._id}`)}
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-          <div>
-            <p className="font-medium text-gray-900">
-              {job.title || "Deputy opportunity"}
-            </p>
-            <p className="text-sm text-gray-500">
-              {job.eventDate ? formatDate(job.eventDate) : "Date TBC"} ·{" "}
-              {job.location || job.venue || job.locationName || "Location TBC"}
-            </p>
+            {appliedJobs.length === 0 ? (
+              <p className="text-gray-600">
+                You haven’t applied for any deputy jobs yet.
+              </p>
+            ) : (
+              appliedJobs.map((job) => (
+                <div
+                  key={job._id}
+                  className="p-3 border-b hover:bg-gray-50 cursor-pointer"
+                  onClick={() => navigate(`/deputy-jobs/${job._id}`)}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {job.title || "Deputy opportunity"}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {job.eventDate ? formatDate(job.eventDate) : "Date TBC"}{" "}
+                        ·{" "}
+                        {job.location ||
+                          job.venue ||
+                          job.locationName ||
+                          "Location TBC"}
+                      </p>
+                    </div>
+
+                    <span className="text-xs rounded-full bg-gray-100 px-3 py-1 text-gray-700 w-fit">
+                      {job.status || "applied"}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
-
-          <span className="text-xs rounded-full bg-gray-100 px-3 py-1 text-gray-700 w-fit">
-            {job.status || "applied"}
-          </span>
-        </div>
-      </div>
-    ))
-  )}
-</div>
-      
 
           {/* ------- Feedback Section ------- */}
           <div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
@@ -849,21 +912,20 @@ useEffect(() => {
               Submit Feedback
             </button>
           </div>
-
-  
         </div>
 
-       {/* RIGHT: sticky sidebar (profile + peer review) */}
-<div className="lg:col-span-3">
-  <div className="sticky top-6 space-y-4">
-<YourProfileCard
-  me={me}
-  fallbackFirstName={firstName}
-  deputyCTA={deputyCTA}
-  token={token}
-/>    <PeerReviewCard peer={peerReview} />
-  </div>
-</div>
+        {/* RIGHT: sticky sidebar (profile + peer review) */}
+        <div className="lg:col-span-3">
+          <div className="sticky top-6 space-y-4">
+            <YourProfileCard
+              me={me}
+              fallbackFirstName={firstName}
+              deputyCTA={deputyCTA}
+              token={token}
+            />{" "}
+            <PeerReviewCard peer={peerReview} />
+          </div>
+        </div>
       </div>
     </div>
   );

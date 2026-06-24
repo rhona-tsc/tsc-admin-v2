@@ -62,21 +62,25 @@ const handleDeputyClick = (e, path) => {
   }, [userId]);
 
   // ✅ single CTA helper (accepts id)
-  const getDeputyCTA = (status, id) => {
-    const st = normalize(status);
-    if (st === "approved" || st === "approved, changes pending") {
-      return id
-        ? {
-            label:
-              st === "approved"
-                ? "Update My Profile"
-                : "Update My Profile Submission",
-            path: `/edit-deputy/${id}`,
-          }
-        : { label: "Join The Books", path: "/register-as-deputy" };
-    }
-    return { label: "Join The Books", path: "/register-as-deputy" };
-  };
+const getDeputyCTA = (status, id) => {
+  const st = normalize(status);
+
+  const hasExistingProfile =
+    id &&
+    ["approved", "approved, changes pending", "pending", "rejected", "in_progress"].includes(st);
+
+  if (hasExistingProfile) {
+    return {
+      label:
+        st === "approved, changes pending"
+          ? "Update My Profile Submission"
+          : "Update My Profile",
+      path: `/edit-deputy/${id}`,
+    };
+  }
+
+  return { label: "Join The Books", path: "/register-as-deputy" };
+};
 
   
 
