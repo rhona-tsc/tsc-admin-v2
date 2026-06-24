@@ -105,20 +105,42 @@ const DeputyForm = ({
 
   const saveDeputyDraftForStripe = async () => {
     try {
-      let nextFormData = { ...formData };
-
+      let mediaUpdates = {};
       const mediaFd = new FormData();
 
-      if (formData.profilePicture instanceof File) {
-        mediaFd.append("profilePicture", formData.profilePicture);
-      }
+      const appendFileCandidate = (fieldName, value) => {
+        if (value instanceof File) {
+          mediaFd.append(fieldName, value);
+          return;
+        }
 
-      if (formData.coverHeroImage instanceof File) {
-        mediaFd.append("coverHeroImage", formData.coverHeroImage);
-      }
+        if (value?.file instanceof File) {
+          mediaFd.append(fieldName, value.file);
+          return;
+        }
 
-      if ([...mediaFd.keys()].length > 0 && hasValidAuthToken) {
-        const uploadRes = await axios.post(
+        if (value?.croppedFile instanceof File) {
+          mediaFd.append(fieldName, value.croppedFile);
+          return;
+        }
+
+        if (value?.originalFile instanceof File) {
+          mediaFd.append(fieldName, value.originalFile);
+        }
+      };
+
+      appendFileCandidate("profilePicture", formData.profilePicture);
+      appendFileCandidate("profilePicture", formData.profilePhoto);
+      appendFileCandidate("coverHeroImage", formData.coverHeroImage);
+
+      const hasMedia = [...mediaFd.keys()].length > 0;
+
+      if (hasMedia && hasValidAuthToken) {
+        console.log("🖼️ Uploading pending deputy media before Stripe redirect", {
+          fields: [...mediaFd.keys()],
+        });
+
+        const mediaRes = await axios.post(
           `${backendUrl}/api/musician/autosave/media`,
           mediaFd,
           {
@@ -127,24 +149,37 @@ const DeputyForm = ({
           },
         );
 
-        const uploaded = uploadRes.data || {};
+        const mediaPayload = mediaRes.data || {};
+        mediaUpdates = mediaPayload.updates || mediaPayload;
 
-        nextFormData = {
-          ...nextFormData,
-          profilePicture:
-            uploaded.profilePhoto ||
-            uploaded.profilePicture ||
-            nextFormData.profilePicture,
-          profilePhoto:
-            uploaded.profilePhoto ||
-            uploaded.profilePicture ||
-            nextFormData.profilePhoto,
-          coverHeroImage:
-            uploaded.coverHeroImage || nextFormData.coverHeroImage,
-        };
-
-        setFormData(nextFormData);
+        console.log("✅ Deputy media uploaded before Stripe redirect", {
+          mediaUpdates,
+        });
       }
+
+      const profileUrl =
+        mediaUpdates.profilePhoto ||
+        mediaUpdates.profilePicture ||
+        (typeof formData.profilePhoto === "string" ? formData.profilePhoto : "") ||
+        (typeof formData.profilePicture === "string" ? formData.profilePicture : "");
+
+      const coverUrl =
+        mediaUpdates.coverHeroImage ||
+        (typeof formData.coverHeroImage === "string" ? formData.coverHeroImage : "");
+
+      const nextFormData = {
+        ...formData,
+        ...mediaUpdates,
+        ...(profileUrl
+          ? {
+              profilePhoto: profileUrl,
+              profilePicture: profileUrl,
+            }
+          : {}),
+        ...(coverUrl ? { coverHeroImage: coverUrl } : {}),
+      };
+
+      setFormData(nextFormData);
 
       const safe = JSON.parse(
         JSON.stringify(nextFormData, (key, value) => {
@@ -157,11 +192,29 @@ const DeputyForm = ({
 
       safe.tscApprovedBio = tscApprovedBio || safe.tscApprovedBio || "";
 
-      // local backup
+      safe.digitalWardrobeBlackTie =
+        safe.digitalWardrobeBlackTie?.filter((x) => typeof x === "string") || [];
+      safe.digitalWardrobeFormal =
+        safe.digitalWardrobeFormal?.filter((x) => typeof x === "string") || [];
+      safe.digitalWardrobeSmartCasual =
+        safe.digitalWardrobeSmartCasual?.filter((x) => typeof x === "string") || [];
+      safe.digitalWardrobeSessionAllBlack =
+        safe.digitalWardrobeSessionAllBlack?.filter((x) => typeof x === "string") || [];
+      safe.additionalImages =
+        safe.additionalImages?.filter((x) => typeof x === "string") || [];
+
       localStorage.setItem("deputyAutosave", JSON.stringify(safe));
 
-      // backend backup
       if (deputyId && hasValidAuthToken) {
+        await axios.patch(
+          `${backendUrl}/api/musician/moderation/deputy/${deputyId}/save`,
+          safe,
+          {
+            headers: authHeaders,
+            withCredentials: true,
+          },
+        );
+
         await axios.post(
           `${backendUrl}/api/musician/autosave`,
           {
@@ -177,12 +230,15 @@ const DeputyForm = ({
         );
       }
 
-      console.log("✅ Deputy draft saved before Stripe redirect");
+      console.log("✅ Deputy draft/media saved before Stripe redirect", {
+        deputyId,
+        profilePhoto: safe.profilePhoto,
+        profilePicture: safe.profilePicture,
+        coverHeroImage: safe.coverHeroImage,
+      });
     } catch (err) {
-      console.error(
-        "❌ Failed to save deputy draft before Stripe redirect",
-        err,
-      );
+      console.error("❌ Failed to save deputy draft before Stripe redirect", err);
+      throw err;
     }
   };
 
