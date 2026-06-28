@@ -12,6 +12,7 @@ const EMPTY_FORM = {
   direction: "in",
   category: "other",
   vatTreatment: "unknown",
+  preRegistrationVatCategory: "services",
   taxTreatment: "unknown",
   source: "manual",
   notes: "",
@@ -37,6 +38,7 @@ const categories = [
 ];
 
 const vatTreatments = ["standard", "zero", "exempt", "outside_scope", "unknown"];
+const preRegistrationVatCategories = ["services", "goods"];
 
 const taxTreatments = [
   "income",
@@ -71,6 +73,7 @@ const FinanceTransactions = () => {
   const [entityFilter, setEntityFilter] = useState("ALL");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [reconciledFilter, setReconciledFilter] = useState("ALL");
+  const [preRegVatFilter, setPreRegVatFilter] = useState("ALL");
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -93,6 +96,24 @@ const FinanceTransactions = () => {
       if (categoryFilter !== "ALL") params.category = categoryFilter;
       if (reconciledFilter !== "ALL") {
         params.reconciled = reconciledFilter === "true";
+      }
+
+      if (preRegVatFilter !== "ALL") {
+        if (preRegVatFilter === "services") {
+          params.entity = "BMM";
+          params.direction = "out";
+          params.vatTreatment = "standard";
+          params.from = "2025-08-07";
+          params.to = "2026-02-06";
+        }
+
+        if (preRegVatFilter === "goods") {
+          params.entity = "BMM";
+          params.direction = "out";
+          params.vatTreatment = "standard";
+          params.from = "2022-02-07";
+          params.to = "2026-02-06";
+        }
       }
 
       const res = await axios.get(`${backendUrl}/api/finance/transactions`, {
@@ -118,7 +139,7 @@ const FinanceTransactions = () => {
 
   useEffect(() => {
     fetchTransactions();
-  }, [entityFilter, categoryFilter, reconciledFilter]);
+  }, [entityFilter, categoryFilter, reconciledFilter, preRegVatFilter]);
 
   const selectableAccounts = useMemo(
     () =>
@@ -247,6 +268,8 @@ const FinanceTransactions = () => {
       direction: tx.direction || "in",
       category: tx.category || "other",
       vatTreatment: tx.vatTreatment || "unknown",
+      preRegistrationVatCategory:
+        tx.preRegistrationVatCategory || tx.vatReclaimCategory || "services",
       taxTreatment: tx.taxTreatment || "unknown",
       source: tx.source || "manual",
       notes: tx.notes || "",
@@ -401,6 +424,17 @@ const FinanceTransactions = () => {
                 />
               </div>
 
+              <Select
+                label="Pre-registration VAT type"
+                name="preRegistrationVatCategory"
+                value={form.preRegistrationVatCategory}
+                onChange={handleChange}
+                options={preRegistrationVatCategories.map((v) => ({
+                  value: v,
+                  label: v === "goods" ? "Goods / assets" : "Services",
+                }))}
+              />
+
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input
                   type="checkbox"
@@ -492,6 +526,17 @@ const FinanceTransactions = () => {
                     { value: "false", label: "Unreconciled" },
                   ]}
                 />
+
+                <Select
+                  label="Pre-reg VAT"
+                  value={preRegVatFilter}
+                  onChange={(e) => setPreRegVatFilter(e.target.value)}
+                  options={[
+                    { value: "ALL", label: "All" },
+                    { value: "services", label: "Services window" },
+                    { value: "goods", label: "Goods window" },
+                  ]}
+                />
               </div>
             </div>
 
@@ -508,6 +553,8 @@ const FinanceTransactions = () => {
                       <th className="px-3 py-3">Description</th>
                       <th className="px-3 py-3">Account</th>
                       <th className="px-3 py-3">Category</th>
+                      <th className="px-3 py-3">VAT</th>
+                      <th className="px-3 py-3">Pre-reg type</th>
                       <th className="px-3 py-3">Status</th>
                       <th className="px-3 py-3 text-right">Amount</th>
                       <th className="px-3 py-3 text-right">Actions</th>
@@ -532,6 +579,14 @@ const FinanceTransactions = () => {
                         </td>
                         <td className="px-3 py-3 text-gray-500">
                           {tx.category}
+                        </td>
+                        <td className="px-3 py-3 text-gray-500">
+                          {tx.vatTreatment || "unknown"}
+                        </td>
+                        <td className="px-3 py-3 text-gray-500">
+                          {tx.preRegistrationVatCategory ||
+                            tx.vatReclaimCategory ||
+                            "services"}
                         </td>
                         <td className="px-3 py-3">
                           <span
@@ -574,7 +629,7 @@ const FinanceTransactions = () => {
                     {!transactions.length && (
                       <tr>
                         <td
-                          colSpan="7"
+                          colSpan="9"
                           className="px-3 py-8 text-center text-gray-500"
                         >
                           No transactions found.
