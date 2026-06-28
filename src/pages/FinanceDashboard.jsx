@@ -107,6 +107,7 @@ const FinanceDashboard = () => {
   const [unpaidForecastCount, setUnpaidForecastCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [autoMatching, setAutoMatching] = useState(false);
+  const [syncingVat, setSyncingVat] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -211,6 +212,36 @@ const FinanceDashboard = () => {
       setError(err.response?.data?.message || err.message);
     } finally {
       setAutoMatching(false);
+    }
+  };
+
+  const handleSyncVatForecast = async () => {
+    try {
+      setSyncingVat(true);
+      setError("");
+      setSuccessMessage("");
+
+      const res = await axios.post(
+        `${backendUrl}/api/finance/tax/sync-vat-forecast-events`,
+        {
+          entity,
+          replaceExisting: true,
+        },
+      );
+
+      if (res.data?.success) {
+        setSuccessMessage(
+          `Synced ${res.data.createdCount || 0} VAT forecast event(s).`,
+        );
+        await fetchForecast();
+      } else {
+        setError(res.data?.message || "VAT sync failed.");
+      }
+    } catch (err) {
+      console.error("VAT sync error:", err);
+      setError(err.response?.data?.message || err.message);
+    } finally {
+      setSyncingVat(false);
     }
   };
 
@@ -345,6 +376,14 @@ const FinanceDashboard = () => {
               className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-800 disabled:opacity-50"
             >
               {autoMatching ? "Auto-matching..." : "Auto-match"}
+            </button>
+
+            <button
+              onClick={handleSyncVatForecast}
+              disabled={syncingVat || loading}
+              className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 disabled:opacity-50"
+            >
+              {syncingVat ? "Syncing VAT..." : "Sync VAT"}
             </button>
 
             <button
@@ -531,6 +570,7 @@ const FinanceDashboard = () => {
                   <th className="px-3 py-3">Type</th>
                   <th className="px-3 py-3">Direction</th>
                   <th className="px-3 py-3 text-right">Amount</th>
+                  <th className="px-3 py-3 text-right">VAT</th>
                   <th className="px-3 py-3 text-right">Running Balance</th>
                 </tr>
               </thead>
@@ -557,6 +597,11 @@ const FinanceDashboard = () => {
                     <td className="px-3 py-3 text-right">
                       {formatCurrency(event.signedAmount)}
                     </td>
+                    <td className="px-3 py-3 text-right text-amber-700">
+                      {Number(event.vatAmount || 0) > 0
+                        ? formatCurrency(event.vatAmount)
+                        : "-"}
+                    </td>
                     <td className="px-3 py-3 text-right font-medium">
                       {formatCurrency(event.runningBalance)}
                     </td>
@@ -566,7 +611,7 @@ const FinanceDashboard = () => {
                 {!filteredForecast?.timeline?.length && (
                   <tr>
                     <td
-                      colSpan="6"
+                      colSpan="7"
                       className="px-3 py-8 text-center text-gray-500"
                     >
                       No forecast events found.
