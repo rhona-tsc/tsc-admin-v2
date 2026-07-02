@@ -3049,7 +3049,35 @@ export default function BookingBoard() {
         return;
       }
 
-      window.alert("Card payment invoice generated.");
+      const cardPaymentUrl =
+        json.cardPaymentUrl ||
+        json.paymentUrl ||
+        json.row?.payments?.balanceInvoiceUrl ||
+        "";
+
+      const apiRoot = String(API_BASE || "").replace(/\/api\/?$/, "");
+      const previewUrl = json.previewUrl
+        ? `${apiRoot}${json.previewUrl}`
+        : row?._id
+          ? `${API_BASE}/invoices/board-invoice/${row._id}`
+          : "";
+
+      if (cardPaymentUrl) {
+        await navigator.clipboard?.writeText(cardPaymentUrl).catch(() => {});
+        window.alert(
+          "Card payment invoice generated.\n\nThe Stripe payment link has been copied to your clipboard.",
+        );
+        window.open(cardPaymentUrl, "_blank", "noopener,noreferrer");
+      } else if (previewUrl) {
+        window.alert(
+          "Card payment invoice generated, but no Stripe payment link was returned.",
+        );
+        window.open(previewUrl, "_blank", "noopener,noreferrer");
+      } else {
+        window.alert(
+          "Card payment invoice generated, but no Stripe payment link or invoice preview URL was returned.",
+        );
+      }
       await fetchRows();
     } catch (error) {
       console.error("create card payment invoice failed", error);
