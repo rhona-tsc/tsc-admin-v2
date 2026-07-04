@@ -690,6 +690,9 @@ const getExtrasFromRow = (row) => {
       name: extra?.name || extra?.key || "Extra",
       quantity: Number(extra?.quantity || 1) || 1,
       price: Number(extra?.price || 0) || 0,
+      passThroughGross: Number(extra?.passThroughGross || 0) || 0,
+      managementGross: Number(extra?.managementGross || 0) || 0,
+      refundableDeposit: Boolean(extra?.refundableDeposit),
       finishTime: extra?.finishTime || "",
       arrivalTime: extra?.arrivalTime || "",
       category: extra?.category || "",
@@ -715,6 +718,9 @@ const getExtrasFromRow = (row) => {
       name: extra?.name || extra?.key || "Extra",
       quantity: Number(extra?.quantity || 1) || 1,
       price: Number(extra?.price || 0) || 0,
+      passThroughGross: Number(extra?.passThroughGross || 0) || 0,
+      managementGross: Number(extra?.managementGross || 0) || 0,
+      refundableDeposit: Boolean(extra?.refundableDeposit),
       finishTime: extra?.finishTime || "",
       arrivalTime: extra?.arrivalTime || "",
       category: extra?.category || "",
@@ -1014,6 +1020,9 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
       name: seed.name || "",
       quantity: Number(seed.quantity || 1) || 1,
       price: Number(seed.price || 0) || 0,
+      passThroughGross: Number(seed.passThroughGross || 0) || 0,
+      managementGross: Number(seed.managementGross || 0) || 0,
+      refundableDeposit: Boolean(seed.refundableDeposit),
       finishTime: seed.finishTime || "",
       arrivalTime: seed.arrivalTime || value.arrivalTime || "",
       category: seed.category || "",
@@ -1698,6 +1707,54 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-xs text-gray-600 mb-1">
+                    Pass-through £
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="border rounded px-3 py-2 w-full"
+                    value={extra.passThroughGross ?? 0}
+                    onChange={(e) =>
+                      updateExtra(extra.id, {
+                        passThroughGross: Number(e.target.value || 0),
+                      })
+                    }
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-gray-600 mb-1">
+                    Management fee £
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="border rounded px-3 py-2 w-full"
+                    value={extra.managementGross ?? 0}
+                    onChange={(e) =>
+                      updateExtra(extra.id, {
+                        managementGross: Number(e.target.value || 0),
+                      })
+                    }
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="flex items-center gap-2 text-xs text-gray-700 border rounded px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(extra.refundableDeposit)}
+                      onChange={(e) =>
+                        updateExtra(extra.id, {
+                          refundableDeposit: e.target.checked,
+                        })
+                      }
+                    />
+                    Refundable deposit
+                  </label>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-gray-600 mb-1">
                     Arrival
                   </label>
                   <input
@@ -2333,6 +2390,9 @@ export default function BookingBoard() {
         name: String(extra?.name || extra?.key || "Extra").trim(),
         quantity: Number(extra?.quantity || 1) || 1,
         price: Number(extra?.price || 0) || 0,
+        passThroughGross: Number(extra?.passThroughGross || 0) || 0,
+        managementGross: Number(extra?.managementGross || 0) || 0,
+        refundableDeposit: Boolean(extra?.refundableDeposit),
         finishTime: extra?.finishTime || "",
         arrivalTime: extra?.arrivalTime || "",
         category: extra?.category || "",
