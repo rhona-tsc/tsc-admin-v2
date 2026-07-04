@@ -498,6 +498,19 @@ const getInvoiceUrl = (row) => {
   return normalizeUrl(raw);
 };
 
+const getExtrasInvoiceUrl = (row) => {
+  const hasExtrasInvoice =
+    row?.extrasInvoicePdfUrl ||
+    row?.extrasInvoiceUrl ||
+    row?.payments?.extrasInvoicePdfUrl;
+
+  if (row?._id && hasExtrasInvoice) {
+    return `${API_BASE}/invoices/board-invoice/${row._id}?invoiceType=extras`;
+  }
+
+  return normalizeUrl(row?.extrasInvoicePdfUrl || row?.extrasInvoiceUrl || "");
+};
+
 const isBookingPaid = (row) =>
   Boolean(
     row?.payments?.balancePaymentReceived ||
@@ -690,6 +703,8 @@ const getExtrasFromRow = (row) => {
         ? extra.payoutMemberNames
         : [],
       paLateStay: extra?.paLateStay || null,
+      includeOnMainInvoice: extra?.includeOnMainInvoice !== false,
+      includeOnExtrasInvoice: extra?.includeOnExtrasInvoice !== false,
     }));
   }
 
@@ -713,6 +728,8 @@ const getExtrasFromRow = (row) => {
         ? extra.payoutMemberNames
         : [],
       paLateStay: extra?.paLateStay || null,
+      includeOnMainInvoice: extra?.includeOnMainInvoice !== false,
+      includeOnExtrasInvoice: extra?.includeOnExtrasInvoice !== false,
     }));
   }
 
@@ -1010,6 +1027,8 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
         ? seed.payoutMemberNames
         : [],
       paLateStay: seed.paLateStay || null,
+      includeOnMainInvoice: seed.includeOnMainInvoice !== false,
+      includeOnExtrasInvoice: seed.includeOnExtrasInvoice !== false,
     };
 
     onChange({
@@ -1938,6 +1957,17 @@ const getReceiptUrl = (row) => {
     : "";
 };
 
+const getExtrasReceiptUrl = (row) => {
+  const hasExtrasReceipt =
+    row?.extrasReceiptPdfUrl ||
+    row?.extrasReceiptUrl ||
+    row?.payments?.extrasReceiptPdfUrl;
+
+  return hasExtrasReceipt && row?._id
+    ? `${API_BASE}/invoices/board-receipt/${row._id}?invoiceType=extras`
+    : "";
+};
+
 const todayISODate = () => new Date().toISOString().slice(0, 10);
 
 const getSortableEventDate = (row) => {
@@ -2329,6 +2359,8 @@ export default function BookingBoard() {
                 : [],
             }
           : null,
+        includeOnMainInvoice: extra?.includeOnMainInvoice !== false,
+        includeOnExtrasInvoice: extra?.includeOnExtrasInvoice !== false,
       }))
       .filter(
         (extra) =>
@@ -2820,13 +2852,16 @@ export default function BookingBoard() {
     );
   };
 
-  const createInvoiceForRow = async (row) => {
+  const createInvoiceForRow = async (row, invoiceType = "main") => {
     try {
       const res = await fetch(`${API_BASE}/invoices/create-board-invoice`, {
         method: "POST",
         headers: buildHeaders(),
         credentials: "include",
         body: JSON.stringify({
+          documentType: "invoice",
+
+          invoiceType,
           bookingId: row._id,
           includePaymentLink: false,
         }),
@@ -3893,6 +3928,17 @@ export default function BookingBoard() {
                                             </button>
                                           )}
 
+                                          {getExtrasInvoiceUrl(r) && (
+                                            <a
+                                              className="px-2 py-1 border rounded text-xs bg-white"
+                                              href={getExtrasInvoiceUrl(r)}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                            >
+                                              View extras invoice
+                                            </a>
+                                          )}
+
                                           {receiptUrl ? (
                                             <a
                                               className="inline-flex items-center justify-center px-2 py-1 border rounded hover:bg-gray-100 text-xs text-purple-700 bg-white"
@@ -3903,6 +3949,30 @@ export default function BookingBoard() {
                                               Receipt
                                             </a>
                                           ) : null}
+
+                                          <button
+                                            type="button"
+                                            className="px-2 py-1 border rounded text-xs bg-white"
+                                            disabled={
+                                              creatingPayLinkId === r._id
+                                            }
+                                            onClick={() =>
+                                              createInvoiceForRow(r, "extras")
+                                            }
+                                          >
+                                            Extras receipt
+                                          </button>
+
+                                          {getExtrasReceiptUrl(r) && (
+                                            <a
+                                              className="px-2 py-1 border rounded text-xs bg-white"
+                                              href={getExtrasReceiptUrl(r)}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                            >
+                                              View extras receipt
+                                            </a>
+                                          )}
                                         </div>
                                       </td>
                                       <td className={cellClass}>
@@ -3916,6 +3986,19 @@ export default function BookingBoard() {
                                             {invoiceUrl
                                               ? "Regenerate invoice"
                                               : "Create invoice"}
+                                          </button>
+
+                                          <button
+                                            type="button"
+                                            className="px-2 py-1 border rounded text-xs bg-white"
+                                            disabled={
+                                              creatingPayLinkId === r._id
+                                            }
+                                            onClick={() =>
+                                              createReceiptForRow(r, "extras")
+                                            }
+                                          >
+                                            Extras invoice
                                           </button>
 
                                           <button
