@@ -3433,7 +3433,9 @@ const nextReceiptUrl =
 
                 <thead className="bg-gray-50 text-left sticky top-0 z-10">
                   <tr>
-                    <th className="px-3 py-2 border-b">Client</th>
+                    <th className="sticky left-0 z-30 bg-gray-50 px-3 py-2 border-b shadow-[2px_0_0_0_rgba(229,231,235,1)]">
+                      Client
+                    </th>
                     <th className="px-3 py-2 border-b">Ref</th>
                     <th className="px-3 py-2 border-b">Event Date</th>
                     <th className="px-3 py-2 border-b">Act</th>
@@ -3500,7 +3502,7 @@ const nextReceiptUrl =
                     return (
                       <React.Fragment key={rowId}>
                         <tr className="odd:bg-white even:bg-gray-50 align-top">
-                          <td className="px-3 py-2">
+                          <td className="sticky left-0 z-20 bg-white px-3 py-2 shadow-[2px_0_0_0_rgba(229,231,235,1)]">
                             <div className="font-medium text-gray-900">
                               {clientFirstNames}
                             </div>
@@ -3557,7 +3559,7 @@ const nextReceiptUrl =
                                 <table className="min-w-[4200px] table-fixed text-xs">
                                   <tbody>
                                     <tr className="align-top">
-                                      <td className="px-3 py-2">
+                                      <td className="sticky left-0 z-20 bg-yellow-50 px-3 py-2 shadow-[2px_0_0_0_rgba(229,231,235,1)]">
                                         <InlineInput
                                           value={clientFirstNames}
                                           placeholder="Client name"
