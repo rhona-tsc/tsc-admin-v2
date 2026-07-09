@@ -972,6 +972,7 @@ const buildEditStateFromRow = (row) => {
     extras: getExtrasFromRow(row),
     lateStayAppliesTo: "whole_band",
     selectedLateStayMembers: [],
+    assignedMusiciansText: formatBookingMemberTags(row),
     manualAdjustmentLabel: "",
     manualAdjustmentAmount: "",
     notes: row?.notes || "",
@@ -1810,10 +1811,10 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                 Tagged band members / musicians
               </div>
               <p className="text-xs text-gray-500 mb-3">
-                Add one musician per line. Use their display name, or include
-                their musician ID/email in brackets to make matching more
-                reliable.
-              </p>
+  Add one musician per line. Use their display name, include their
+  musician ID/email in brackets to make matching more reliable,
+  and add their gig fee at the end.
+</p>
 
               <textarea
                 className="border rounded px-3 py-2 w-full min-h-[120px]"
@@ -1825,8 +1826,8 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                   })
                 }
                 placeholder={
-                  "Example:\nRikard Ridemark (6a4fba880aa54f927327747a)\nSarah Smith (sarah@example.com)"
-                }
+  "Example:\nRikard Ridemark (6a4fba880aa54f927327747a) - £250\nSarah Smith (sarah@example.com) - £225"
+}
               />
             </div>
 
@@ -2034,15 +2035,27 @@ const normaliseBookingMemberTag = (raw = "") => {
   const objectIdMatch = text.match(/[0-9a-fA-F]{24}/);
   const emailMatch = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
 
+  const feeMatch = text.match(
+    /(?:gig\s*)?fee\s*[:=-]?\s*£?\s*(\d+(?:\.\d{1,2})?)|£\s*(\d+(?:\.\d{1,2})?)/i,
+  );
+
+  const fee = Number(feeMatch?.[1] || feeMatch?.[2] || 0) || 0;
+
   const cleanedName = text
     .replace(/[<(].*?[>)]/g, "")
     .replace(/[0-9a-fA-F]{24}/g, "")
+    .replace(
+      /(?:[-–—|,]?\s*(?:gig\s*)?fee\s*[:=-]?\s*£?\s*\d+(?:\.\d{1,2})?|[-–—|,]?\s*£\s*\d+(?:\.\d{1,2})?)/gi,
+      "",
+    )
     .trim();
 
   return {
     name: cleanedName || text,
     musicianId: objectIdMatch?.[0] || "",
     email: emailMatch?.[0]?.toLowerCase() || "",
+    fee,
+    totalFee: fee,
   };
 };
 
@@ -2084,9 +2097,19 @@ const getBookingMemberTags = (row = {}) => {
           "",
       ).trim();
 
+      const fee =
+  Number(
+    member?.fee ||
+      member?.totalFee ||
+      member?.gigFee ||
+      member?.payoutAmount ||
+      member?.baseFee ||
+      0,
+  ) || 0;
+
       if (!name && !email && !musicianId) return null;
 
-      return { name, email, musicianId };
+return { name, email, musicianId, fee, totalFee: fee };
     })
     .filter(Boolean);
 };
@@ -2097,7 +2120,11 @@ const formatBookingMemberTags = (row = {}) =>
       const extras = [member.email, member.musicianId]
         .filter(Boolean)
         .join(" | ");
-      return extras ? `${member.name} (${extras})` : member.name;
+
+      const identity = extras ? `${member.name} (${extras})` : member.name;
+      const fee = Number(member.fee || member.totalFee || 0) || 0;
+
+      return fee ? `${identity} - £${fee}` : identity;
     })
     .filter(Boolean)
     .join("\n");
@@ -2499,7 +2526,6 @@ export default function BookingBoard() {
         pricingMode: extra?.pricingMode || "flat",
         appliedMinutes: Number(extra?.appliedMinutes || 0) || 0,
         billableMemberCount: Number(extra?.billableMemberCount || 0) || 0,
-        assignedMusiciansText: formatBookingMemberTags(row),
         payoutMemberIds: Array.isArray(extra?.payoutMemberIds)
           ? extra.payoutMemberIds.filter((id) => isValidObjectIdString(id))
           : [],

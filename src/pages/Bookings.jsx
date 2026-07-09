@@ -151,6 +151,21 @@ const getMusicianTag = (booking) => {
   );
 };
 
+const getMusicianFee = (booking) => {
+  const musicianTag = getMusicianTag(booking);
+
+  return (
+    Number(
+      musicianTag?.totalFee ||
+        musicianTag?.fee ||
+        musicianTag?.gigFee ||
+        musicianTag?.payoutAmount ||
+        musicianTag?.baseFee ||
+        0,
+    ) || 0
+  );
+};
+
 const getStatusLabel = (booking) => {
   const status = String(
     booking.status || booking.allocation?.status || "confirmed",
@@ -252,7 +267,7 @@ const BookingList = ({ token }) => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {bookings.map((booking) => {
-            const fee = getFee(booking);
+            const fee = getMusicianFee(booking);
             const musicianTag = getMusicianTag(booking);
             const arrivalTime = getArrivalTime(booking);
             const startTime = getStartTime(booking);
@@ -297,8 +312,7 @@ const BookingList = ({ token }) => {
                   </p>
 
                   <p>
-                    <span className="font-semibold">Fee:</span>{" "}
-                    {formatMoney(fee)}
+                    <span className="font-semibold">Your fee:</span> {formatMoney(fee)}
                   </p>
 
                   <p>
