@@ -127,6 +127,7 @@ const getStripeConnectSummary = (u) => {
   };
 };
 
+
 const getStripePayoutUi = (u) => {
   const stripe = getStripeConnectSummary(u);
 
@@ -145,7 +146,7 @@ const getStripePayoutUi = (u) => {
       tone: "pending",
       helper:
         "Your Stripe account is connected. Payout verification may still be pending with Stripe.",
-      buttonLabel: "Check / update Stripe setup",
+      buttonLabel: "Update Stripe setup",
     };
   }
 
@@ -155,6 +156,11 @@ const getStripePayoutUi = (u) => {
     helper: "Connect Stripe so deputy payouts can be released to you.",
     buttonLabel: "Connect Stripe",
   };
+};
+
+const resetDeputyFormStepToStart = () => {
+  localStorage.setItem("deputyStep", "1");
+  localStorage.removeItem("stripeReturnStep");
 };
 
 const DashboardFeatureCard = ({
@@ -333,7 +339,10 @@ const YourProfileCard = ({ me, fallbackFirstName, deputyCTA, token }) => {
 
           <button
             type="button"
-            onClick={() => navigate(ctaPath)}
+            onClick={() => {
+              resetDeputyFormStepToStart();
+              navigate(ctaPath);
+            }}
             className="inline-flex items-center justify-center w-full px-4 py-2 rounded-md bg-[#ff6667] text-white font-semibold hover:bg-black transition"
           >
             {ctaLabel}
@@ -647,7 +656,10 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
           "Keep your musician profile, media, skills, repertoire, and payout details up to date.",
         imageLabel: "Your Profile",
         badge: "Profile",
-        onClick: () => navigate(deputyCTA?.path || "/register-as-deputy"),
+        onClick: () => {
+          resetDeputyFormStepToStart();
+          navigate(deputyCTA?.path || "/register-as-deputy");
+        },
       },
       {
         title: "Submit Act",
