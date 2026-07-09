@@ -249,18 +249,7 @@ useEffect(() => {
           <p className="hidden md:block  text-white">Bookings</p>
         </NavLink>
 
-        <NavLink
-          className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
-          to="/enquiry-board"
-          state={{ userRole }}
-        >
-          <img
-            className="w-5 h-5"
-            src={assets.enquiry_board_icon}
-            alt="Enquiry Board"
-          />
-          <p className="hidden md:block text-white">Enquiry Board</p>
-        </NavLink>
+   
 
         <NavLink
           className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
@@ -275,6 +264,19 @@ useEffect(() => {
 
         {normalize(userRole) === "agent" && (
           <>
+
+               <NavLink
+          className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+          to="/enquiry-board"
+          state={{ userRole }}
+        >
+          <img
+            className="w-5 h-5"
+            src={assets.enquiry_board_icon}
+            alt="Enquiry Board"
+          />
+          <p className="hidden md:block text-white">Enquiry Board</p>
+        </NavLink>
 
        <NavLink
           className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
