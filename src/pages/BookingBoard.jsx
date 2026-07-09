@@ -2988,12 +2988,23 @@ export default function BookingBoard() {
 
     receiptType = "main",
   ) => {
-    const isPaid = isBookingPaid(row);
+    const isExtrasReceipt = receiptType === "extras";
+
+const isPaid = isExtrasReceipt
+  ? Boolean(
+      row?.extrasPaid ||
+      row?.extrasStatus === "paid" ||
+      row?.payments?.extrasPaymentReceived ||
+      row?.payments?.extrasInvoicePaid
+    )
+  : isBookingPaid(row);
 
     if (!isPaid) {
-      window.alert(
-        "Please mark the invoice as paid before generating a receipt.",
-      );
+     window.alert(
+  isExtrasReceipt
+    ? "Please mark the extras invoice as paid before generating an extras receipt."
+    : "Please mark the invoice as paid before generating a receipt."
+);
       return;
     }
 
@@ -3002,9 +3013,9 @@ export default function BookingBoard() {
         method: "POST",
         headers: buildHeaders(),
         credentials: "include",
-          body: JSON.stringify({
-            bookingId: row._id,
-            receiptType,
+        body: JSON.stringify({
+          bookingId: row._id,
+          receiptType,
         }),
       });
 
@@ -3050,22 +3061,18 @@ export default function BookingBoard() {
           ? `${API_BASE}/invoices/board-receipt/${row._id}`
           : "";
 
-const nextReceiptUrl =
-  receiptType === "extras"
-    ? (
-        json.extrasReceiptUrl ||
-        updatedRow?.extrasReceiptUrl ||
-        updatedRow?.payments?.extrasReceiptPdfUrl
-      )
-    : (
-        previewUrl ||
-        json.receiptUrl ||
-        json.receiptPdfUrl ||
-        updatedRow?.receiptUrl ||
-        updatedRow?.receiptPdfUrl ||
-        updatedRow?.payments?.receiptPdfUrl ||
-        updatedRow?.payments?.boardReceiptPdfUrl
-      );
+      const nextReceiptUrl =
+        receiptType === "extras"
+          ? json.extrasReceiptUrl ||
+            updatedRow?.extrasReceiptUrl ||
+            updatedRow?.payments?.extrasReceiptPdfUrl
+          : previewUrl ||
+            json.receiptUrl ||
+            json.receiptPdfUrl ||
+            updatedRow?.receiptUrl ||
+            updatedRow?.receiptPdfUrl ||
+            updatedRow?.payments?.receiptPdfUrl ||
+            updatedRow?.payments?.boardReceiptPdfUrl;
 
       if (nextReceiptUrl) {
         window.open(nextReceiptUrl, "_blank", "noopener,noreferrer");
@@ -3485,11 +3492,11 @@ const nextReceiptUrl =
 
                     const extrasReceiptUrl = getExtrasReceiptUrl(r);
                     const extrasPaid = Boolean(
-  r?.extrasPaid ||
-  r?.extrasStatus === "paid" ||
-  r?.payments?.extrasPaymentReceived ||
-  r?.payments?.extrasInvoicePaid,
-);
+                      r?.extrasPaid ||
+                      r?.extrasStatus === "paid" ||
+                      r?.payments?.extrasPaymentReceived ||
+                      r?.payments?.extrasInvoicePaid,
+                    );
                     const actName = getDisplayActName(r);
                     const actTsc = getDisplayActTscName(r);
                     const address = getDisplayAddress(r);
@@ -4123,7 +4130,25 @@ const nextReceiptUrl =
                                               Generate receipt
                                             </button>
                                           )}
-
+                                          {!extrasPaid && extrasInvoiceUrl ? (
+                                            <button
+                                              type="button"
+                                              className="text-xs underline text-green-700"
+                                              onClick={() =>
+                                                onInlineEdit(r._id, {
+                                                  extrasPaid: true,
+                                                  extrasStatus: "paid",
+                                                  payments: {
+                                                    ...(r.payments || {}),
+                                                    extrasPaymentReceived: true,
+                                                    extrasInvoicePaid: true,
+                                                  },
+                                                })
+                                              }
+                                            >
+                                              Mark extras paid
+                                            </button>
+                                          ) : null}
                                           {extrasReceiptUrl ? (
                                             <a
                                               className="inline-flex items-center justify-center px-2 py-1 border rounded hover:bg-gray-100 text-xs text-purple-700 bg-white"
