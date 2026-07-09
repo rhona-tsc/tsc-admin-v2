@@ -1,5 +1,5 @@
 // admin/src/pages/BookingBoard.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 
 const API_BASE = (
   import.meta?.env?.VITE_ADMIN_API_BASE ||
@@ -972,6 +972,7 @@ const buildEditStateFromRow = (row) => {
     extras: getExtrasFromRow(row),
     lateStayAppliesTo: "whole_band",
     selectedLateStayMembers: [],
+    assignedMusicians: getBookingMemberTags(row),
     assignedMusiciansText: formatBookingMemberTags(row),
     manualAdjustmentLabel: "",
     manualAdjustmentAmount: "",
@@ -986,6 +987,120 @@ const buildEditStateFromRow = (row) => {
 
 function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
   if (!row || !value) return null;
+
+  const [musicianSearchQuery, setMusicianSearchQuery] = useState("");
+  const [musicianSearchResults, setMusicianSearchResults] = useState([]);
+  const [searchingMusicians, setSearchingMusicians] = useState(false);
+
+  const assignedMusicians = Array.isArray(value.assignedMusicians)
+    ? value.assignedMusicians
+    : [];
+
+  const updateAssignedMusician = (index, patch) => {
+    onChange({
+      ...value,
+      assignedMusicians: assignedMusicians.map((member, memberIndex) =>
+        memberIndex === index ? { ...member, ...patch } : member,
+      ),
+    });
+  };
+
+  const removeAssignedMusician = (index) => {
+    onChange({
+      ...value,
+      assignedMusicians: assignedMusicians.filter(
+        (_, memberIndex) => memberIndex !== index,
+      ),
+    });
+  };
+
+  const addAssignedMusician = (musician) => {
+    const musicianId = String(
+      musician?.musicianId || musician?._id || musician?.id || "",
+    ).trim();
+    const email = String(musician?.email || musician?.userEmail || "")
+      .trim()
+      .toLowerCase();
+    const name = String(
+      musician?.name ||
+        [musician?.firstName, musician?.lastName].filter(Boolean).join(" ") ||
+        email ||
+        musicianId ||
+        "",
+    ).trim();
+
+    if (!name && !email && !musicianId) return;
+
+    const alreadyAdded = assignedMusicians.some((member) => {
+      const existingId = String(member?.musicianId || member?._id || member?.id || "");
+      const existingEmail = String(member?.email || "").toLowerCase();
+      return (
+        (musicianId && existingId === musicianId) ||
+        (email && existingEmail === email) ||
+        (!musicianId && !email && member?.name === name)
+      );
+    });
+
+    if (alreadyAdded) return;
+
+    onChange({
+      ...value,
+      assignedMusicians: [
+        ...assignedMusicians,
+        {
+          name,
+          firstName: musician?.firstName || "",
+          lastName: musician?.lastName || "",
+          musicianId,
+          email,
+          phone: musician?.phone || musician?.phoneNumber || "",
+          role: musician?.instrument || musician?.role || "",
+          instrument: musician?.instrument || musician?.role || "",
+          fee: 0,
+          totalFee: 0,
+          paymentStatus: "not_due",
+          status: "confirmed",
+          source: "manual_lookup",
+        },
+      ],
+    });
+  };
+
+  const searchMusicians = useCallback(
+    async (event) => {
+      event?.preventDefault?.();
+
+      const query = String(musicianSearchQuery || "").trim();
+      if (!query) return;
+
+      try {
+        setSearchingMusicians(true);
+
+        const params = new URLSearchParams({ query });
+        const res = await fetch(`${API_BASE}/musician/search?${params.toString()}`, {
+          headers: buildHeaders(),
+          credentials: "include",
+        });
+        const json = await res.json().catch(() => null);
+
+        const results = Array.isArray(json?.musicians)
+          ? json.musicians
+          : Array.isArray(json?.results)
+            ? json.results
+            : Array.isArray(json?.data)
+              ? json.data
+              : [];
+
+        setMusicianSearchResults(results);
+      } catch (error) {
+        console.error("❌ Failed to search musicians:", error);
+        setMusicianSearchResults([]);
+      } finally {
+        setSearchingMusicians(false);
+      }
+    },
+    [musicianSearchQuery],
+  );
 
   const extrasTotal = (value.extras || []).reduce((sum, extra) => {
     return sum + Number(extra?.price || 0) * Number(extra?.quantity || 1);
@@ -1811,24 +1926,156 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                 Tagged band members / musicians
               </div>
               <p className="text-xs text-gray-500 mb-3">
-  Add one musician per line. Use their display name, include their
-  musician ID/email in brackets to make matching more reliable,
-  and add their gig fee at the end.
-</p>
+                Search for musicians, add them to the booking, then enter the fee they should see on their gig card.
+              </p>
 
-              <textarea
-                className="border rounded px-3 py-2 w-full min-h-[120px]"
-                value={value.assignedMusiciansText || ""}
-                onChange={(e) =>
-                  onChange({
-                    ...value,
-                    assignedMusiciansText: e.target.value,
-                  })
-                }
-                placeholder={
-  "Example:\nRikard Ridemark (6a4fba880aa54f927327747a) - £250\nSarah Smith (sarah@example.com) - £225"
-}
-              />
+              <form
+                onSubmit={searchMusicians}
+                className="flex flex-col gap-2 sm:flex-row sm:items-center mb-3"
+              >
+                <input
+                  className="border rounded px-3 py-2 w-full"
+                  value={musicianSearchQuery}
+                  onChange={(e) => setMusicianSearchQuery(e.target.value)}
+                  placeholder="Search by name, email, phone or instrument"
+                />
+                <button
+                  type="submit"
+                  disabled={searchingMusicians}
+                  className="rounded bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                >
+                  {searchingMusicians ? "Searching…" : "Search"}
+                </button>
+              </form>
+
+              {musicianSearchResults.length > 0 ? (
+                <div className="mb-4 max-h-48 overflow-y-auto rounded border divide-y">
+                  {musicianSearchResults.map((musician) => {
+                    const musicianId = String(musician?._id || musician?.musicianId || musician?.id || "");
+                    const name =
+                      musician?.name ||
+                      [musician?.firstName, musician?.lastName]
+                        .filter(Boolean)
+                        .join(" ") ||
+                      musician?.email ||
+                      "Musician";
+
+                    return (
+                      <button
+                        key={musicianId || musician?.email || name}
+                        type="button"
+                        className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-gray-50"
+                        onClick={() => addAssignedMusician(musician)}
+                      >
+                        <span>
+                          <span className="block text-sm font-medium text-gray-900">
+                            {name}
+                          </span>
+                          <span className="block text-xs text-gray-500">
+                            {[musician?.email, musician?.phone, musician?.instrument || musician?.role]
+                              .filter(Boolean)
+                              .join(" • ") || "No extra details"}
+                          </span>
+                        </span>
+                        <span className="shrink-0 rounded-full bg-[#ff6667] px-3 py-1 text-xs font-medium text-white">
+                          Add
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+
+              <div className="space-y-2">
+                {assignedMusicians.length === 0 ? (
+                  <div className="rounded border border-dashed p-3 text-sm text-gray-500">
+                    No musicians tagged yet.
+                  </div>
+                ) : (
+                  assignedMusicians.map((member, index) => (
+                    <div
+                      key={`${member?.musicianId || member?.email || member?.name || index}-${index}`}
+                      className="grid grid-cols-1 gap-2 rounded border p-3 md:grid-cols-12 md:items-end"
+                    >
+                      <div className="md:col-span-4">
+                        <label className="block text-xs text-gray-600 mb-1">
+                          Musician
+                        </label>
+                        <input
+                          className="border rounded px-3 py-2 w-full bg-gray-50"
+                          value={member?.name || member?.email || member?.musicianId || ""}
+                          readOnly
+                        />
+                      </div>
+                      <div className="md:col-span-3">
+                        <label className="block text-xs text-gray-600 mb-1">
+                          Role / instrument
+                        </label>
+                        <input
+                          className="border rounded px-3 py-2 w-full"
+                          value={member?.role || member?.instrument || ""}
+                          onChange={(e) =>
+                            updateAssignedMusician(index, {
+                              role: e.target.value,
+                              instrument: e.target.value,
+                            })
+                          }
+                          placeholder="e.g. Vocalist, Guitar, DJ"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-xs text-gray-600 mb-1">
+                          Gig fee £
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="border rounded px-3 py-2 w-full"
+                          value={member?.fee ?? ""}
+                          onChange={(e) => {
+                            const fee = Number(e.target.value || 0) || 0;
+                            updateAssignedMusician(index, {
+                              fee,
+                              totalFee: fee,
+                            });
+                          }}
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-xs text-gray-600 mb-1">
+                          Payment
+                        </label>
+                        <select
+                          className="border rounded px-3 py-2 w-full"
+                          value={member?.paymentStatus || "not_due"}
+                          onChange={(e) =>
+                            updateAssignedMusician(index, {
+                              paymentStatus: e.target.value,
+                            })
+                          }
+                        >
+                          <option value="not_due">Not due</option>
+                          <option value="pending">Pending</option>
+                          <option value="paid">Paid</option>
+                          <option value="held">Held</option>
+                          <option value="cancelled">Cancelled</option>
+                        </select>
+                      </div>
+                      <div className="md:col-span-1">
+                        <button
+                          type="button"
+                          className="w-full rounded border px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                          onClick={() => removeAssignedMusician(index)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             <div className="font-medium mb-3">Optional manual adjustment</div>
@@ -2558,9 +2805,33 @@ export default function BookingBoard() {
           extra.arrivalTime,
       );
 
-    const assignedMusicians = parseBookingMemberTags(
-      editForm.assignedMusiciansText,
-    );
+    const assignedMusicians = Array.isArray(editForm.assignedMusicians)
+      ? editForm.assignedMusicians
+          .map((member) => {
+            const fee = Number(
+              member?.fee ||
+                member?.totalFee ||
+                member?.gigFee ||
+                member?.payoutAmount ||
+                0,
+            ) || 0;
+
+            return {
+              ...member,
+              name: String(member?.name || "").trim(),
+              email: String(member?.email || "").trim().toLowerCase(),
+              musicianId: String(member?.musicianId || member?._id || member?.id || "").trim(),
+              role: String(member?.role || member?.instrument || "").trim(),
+              instrument: String(member?.instrument || member?.role || "").trim(),
+              fee,
+              totalFee: fee,
+              paymentStatus: member?.paymentStatus || "not_due",
+              status: member?.status || "confirmed",
+              source: member?.source || "manual_lookup",
+            };
+          })
+          .filter((member) => member.name || member.email || member.musicianId)
+      : parseBookingMemberTags(editForm.assignedMusiciansText);
 
     const extrasTotal = cleanedExtras.reduce(
       (sum, extra) =>
