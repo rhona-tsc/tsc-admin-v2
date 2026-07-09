@@ -445,7 +445,7 @@ const DeputyJobs = () => {
       to="/login"
       className="inline-flex items-center justify-center rounded border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
     >
-      {isLoggedIn ? "Account" : "Admin login"}
+      {isLoggedIn ? "Account" : "Login or Create Account"}
     </Link>
   </div>
 </div>
