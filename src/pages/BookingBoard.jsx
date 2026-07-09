@@ -1805,6 +1805,31 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
 
         <div className="mb-5 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="border rounded-lg p-4">
+            <div className="mb-5 border rounded-lg p-4 bg-white">
+              <div className="font-medium mb-2">
+                Tagged band members / musicians
+              </div>
+              <p className="text-xs text-gray-500 mb-3">
+                Add one musician per line. Use their display name, or include
+                their musician ID/email in brackets to make matching more
+                reliable.
+              </p>
+
+              <textarea
+                className="border rounded px-3 py-2 w-full min-h-[120px]"
+                value={value.assignedMusiciansText || ""}
+                onChange={(e) =>
+                  onChange({
+                    ...value,
+                    assignedMusiciansText: e.target.value,
+                  })
+                }
+                placeholder={
+                  "Example:\nRikard Ridemark (6a4fba880aa54f927327747a)\nSarah Smith (sarah@example.com)"
+                }
+              />
+            </div>
+
             <div className="font-medium mb-3">Optional manual adjustment</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
@@ -2001,6 +2026,81 @@ function AgentCell({ value, onSave }) {
     </div>
   );
 }
+
+const normaliseBookingMemberTag = (raw = "") => {
+  const text = String(raw || "").trim();
+  if (!text) return null;
+
+  const objectIdMatch = text.match(/[0-9a-fA-F]{24}/);
+  const emailMatch = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+
+  const cleanedName = text
+    .replace(/[<(].*?[>)]/g, "")
+    .replace(/[0-9a-fA-F]{24}/g, "")
+    .trim();
+
+  return {
+    name: cleanedName || text,
+    musicianId: objectIdMatch?.[0] || "",
+    email: emailMatch?.[0]?.toLowerCase() || "",
+  };
+};
+
+const parseBookingMemberTags = (value = "") =>
+  String(value || "")
+    .split(/\n|,/)
+    .map(normaliseBookingMemberTag)
+    .filter(Boolean);
+
+const getBookingMemberTags = (row = {}) => {
+  const source =
+    row.assignedMusicians ||
+    row.bookingMusicians ||
+    row.bandLineup ||
+    row.musicians ||
+    row.actsSummary?.[0]?.assignedMusicians ||
+    [];
+
+  if (!Array.isArray(source)) return [];
+
+  return source
+    .map((member) => {
+      if (typeof member === "string") return normaliseBookingMemberTag(member);
+
+      const musicianId = String(
+        member?.musicianId || member?.userId || member?._id || member?.id || "",
+      ).trim();
+
+      const email = String(member?.email || member?.userEmail || "")
+        .trim()
+        .toLowerCase();
+
+      const name = String(
+        member?.name ||
+          [member?.firstName, member?.lastName].filter(Boolean).join(" ") ||
+          member?.label ||
+          email ||
+          musicianId ||
+          "",
+      ).trim();
+
+      if (!name && !email && !musicianId) return null;
+
+      return { name, email, musicianId };
+    })
+    .filter(Boolean);
+};
+
+const formatBookingMemberTags = (row = {}) =>
+  getBookingMemberTags(row)
+    .map((member) => {
+      const extras = [member.email, member.musicianId]
+        .filter(Boolean)
+        .join(" | ");
+      return extras ? `${member.name} (${extras})` : member.name;
+    })
+    .filter(Boolean)
+    .join("\n");
 
 const getReceiptUrl = (row) => {
   const hasReceipt =
@@ -2399,6 +2499,7 @@ export default function BookingBoard() {
         pricingMode: extra?.pricingMode || "flat",
         appliedMinutes: Number(extra?.appliedMinutes || 0) || 0,
         billableMemberCount: Number(extra?.billableMemberCount || 0) || 0,
+        assignedMusiciansText: formatBookingMemberTags(row),
         payoutMemberIds: Array.isArray(extra?.payoutMemberIds)
           ? extra.payoutMemberIds.filter((id) => isValidObjectIdString(id))
           : [],
@@ -2430,6 +2531,10 @@ export default function BookingBoard() {
           extra.finishTime ||
           extra.arrivalTime,
       );
+
+    const assignedMusicians = parseBookingMemberTags(
+      editForm.assignedMusiciansText,
+    );
 
     const extrasTotal = cleanedExtras.reduce(
       (sum, extra) =>
@@ -2508,6 +2613,9 @@ export default function BookingBoard() {
       amount: Number(
         editingRow?.amount || editingRow?.totals?.chargedAmount || 0,
       ),
+      assignedMusicians,
+      bookingMusicians: assignedMusicians,
+      bandLineup: assignedMusicians,
       fee: Number(newGross.toFixed(2)),
       balanceAmountPence: Math.round(newBalance * 100),
       performanceTimes: nextPerformance,
@@ -2518,6 +2626,7 @@ export default function BookingBoard() {
         selectedLateStayMembers: Array.isArray(editForm.selectedLateStayMembers)
           ? editForm.selectedLateStayMembers
           : [],
+        assignedMusicians,
       },
       accounting: {
         invoiceCompany,
@@ -2547,6 +2656,7 @@ export default function BookingBoard() {
             return {
               ...act,
               selectedExtras: cleanedExtras,
+              assignedMusicians,
               performance: {
                 ...(act?.performance || {}),
                 ...nextPerformance,
@@ -2989,9 +3099,9 @@ export default function BookingBoard() {
     const isPaid = isExtrasReceipt
       ? Boolean(
           row?.extrasPaid ||
-            row?.extrasStatus === "paid" ||
-            row?.payments?.extrasPaymentReceived ||
-            row?.payments?.extrasInvoicePaid,
+          row?.extrasStatus === "paid" ||
+          row?.payments?.extrasPaymentReceived ||
+          row?.payments?.extrasInvoicePaid,
         )
       : isBookingPaid(row);
 
