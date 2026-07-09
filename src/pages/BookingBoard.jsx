@@ -3484,6 +3484,12 @@ const nextReceiptUrl =
                     const extrasInvoiceUrl = getExtrasInvoiceUrl(r);
 
                     const extrasReceiptUrl = getExtrasReceiptUrl(r);
+                    const extrasPaid = Boolean(
+  r?.extrasPaid ||
+  r?.extrasStatus === "paid" ||
+  r?.payments?.extrasPaymentReceived ||
+  r?.payments?.extrasInvoicePaid,
+);
                     const actName = getDisplayActName(r);
                     const actTsc = getDisplayActTscName(r);
                     const address = getDisplayAddress(r);
@@ -4131,7 +4137,7 @@ const nextReceiptUrl =
                                             <button
                                               type="button"
                                               className="text-xs underline text-purple-700 disabled:opacity-50"
-                                              disabled={!r?.extrasPaid}
+                                              disabled={!extrasPaid}
                                               onClick={() =>
                                                 createReceiptForRow(r, "extras")
                                               }
