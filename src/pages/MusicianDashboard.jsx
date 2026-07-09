@@ -139,11 +139,21 @@ const getStripePayoutUi = (u) => {
     };
   }
 
+  if (stripe.accountId) {
+    return {
+      label: "Stripe connected",
+      tone: "pending",
+      helper:
+        "Your Stripe account is connected. Payout verification may still be pending with Stripe.",
+      buttonLabel: "Check / update Stripe setup",
+    };
+  }
+
   return {
     label: "Payout setup incomplete",
     tone: "incomplete",
     helper: "Connect Stripe so deputy payouts can be released to you.",
-    buttonLabel: stripe.accountId ? "Finish Stripe setup" : "Connect Stripe",
+    buttonLabel: "Connect Stripe",
   };
 };
 
@@ -347,10 +357,16 @@ const YourProfileCard = ({ me, fallbackFirstName, deputyCTA, token }) => {
               className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
                 payoutUi.tone === "ready"
                   ? "bg-green-50 text-green-700 border border-green-200"
-                  : "bg-amber-50 text-amber-700 border border-amber-200"
+                  : payoutUi.tone === "pending"
+                    ? "bg-blue-50 text-blue-700 border border-blue-200"
+                    : "bg-amber-50 text-amber-700 border border-amber-200"
               }`}
             >
-              {payoutUi.tone === "ready" ? "Ready" : "Action needed"}
+              {payoutUi.tone === "ready"
+                ? "Ready"
+                : payoutUi.tone === "pending"
+                  ? "Connected"
+                  : "Action needed"}
             </span>
           </div>
 

@@ -443,7 +443,7 @@ const DeputyJobs = () => {
 
     <Link
       to="/login"
-      className="inline-flex items-center justify-center rounded border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+      className="inline-flex items-center justify-center rounded-full bg-[#ff6667] px-4 py-2.5 text-sm font-medium text-white transition-colors duration-200 hover:bg-black"
     >
       {isLoggedIn ? "Account" : "Login or Create Account"}
     </Link>
