@@ -9,6 +9,59 @@ const publicSiteBase =
   import.meta.env.VITE_PUBLIC_SITE_URL || "http://localhost:5174";
 
 const ADMIN_EMAIL = "hello@thesupremecollective.co.uk";
+const AUTH_TOKEN_KEYS = ["token", "adminToken", "musicianToken"];
+const AUTH_USER_KEYS = ["userId", "musicianId", "userEmail", "userRole"];
+
+const getStoredAuthToken = (fallbackToken = "") => {
+  if (fallbackToken) return fallbackToken;
+
+  for (const key of AUTH_TOKEN_KEYS) {
+    const value =
+      localStorage.getItem(key) || sessionStorage.getItem(key) || "";
+    if (value) return value;
+  }
+
+  return "";
+};
+
+const decodeJwtPayload = (jwt = "") => {
+  try {
+    const [, payload] = String(jwt).split(".");
+    if (!payload) return null;
+
+    const normalised = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalised.padEnd(
+      normalised.length + ((4 - (normalised.length % 4)) % 4),
+      "=",
+    );
+
+    return JSON.parse(window.atob(padded));
+  } catch {
+    return null;
+  }
+};
+
+const isJwtExpiredToken = (jwt = "") => {
+  const payload = decodeJwtPayload(jwt);
+  if (!payload?.exp) return false;
+  return payload.exp * 1000 <= Date.now();
+};
+
+const clearExpiredAuth = () => {
+  [...AUTH_TOKEN_KEYS, ...AUTH_USER_KEYS].forEach((key) => {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  });
+};
+
+const getAuthHeaders = (fallbackToken = "") => {
+  const tokenToUse = getStoredAuthToken(fallbackToken);
+
+  return {
+    token: tokenToUse || undefined,
+    Authorization: tokenToUse ? `Bearer ${tokenToUse}` : undefined,
+  };
+};
 /* -------------------- avatar helpers (same idea as DeputiesInput) -------------------- */
 const pickUrl = (v) => {
   if (!v) return "";
@@ -184,12 +237,15 @@ const YourProfileCard = ({ me, fallbackFirstName, deputyCTA, token }) => {
       setStripeLoading(true);
       setStripeError("");
 
-      const tokenToUse =
-        token ||
-        localStorage.getItem("token") ||
-        localStorage.getItem("adminToken") ||
-        localStorage.getItem("musicianToken") ||
-        "";
+      const tokenToUse = getStoredAuthToken(token);
+
+      if (!tokenToUse || isJwtExpiredToken(tokenToUse)) {
+        clearExpiredAuth();
+        setStripeError(
+          "Your session has expired. Please log in again, then reconnect Stripe.",
+        );
+        return;
+      }
 
       const response = await axios.post(
         `${backendUrl}/api/musician/account/stripe-connect/onboarding-link`,
@@ -198,10 +254,7 @@ const YourProfileCard = ({ me, fallbackFirstName, deputyCTA, token }) => {
           refreshUrl: `${window.location.origin}${window.location.pathname}?stripe=refresh`,
         },
         {
-          headers: {
-            token: tokenToUse,
-            Authorization: tokenToUse ? `Bearer ${tokenToUse}` : "",
-          },
+          headers: getAuthHeaders(tokenToUse),
           withCredentials: true,
         },
       );
@@ -420,6 +473,7 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
   const [myActs, setMyActs] = useState([]);
   const [deppingActs, setDeppingActs] = useState([]);
   const [appliedJobs, setAppliedJobs] = useState([]);
+  const [authNotice, setAuthNotice] = useState("");
   const [stats, setStats] = useState({
     enquiries: [],
     bookings: [],
@@ -434,7 +488,11 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
   }, []);
 
   const storedUserId =
-    sessionStorage.getItem("userId") || localStorage.getItem("userId");
+    sessionStorage.getItem("userId") ||
+    localStorage.getItem("userId") ||
+    localStorage.getItem("musicianId") ||
+    sessionStorage.getItem("musicianId") ||
+    "";
 
   if (!storedUserId) {
     console.error("❌ No stored userId!");
@@ -482,13 +540,15 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
       const id = storedUserId || userId;
       if (!id) return;
 
+      if (!authToken || isJwtExpiredToken(authToken)) {
+        setAuthNotice("Your session has expired. Please log in again to view your applied jobs.");
+        return;
+      }
+
       const res = await axios.get(
         `${backendUrl}/api/deputy-jobs?appliedBy=${id}`,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            token,
-          },
+          headers,
           withCredentials: true,
         },
       );
@@ -504,7 +564,10 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
   const musicianId = useMemo(() => {
     const fromProps = userId;
     const fromLS =
-      localStorage.getItem("musicianId") || localStorage.getItem("userId");
+      localStorage.getItem("musicianId") ||
+      sessionStorage.getItem("musicianId") ||
+      localStorage.getItem("userId") ||
+      sessionStorage.getItem("userId");
     if (isObjectId(fromProps)) return fromProps;
     if (isObjectId(fromLS)) return fromLS;
     return null;
@@ -515,11 +578,11 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
 
     (async () => {
       try {
-        const t = localStorage.getItem("token");
+        const t = getStoredAuthToken(token);
         const res = await axios.get(
           `${backendUrl}/api/moderation/deputy/${musicianId}`,
           {
-            headers: t ? { Authorization: `Bearer ${t}` } : {},
+            headers: getAuthHeaders(t),
             withCredentials: true,
           },
         );
@@ -536,7 +599,7 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
         console.error("❌ Failed to fetch deputy:", e);
       }
     })();
-  }, [musicianId]);
+  }, [musicianId, token]);
 
   const deputyCTA = useMemo(
     () => getDeputyCTA(myDeputyStatus, musicianId),
@@ -597,13 +660,9 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
   }, [me, adminEmail]);
 
   // helper headers: some endpoints want token, others want Bearer
-  const headers = useMemo(
-    () => ({
-      token,
-      Authorization: token ? `Bearer ${token}` : undefined,
-    }),
-    [token],
-  );
+  const authToken = useMemo(() => getStoredAuthToken(token), [token]);
+
+  const headers = useMemo(() => getAuthHeaders(authToken), [authToken]);
 
   const fetchPeerReview = async () => {
     const id = storedUserId || userId;
@@ -708,8 +767,7 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
         `${backendUrl}/api/musician/act-v2/list?mine=true&limit=200`,
         {
           headers: {
-            Authorization: token ? `Bearer ${token}` : undefined,
-            token,
+            ...headers,
             userid: resolvedUserId,
             userrole: "musician",
           },
@@ -735,7 +793,7 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
     try {
       const id = storedUserId || userId;
       const res = await axios.get(`${backendUrl}/api/musician/depping/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       });
       setDeppingActs(res.data.acts || []);
     } catch (err) {
@@ -760,17 +818,40 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
 
     axios
       .get(`${backendUrl}/api/musician/dashboard/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers,
       })
       .then((res) => setStats(res.data))
       .catch((err) => console.error(err));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [storedUserId, userId, headers]);
+
+useEffect(() => {
+  if (!authToken) return;
+
+  if (isJwtExpiredToken(authToken)) {
+    clearExpiredAuth();
+    setAuthNotice(
+      "Your session has expired. Please log in again to apply for jobs, update your profile, or connect Stripe.",
+    );
+  }
+}, [authToken]);
 
   if (!stats) return <p>Loading...</p>;
 
   return (
     <div className="p-4">
+      {authNotice ? (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {authNotice}{" "}
+          <button
+            type="button"
+            onClick={() => navigate("/login")}
+            className="font-semibold underline hover:text-black"
+          >
+            Log in again
+          </button>
+        </div>
+      ) : null}
+
       {/* MAIN + RIGHT SIDEBAR */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT: dashboard content */}

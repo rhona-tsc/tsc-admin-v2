@@ -5,6 +5,97 @@ import DepFiveAgreementCheckboxes from "./DepFiveAgreementCheckboxes";
 
 import { backendUrl } from "../App";
 
+const AUTH_TOKEN_KEYS = ["token", "adminToken", "musicianToken"];
+const AUTH_USER_KEYS = ["userId", "musicianId", "userEmail", "userRole"];
+
+const getStoredAuthToken = (fallbackToken = "") => {
+  if (fallbackToken) return fallbackToken;
+
+  for (const key of AUTH_TOKEN_KEYS) {
+    const value = localStorage.getItem(key) || sessionStorage.getItem(key) || "";
+    if (value) return value;
+  }
+
+  return "";
+};
+
+const decodeJwtPayload = (jwt = "") => {
+  try {
+    const [, payload] = String(jwt).split(".");
+    if (!payload) return null;
+
+    const normalised = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalised.padEnd(
+      normalised.length + ((4 - (normalised.length % 4)) % 4),
+      "=",
+    );
+
+    return JSON.parse(window.atob(padded));
+  } catch {
+    return null;
+  }
+};
+
+const isJwtExpiredToken = (jwt = "") => {
+  const payload = decodeJwtPayload(jwt);
+  if (!payload?.exp) return false;
+  return payload.exp * 1000 <= Date.now();
+};
+
+const clearExpiredAuth = () => {
+  [...AUTH_TOKEN_KEYS, ...AUTH_USER_KEYS].forEach((key) => {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  });
+};
+
+const getAuthHeaders = (fallbackToken = "", fallbackHeaders = {}) => {
+  const tokenToUse = getStoredAuthToken(fallbackToken);
+
+  return {
+    ...fallbackHeaders,
+    token: tokenToUse || fallbackHeaders?.token || undefined,
+    Authorization: tokenToUse
+      ? `Bearer ${tokenToUse}`
+      : fallbackHeaders?.Authorization || undefined,
+  };
+};
+
+const isStripeAuthError = (err) => {
+  const status = Number(err?.response?.status || 0);
+  const message = String(
+    err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "",
+  ).toLowerCase();
+
+  return (
+    status === 401 ||
+    status === 403 ||
+    message.includes("jwt expired") ||
+    message.includes("expired keychain") ||
+    message.includes("expired token") ||
+    message.includes("authorisation") ||
+    message.includes("authorization") ||
+    message.includes("unauthorised") ||
+    message.includes("unauthorized")
+  );
+};
+
+const getStripeErrorMessage = (err) => {
+  if (isStripeAuthError(err)) {
+    return "Your session has expired. Please log in again, then come back to finish your Stripe payout setup.";
+  }
+
+  return (
+    err?.response?.data?.message ||
+    err?.response?.data?.error ||
+    err?.message ||
+    "We couldn't start Stripe onboarding right now. Please try again."
+  );
+};
+
 const DeputyStepSix = ({
   formData,
   setFormData,
@@ -14,7 +105,6 @@ const DeputyStepSix = ({
   authToken,
   authHeaders = {},
   currentStep = 6,
-  
   saveDeputyDraftBeforeStripe,
 }) => {
   console.log("🟣 [DeputyStepSix] RENDER — formData:", formData);
@@ -64,103 +154,101 @@ const DeputyStepSix = ({
   const [stripeError, setStripeError] = useState("");
   const [stripeReturnMessage, setStripeReturnMessage] = useState("");
 
-useEffect(() => {
-  const params = new URLSearchParams(window.location.search || "");
-  const stripeStatus = params.get("stripe");
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search || "");
+    const stripeStatus = params.get("stripe");
 
-  const returnStep =
-    params.get("step") ||
-    localStorage.getItem("stripeReturnStep") ||
-    localStorage.getItem("deputyStep") ||
-    "1";
+    const returnStep =
+      params.get("step") ||
+      localStorage.getItem("stripeReturnStep") ||
+      localStorage.getItem("deputyStep") ||
+      String(currentStep || 6);
 
-  if (stripeStatus === "return") {
-    setStripeReturnMessage(
-      "Thanks — you’ve returned from Stripe. If your verification is complete, your payout status should update shortly."
-    );
+    if (stripeStatus === "return") {
+      setStripeReturnMessage(
+        "Thanks — you’ve returned from Stripe. If your verification is complete, your payout status should update shortly.",
+      );
 
-    localStorage.setItem("deputyStep", String(returnStep));
+      localStorage.setItem("deputyStep", String(returnStep));
 
-    window.dispatchEvent(
-      new CustomEvent("stripe-connect-returned", {
-        detail: { step: returnStep },
-      })
-    );
+      window.dispatchEvent(
+        new CustomEvent("stripe-connect-returned", {
+          detail: { step: returnStep },
+        }),
+      );
 
-    localStorage.removeItem("stripeReturnStep");
-  }
-
-  if (stripeStatus === "refresh") {
-    setStripeError(
-      "Stripe onboarding needs to be refreshed. Please click the Stripe button again to continue."
-    );
-
-    localStorage.setItem("deputyStep", String(returnStep));
-  }
-}, []);
-
- const handleConnectStripe = async () => {
-  try {
-    setStripeLoading(true);
-    setStripeError("");
-
-    const tokenToUse =
-      authToken ||
-      localStorage.getItem("token") ||
-      localStorage.getItem("adminToken") ||
-      localStorage.getItem("musicianToken") ||
-      "";
-
-    const returnStep = String(
-      stepProps?.currentStep || localStorage.getItem("deputyStep") || 6,
-    );
-
-    localStorage.setItem("deputyAutosave", JSON.stringify(formData));
-    localStorage.setItem("deputyStep", returnStep);
-    localStorage.setItem("stripeReturnStep", returnStep);
-
-    if (typeof saveDeputyDraftBeforeStripe === "function") {
-      await saveDeputyDraftBeforeStripe();
+      localStorage.removeItem("stripeReturnStep");
     }
 
-    const response = await axios.post(
-      `${backendUrl}/api/musician/account/stripe-connect/onboarding-link`,
-      {
-        returnUrl: `${window.location.origin}${window.location.pathname}?stripe=return&step=${returnStep}`,
-        refreshUrl: `${window.location.origin}${window.location.pathname}?stripe=refresh&step=${returnStep}`,
-      },
-      {
-        headers: {
-          ...(tokenToUse ? { Authorization: `Bearer ${tokenToUse}` } : {}),
-          ...(tokenToUse ? { token: tokenToUse } : {}),
+    if (stripeStatus === "refresh") {
+      setStripeError(
+        "Stripe onboarding needs to be refreshed. Please click the Stripe button again to continue.",
+      );
+
+      localStorage.setItem("deputyStep", String(returnStep));
+    }
+  }, [currentStep]);
+
+  const handleConnectStripe = async () => {
+    try {
+      setStripeLoading(true);
+      setStripeError("");
+      setStripeReturnMessage("");
+
+      const tokenToUse = getStoredAuthToken(authToken);
+
+      if (!tokenToUse || isJwtExpiredToken(tokenToUse)) {
+        clearExpiredAuth();
+        setStripeError(
+          "Your session has expired. Please log in again, then come back to finish your Stripe payout setup.",
+        );
+        return;
+      }
+
+      const returnStep = String(
+        stepProps?.currentStep || currentStep || localStorage.getItem("deputyStep") || 6,
+      );
+
+      localStorage.setItem("deputyAutosave", JSON.stringify(formData));
+      localStorage.setItem("deputyStep", returnStep);
+      localStorage.setItem("stripeReturnStep", returnStep);
+
+      if (typeof saveDeputyDraftBeforeStripe === "function") {
+        await saveDeputyDraftBeforeStripe();
+      }
+
+      const response = await axios.post(
+        `${backendUrl}/api/musician/account/stripe-connect/onboarding-link`,
+        {
+          returnUrl: `${window.location.origin}${window.location.pathname}?stripe=return&step=${returnStep}`,
+          refreshUrl: `${window.location.origin}${window.location.pathname}?stripe=refresh&step=${returnStep}`,
         },
-        withCredentials: true,
-      },
-    );
+        {
+          headers: getAuthHeaders(tokenToUse, authHeaders),
+          withCredentials: true,
+        },
+      );
 
-    const onboardingUrl = response?.data?.url || "";
-    if (!onboardingUrl) {
-      throw new Error("No Stripe onboarding link returned");
+      const onboardingUrl = response?.data?.url || "";
+      if (!onboardingUrl) {
+        throw new Error("No Stripe onboarding link returned");
+      }
+
+      window.location.assign(onboardingUrl);
+    } catch (err) {
+      console.error("❌ Failed to create Stripe onboarding link:", {
+        message: err?.message,
+        response: err?.response?.data,
+        status: err?.response?.status,
+      });
+
+      const message = getStripeErrorMessage(err);
+      if (isStripeAuthError(err)) clearExpiredAuth();
+      setStripeError(message);
+    } finally {
+      setStripeLoading(false);
     }
-
-    window.location.assign(onboardingUrl);
-  } catch (err) {
-    console.error("❌ Failed to create Stripe onboarding link:", {
-      message: err?.message,
-      response: err?.response?.data,
-      status: err?.response?.status,
-    });
-
-    setStripeError(
-      err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        err?.message ||
-        "We couldn't start Stripe onboarding right now. Please try again.",
-    );
-  } finally {
-    setStripeLoading(false);
-  }
-};
+  };
 
   const validateBankDetails = (field, value) => {
     let error = "";
@@ -294,6 +382,12 @@ useEffect(() => {
     <div>
       <h2 className="text-xl font-semibold mb-4">Payment Setup & Contract</h2>
 
+      {stripeError ? (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {stripeError}
+        </div>
+      ) : null}
+
       <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
         <h3 className="text-lg font-semibold mb-2">Preferred payout method</h3>
         <p className="text-sm text-gray-700 mb-3">
@@ -332,10 +426,6 @@ useEffect(() => {
           <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded px-3 py-2 mt-3">
             {stripeReturnMessage}
           </p>
-        )}
-
-        {stripeError && (
-          <p className="text-sm text-red-600 mt-3">{stripeError}</p>
         )}
       </div>
 

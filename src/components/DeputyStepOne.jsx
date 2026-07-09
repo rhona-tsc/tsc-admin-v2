@@ -5,6 +5,77 @@ import { assets } from "../assets/assets";
 import Mp3Uploader from "./Mp3Uploader";
 import renameAndCompressImage from "../pages/utils/renameAndCompressDeputyImage";
 
+const AUTH_TOKEN_KEYS = ["token", "adminToken", "musicianToken"];
+const AUTH_USER_KEYS = ["userId", "musicianId", "userEmail", "userRole"];
+
+const getStoredAuthToken = () => {
+  for (const key of AUTH_TOKEN_KEYS) {
+    const value = localStorage.getItem(key) || sessionStorage.getItem(key) || "";
+    if (value) return value;
+  }
+  return "";
+};
+
+const decodeJwtPayload = (jwt = "") => {
+  try {
+    const [, payload] = String(jwt).split(".");
+    if (!payload) return null;
+
+    const normalised = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalised.padEnd(
+      normalised.length + ((4 - (normalised.length % 4)) % 4),
+      "=",
+    );
+
+    return JSON.parse(window.atob(padded));
+  } catch {
+    return null;
+  }
+};
+
+const isJwtExpiredToken = (jwt = "") => {
+  const payload = decodeJwtPayload(jwt);
+  if (!payload?.exp) return false;
+  return payload.exp * 1000 <= Date.now();
+};
+
+const clearExpiredAuth = () => {
+  [...AUTH_TOKEN_KEYS, ...AUTH_USER_KEYS].forEach((key) => {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  });
+};
+
+const isAuthorisationUploadError = (err) => {
+  const status = Number(err?.response?.status || 0);
+  const message = String(
+    err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "",
+  ).toLowerCase();
+
+  return (
+    status === 401 ||
+    status === 403 ||
+    message.includes("authorisation") ||
+    message.includes("authorization") ||
+    message.includes("unauthorised") ||
+    message.includes("unauthorized") ||
+    message.includes("jwt expired") ||
+    message.includes("expired keychain") ||
+    message.includes("expired token")
+  );
+};
+
+const getUploadErrorMessage = (err) => {
+  if (isAuthorisationUploadError(err)) {
+    return "Your session has expired. Please log in again, then come back to finish your profile uploads.";
+  }
+
+  return "Failed to upload image. Please try again.";
+};
+
 const DeputyStepOne = ({
   formData = {},
   setFormData = () => {},
@@ -28,6 +99,7 @@ const DeputyStepOne = ({
   const [coverModalOpen, setCoverModalOpen] = useState(false);
   const [tempCoverImage, setTempCoverImage] = useState("");
   const [coverHeroPreviewUrl, setCoverHeroPreviewUrl] = useState("");
+  const [authError, setAuthError] = useState("");
 
   const [userFirstName] = useState(localStorage.getItem("userFirstName") || "");
 
@@ -41,6 +113,21 @@ const DeputyStepOne = ({
   // MP3 local state
   const [originalMp3s, setOriginalMp3s] = useState([]);
   const [coverMp3s, setCoverMp3s] = useState([]);
+
+  const ensureUploadAuthorised = () => {
+    const token = getStoredAuthToken();
+
+    if (!token || isJwtExpiredToken(token)) {
+      clearExpiredAuth();
+      const message =
+        "Your session has expired. Please log in again, then come back to finish your profile uploads.";
+      setAuthError(message);
+      return { ok: false, token: "", message };
+    }
+
+    setAuthError("");
+    return { ok: true, token, message: "" };
+  };
 
   const asArray = (v) => {
     if (Array.isArray(v)) return v;
@@ -185,6 +272,7 @@ const DeputyStepOne = ({
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setAuthError("");
     setPreviewUrl(""); // Clear preview so it doesn't show old image
     const reader = new FileReader();
     reader.onload = () => {
@@ -195,12 +283,19 @@ const DeputyStepOne = ({
   };
 
   const handleSaveCroppedImage = async (blob) => {
+    const auth = ensureUploadAuthorised();
+    if (!auth.ok) {
+      alert(auth.message);
+      return;
+    }
+
     setIsUploadingImages(true);
     try {
       const file = blobToFile(blob, `profile-${Date.now()}.jpg`);
       const [url] = await renameAndCompressImage({
         images: [file],
         address: formData.address || {},
+        token: auth.token,
       });
 
       setFormData((prev) => ({
@@ -213,7 +308,9 @@ const DeputyStepOne = ({
       setModalOpen(false);
     } catch (err) {
       console.error("Failed to upload cropped profile picture", err);
-      alert("Failed to upload cropped profile picture. Please try again.");
+      const message = getUploadErrorMessage(err);
+      setAuthError(isAuthorisationUploadError(err) ? message : "");
+      alert(message);
     } finally {
       setIsUploadingImages(false);
     }
@@ -226,6 +323,7 @@ const DeputyStepOne = ({
   const handleCoverHeroChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setAuthError("");
     setCoverHeroPreviewUrl(""); // Clear preview so it doesn't show old image
     const reader = new FileReader();
     reader.onload = () => {
@@ -236,12 +334,19 @@ const DeputyStepOne = ({
   };
 
   const handleSaveCoverCroppedImage = async (blob) => {
+    const auth = ensureUploadAuthorised();
+    if (!auth.ok) {
+      alert(auth.message);
+      return;
+    }
+
     setIsUploadingImages(true);
     try {
       const file = blobToFile(blob, `cover-hero-${Date.now()}.jpg`);
       const [url] = await renameAndCompressImage({
         images: [file],
         address: formData.address || {},
+        token: auth.token,
       });
 
       setFormData((prev) => ({
@@ -253,7 +358,9 @@ const DeputyStepOne = ({
       setCoverModalOpen(false);
     } catch (err) {
       console.error("Failed to upload cropped cover hero image", err);
-      alert("Failed to upload cropped cover hero image. Please try again.");
+      const message = getUploadErrorMessage(err);
+      setAuthError(isAuthorisationUploadError(err) ? message : "");
+      alert(message);
     } finally {
       setIsUploadingImages(false);
     }
@@ -261,6 +368,12 @@ const DeputyStepOne = ({
 
   // Helper for wardrobe/additional images
   const handleWardrobeImageUpload = async (updated, wardrobeKey) => {
+    const auth = ensureUploadAuthorised();
+    if (!auth.ok) {
+      alert(auth.message);
+      return;
+    }
+
     setIsUploadingImages(true);
 
     try {
@@ -273,6 +386,7 @@ const DeputyStepOne = ({
           const [url] = await renameAndCompressImage({
             images: [img],
             address: formData.address,
+            token: auth.token,
           });
 
           return url;
@@ -290,7 +404,9 @@ const DeputyStepOne = ({
       }));
     } catch (err) {
       console.error(`❌ Failed to upload ${wardrobeKey}:`, err);
-      alert("Failed to upload image. Please try again.");
+      const message = getUploadErrorMessage(err);
+      setAuthError(isAuthorisationUploadError(err) ? message : "");
+      alert(message);
     } finally {
       setIsUploadingImages(false);
     }
@@ -380,6 +496,12 @@ const DeputyStepOne = ({
   return (
     <div className="flex flex-col gap-4">
       <h2 className="font-semibold text-xl">Welcome {userFirstName}!</h2>
+
+      {authError ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {authError}
+        </div>
+      ) : null}
 
       <p>
         Let's gather all the information needed to get you matched with the best

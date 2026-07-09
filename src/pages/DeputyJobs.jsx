@@ -20,6 +20,33 @@ const parseJwtPayload = (token = "") => {
   }
 };
 
+const AUTH_TOKEN_KEYS = ["token", "adminToken", "musicianToken"];
+const AUTH_USER_KEYS = ["userId", "musicianId", "userEmail", "userRole"];
+
+const getStoredAuthToken = (fallbackToken = "") => {
+  if (fallbackToken) return fallbackToken;
+
+  for (const key of AUTH_TOKEN_KEYS) {
+    const value = localStorage.getItem(key) || sessionStorage.getItem(key) || "";
+    if (value) return value;
+  }
+
+  return "";
+};
+
+const isJwtExpiredToken = (token = "") => {
+  const payload = parseJwtPayload(token);
+  if (!payload?.exp) return false;
+  return payload.exp * 1000 <= Date.now();
+};
+
+const clearExpiredAuth = () => {
+  [...AUTH_TOKEN_KEYS, ...AUTH_USER_KEYS].forEach((key) => {
+    localStorage.removeItem(key);
+    sessionStorage.removeItem(key);
+  });
+};
+
 const formatDate = (dateString) => {
   if (!dateString) return "Date TBC";
   const date = new Date(dateString);
@@ -98,6 +125,7 @@ const DeputyJobs = () => {
   const [sortType, setSortType] = useState("date_asc");
   const [loadingClose, setLoadingClose] = useState(false);
   const [showEnquiryOnly, setShowEnquiryOnly] = useState(false);
+  const [authNotice, setAuthNotice] = useState("");
 
   const [filters, setFilters] = useState({
     search: "",
@@ -109,12 +137,8 @@ const DeputyJobs = () => {
 
   const navigate = useNavigate();
 
-  const authToken =
-    localStorage.getItem("token") ||
-    localStorage.getItem("adminToken") ||
-    localStorage.getItem("musicianToken") ||
-    sessionStorage.getItem("token") ||
-    "";
+  const rawAuthToken = getStoredAuthToken();
+  const authToken = rawAuthToken && !isJwtExpiredToken(rawAuthToken) ? rawAuthToken : "";
 
   const authHeaders = useMemo(
     () =>
@@ -126,6 +150,17 @@ const DeputyJobs = () => {
         : {},
     [authToken],
   );
+
+  useEffect(() => {
+    if (!rawAuthToken) return;
+
+    if (isJwtExpiredToken(rawAuthToken)) {
+      clearExpiredAuth();
+      setAuthNotice(
+        "Your session has expired. Please log in again to apply for jobs or manage deputy opportunities.",
+      );
+    }
+  }, [rawAuthToken]);
 
   const currentUser = useMemo(() => {
     const tokenPayload = parseJwtPayload(authToken);
@@ -182,12 +217,8 @@ const DeputyJobs = () => {
       setLoading(true);
       setError("");
 
-      const headers = authToken
-        ? { Authorization: `Bearer ${authToken}`, token: authToken }
-        : {};
-
       const { data } = await axios.get(`${BACKEND_URL}/api/deputy-jobs`, {
-        headers,
+        headers: authHeaders,
         withCredentials: true,
       });
 
@@ -211,7 +242,7 @@ const DeputyJobs = () => {
     } finally {
       setLoading(false);
     }
-  }, [authToken]);
+  }, [authHeaders]);
 
   useEffect(() => {
     fetchJobs();
@@ -377,6 +408,18 @@ const DeputyJobs = () => {
 
   return (
     <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
+      {authNotice ? (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {authNotice}{" "}
+          <button
+            type="button"
+            onClick={() => navigate("/login")}
+            className="font-semibold underline hover:text-black"
+          >
+            Log in again
+          </button>
+        </div>
+      ) : null}
      <div className="mb-6 flex items-start justify-between gap-4">
   <div>
     <Title text1="DEPUTY" text2="JOBS" />
