@@ -235,8 +235,7 @@ const BookingList = ({ token }) => {
         <div>
           <h1 className="text-2xl font-bold mb-2">Your Gigs</h1>
           <p className="text-sm text-gray-500">
-            Confirmed bookings you have been tagged on by The Supreme
-            Collective.
+            Confirmed bookings you have been allocated to:
           </p>
         </div>
 
