@@ -438,7 +438,7 @@ const DeputyJobs = () => {
         </span>
       </div>
     ) : (
-      <div className="text-xs text-gray-500">Public page</div>
+      <div className="text-xs text-gray-500"></div>
     )}
 
     <Link

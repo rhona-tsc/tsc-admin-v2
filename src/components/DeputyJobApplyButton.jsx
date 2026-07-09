@@ -150,7 +150,7 @@ const handleApply = async () => {
 
     if (!token) {
       toast.error(
-        "You need to log in before applying. Please log out and log back in, then try again."
+        "You need to log in or create an account before applying."
       );
       return;
     }

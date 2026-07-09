@@ -26,15 +26,15 @@ select,input,textarea{
     padding: 0.5rem;
   }
   
-  .Toastify__toast--success {
-    background-color: black;
-    color: #ff6667;
-  }
-  
-  .Toastify__toast--error {
-    background-color: black;
-    color: #991b1b;
-  }
+.Toastify__toast--success {
+  background-color: black;
+  color: white;
+}
+
+.Toastify__toast--error {
+  background-color: black;
+  color: white;
+}
   
   .Toastify__close-button {
     display: none
