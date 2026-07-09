@@ -2983,28 +2983,24 @@ export default function BookingBoard() {
     }
   };
 
-  const createReceiptForRow = async (
-    row,
-
-    receiptType = "main",
-  ) => {
+  const createReceiptForRow = async (row, receiptType = "main") => {
     const isExtrasReceipt = receiptType === "extras";
 
-const isPaid = isExtrasReceipt
-  ? Boolean(
-      row?.extrasPaid ||
-      row?.extrasStatus === "paid" ||
-      row?.payments?.extrasPaymentReceived ||
-      row?.payments?.extrasInvoicePaid
-    )
-  : isBookingPaid(row);
+    const isPaid = isExtrasReceipt
+      ? Boolean(
+          row?.extrasPaid ||
+            row?.extrasStatus === "paid" ||
+            row?.payments?.extrasPaymentReceived ||
+            row?.payments?.extrasInvoicePaid,
+        )
+      : isBookingPaid(row);
 
     if (!isPaid) {
-     window.alert(
-  isExtrasReceipt
-    ? "Please mark the extras invoice as paid before generating an extras receipt."
-    : "Please mark the invoice as paid before generating a receipt."
-);
+      window.alert(
+        isExtrasReceipt
+          ? "Please mark the extras invoice as paid before generating an extras receipt."
+          : "Please mark the invoice as paid before generating a receipt.",
+      );
       return;
     }
 
@@ -3015,7 +3011,8 @@ const isPaid = isExtrasReceipt
         credentials: "include",
         body: JSON.stringify({
           bookingId: row._id,
-          receiptType,
+          documentType: "receipt",
+          invoiceType: receiptType,
         }),
       });
 
@@ -3058,21 +3055,25 @@ const isPaid = isExtrasReceipt
       const previewUrl = json.previewUrl
         ? `${apiRoot}${json.previewUrl}`
         : row?._id
-          ? `${API_BASE}/invoices/board-receipt/${row._id}`
+          ? `${API_BASE}/invoices/board-receipt/${row._id}${
+              isExtrasReceipt ? "?invoiceType=extras" : ""
+            }`
           : "";
 
-      const nextReceiptUrl =
-        receiptType === "extras"
-          ? json.extrasReceiptUrl ||
-            updatedRow?.extrasReceiptUrl ||
-            updatedRow?.payments?.extrasReceiptPdfUrl
-          : previewUrl ||
-            json.receiptUrl ||
-            json.receiptPdfUrl ||
-            updatedRow?.receiptUrl ||
-            updatedRow?.receiptPdfUrl ||
-            updatedRow?.payments?.receiptPdfUrl ||
-            updatedRow?.payments?.boardReceiptPdfUrl;
+      const nextReceiptUrl = isExtrasReceipt
+        ? previewUrl ||
+          json.extrasReceiptUrl ||
+          json.extrasReceiptPdfUrl ||
+          updatedRow?.extrasReceiptUrl ||
+          updatedRow?.extrasReceiptPdfUrl ||
+          updatedRow?.payments?.extrasReceiptPdfUrl
+        : previewUrl ||
+          json.receiptUrl ||
+          json.receiptPdfUrl ||
+          updatedRow?.receiptUrl ||
+          updatedRow?.receiptPdfUrl ||
+          updatedRow?.payments?.receiptPdfUrl ||
+          updatedRow?.payments?.boardReceiptPdfUrl;
 
       if (nextReceiptUrl) {
         window.open(nextReceiptUrl, "_blank", "noopener,noreferrer");
