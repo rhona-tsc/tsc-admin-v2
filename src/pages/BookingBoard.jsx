@@ -21,8 +21,22 @@ const ACT_TSC_NAME_OVERRIDES = {
 const getAuthToken = () =>
   localStorage.getItem("token") ||
   localStorage.getItem("authToken") ||
+  localStorage.getItem("adminToken") ||
+  localStorage.getItem("musicianToken") ||
   sessionStorage.getItem("token") ||
+  sessionStorage.getItem("adminToken") ||
+  sessionStorage.getItem("musicianToken") ||
   "";
+
+const buildAuthHeaders = () => {
+  const token = getAuthToken();
+  return token
+    ? {
+        Authorization: `Bearer ${token}`,
+        token,
+      }
+    : {};
+};
 
 const getPrimaryEmail = (row) => {
   return (
@@ -986,13 +1000,14 @@ const buildEditStateFromRow = (row) => {
 };
 
 function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
-  if (!row || !value) return null;
-
   const [musicianSearchQuery, setMusicianSearchQuery] = useState("");
   const [musicianSearchResults, setMusicianSearchResults] = useState([]);
   const [searchingMusicians, setSearchingMusicians] = useState(false);
+  const [musicianSearchError, setMusicianSearchError] = useState("");
 
-  const assignedMusicians = Array.isArray(value.assignedMusicians)
+  if (!row || !value) return null;
+
+  const assignedMusicians = Array.isArray(value?.assignedMusicians)
     ? value.assignedMusicians
     : [];
 
@@ -1069,19 +1084,35 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
   const searchMusicians = useCallback(
     async (event) => {
       event?.preventDefault?.();
+      event?.stopPropagation?.();
 
       const query = String(musicianSearchQuery || "").trim();
-      if (!query) return;
+      if (!query) {
+        setMusicianSearchError(
+          "Search for a musician by name, email, phone or instrument.",
+        );
+        return;
+      }
 
       try {
         setSearchingMusicians(true);
+        setMusicianSearchError("");
+        setMusicianSearchResults([]);
 
         const params = new URLSearchParams({ query });
         const res = await fetch(`${API_BASE}/musician/search?${params.toString()}`, {
-          headers: buildHeaders(),
+          method: "GET",
+          headers: buildAuthHeaders(),
           credentials: "include",
         });
+
         const json = await res.json().catch(() => null);
+
+        if (!res.ok || json?.success === false) {
+          throw new Error(
+            json?.message || `Musician search failed with status ${res.status}`,
+          );
+        }
 
         const results = Array.isArray(json?.musicians)
           ? json.musicians
@@ -1092,9 +1123,16 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
               : [];
 
         setMusicianSearchResults(results);
+
+        if (!results.length) {
+          setMusicianSearchError("No musicians found for that search.");
+        }
       } catch (error) {
         console.error("❌ Failed to search musicians:", error);
         setMusicianSearchResults([]);
+        setMusicianSearchError(
+          error?.message || "Failed to search musicians. Please try again.",
+        );
       } finally {
         setSearchingMusicians(false);
       }
@@ -1947,6 +1985,12 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                   {searchingMusicians ? "Searching…" : "Search"}
                 </button>
               </form>
+
+              {musicianSearchError ? (
+                <div className="mb-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  {musicianSearchError}
+                </div>
+              ) : null}
 
               {musicianSearchResults.length > 0 ? (
                 <div className="mb-4 max-h-48 overflow-y-auto rounded border divide-y">
