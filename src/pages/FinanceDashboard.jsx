@@ -12,7 +12,22 @@ import {
 } from "recharts";
 import { backendUrl } from "../App";
 
-const entities = ["TSC", "BMM", "HSBC", "Monzo Joint", "Monzo Personal", "AMEX", "CBS", "HL Investment", "HSBC Investment","Bitcoin", "Solana","Ethereum", "True Potential Penson", "Aviva Pension"];
+const entities = [
+  "TSC",
+  "BMM",
+  "HSBC",
+  "Monzo Joint",
+  "Monzo Personal",
+  "AMEX",
+  "CBS",
+  "HL Investment",
+  "HSBC Investment",
+  "Bitcoin",
+  "Solana",
+  "Ethereum",
+  "True Potential Penson",
+  "Aviva Pension",
+];
 
 const formatCurrency = (value = 0) =>
   new Intl.NumberFormat("en-GB", {
@@ -107,7 +122,7 @@ const FinanceDashboard = () => {
   const [unpaidForecastCount, setUnpaidForecastCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [autoMatching, setAutoMatching] = useState(false);
-  const [syncingVat, setSyncingVat] = useState(false);
+  const [syncingAll, setSyncingAll] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -215,33 +230,39 @@ const FinanceDashboard = () => {
     }
   };
 
-  const handleSyncVatForecast = async () => {
+  const handleSyncAll = async () => {
     try {
-      setSyncingVat(true);
+      setSyncingAll(true);
       setError("");
       setSuccessMessage("");
 
       const res = await axios.post(
-        `${backendUrl}/api/finance/tax/sync-vat-forecast-events`,
+        `${backendUrl}/api/finance/forecast/sync-all`,
         {
           entity,
-          replaceExisting: true,
+          from: fromDate,
+          to: toDate,
         },
       );
 
-      if (res.data?.success) {
-        setSuccessMessage(
-          `Synced ${res.data.createdCount || 0} VAT forecast event(s).`,
-        );
-        await fetchForecast();
-      } else {
-        setError(res.data?.message || "VAT sync failed.");
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || "Finance update failed.");
       }
+
+      await fetchForecast();
+
+      setSuccessMessage(
+        `Finance updated. Synced ${
+          res.data.bookingsSynced || 0
+        } booking(s), created ${
+          res.data.forecastEventsCreated || 0
+        } forecast event(s), and refreshed tax forecasts.`,
+      );
     } catch (err) {
-      console.error("VAT sync error:", err);
+      console.error("Finance update error:", err);
       setError(err.response?.data?.message || err.message);
     } finally {
-      setSyncingVat(false);
+      setSyncingAll(false);
     }
   };
 
@@ -324,28 +345,28 @@ const FinanceDashboard = () => {
             </div>
 
             <div>
-  <label className="mb-1 block text-xs font-medium text-gray-600">
-    Forecast from
-  </label>
-  <input
-    type="date"
-    value={fromDate}
-    onChange={(e) => setFromDate(e.target.value)}
-    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-  />
-</div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">
+                Forecast from
+              </label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+              />
+            </div>
 
-<div>
-  <label className="mb-1 block text-xs font-medium text-gray-600">
-    Forecast to
-  </label>
-  <input
-    type="date"
-    value={toDate}
-    onChange={(e) => setToDate(e.target.value)}
-    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
-  />
-</div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">
+                Forecast to
+              </label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+              />
+            </div>
 
             <button
               type="button"
@@ -379,19 +400,12 @@ const FinanceDashboard = () => {
             </button>
 
             <button
-              onClick={handleSyncVatForecast}
-              disabled={syncingVat || loading}
-              className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 disabled:opacity-50"
-            >
-              {syncingVat ? "Syncing VAT..." : "Sync VAT"}
-            </button>
-
-            <button
-              onClick={() => fetchForecast()}
-              disabled={loading}
+              type="button"
+              onClick={handleSyncAll}
+              disabled={syncingAll || loading}
               className="rounded-lg bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
             >
-              {loading ? "Loading..." : "Refresh"}
+              {syncingAll ? "Updating everything..." : "Update everything"}
             </button>
           </div>
         </div>
@@ -506,34 +520,37 @@ const FinanceDashboard = () => {
                 {(monthlyData?.months || [])
                   .filter((month) => {
                     const monthStart = `${month.month}-01`;
-                    if (fromDate && monthStart < fromDate.slice(0, 7)) return false;
-                    if (toDate && month.month > toDate.slice(0, 7)) return false;
+                    if (fromDate && monthStart < fromDate.slice(0, 7))
+                      return false;
+                    if (toDate && month.month > toDate.slice(0, 7))
+                      return false;
                     return true;
                   })
                   .map((month) => (
-                  <tr key={month.month} className="border-b last:border-0">
-                    <td className="px-3 py-3 font-medium">{month.month}</td>
-                    <td className="px-3 py-3 text-right text-green-700">
-                      {formatCurrency(month.totalIn)}
-                    </td>
-                    <td className="px-3 py-3 text-right text-red-700">
-                      {formatCurrency(month.totalOut)}
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      {formatCurrency(month.netMovement)}
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      {formatCurrency(month.lowestBalance)}
-                    </td>
-                    <td className="px-3 py-3 text-right font-semibold">
-                      {formatCurrency(month.closingBalance)}
-                    </td>
-                  </tr>
-                ))}
+                    <tr key={month.month} className="border-b last:border-0">
+                      <td className="px-3 py-3 font-medium">{month.month}</td>
+                      <td className="px-3 py-3 text-right text-green-700">
+                        {formatCurrency(month.totalIn)}
+                      </td>
+                      <td className="px-3 py-3 text-right text-red-700">
+                        {formatCurrency(month.totalOut)}
+                      </td>
+                      <td className="px-3 py-3 text-right">
+                        {formatCurrency(month.netMovement)}
+                      </td>
+                      <td className="px-3 py-3 text-right">
+                        {formatCurrency(month.lowestBalance)}
+                      </td>
+                      <td className="px-3 py-3 text-right font-semibold">
+                        {formatCurrency(month.closingBalance)}
+                      </td>
+                    </tr>
+                  ))}
 
                 {!monthlyData?.months?.filter((month) => {
                   const monthStart = `${month.month}-01`;
-                  if (fromDate && monthStart < fromDate.slice(0, 7)) return false;
+                  if (fromDate && monthStart < fromDate.slice(0, 7))
+                    return false;
                   if (toDate && month.month > toDate.slice(0, 7)) return false;
                   return true;
                 })?.length && (
