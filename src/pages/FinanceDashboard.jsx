@@ -606,7 +606,7 @@ const FinanceDashboard = () => {
   {event.bookingRef || "-"}
 </td>
 <td className="px-3 py-3 font-mono text-xs text-gray-600">
-  {event.actName || "-"}
+  {event.tscName || "-"}
 </td>
                     <td className="px-3 py-3 text-gray-500">{event.type}</td>
                     <td className="px-3 py-3">
