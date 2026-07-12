@@ -584,6 +584,9 @@ const FinanceDashboard = () => {
                 <tr className="border-b text-xs uppercase tracking-wide text-gray-500">
                   <th className="px-3 py-3">Date</th>
                   <th className="px-3 py-3">Title</th>
+                  <th className="px-3 py-3">Booking Ref</th>
+                                    <th className="px-3 py-3">Act</th>
+
                   <th className="px-3 py-3">Type</th>
                   <th className="px-3 py-3">Direction</th>
                   <th className="px-3 py-3 text-right">Amount</th>
@@ -599,6 +602,12 @@ const FinanceDashboard = () => {
                       {formatDate(event.expectedDate)}
                     </td>
                     <td className="px-3 py-3">{event.title}</td>
+                    <td className="px-3 py-3 font-mono text-xs text-gray-600">
+  {event.bookingRef || "-"}
+</td>
+<td className="px-3 py-3 font-mono text-xs text-gray-600">
+  {event.actName || "-"}
+</td>
                     <td className="px-3 py-3 text-gray-500">{event.type}</td>
                     <td className="px-3 py-3">
                       <span
@@ -628,7 +637,7 @@ const FinanceDashboard = () => {
                 {!filteredForecast?.timeline?.length && (
                   <tr>
                     <td
-                      colSpan="7"
+                      colSpan="9"
                       className="px-3 py-8 text-center text-gray-500"
                     >
                       No forecast events found.
