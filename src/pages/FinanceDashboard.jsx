@@ -141,19 +141,19 @@ const FinanceDashboard = () => {
       const [timelineRes, monthlyRes, transactionsRes, forecastEventsRes] =
         await Promise.all([
           axios.get(`${backendUrl}/api/finance/forecast/timeline`, {
-            params: {
-              entity,
-              startingBalance: nextStartingBalance,
-              from: nextFrom,
-              to: nextTo,
-            },
+           params: {
+  entity,
+  startingBalance: nextStartingBalance,
+  startDate: nextFrom,
+  endDate: nextTo,
+},
           }),
           axios.get(`${backendUrl}/api/finance/forecast/monthly-summary`, {
             params: {
-              entity,
-              startingBalance: nextStartingBalance,
-              from: nextFrom,
-              to: nextTo,
+  entity,
+  startingBalance: nextStartingBalance,
+  startDate: nextFrom,
+  endDate: nextTo,
             },
           }),
           axios.get(`${backendUrl}/api/finance/transactions`, {
