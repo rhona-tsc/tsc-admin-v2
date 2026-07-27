@@ -930,6 +930,38 @@ const INVOICE_COMPANIES = {
   },
 };
 
+const BMM_VAT_REGISTRATION_DATE_ISO = "2026-02-07";
+
+const toISODateInput = (value) => {
+  if (!value) return "";
+  const text = String(value);
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10);
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? ""
+    : parsed.toISOString().slice(0, 10);
+};
+
+const getEditableBookingDate = (row) =>
+  toISODateInput(
+    row?.bookingDateISO ||
+      row?.bookingDate ||
+      row?.invoiceDateISO ||
+      row?.invoiceDate ||
+      row?.payments?.boardInvoiceCreatedAt ||
+      row?.createdAt,
+  );
+
+const getVatRateForBookingDate = (invoiceCompany, bookingDateISO) => {
+  if (String(invoiceCompany || "TSC").toUpperCase() !== "BMM") return 0;
+  if (!bookingDateISO) return INVOICE_COMPANIES.BMM.vatRate;
+
+  return bookingDateISO < BMM_VAT_REGISTRATION_DATE_ISO
+    ? 0
+    : INVOICE_COMPANIES.BMM.vatRate;
+};
+
 const buildEditStateFromRow = (row) => {
   const gross = getDisplayGross(row);
   const depositFromBackend = getDisplayDeposit(row);
@@ -950,7 +982,10 @@ const buildEditStateFromRow = (row) => {
   ).toUpperCase();
 
   const defaultVatRate = INVOICE_COMPANIES[invoiceCompany]?.vatRate ?? 0;
-  const vatRate = Number(row?.accounting?.vatRate ?? defaultVatRate);
+  const bookingDateISO = getEditableBookingDate(row);
+  const vatRate = bookingDateISO
+    ? getVatRateForBookingDate(invoiceCompany, bookingDateISO)
+    : Number(row?.accounting?.vatRate ?? defaultVatRate);
 
   const commissionGross = clamp0(split?.commissionGross);
   const passThroughGross = clamp0(split?.passThroughGross);
@@ -966,6 +1001,8 @@ const buildEditStateFromRow = (row) => {
     actTscName: getDisplayActTscName(row),
     eventDate: getDisplayEventDate(row),
     eventDateISO: String(getDisplayEventDate(row) || "").slice(0, 10),
+    bookingDateISO,
+    invoiceDateISO: bookingDateISO,
     invoiceDueDateISO: String(
       row?.invoiceDueDateISO ||
         row?.invoiceDueDate ||
@@ -1406,7 +1443,10 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
               value={value.invoiceCompany || "TSC"}
               onChange={(e) => {
                 const invoiceCompany = e.target.value;
-                const vatRate = INVOICE_COMPANIES[invoiceCompany]?.vatRate ?? 0;
+                const vatRate = getVatRateForBookingDate(
+                  invoiceCompany,
+                  value.bookingDateISO,
+                );
                 onChange({
                   ...value,
                   invoiceCompany,
@@ -1419,6 +1459,33 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                 Bamboo Music Management — VAT registered
               </option>
             </select>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">
+              Booking / invoice issue date
+            </label>
+            <input
+              type="date"
+              className="border rounded px-3 py-2 w-full"
+              value={value.bookingDateISO || ""}
+              onChange={(e) => {
+                const bookingDateISO = e.target.value;
+                onChange({
+                  ...value,
+                  bookingDateISO,
+                  invoiceDateISO: bookingDateISO,
+                  vatRate: getVatRateForBookingDate(
+                    value.invoiceCompany,
+                    bookingDateISO,
+                  ),
+                });
+              }}
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Used as both the booking date and invoice issue date, and to decide
+              whether BMM VAT applies.
+            </p>
           </div>
 
           <div>
@@ -2894,9 +2961,8 @@ export default function BookingBoard() {
     const invoiceCompany = String(
       editForm.invoiceCompany || "TSC",
     ).toUpperCase();
-    const defaultVatRate = INVOICE_COMPANIES[invoiceCompany]?.vatRate ?? 0;
-    const vatRateRaw = Number(editForm.vatRate ?? defaultVatRate);
-    const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : defaultVatRate;
+    const bookingDateISO = editForm.bookingDateISO || "";
+    const vatRate = getVatRateForBookingDate(invoiceCompany, bookingDateISO);
 
     const commissionGross = clamp0(editForm.commissionGross);
     const passThroughGross = clamp0(editForm.passThroughGross);
@@ -2937,6 +3003,8 @@ export default function BookingBoard() {
         ? { eventDateISO: editForm.eventDateISO || existingEventDate }
         : {}),
       invoiceCompany,
+      bookingDateISO,
+      invoiceDateISO: bookingDateISO,
       invoiceDueDateISO: editForm.invoiceDueDateISO || "",
       totals: {
         ...(editingRow?.totals || {}),
