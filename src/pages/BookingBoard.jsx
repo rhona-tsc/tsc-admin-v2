@@ -1084,7 +1084,9 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
     if (!name && !email && !musicianId) return;
 
     const alreadyAdded = assignedMusicians.some((member) => {
-      const existingId = String(member?.musicianId || member?._id || member?.id || "");
+      const existingId = String(
+        member?.musicianId || member?._id || member?.id || "",
+      );
       const existingEmail = String(member?.email || "").toLowerCase();
       return (
         (musicianId && existingId === musicianId) ||
@@ -1137,11 +1139,14 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
         setMusicianSearchResults([]);
 
         const params = new URLSearchParams({ query });
-        const res = await fetch(`${API_BASE}/musician/search?${params.toString()}`, {
-          method: "GET",
-          headers: buildAuthHeaders(),
-          credentials: "include",
-        });
+        const res = await fetch(
+          `${API_BASE}/musician/search?${params.toString()}`,
+          {
+            method: "GET",
+            headers: buildAuthHeaders(),
+            credentials: "include",
+          },
+        );
 
         const json = await res.json().catch(() => null);
 
@@ -1483,8 +1488,8 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
               }}
             />
             <p className="mt-1 text-xs text-gray-500">
-              Used as both the booking date and invoice issue date, and to decide
-              whether BMM VAT applies.
+              Used as both the booking date and invoice issue date, and to
+              decide whether BMM VAT applies.
             </p>
           </div>
 
@@ -2031,7 +2036,8 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                 Tagged band members / musicians
               </div>
               <p className="text-xs text-gray-500 mb-3">
-                Search for musicians, add them to the booking, then enter the fee they should see on their gig card.
+                Search for musicians, add them to the booking, then enter the
+                fee they should see on their gig card.
               </p>
 
               <form
@@ -2062,7 +2068,12 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
               {musicianSearchResults.length > 0 ? (
                 <div className="mb-4 max-h-48 overflow-y-auto rounded border divide-y">
                   {musicianSearchResults.map((musician) => {
-                    const musicianId = String(musician?._id || musician?.musicianId || musician?.id || "");
+                    const musicianId = String(
+                      musician?._id ||
+                        musician?.musicianId ||
+                        musician?.id ||
+                        "",
+                    );
                     const name =
                       musician?.name ||
                       [musician?.firstName, musician?.lastName]
@@ -2083,7 +2094,11 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                             {name}
                           </span>
                           <span className="block text-xs text-gray-500">
-                            {[musician?.email, musician?.phone, musician?.instrument || musician?.role]
+                            {[
+                              musician?.email,
+                              musician?.phone,
+                              musician?.instrument || musician?.role,
+                            ]
                               .filter(Boolean)
                               .join(" • ") || "No extra details"}
                           </span>
@@ -2114,7 +2129,12 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                         </label>
                         <input
                           className="border rounded px-3 py-2 w-full bg-gray-50"
-                          value={member?.name || member?.email || member?.musicianId || ""}
+                          value={
+                            member?.name ||
+                            member?.email ||
+                            member?.musicianId ||
+                            ""
+                          }
                           readOnly
                         />
                       </div>
@@ -2456,18 +2476,18 @@ const getBookingMemberTags = (row = {}) => {
       ).trim();
 
       const fee =
-  Number(
-    member?.fee ||
-      member?.totalFee ||
-      member?.gigFee ||
-      member?.payoutAmount ||
-      member?.baseFee ||
-      0,
-  ) || 0;
+        Number(
+          member?.fee ||
+            member?.totalFee ||
+            member?.gigFee ||
+            member?.payoutAmount ||
+            member?.baseFee ||
+            0,
+        ) || 0;
 
       if (!name && !email && !musicianId) return null;
 
-return { name, email, musicianId, fee, totalFee: fee };
+      return { name, email, musicianId, fee, totalFee: fee };
     })
     .filter(Boolean);
 };
@@ -2919,21 +2939,28 @@ export default function BookingBoard() {
     const assignedMusicians = Array.isArray(editForm.assignedMusicians)
       ? editForm.assignedMusicians
           .map((member) => {
-            const fee = Number(
-              member?.fee ||
-                member?.totalFee ||
-                member?.gigFee ||
-                member?.payoutAmount ||
-                0,
-            ) || 0;
+            const fee =
+              Number(
+                member?.fee ||
+                  member?.totalFee ||
+                  member?.gigFee ||
+                  member?.payoutAmount ||
+                  0,
+              ) || 0;
 
             return {
               ...member,
               name: String(member?.name || "").trim(),
-              email: String(member?.email || "").trim().toLowerCase(),
-              musicianId: String(member?.musicianId || member?._id || member?.id || "").trim(),
+              email: String(member?.email || "")
+                .trim()
+                .toLowerCase(),
+              musicianId: String(
+                member?.musicianId || member?._id || member?.id || "",
+              ).trim(),
               role: String(member?.role || member?.instrument || "").trim(),
-              instrument: String(member?.instrument || member?.role || "").trim(),
+              instrument: String(
+                member?.instrument || member?.role || "",
+              ).trim(),
               fee,
               totalFee: fee,
               paymentStatus: member?.paymentStatus || "not_due",
@@ -3697,16 +3724,22 @@ export default function BookingBoard() {
           : "";
 
       if (cardPaymentUrl) {
-        await navigator.clipboard?.writeText(cardPaymentUrl).catch(() => {});
-        window.alert(
-          "Card payment invoice generated.\n\nThe Stripe payment link has been copied to your clipboard.",
-        );
-        window.open(cardPaymentUrl, "_blank", "noopener,noreferrer");
+        try {
+          await navigator.clipboard.writeText(cardPaymentUrl);
+
+          window.alert(
+            "Card payment invoice generated.\n\nThe payment link has been copied to your clipboard.",
+          );
+        } catch {
+          window.prompt(
+            "Card payment invoice generated. Copy this payment link:",
+            cardPaymentUrl,
+          );
+        }
       } else if (previewUrl) {
         window.alert(
           "Card payment invoice generated, but no Stripe payment link was returned.",
         );
-        window.open(previewUrl, "_blank", "noopener,noreferrer");
       } else {
         window.alert(
           "Card payment invoice generated, but no Stripe payment link or invoice preview URL was returned.",
@@ -4598,15 +4631,46 @@ export default function BookingBoard() {
                                             Extras invoice
                                           </button>
 
-                                          <button
-                                            type="button"
-                                            className="px-2 py-1 rounded border text-xs bg-white hover:bg-gray-50"
-                                            onClick={() =>
-                                              createCardPaymentInvoiceForRow(r)
-                                            }
-                                          >
-                                            Create card payment invoice
-                                          </button>
+                                          <div className="flex flex-wrap gap-2">
+                                            <button
+                                              type="button"
+                                              className="px-2 py-1 rounded border text-xs bg-white hover:bg-gray-50"
+                                              onClick={() =>
+                                                createCardPaymentInvoiceForRow(
+                                                  r,
+                                                )
+                                              }
+                                            >
+                                              Create card payment invoice
+                                            </button>
+
+                                            {getPaymentUrl(r) ? (
+                                              <button
+                                                type="button"
+                                                className="px-2 py-1 rounded border text-xs bg-white hover:bg-gray-50"
+                                                onClick={async () => {
+                                                  const paymentUrl =
+                                                    getPaymentUrl(r);
+
+                                                  try {
+                                                    await navigator.clipboard.writeText(
+                                                      paymentUrl,
+                                                    );
+                                                    window.alert(
+                                                      "Payment link copied to clipboard.",
+                                                    );
+                                                  } catch {
+                                                    window.prompt(
+                                                      "Copy this payment link:",
+                                                      paymentUrl,
+                                                    );
+                                                  }
+                                                }}
+                                              >
+                                                Copy payment link
+                                              </button>
+                                            ) : null}
+                                          </div>
                                           <button
                                             type="button"
                                             className="text-xs underline text-green-700 disabled:opacity-50"
