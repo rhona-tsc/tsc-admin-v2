@@ -4200,8 +4200,59 @@ export default function BookingBoard() {
                             <td colSpan={7} className="p-0">
                               <div className="overflow-x-auto border-t border-yellow-200">
                                 <table className="min-w-[4200px] table-fixed text-xs">
+                                  <thead className="bg-yellow-100 text-left text-[11px] uppercase tracking-wide text-gray-700">
+                                    <tr>
+                                      {[
+                                        "Client",
+                                        "Booking ref",
+                                        "Event sheet",
+                                        "Contract",
+                                        "Enquiry date",
+                                        "Booking date",
+                                        "Event date",
+                                        "Gross",
+                                        "Deposit",
+                                        "Balance",
+                                        "Commission",
+                                        "VAT",
+                                        "Funds held",
+                                        "Agent",
+                                        "Client email",
+                                        "Billing address",
+                                        "Event type",
+                                        "Act",
+                                        "Public act name",
+                                        "Venue address",
+                                        "County",
+                                        "Band size",
+                                        "Lineup",
+                                        "Times",
+                                        "Booking details",
+                                        "DJ services",
+                                        "Allocation",
+                                        "Review",
+                                        "Client payment",
+                                        "Band payment",
+                                        "Documents",
+                                        "Invoice actions",
+                                        "Row actions",
+                                      ].map((label, index) => (
+                                        <th
+                                          key={label}
+                                          scope="col"
+                                          className={
+                                            index === 0
+                                              ? "sticky left-0 z-30 bg-yellow-100 px-3 py-2 border-b border-yellow-200 shadow-[2px_0_0_0_rgba(229,231,235,1)]"
+                                              : "px-3 py-2 border-b border-yellow-200 whitespace-nowrap"
+                                          }
+                                        >
+                                          {label}
+                                        </th>
+                                      ))}
+                                    </tr>
+                                  </thead>
                                   <tbody>
-                                    <tr className="align-top">
+                                    <tr className="align-middle">
                                       <td className="sticky left-0 z-20 bg-yellow-50 px-3 py-2 shadow-[2px_0_0_0_rgba(229,231,235,1)]">
                                         <InlineInput
                                           value={clientFirstNames}
@@ -4452,7 +4503,7 @@ export default function BookingBoard() {
                                       <td className={cellClass}>
                                         <InlineInput
                                           value={r.clientAddress || ""}
-                                          placeholder="Client address"
+                                          placeholder="Billing address"
                                           onCommit={(val) =>
                                             onInlineEdit(r._id, {
                                               clientAddress: val,
@@ -4488,7 +4539,7 @@ export default function BookingBoard() {
                                       <td className={cellClass}>
                                         <InlineInput
                                           value={address || ""}
-                                          placeholder="Address"
+                                          placeholder="Venue address"
                                           onCommit={(val) =>
                                             onInlineEdit(r._id, {
                                               address: val,
