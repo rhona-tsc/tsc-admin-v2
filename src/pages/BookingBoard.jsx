@@ -997,6 +997,10 @@ const buildEditStateFromRow = (row) => {
     _id: row?._id,
     bookingRef: getDisplayBookingRef(row),
     clientFirstNames: getClientFirstNames(row),
+    clientAddress: row?.clientAddress || "",
+    extrasBillingName: row?.extrasBillingName || "",
+    extrasBillingEmail: row?.extrasBillingEmail || "",
+    extrasBillingAddress: row?.extrasBillingAddress || "",
     actName: getDisplayActName(row),
     actTscName: getDisplayActTscName(row),
     eventDate: getDisplayEventDate(row),
@@ -1427,6 +1431,71 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
               className="border rounded px-3 py-2 w-full"
               value={value.clientFirstNames || ""}
               readOnly
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs text-gray-600 mb-1">
+              Main invoice billing address
+            </label>
+            <textarea
+              rows={3}
+              className="border rounded px-3 py-2 w-full"
+              placeholder="Address used for the main invoice"
+              value={value.clientAddress || ""}
+              onChange={(e) =>
+                onChange({ ...value, clientAddress: e.target.value })
+              }
+            />
+          </div>
+
+          <div className="md:col-span-2 border-t pt-4 mt-2">
+            <h3 className="font-medium">Extras invoice billing override</h3>
+            <p className="text-xs text-gray-500 mt-1">
+              Optional. Leave blank to use the main client billing details.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">
+              Extras billed to
+            </label>
+            <input
+              className="border rounded px-3 py-2 w-full"
+              placeholder="Person or company name"
+              value={value.extrasBillingName || ""}
+              onChange={(e) =>
+                onChange({ ...value, extrasBillingName: e.target.value })
+              }
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">
+              Extras billing email
+            </label>
+            <input
+              type="email"
+              className="border rounded px-3 py-2 w-full"
+              placeholder="payer@example.com"
+              value={value.extrasBillingEmail || ""}
+              onChange={(e) =>
+                onChange({ ...value, extrasBillingEmail: e.target.value })
+              }
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-xs text-gray-600 mb-1">
+              Extras billing address
+            </label>
+            <textarea
+              rows={3}
+              className="border rounded px-3 py-2 w-full"
+              placeholder="Address used only for extras invoices and receipts"
+              value={value.extrasBillingAddress || ""}
+              onChange={(e) =>
+                onChange({ ...value, extrasBillingAddress: e.target.value })
+              }
             />
           </div>
           <div>
@@ -3033,6 +3102,14 @@ export default function BookingBoard() {
       bookingDateISO,
       invoiceDateISO: bookingDateISO,
       invoiceDueDateISO: editForm.invoiceDueDateISO || "",
+      clientAddress: String(editForm.clientAddress || "").trim(),
+      extrasBillingName: String(editForm.extrasBillingName || "").trim(),
+      extrasBillingEmail: String(editForm.extrasBillingEmail || "")
+        .trim()
+        .toLowerCase(),
+      extrasBillingAddress: String(
+        editForm.extrasBillingAddress || "",
+      ).trim(),
       totals: {
         ...(editingRow?.totals || {}),
         fullAmount: Number(newGross.toFixed(2)),
