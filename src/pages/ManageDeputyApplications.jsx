@@ -230,7 +230,7 @@ const ManageDeputyApplications = () => {
     .replace(/[_-]+/g, " ");
 
   const isEnquiryJob = normalisedJobType === "enquiry";
-  const isConfirmedBooking = ["booking", "confirmed", "confirmed booking"].includes(
+  const isConfirmedBooking = ["booked", "booking", "confirmed", "confirmed booking"].includes(
     normalisedJobType
   );
   const canPresentApplicants = isEnquiryJob || isConfirmedBooking;
