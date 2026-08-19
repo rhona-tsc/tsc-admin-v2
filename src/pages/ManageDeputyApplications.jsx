@@ -227,6 +227,8 @@ const ManageDeputyApplications = () => {
   const normalisedJobType = normaliseString(job?.jobType).toLowerCase().replace(/[_-]+/g, " ");
   const normalisedJobStatus = normaliseString(job?.status).toLowerCase().replace(/[_-]+/g, " ");
   const normalisedWorkflowStage = normaliseString(job?.workflowStage)
+  const normalisedJobType = normaliseString(job?.jobType)
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
     .toLowerCase()
     .replace(/[_-]+/g, " ");
 
@@ -239,6 +241,9 @@ const ManageDeputyApplications = () => {
       [normalisedJobStatus, normalisedWorkflowStage].some((value) =>
         ["confirmed", "booked"].includes(value)
       ));
+  const isConfirmedBooking = ["booking", "confirmed", "confirmed booking"].includes(
+    normalisedJobType
+  );
   const canPresentApplicants = isEnquiryJob || isConfirmedBooking;
 
   const presentedApplications = useMemo(() => {
