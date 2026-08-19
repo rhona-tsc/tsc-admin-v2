@@ -224,7 +224,22 @@ const ManageDeputyApplications = () => {
   const canManageThisJob =
     isAdminEmail || currentUserRole === "admin" || currentUserRole === "agent" || Boolean(adminToken);
 
-  const isEnquiryJob = String(job?.jobType || "").trim().toLowerCase() === "enquiry";
+  const normalisedJobType = normaliseString(job?.jobType).toLowerCase().replace(/[_-]+/g, " ");
+  const normalisedJobStatus = normaliseString(job?.status).toLowerCase().replace(/[_-]+/g, " ");
+  const normalisedWorkflowStage = normaliseString(job?.workflowStage)
+    .toLowerCase()
+    .replace(/[_-]+/g, " ");
+
+  const isEnquiryJob = normalisedJobType === "enquiry";
+  const isConfirmedBooking =
+    [normalisedJobType, normalisedJobStatus, normalisedWorkflowStage].includes(
+      "confirmed booking"
+    ) ||
+    (normalisedJobType === "booking" &&
+      [normalisedJobStatus, normalisedWorkflowStage].some((value) =>
+        ["confirmed", "booked"].includes(value)
+      ));
+  const canPresentApplicants = isEnquiryJob || isConfirmedBooking;
 
   const presentedApplications = useMemo(() => {
     return applications.filter(
@@ -661,7 +676,7 @@ const profileLink = getApplicantProfileLink(application, job?._id || "");
                         </button>
                       ) : null}
 
-                      {isEnquiryJob && !isAssigned ? (
+                      {canPresentApplicants && !isAssigned ? (
                         <button
                           type="button"
                           onClick={() => handlePresentApplicant(application)}
@@ -790,7 +805,7 @@ const profileLink = getApplicantProfileLink(application, job?._id || "");
                               {manuallyApplyingId === musicianId ? "Adding…" : "Add applicant"}
                             </button>
 
-                            {isEnquiryJob ? (
+                            {canPresentApplicants ? (
                               <button
                                 type="button"
                                 onClick={() => handleManualApplyAndPresent(musician)}
