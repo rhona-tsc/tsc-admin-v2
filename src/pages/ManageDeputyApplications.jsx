@@ -224,23 +224,12 @@ const ManageDeputyApplications = () => {
   const canManageThisJob =
     isAdminEmail || currentUserRole === "admin" || currentUserRole === "agent" || Boolean(adminToken);
 
-  const normalisedJobType = normaliseString(job?.jobType).toLowerCase().replace(/[_-]+/g, " ");
-  const normalisedJobStatus = normaliseString(job?.status).toLowerCase().replace(/[_-]+/g, " ");
-  const normalisedWorkflowStage = normaliseString(job?.workflowStage)
   const normalisedJobType = normaliseString(job?.jobType)
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .toLowerCase()
     .replace(/[_-]+/g, " ");
 
   const isEnquiryJob = normalisedJobType === "enquiry";
-  const isConfirmedBooking =
-    [normalisedJobType, normalisedJobStatus, normalisedWorkflowStage].includes(
-      "confirmed booking"
-    ) ||
-    (normalisedJobType === "booking" &&
-      [normalisedJobStatus, normalisedWorkflowStage].some((value) =>
-        ["confirmed", "booked"].includes(value)
-      ));
   const isConfirmedBooking = ["booking", "confirmed", "confirmed booking"].includes(
     normalisedJobType
   );
