@@ -74,6 +74,19 @@ const buildInitialState = (initialValues = {}) => ({
     : Array.isArray(initialValues.essentialRoles)
     ? initialValues.essentialRoles.join(", ")
     : initialValues.requiredSkills || "",
+  requireSoundEngineering: Array.isArray(initialValues.essentialRoles)
+    ? initialValues.essentialRoles.includes("Sound Engineering")
+    : false,
+  requirePA: Array.isArray(initialValues.essentialRoles)
+    ? initialValues.essentialRoles.includes("PA Provision")
+    : false,
+  lightingRequirement: Array.isArray(initialValues.essentialRoles) &&
+    initialValues.essentialRoles.includes("Lighting Provision")
+      ? "required"
+      : Array.isArray(initialValues.desiredRoles) &&
+          initialValues.desiredRoles.includes("Lighting Provision")
+        ? "preferred"
+        : "none",
   desiredRoles: Array.isArray(initialValues.desiredRoles)
     ? initialValues.desiredRoles.join(", ")
     : initialValues.desiredRoles || "",
@@ -273,6 +286,16 @@ if (!isEnquiryJob && formData.saveClientCard) {
     const requiredInstruments = normaliseCsvArray(formData.requiredInstruments);
     const requiredSkills = normaliseCsvArray(formData.requiredSkills);
     const desiredRoles = normaliseCsvArray(formData.desiredRoles);
+    const capabilityRequirements = [
+      formData.requireSoundEngineering ? "Sound Engineering" : "",
+      formData.requirePA ? "PA Provision" : "",
+      formData.lightingRequirement === "required" ? "Lighting Provision" : "",
+    ].filter(Boolean);
+    const essentialRoles = Array.from(
+      new Set([...requiredSkills, ...capabilityRequirements]),
+    );
+    const capabilityPreferences =
+      formData.lightingRequirement === "preferred" ? ["Lighting Provision"] : [];
     const secondaryInstruments = normaliseCsvArray(formData.secondaryInstruments);
     const genres = normaliseCsvArray(formData.genres);
     const tags = normaliseCsvArray(formData.tags);
@@ -291,7 +314,7 @@ if (!isEnquiryJob && formData.saveClientCard) {
     ];
 
     const mergedDesiredRoles = Array.from(
-      new Set([...requiredSkills, ...desiredRoles])
+      new Set([...desiredRoles, ...capabilityPreferences])
     );
 
     const primaryInstrument = requiredInstruments[0] || "";
@@ -319,7 +342,7 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
       instrument: primaryInstrument,
       requiredInstruments,
       requiredSkills,
-      essentialRoles: requiredSkills,
+      essentialRoles,
       desiredRoles: mergedDesiredRoles,
       secondaryInstruments,
       genres,
@@ -677,7 +700,7 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
 
           <div className="lg:col-span-2">
             <label className={labelClass} htmlFor="requiredSkills">
-              Essential skills
+              Other essential skills
             </label>
             <input
               id="requiredSkills"
@@ -686,9 +709,56 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
               value={formData.requiredSkills}
               onChange={handleChange}
               className={inputClass}
-              placeholder="e.g. Backing vocals, lead vocals, MD, sound engineering"
+              placeholder="e.g. Backing vocals, lead vocals, musical director"
             />
           </div>
+
+          <fieldset className="lg:col-span-2 rounded-2xl border border-gray-200 p-4">
+            <legend className="px-2 text-sm font-semibold text-gray-900">
+              Sound, PA and lighting
+            </legend>
+            <div className="mt-2 grid gap-4 md:grid-cols-2">
+              <label className="flex items-start gap-3 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  name="requireSoundEngineering"
+                  checked={Boolean(formData.requireSoundEngineering)}
+                  onChange={handleChange}
+                  className="mt-1"
+                />
+                <span>
+                  <strong className="block">Sound engineering required</strong>
+                  PA owners are treated as able to sound-engineer.
+                </span>
+              </label>
+              <label className="flex items-start gap-3 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  name="requirePA"
+                  checked={Boolean(formData.requirePA)}
+                  onChange={handleChange}
+                  className="mt-1"
+                />
+                <span>
+                  <strong className="block">PA provision required</strong>
+                  Only musicians with confirmed PA provision will match.
+                </span>
+              </label>
+              <label className="md:col-span-2 text-sm text-gray-700">
+                <strong className="mb-2 block">Lighting</strong>
+                <select
+                  name="lightingRequirement"
+                  value={formData.lightingRequirement}
+                  onChange={handleChange}
+                  className={inputClass}
+                >
+                  <option value="none">Not needed</option>
+                  <option value="preferred">Preferred — flag if unconfirmed</option>
+                  <option value="required">Required — exclude if unconfirmed</option>
+                </select>
+              </label>
+            </div>
+          </fieldset>
 
           <div className="lg:col-span-2">
             <label className={labelClass} htmlFor="desiredRoles">
