@@ -1052,6 +1052,21 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
     ? value.assignedMusicians
     : [];
 
+  const roleOptions = [
+    "Vocals",
+    "BVs",
+    "Guitar",
+    "Bass",
+    "Drums",
+    "Keys",
+    "Saxophone",
+    "DJ",
+    "PA & lights",
+    "Sound engineering",
+    "Manned playlist",
+    "Ceremony music",
+  ];
+
   const updateAssignedMusician = (index, patch) => {
     onChange({
       ...value,
@@ -1067,6 +1082,23 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
       assignedMusicians: assignedMusicians.filter(
         (_, memberIndex) => memberIndex !== index,
       ),
+    });
+  };
+
+  const toggleAssignedMusicianRole = (index, role) => {
+    const member = assignedMusicians[index] || {};
+    const currentRoles = String(member?.role || member?.instrument || "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const nextRoles = currentRoles.includes(role)
+      ? currentRoles.filter((item) => item !== role)
+      : [...currentRoles, role];
+    const nextValue = nextRoles.join(", ");
+
+    updateAssignedMusician(index, {
+      role: nextValue,
+      instrument: nextValue,
     });
   };
 
@@ -2222,6 +2254,33 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                           }
                           placeholder="e.g. Vocalist, Guitar, DJ"
                         />
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {roleOptions.map((role) => {
+                            const selected = String(
+                              member?.role || member?.instrument || "",
+                            )
+                              .split(",")
+                              .map((item) => item.trim())
+                              .includes(role);
+
+                            return (
+                              <button
+                                key={role}
+                                type="button"
+                                onClick={() =>
+                                  toggleAssignedMusicianRole(index, role)
+                                }
+                                className={`rounded-full border px-2 py-1 text-[11px] font-medium transition ${
+                                  selected
+                                    ? "border-[#ff6667] bg-[#ff6667] text-white"
+                                    : "border-gray-300 bg-white text-gray-600 hover:border-[#ff6667]"
+                                }`}
+                              >
+                                {role}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                       <div className="md:col-span-2">
                         <label className="block text-xs text-gray-600 mb-1">

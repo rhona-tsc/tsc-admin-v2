@@ -27,6 +27,13 @@ const payoutStatusLabels = {
   cancelled: "Cancelled",
 };
 
+const payoutDetailsLabels = {
+  stripe_ready: "Stripe ready",
+  manual_bank_ready: "Bank details held",
+  stripe_incomplete: "Stripe incomplete",
+  missing: "Details missing",
+};
+
 const statusStyles = {
   paid: "bg-emerald-100 text-emerald-800",
   ready_to_charge: "bg-blue-100 text-blue-800",
@@ -37,6 +44,10 @@ const statusStyles = {
   failed: "bg-red-100 text-red-800",
   cancelled: "bg-gray-200 text-gray-700",
   refunded: "bg-purple-100 text-purple-800",
+  stripe_ready: "bg-emerald-100 text-emerald-800",
+  manual_bank_ready: "bg-blue-100 text-blue-800",
+  stripe_incomplete: "bg-amber-100 text-amber-800",
+  missing: "bg-red-100 text-red-800",
 };
 
 const formatCurrency = (value, currency = "GBP") =>
@@ -115,6 +126,10 @@ const PaymentTracker = ({ token }) => {
     return payments.filter((payment) => {
       const matchesStatus =
         statusFilter === "all" ||
+        (statusFilter === "missing_payout_details" &&
+          ["missing", "stripe_incomplete"].includes(
+            payment.payoutDetails?.status,
+          )) ||
         payment.paymentStatus === statusFilter ||
         payment.payoutStatus === statusFilter;
       const matchesQuery =
@@ -136,9 +151,16 @@ const PaymentTracker = ({ token }) => {
           if (payment.paymentStatus === "failed" || payment.payoutStatus === "failed") {
             result.attention += 1;
           }
+          if (
+            !["stripe_ready", "manual_bank_ready"].includes(
+              payment.payoutDetails?.status,
+            )
+          ) {
+            result.missingDetails += 1;
+          }
           return result;
         },
-        { paid: 0, scheduled: 0, attention: 0 },
+        { paid: 0, scheduled: 0, attention: 0, missingDetails: 0 },
       ),
     [payments],
   );
@@ -164,10 +186,11 @@ const PaymentTracker = ({ token }) => {
           </button>
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <SummaryCard label="Tracked payments" value={payments.length} helper="Deputy jobs in the payment flow" />
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <SummaryCard label="Confirmed payees" value={payments.length} helper="Accepted allocations only" />
           <SummaryCard label="Scheduled" value={formatCurrency(totals.scheduled)} helper="Deputy payouts awaiting release" />
           <SummaryCard label="Paid out" value={formatCurrency(totals.paid)} helper="Completed deputy payouts" />
+          <SummaryCard label="Payout setup missing" value={totals.missingDetails} helper="Stripe or bank details needed" />
           <SummaryCard label="Needs attention" value={totals.attention} helper="Failed charges or payouts" />
         </div>
 
@@ -190,6 +213,7 @@ const PaymentTracker = ({ token }) => {
               <option value="charge_pending">Charge pending</option>
               <option value="paid">Paid</option>
               <option value="scheduled">Payout scheduled</option>
+              <option value="missing_payout_details">Payout details missing</option>
               <option value="failed">Needs attention</option>
               <option value="refunded">Refunded</option>
               <option value="cancelled">Cancelled</option>
@@ -212,6 +236,7 @@ const PaymentTracker = ({ token }) => {
                   <tr>
                     <th className="px-4 py-3 font-semibold">Job</th>
                     <th className="px-4 py-3 font-semibold">Deputy</th>
+                    <th className="px-4 py-3 font-semibold">Payout setup</th>
                     <th className="px-4 py-3 font-semibold">Event</th>
                     <th className="px-4 py-3 font-semibold">Client payment</th>
                     <th className="px-4 py-3 font-semibold">Deputy payout</th>
@@ -229,6 +254,18 @@ const PaymentTracker = ({ token }) => {
                         <p className="mt-1 max-w-xs text-xs text-gray-500">{payment.venue || "Venue not set"}</p>
                       </td>
                       <td className="px-4 py-4 text-gray-700">{payment.bookedMusicianName || "Not allocated"}</td>
+                      <td className="px-4 py-4">
+                        <StatusBadge
+                          value={payment.payoutDetails?.status || "missing"}
+                          labels={payoutDetailsLabels}
+                        />
+                        {payment.payoutDetails?.status === "manual_bank_ready" &&
+                          payment.payoutDetails?.bankAccountEnding && (
+                            <p className="mt-2 text-xs text-gray-500">
+                              Account ending {payment.payoutDetails.bankAccountEnding}
+                            </p>
+                          )}
+                      </td>
                       <td className="whitespace-nowrap px-4 py-4 text-gray-700">{formatDate(payment.eventDate)}</td>
                       <td className="px-4 py-4">
                         <StatusBadge value={payment.paymentStatus} labels={paymentStatusLabels} />
