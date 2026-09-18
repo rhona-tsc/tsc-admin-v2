@@ -231,6 +231,16 @@ const App = () => {
 
             {/* PUBLIC DEPUTY JOB ROUTES */}
             <Route path="/deputy-jobs" element={<DeputyJobs />} />
+            {isAdminAgent && (
+              <Route
+                path="/deputy-jobs/payments"
+                element={
+                  <RequireAuth>
+                    <PaymentTracker token={token} />
+                  </RequireAuth>
+                }
+              />
+            )}
             <Route path="/deputy-jobs/:id" element={<DeputyJobDetail />} />
 
             {/* PUBLIC MUSICIAN PROFILE */}
