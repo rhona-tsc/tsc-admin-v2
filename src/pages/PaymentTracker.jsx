@@ -16,6 +16,7 @@ const paymentStatusLabels = {
   refunded: "Refunded",
   cancelled: "Cancelled",
   not_required: "Not required",
+  not_recorded: "Not recorded",
 };
 
 const payoutStatusLabels = {
@@ -25,6 +26,7 @@ const payoutStatusLabels = {
   paid: "Paid",
   failed: "Failed",
   cancelled: "Cancelled",
+  held: "Held",
 };
 
 const payoutDetailsLabels = {
@@ -43,6 +45,7 @@ const statusStyles = {
   charge_pending: "bg-amber-100 text-amber-800",
   failed: "bg-red-100 text-red-800",
   cancelled: "bg-gray-200 text-gray-700",
+  not_recorded: "bg-gray-100 text-gray-700",
   refunded: "bg-purple-100 text-purple-800",
   stripe_ready: "bg-emerald-100 text-emerald-800",
   manual_bank_ready: "bg-blue-100 text-blue-800",
@@ -134,7 +137,7 @@ const PaymentTracker = ({ token }) => {
         payment.payoutStatus === statusFilter;
       const matchesQuery =
         !needle ||
-        [payment.title, payment.instrument, payment.venue, payment.bookedMusicianName]
+        [payment.title, payment.instrument, payment.venue, payment.bookedMusicianName, payment.clientName, payment.bookingRef]
           .filter(Boolean)
           .some((value) => String(value).toLowerCase().includes(needle));
       return matchesStatus && matchesQuery;
@@ -187,8 +190,8 @@ const PaymentTracker = ({ token }) => {
         </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          <SummaryCard label="Confirmed payees" value={payments.length} helper="Accepted allocations only" />
-          <SummaryCard label="Scheduled" value={formatCurrency(totals.scheduled)} helper="Deputy payouts awaiting release" />
+          <SummaryCard label="Confirmed payees" value={payments.length} helper="Deputy and Booking Board allocations" />
+          <SummaryCard label="Pending" value={formatCurrency(totals.scheduled)} helper="Marked pending or scheduled" />
           <SummaryCard label="Paid out" value={formatCurrency(totals.paid)} helper="Completed deputy payouts" />
           <SummaryCard label="Payout setup missing" value={totals.missingDetails} helper="Stripe or bank details needed" />
           <SummaryCard label="Needs attention" value={totals.attention} helper="Failed charges or payouts" />
@@ -248,10 +251,15 @@ const PaymentTracker = ({ token }) => {
                   {filteredPayments.map((payment) => (
                     <tr key={payment._id} className="align-top hover:bg-gray-50">
                       <td className="px-4 py-4">
-                        <Link to={`/deputy-jobs/${payment._id}`} className="font-semibold text-gray-900 hover:text-[#d94f50] hover:underline">
+                        <Link to={payment.paymentSource === "booking_board" ? "/booking-board" : `/deputy-jobs/${payment._id}`} className="font-semibold text-gray-900 hover:text-[#d94f50] hover:underline">
                           {payment.title || payment.instrument || "Untitled deputy job"}
                         </Link>
                         <p className="mt-1 max-w-xs text-xs text-gray-500">{payment.venue || "Venue not set"}</p>
+                        {payment.paymentSource === "booking_board" && (
+                          <p className="mt-1 text-xs font-medium text-blue-700">
+                            Booking Board{payment.clientName ? ` · ${payment.clientName}` : ""}
+                          </p>
+                        )}
                       </td>
                       <td className="px-4 py-4 text-gray-700">{payment.bookedMusicianName || "Not allocated"}</td>
                       <td className="px-4 py-4">
@@ -274,7 +282,13 @@ const PaymentTracker = ({ token }) => {
                       <td className="px-4 py-4">
                         <StatusBadge value={payment.payoutStatus} labels={payoutStatusLabels} />
                         <p className="mt-2 whitespace-nowrap text-xs text-gray-500">
-                          {payment.payoutPaidAt ? `Paid ${formatDate(payment.payoutPaidAt)}` : payment.releaseOn ? `Release ${formatDate(payment.releaseOn)}` : "No release date"}
+                          {payment.payoutPaidAt
+                            ? `Paid ${formatDate(payment.payoutPaidAt)}`
+                            : payment.releaseOn
+                              ? `Release ${formatDate(payment.releaseOn)}`
+                              : payment.paymentSource === "booking_board"
+                                ? "Booking Board status"
+                                : "No release date"}
                         </p>
                       </td>
                       <td className="whitespace-nowrap px-4 py-4 text-right font-medium text-gray-800">{formatCurrency(payment.grossAmount, payment.currency)}</td>
