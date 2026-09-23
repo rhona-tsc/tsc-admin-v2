@@ -318,6 +318,7 @@ const DeputyForm = ({
         formData.original_bands_performed_with,
       );
       appendJSON("social_media_links", formData.social_media_links);
+      appendJSON("reviews", formData.reviews || []);
       appendJSON("selectedSongs", formData.selectedSongs);
       appendJSON("other_skills", formData.other_skills);
       appendJSON("logistics", formData.logistics);
@@ -706,6 +707,7 @@ const DeputyForm = ({
         url: "",
       },
     ],
+    reviews: [],
 
     coverMp3s: [],
     originalMp3s: [],
@@ -975,6 +977,7 @@ const DeputyForm = ({
           sessions: deputy.sessions || prev.sessions,
           social_media_links:
             deputy.social_media_links || prev.social_media_links,
+          reviews: Array.isArray(deputy.reviews) ? deputy.reviews : prev.reviews,
           instrumentation: safeArray(
             deputy.instrumentation || prev.instrumentation,
           ).map((i) => ({

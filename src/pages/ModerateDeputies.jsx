@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { backendUrl } from "../App";
 import CustomToast from "../components/CustomToast";
@@ -29,6 +29,18 @@ const REVIEW_PILL = ({ needsReview }) => {
   return (
     <span className="inline-block px-2 py-[2px] rounded text-xs font-semibold bg-orange-100 text-orange-800">
       Needs review
+    </span>
+  );
+};
+
+const VIDEO_REVIEW_PILL = ({ count }) => {
+  if (!count) {
+    return <span className="text-xs text-gray-500">No unvetted videos</span>;
+  }
+
+  return (
+    <span className="inline-block px-2 py-[2px] rounded text-xs font-semibold bg-fuchsia-100 text-fuchsia-800">
+      Vet {count} {count === 1 ? "video" : "videos"}
     </span>
   );
 };
@@ -82,10 +94,11 @@ const ModerateDeputies = ({ token }) => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [updatedByUserFilter, setUpdatedByUserFilter] = useState("all");
   const [needsReviewFilter, setNeedsReviewFilter] = useState("all");
+  const [videoReviewFilter, setVideoReviewFilter] = useState("all");
 
   const navigate = useNavigate();
 
-  const fetchQueue = async () => {
+  const fetchQueue = useCallback(async () => {
     setLoading(true);
     try {
       const url = `${backendUrl}/api/moderation/deputies/review-queue?all=true`;
@@ -97,7 +110,7 @@ const ModerateDeputies = ({ token }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   const handleApproval = async (id, action) => {
     const endpoint = action === "approve" ? "approve-deputy" : "reject-deputy";
@@ -117,7 +130,7 @@ const ModerateDeputies = ({ token }) => {
       );
 
       fetchQueue();
-    } catch (err) {
+    } catch {
       toast(<CustomToast type="error" message={`Failed to ${action}`} />);
     }
   };
@@ -151,6 +164,18 @@ const ModerateDeputies = ({ token }) => {
       result = result.filter((m) => getNeedsReview(m) === wanted);
     }
 
+    if (videoReviewFilter !== "all") {
+      if (videoReviewFilter === "required") {
+        result = result.filter((m) => Boolean(m?.needsVideoReview));
+      } else if (videoReviewFilter === "complete") {
+        result = result.filter(
+          (m) => Number(m?.uploadedVideoCount || 0) > 0 && !m?.needsVideoReview
+        );
+      } else if (videoReviewFilter === "none") {
+        result = result.filter((m) => Number(m?.uploadedVideoCount || 0) === 0);
+      }
+    }
+
     result.sort((a, b) => {
       let aVal;
       let bVal;
@@ -180,6 +205,10 @@ const ModerateDeputies = ({ token }) => {
           aVal = getNeedsReview(a) ? 1 : 0;
           bVal = getNeedsReview(b) ? 1 : 0;
           break;
+        case "videoReview":
+          aVal = Number(a.unvettedVideoCount || 0);
+          bVal = Number(b.unvettedVideoCount || 0);
+          break;
         default:
           aVal = getTime(a.profileLastEditedAt);
           bVal = getTime(b.profileLastEditedAt);
@@ -197,6 +226,7 @@ const ModerateDeputies = ({ token }) => {
     statusFilter,
     updatedByUserFilter,
     needsReviewFilter,
+    videoReviewFilter,
     sortField,
     sortDirection,
   ]);
@@ -207,7 +237,7 @@ const ModerateDeputies = ({ token }) => {
 
   useEffect(() => {
     fetchQueue();
-  }, []);
+  }, [fetchQueue]);
 
   return (
     <div className="p-6">
@@ -220,7 +250,7 @@ const ModerateDeputies = ({ token }) => {
       </div>
 
       <div className="bg-white border rounded p-4 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-3">
           <input
             type="text"
             placeholder="Search name or email"
@@ -262,6 +292,17 @@ const ModerateDeputies = ({ token }) => {
             <option value="no">Needs review: no</option>
           </select>
 
+          <select
+            className="border rounded px-3 py-2 text-sm"
+            value={videoReviewFilter}
+            onChange={(e) => setVideoReviewFilter(e.target.value)}
+          >
+            <option value="all">Video vetting: all</option>
+            <option value="required">Video vetting: required</option>
+            <option value="complete">Video vetting: complete</option>
+            <option value="none">Video vetting: no videos</option>
+          </select>
+
           <button
             type="button"
             className="border rounded px-3 py-2 text-sm bg-gray-50 hover:bg-gray-100"
@@ -270,6 +311,7 @@ const ModerateDeputies = ({ token }) => {
               setStatusFilter("all");
               setUpdatedByUserFilter("all");
               setNeedsReviewFilter("all");
+              setVideoReviewFilter("all");
               setSortField("profileLastEditedAt");
               setSortDirection("desc");
             }}
@@ -290,6 +332,7 @@ const ModerateDeputies = ({ token }) => {
             <option value="profileUpdatedByUser">Sort: Updated by user</option>
             <option value="status">Sort: Status</option>
             <option value="needsReview">Sort: Needs review</option>
+            <option value="videoReview">Sort: Unvetted videos</option>
           </select>
 
           <select
@@ -316,6 +359,7 @@ const ModerateDeputies = ({ token }) => {
                 <th className="px-4 py-3 font-semibold">Email</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
                 <th className="px-4 py-3 font-semibold">Review</th>
+                <th className="px-4 py-3 font-semibold">Video checks</th>
                 <th className="px-4 py-3 font-semibold">Registered</th>
                 <th className="px-4 py-3 font-semibold">Last edited</th>
                 <th className="px-4 py-3 font-semibold">Last reviewed</th>
@@ -352,6 +396,14 @@ const ModerateDeputies = ({ token }) => {
         </td>
         <td className="px-4 py-3">
           <REVIEW_PILL needsReview={needsReview} />
+        </td>
+        <td className="px-4 py-3">
+          <VIDEO_REVIEW_PILL count={Number(m.unvettedVideoCount || 0)} />
+          {Number(m.uploadedVideoCount || 0) > 0 && (
+            <div className="mt-1 text-xs text-gray-500">
+              {m.uploadedVideoCount} uploaded in total
+            </div>
+          )}
         </td>
         <td className="px-4 py-3 text-gray-600">
           {formatDateTime(m.dateRegistered)}

@@ -4,6 +4,7 @@ import ImageCropModal from "./ImageCropModal";
 import { assets } from "../assets/assets";
 import Mp3Uploader from "./Mp3Uploader";
 import renameAndCompressImage from "../pages/utils/renameAndCompressDeputyImage";
+import MusicianReviewsEditor from "./MusicianReviewsEditor";
 
 const AUTH_TOKEN_KEYS = ["token", "adminToken", "musicianToken"];
 const AUTH_USER_KEYS = ["userId", "musicianId", "userEmail", "userRole"];
@@ -1107,6 +1108,20 @@ const DeputyStepOne = ({
           />
         )}
       </div>
+
+      {/* REVIEWS */}
+      <MusicianReviewsEditor
+        reviews={Array.isArray(formData.reviews) ? formData.reviews : []}
+        setReviews={(updated) =>
+          setFormData((previous) => ({
+            ...previous,
+            reviews:
+              typeof updated === "function"
+                ? updated(previous.reviews || [])
+                : updated,
+          }))
+        }
+      />
 
       {/* COVER MP3s */}
       <div className="mt-4">

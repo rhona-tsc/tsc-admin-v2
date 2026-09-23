@@ -3009,6 +3009,65 @@ export default function BookingBoard() {
     }
   };
 
+  const recordBookingReview = async (row) => {
+    const existing = row?.review || {};
+    const comment = window.prompt(
+      "Paste the client review or testimonial:",
+      existing.comment || "",
+    );
+    if (comment === null || !comment.trim()) return;
+
+    const ratingInput = window.prompt(
+      "Star rating from 1 to 5 (leave blank if none was supplied):",
+      existing.rating || "",
+    );
+    if (ratingInput === null) return;
+    const rating = Number(ratingInput);
+    if (ratingInput && (!Number.isFinite(rating) || rating < 1 || rating > 5)) {
+      window.alert("Please enter a rating from 1 to 5, or leave it blank.");
+      return;
+    }
+
+    const clientFirstName = window.prompt(
+      "Client first name (optional):",
+      existing.clientFirstName || "",
+    );
+    if (clientFirstName === null) return;
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/board/bookings/${row._id}/review`,
+        {
+          method: "PUT",
+          headers: buildHeaders(),
+          credentials: "include",
+          body: JSON.stringify({
+            reviewId: existing.reviewId || "",
+            comment: comment.trim(),
+            rating: ratingInput ? rating : null,
+            clientFirstName: clientFirstName.trim(),
+            eventDate: row.eventDateISO || "",
+            eventType: row.eventType || "",
+            eventLocation: row.county || row.address || "",
+            actId: row.actId || row.actsSummary?.[0]?.actId || "",
+          }),
+        },
+      );
+      const json = await response.json();
+      if (!response.ok || !json?.success) {
+        throw new Error(json?.message || "Could not save feedback.");
+      }
+
+      await fetchRows();
+      window.alert(
+        `Feedback saved and linked to ${json.linkedMusicianCount || 0} confirmed musician${json.linkedMusicianCount === 1 ? "" : "s"}${json.linkedAct ? " and the act profile" : ""}.`,
+      );
+    } catch (error) {
+      console.error("Review save failed", error);
+      window.alert(error.message || "Could not save feedback.");
+    }
+  };
+
   const openEditModal = (row) => {
     setEditingRow(row);
     setEditForm(buildEditStateFromRow(row));
@@ -4684,9 +4743,11 @@ export default function BookingBoard() {
                                         )}
                                       </td>
                                       <td className={cellClass}>
-                                        {r.review?.received ? (
-                                          <Tag>⭐ Received</Tag>
-                                        ) : (
+                                        <div className="flex flex-col items-start gap-1">
+                                          {r.review?.received && (
+                                            <Tag>⭐ Received</Tag>
+                                          )}
+                                          {!r.review?.received && (
                                           <button
                                             className="text-xs underline"
                                             onClick={() =>
@@ -4705,6 +4766,15 @@ export default function BookingBoard() {
                                             Send request
                                           </button>
                                         )}
+                                          <button
+                                            className="text-xs font-medium text-blue-700 underline"
+                                            onClick={() => recordBookingReview(r)}
+                                          >
+                                            {r.review?.comment
+                                              ? "Edit feedback"
+                                              : "Add feedback"}
+                                          </button>
+                                        </div>
                                       </td>
                                       <td className={cellClass}>
                                         {balancePaid ? (
