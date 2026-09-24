@@ -1018,6 +1018,11 @@ const DeputyStepOne = ({
 
       {/* Function Band Video Links */}
       <div className="mt-4">
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
+          <p className="font-semibold">Video link guidance</p>
+          <p className="mt-1">YouTube, Vimeo, Instagram, TikTok and Facebook links are welcome and will be checked manually. For automated checks, use a direct video file or a public Google Drive/Dropbox file.</p>
+          <p className="mt-1">For Google Drive, choose one video file (not a folder), set access to “Anyone with the link – Viewer”, and allow downloads.</p>
+        </div>
         <label className="block font-semibold mb-1">
           Function Band Video Links
         </label>
@@ -1107,6 +1112,23 @@ const DeputyStepOne = ({
             placeholderPrefix="tscApprovedOriginal"
           />
         )}
+      </div>
+
+      <div className="mt-4 rounded-lg border border-gray-200 p-4">
+        <label className="block font-semibold mb-1">Social highlight posts</label>
+        <p className="text-sm text-gray-500 mb-3">
+          Add links to individual Instagram posts or reels, TikTok videos, or Facebook posts/videos. Use a specific post URL rather than your profile handle. These appear below your audio without an added caption from this website.
+        </p>
+        <SortableVideoLinkList
+          links={asVideoLinksArray(formData.socialHighlightPostLinks)}
+          setLinks={(updated) =>
+            setFormData((previous) => ({
+              ...previous,
+              socialHighlightPostLinks: updated,
+            }))
+          }
+          placeholderPrefix="Social post"
+        />
       </div>
 
       {/* REVIEWS */}
@@ -1342,6 +1364,18 @@ function SortableFileList({ files, setFiles }) {
   );
 }
 
+const describeVideoLink = (raw = "") => {
+  if (!raw) return null;
+  let url;
+  try { url = new URL(raw); } catch { return { tone: "red", text: "This does not look like a complete URL." }; }
+  const host = url.hostname.toLowerCase();
+  if (host.includes("drive.google.com") && url.pathname.includes("/folders/")) return { tone: "red", text: "Drive folder links cannot be analysed — choose an individual video file." };
+  if (host.includes("drive.google.com")) return { tone: "blue", text: "Google Drive file: make sure anyone with the link can view and download it." };
+  if (host.includes("youtube") || host === "youtu.be" || host.includes("vimeo") || host.includes("instagram") || host.includes("tiktok") || host.includes("facebook") || host === "fb.watch") return { tone: "amber", text: "This link will be displayed, but needs a manual content check." };
+  if (/\.(mp4|mov|m4v|webm)(?:$|[?#])/i.test(raw) || host.includes("dropbox")) return { tone: "green", text: "This appears suitable for automated checking." };
+  return { tone: "amber", text: "We can display this link, but it may need manual review unless it points directly to a video file." };
+};
+
 function SortableVideoLinkList({ links, setLinks, placeholderPrefix }) {
   const dragItem = useRef();
   const dragOverItem = useRef();
@@ -1376,16 +1410,18 @@ function SortableVideoLinkList({ links, setLinks, placeholderPrefix }) {
 
   return (
     <div>
-      {(links || []).map((link, idx) => (
-        <div
+      {(links || []).map((link, idx) => {
+        const hint = describeVideoLink(link.url);
+        const toneClass = hint?.tone === "red" ? "text-red-700" : hint?.tone === "green" ? "text-green-700" : hint?.tone === "blue" ? "text-blue-700" : "text-amber-700";
+        return <div
           key={idx}
-          className="flex items-center gap-2 mb-2"
+          className="mb-3"
           draggable
           onDragStart={() => handleDragStart(idx)}
           onDragEnter={() => handleDragEnter(idx)}
           onDragEnd={handleDragEnd}
           onDragOver={(e) => e.preventDefault()}
-        >
+        ><div className="flex items-center gap-2">
           <img
             src={assets.reordering_icon}
             alt="Reorder"
@@ -1414,8 +1450,8 @@ function SortableVideoLinkList({ links, setLinks, placeholderPrefix }) {
           >
             ✕
           </button>
-        </div>
-      ))}
+        </div>{hint && <p className={`ml-6 mt-1 text-xs ${toneClass}`}>{hint.text}</p>}</div>;
+      })}
       <button
         type="button"
         className="text-sm text-blue-600 underline"

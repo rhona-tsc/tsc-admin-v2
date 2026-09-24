@@ -86,6 +86,7 @@ const getStatusRank = (status) => {
 const ModerateDeputies = ({ token }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [analysingId, setAnalysingId] = useState("");
 
   const [sortField, setSortField] = useState("profileLastEditedAt");
   const [sortDirection, setSortDirection] = useState("desc");
@@ -132,6 +133,23 @@ const ModerateDeputies = ({ token }) => {
       fetchQueue();
     } catch {
       toast(<CustomToast type="error" message={`Failed to ${action}`} />);
+    }
+  };
+
+  const handleVideoAnalysis = async (id) => {
+    setAnalysingId(id);
+    try {
+      const res = await axios.post(
+        `${backendUrl}/api/moderation/deputy/${id}/videos/analyse`,
+        {},
+        { headers: { token, Authorization: `Bearer ${token}` } },
+      );
+      toast(<CustomToast type="success" message={res.data?.message || "Video checks started"} />);
+      await fetchQueue();
+    } catch (err) {
+      toast(<CustomToast type="error" message={err.response?.data?.message || "Failed to start video checks"} />);
+    } finally {
+      setAnalysingId("");
     }
   };
 
@@ -404,6 +422,15 @@ const ModerateDeputies = ({ token }) => {
               {m.uploadedVideoCount} uploaded in total
             </div>
           )}
+          {Number(m.videoModerationCounts?.processing || 0) > 0 && (
+            <div className="mt-1 text-xs font-medium text-blue-700">{m.videoModerationCounts.processing} analysing</div>
+          )}
+          {Number(m.videoModerationCounts?.manual_required || 0) > 0 && (
+            <div className="mt-1 text-xs font-medium text-amber-700">{m.videoModerationCounts.manual_required} manual review</div>
+          )}
+          {Number(m.moderationFlagCount || 0) > 0 && (
+            <div className="mt-1 text-xs font-semibold text-red-700">{m.moderationFlagCount} possible contact/identity flags</div>
+          )}
         </td>
         <td className="px-4 py-3 text-gray-600">
           {formatDateTime(m.dateRegistered)}
@@ -424,6 +451,14 @@ const ModerateDeputies = ({ token }) => {
               onClick={() => navigate(`/moderate-deputy/edit/${m._id}`)}
             >
               View/Edit
+            </button>
+
+            <button
+              className="px-3 py-1 bg-purple-700 text-white rounded disabled:opacity-50"
+              disabled={!Number(m.uploadedVideoCount || 0) || analysingId === m._id}
+              onClick={() => handleVideoAnalysis(m._id)}
+            >
+              {analysingId === m._id ? "Starting…" : "Check videos"}
             </button>
 
             <button

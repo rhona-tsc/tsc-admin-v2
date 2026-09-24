@@ -329,6 +329,7 @@ const DeputyForm = ({
         formData.tscApprovedFunctionBandVideoLinks,
       );
       appendJSON("originalBandVideoLinks", formData.originalBandVideoLinks);
+      appendJSON("socialHighlightPostLinks", formData.socialHighlightPostLinks);
       appendJSON(
         "tscApprovedOriginalBandVideoLinks",
         formData.tscApprovedOriginalBandVideoLinks,
@@ -729,6 +730,7 @@ const DeputyForm = ({
         title: "",
       },
     ],
+    socialHighlightPostLinks: [],
     tscApprovedOriginalBandVideoLinks: [
       {
         url: "",
