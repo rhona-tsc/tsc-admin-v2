@@ -447,6 +447,37 @@ const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
         >
           + Add Social Link
         </button>
+
+        <fieldset className="mt-5 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <legend className="px-1 text-sm font-semibold text-gray-900">
+            Automatic social highlights
+          </legend>
+          <p className="mb-3 text-sm text-gray-600">
+            In future, we would like to let you securely connect Instagram, TikTok or Facebook so your selected or latest public posts can appear automatically. Choosing “I’m interested” records your permission preference only—you will still approve access directly with each platform before anything is imported.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-6">
+            <label className="inline-flex items-center gap-2 text-sm text-gray-800">
+              <input
+                type="radio"
+                name="socialFeedConnectionPreference"
+                value="interested"
+                checked={formData.socialFeedConnectionPreference === "interested" || formData.socialFeedConnectionPreference === "connected"}
+                onChange={() => setFormData((previous) => ({ ...previous, socialFeedConnectionPreference: "interested" }))}
+              />
+              I’m interested in connecting my accounts
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm text-gray-800">
+              <input
+                type="radio"
+                name="socialFeedConnectionPreference"
+                value="not_now"
+                checked={formData.socialFeedConnectionPreference === "not_now"}
+                onChange={() => setFormData((previous) => ({ ...previous, socialFeedConnectionPreference: "not_now" }))}
+              />
+              Not right now
+            </label>
+          </div>
+        </fieldset>
       </div>
     </div>
   );

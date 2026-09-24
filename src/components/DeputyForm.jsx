@@ -318,6 +318,10 @@ const DeputyForm = ({
         formData.original_bands_performed_with,
       );
       appendJSON("social_media_links", formData.social_media_links);
+      fd.append(
+        "socialFeedConnectionPreference",
+        formData.socialFeedConnectionPreference || "undecided",
+      );
       appendJSON("reviews", formData.reviews || []);
       appendJSON("selectedSongs", formData.selectedSongs);
       appendJSON("other_skills", formData.other_skills);
@@ -708,6 +712,7 @@ const DeputyForm = ({
         url: "",
       },
     ],
+    socialFeedConnectionPreference: "undecided",
     reviews: [],
 
     coverMp3s: [],

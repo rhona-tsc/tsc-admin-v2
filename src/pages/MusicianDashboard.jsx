@@ -499,6 +499,7 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
   const [deppingActs, setDeppingActs] = useState([]);
   const [appliedJobs, setAppliedJobs] = useState([]);
   const [authNotice, setAuthNotice] = useState("");
+  const [socialPromptDismissed, setSocialPromptDismissed] = useState(false);
   const [stats, setStats] = useState({
     enquiries: [],
     bookings: [],
@@ -597,6 +598,26 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
     if (isObjectId(fromLS)) return fromLS;
     return null;
   }, [userId]);
+
+  useEffect(() => {
+    if (!musicianId) return;
+    const dismissedAt = Number(
+      localStorage.getItem(`socialFeedPromptDismissedAt:${musicianId}`) || 0,
+    );
+    setSocialPromptDismissed(
+      dismissedAt > 0 && Date.now() - dismissedAt < 30 * 24 * 60 * 60 * 1000,
+    );
+  }, [musicianId]);
+
+  const dismissSocialPrompt = () => {
+    if (musicianId) {
+      localStorage.setItem(
+        `socialFeedPromptDismissedAt:${musicianId}`,
+        String(Date.now()),
+      );
+    }
+    setSocialPromptDismissed(true);
+  };
 
   useEffect(() => {
     if (!musicianId) return;
@@ -876,6 +897,38 @@ useEffect(() => {
             className="font-semibold underline hover:text-black"
           >
             Log in again
+          </button>
+        </div>
+      ) : null}
+
+      {me &&
+      String(me.socialFeedConnectionPreference || "undecided") ===
+        "undecided" &&
+      !socialPromptDismissed ? (
+        <div className="mb-4 flex items-start justify-between gap-4 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-950">
+          <div>
+            <p className="font-medium">Interested in automatic social highlights?</p>
+            <p className="mt-0.5 text-blue-800">
+              Tell us whether you would like the option to securely connect Instagram, TikTok or Facebook in future.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                resetDeputyFormStepToStart();
+                navigate(deputyCTA?.path || "/register-as-deputy");
+              }}
+              className="mt-2 font-semibold underline hover:text-black"
+            >
+              Review social settings
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={dismissSocialPrompt}
+            className="rounded px-2 py-1 text-blue-700 hover:bg-blue-100 hover:text-black"
+            aria-label="Dismiss social highlights reminder for 30 days"
+          >
+            Not now
           </button>
         </div>
       ) : null}
