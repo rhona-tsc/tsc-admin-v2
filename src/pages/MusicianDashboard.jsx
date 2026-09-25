@@ -500,6 +500,9 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
   const [appliedJobs, setAppliedJobs] = useState([]);
   const [authNotice, setAuthNotice] = useState("");
   const [socialPromptDismissed, setSocialPromptDismissed] = useState(false);
+  const [socialStatus, setSocialStatus] = useState(null);
+  const [socialBusy, setSocialBusy] = useState("");
+  const [socialMessage, setSocialMessage] = useState("");
   const [stats, setStats] = useState({
     enquiries: [],
     bookings: [],
@@ -713,6 +716,72 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
 
   const headers = useMemo(() => getAuthHeaders(authToken), [authToken]);
 
+  const loadSocialStatus = useCallback(async () => {
+    if (!authToken || isJwtExpiredToken(authToken)) return;
+    try {
+      const response = await axios.get(`${backendUrl}/api/social-oauth/status`, {
+        headers,
+        withCredentials: true,
+      });
+      if (response.data?.success) setSocialStatus(response.data);
+    } catch (error) {
+      console.error("Failed to load social connection status", error);
+    }
+  }, [authToken, headers]);
+
+  useEffect(() => {
+    loadSocialStatus();
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("socialResult");
+    const provider = params.get("socialProvider");
+    const detail = params.get("socialDetail");
+    if (result === "connected") {
+      setSocialMessage(`${provider === "meta" ? "Instagram / Facebook" : "TikTok"} connected successfully.`);
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (result === "error") {
+      setSocialMessage(detail || "The social account could not be connected.");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [loadSocialStatus]);
+
+  const connectSocialProvider = async (provider) => {
+    setSocialBusy(provider);
+    setSocialMessage("");
+    try {
+      const response = await axios.get(
+        `${backendUrl}/api/social-oauth/${provider}/start`,
+        { headers, withCredentials: true },
+      );
+      if (!response.data?.authUrl) throw new Error("Connection link was not returned");
+      window.location.assign(response.data.authUrl);
+    } catch (error) {
+      setSocialMessage(
+        error.response?.data?.message || error.message || "Unable to start the connection.",
+      );
+      setSocialBusy("");
+    }
+  };
+
+  const syncSocialProvider = async (provider) => {
+    setSocialBusy(provider);
+    setSocialMessage("");
+    try {
+      const response = await axios.post(
+        `${backendUrl}/api/social-oauth/${provider}/sync`,
+        {},
+        { headers, withCredentials: true },
+      );
+      setSocialMessage(
+        `${response.data?.importedCount || 0} ${provider === "meta" ? "Instagram" : "TikTok"} highlights refreshed.`,
+      );
+      await loadSocialStatus();
+    } catch (error) {
+      setSocialMessage(error.response?.data?.message || "Unable to refresh social highlights.");
+    } finally {
+      setSocialBusy("");
+    }
+  };
+
   const fetchPeerReview = async () => {
     const id = storedUserId || userId;
     if (!id) return;
@@ -901,36 +970,70 @@ useEffect(() => {
         </div>
       ) : null}
 
-      {me &&
-      String(me.socialFeedConnectionPreference || "undecided") ===
-        "undecided" &&
-      !socialPromptDismissed ? (
-        <div className="mb-4 flex items-start justify-between gap-4 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-950">
-          <div>
-            <p className="font-medium">Interested in automatic social highlights?</p>
-            <p className="mt-0.5 text-blue-800">
-              Tell us whether you would like the option to securely connect Instagram, TikTok or Facebook in future.
-            </p>
+      {me && !socialPromptDismissed ? (
+        <section className="mb-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-4 text-sm text-blue-950">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="font-semibold">Connect your social media accounts to your profile</p>
+              <p className="mt-1 max-w-3xl text-blue-800">
+                Securely import selected or recent performance posts. Your public profile shows only the media and optional short tags—not your username, profile link or follower count.
+              </p>
+            </div>
             <button
               type="button"
-              onClick={() => {
-                resetDeputyFormStepToStart();
-                navigate(deputyCTA?.path || "/register-as-deputy");
-              }}
-              className="mt-2 font-semibold underline hover:text-black"
+              onClick={dismissSocialPrompt}
+              className="shrink-0 rounded px-2 py-1 text-blue-700 hover:bg-blue-100 hover:text-black"
+              aria-label="Dismiss social account reminder for 30 days"
             >
-              Review social settings
+              Not now
             </button>
           </div>
-          <button
-            type="button"
-            onClick={dismissSocialPrompt}
-            className="rounded px-2 py-1 text-blue-700 hover:bg-blue-100 hover:text-black"
-            aria-label="Dismiss social highlights reminder for 30 days"
-          >
-            Not now
-          </button>
-        </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[
+              { key: "meta", label: "Instagram / Facebook" },
+              { key: "tiktok", label: "TikTok" },
+            ].map(({ key, label }) => {
+              const provider = socialStatus?.providers?.[key];
+              const connected = Boolean(provider?.connected);
+              const configured = Boolean(provider?.configured);
+              return (
+                <div key={key} className="flex items-center gap-2 rounded-lg border border-blue-100 bg-white p-2">
+                  <span className={`h-2.5 w-2.5 rounded-full ${connected ? "bg-green-500" : "bg-gray-300"}`} />
+                  <span className="font-medium text-gray-800">{label}</span>
+                  {connected ? (
+                    <button
+                      type="button"
+                      disabled={socialBusy === key}
+                      onClick={() => syncSocialProvider(key)}
+                      className="rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-black disabled:opacity-50"
+                    >
+                      {socialBusy === key ? "Refreshing…" : "Refresh posts"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={!configured || socialBusy === key || !socialStatus}
+                      onClick={() => connectSocialProvider(key)}
+                      className="rounded-md bg-[#ff6667] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#f45152] disabled:cursor-not-allowed disabled:bg-gray-300"
+                    >
+                      {!socialStatus
+                        ? "Checking…"
+                        : !configured
+                          ? "Setup pending"
+                          : socialBusy === key
+                            ? "Connecting…"
+                            : `Connect ${label}`}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {socialMessage ? (
+            <p className="mt-3 rounded-md bg-white px-3 py-2 text-blue-900">{socialMessage}</p>
+          ) : null}
+        </section>
       ) : null}
 
       {/* MAIN + RIGHT SIDEBAR */}

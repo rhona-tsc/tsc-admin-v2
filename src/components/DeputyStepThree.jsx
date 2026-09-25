@@ -14,6 +14,7 @@ const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
     original_bands_performed_with = [],
     sessions = [],
     social_media_links = [],
+    socialHighlightPostLinks = [],
   } = formData;
 
   const platformIcons = {
@@ -453,7 +454,7 @@ const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
             Automatic social highlights
           </legend>
           <p className="mb-3 text-sm text-gray-600">
-            In future, we would like to let you securely connect Instagram, TikTok or Facebook so your selected or latest public posts can appear automatically. Choosing “I’m interested” records your permission preference only—you will still approve access directly with each platform before anything is imported.
+            Connect Instagram, TikTok or Facebook from your musician dashboard so selected or recent public performance posts can appear automatically. You will approve read-only access directly with each platform before anything is imported, and your public profile will not show your username or profile link.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-6">
             <label className="inline-flex items-center gap-2 text-sm text-gray-800">
@@ -464,7 +465,7 @@ const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
                 checked={formData.socialFeedConnectionPreference === "interested" || formData.socialFeedConnectionPreference === "connected"}
                 onChange={() => setFormData((previous) => ({ ...previous, socialFeedConnectionPreference: "interested" }))}
               />
-              I’m interested in connecting my accounts
+              Show me the connection options on my dashboard
             </label>
             <label className="inline-flex items-center gap-2 text-sm text-gray-800">
               <input
@@ -478,6 +479,81 @@ const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
             </label>
           </div>
         </fieldset>
+
+        <div className="mt-5 rounded-lg border border-gray-200 p-4">
+          <h3 className="text-sm font-semibold text-gray-900">
+            Individual highlight posts (optional)
+          </h3>
+          <p className="mt-1 text-sm text-gray-600">
+            Add a public post or reel you would be happy for us to feature. Your
+            username and profile link will not be shown on your public musician
+            profile.
+          </p>
+
+          <div className="mt-4 space-y-3">
+            {socialHighlightPostLinks.map((post, index) => (
+              <div
+                key={`social-highlight-${index}`}
+                className="grid gap-3 rounded-md border border-gray-200 bg-gray-50 p-3 md:grid-cols-[1fr_180px_auto]"
+              >
+                <input
+                  type="url"
+                  placeholder="Public Instagram, TikTok or Facebook post URL"
+                  value={post.url || ""}
+                  onChange={(event) =>
+                    updateArrayItem(
+                      "socialHighlightPostLinks",
+                      index,
+                      "url",
+                      event.target.value,
+                    )
+                  }
+                  className="rounded border border-gray-300 bg-white p-2 text-sm"
+                />
+                <input
+                  type="text"
+                  maxLength={60}
+                  placeholder="Short tag, e.g. Live vocals"
+                  value={post.tag || post.title || ""}
+                  onChange={(event) =>
+                    updateArrayItem(
+                      "socialHighlightPostLinks",
+                      index,
+                      "tag",
+                      event.target.value,
+                    )
+                  }
+                  className="rounded border border-gray-300 bg-white p-2 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeItem("socialHighlightPostLinks", index)}
+                  className="text-sm text-red-600"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              addItem("socialHighlightPostLinks", {
+                title: "",
+                tag: "",
+                url: "",
+                mediaUrl: "",
+                thumbnailUrl: "",
+                mediaType: "unknown",
+                visible: true,
+              })
+            }
+            className="mt-3 text-sm text-blue-600 underline"
+          >
+            + Add a highlight post
+          </button>
+        </div>
       </div>
     </div>
   );
