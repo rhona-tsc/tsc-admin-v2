@@ -614,7 +614,18 @@ const Tag = ({ children }) => (
 const cellClass = "px-2 py-1 whitespace-nowrap align-middle";
 
 const inputClass =
-  "w-full min-w-[120px] rounded border border-gray-300 bg-white px-2 py-1 text-xs whitespace-nowrap";
+  "w-full min-w-[105px] rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs whitespace-nowrap focus:border-sky-400 focus:ring-1 focus:ring-sky-100";
+
+const EVENT_TYPE_OPTIONS = [
+  "Wedding",
+  "Birthday Party",
+  "Corporate Event",
+  "Anniversary",
+  "Christmas Party",
+  "Private Party",
+  "Charity Event",
+  "Other",
+];
 
 const stickyCol1 = "sticky left-0 z-20 bg-white";
 const stickyCol2 = "sticky left-[140px] z-20 bg-white";
@@ -4050,9 +4061,9 @@ export default function BookingBoard() {
   };
 
   return (
-    <div className="p-4">
+    <div className="min-w-0 bg-[#f6f7fb] p-3 sm:p-4">
       {/* Search + Sort */}
-      <div className="flex gap-3 items-center mb-4 flex-wrap sticky top-0 z-20 bg-white pb-3">
+      <div className="flex gap-2 items-center mb-4 flex-wrap sticky top-0 z-20 rounded-xl border border-gray-200 bg-white/95 p-3 shadow-sm backdrop-blur">
         <input
           className="border rounded px-3 py-2 w-full max-w-xl"
           placeholder="Search name, ref, act, county…"
@@ -4142,11 +4153,11 @@ export default function BookingBoard() {
         </div>
       </div>
 
-      <div className="space-y-6 mt-4">
+      <div className="space-y-4 mt-4">
         {boardSections.map((section) => (
           <section
             key={section.key}
-            className={`border rounded-lg bg-white border-l-4 ${section.accentClass}`}
+            className={`overflow-hidden border rounded-xl bg-white shadow-sm border-l-4 ${section.accentClass}`}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
               <div>
@@ -4174,16 +4185,16 @@ export default function BookingBoard() {
               </div>
             </div>
 
-            <div className="overflow-auto max-h-[38vh]">
+            <div className="overflow-auto max-h-[48vh]">
               <table className="min-w-[900px] table-fixed text-xs">
                 <colgroup>
-                  <col style={{ width: 260 }} /> {/* Client */}
-                  <col style={{ width: 160 }} /> {/* Ref */}
-                  <col style={{ width: 140 }} /> {/* Event Date */}
-                  <col style={{ width: 220 }} /> {/* Act */}
-                  <col style={{ width: 140 }} /> {/* Gross */}
-                  <col style={{ width: 180 }} /> {/* Times */}
-                  <col style={{ width: 180 }} /> {/* Actions */}
+                  <col style={{ width: 180 }} /> {/* Client */}
+                  <col style={{ width: 145 }} /> {/* Ref */}
+                  <col style={{ width: 115 }} /> {/* Event Date */}
+                  <col style={{ width: 170 }} /> {/* Act */}
+                  <col style={{ width: 100 }} /> {/* Gross */}
+                  <col style={{ width: 140 }} /> {/* Times */}
+                  <col style={{ width: 170 }} /> {/* Actions */}
                 </colgroup>
 
                 <thead className="bg-gray-50 text-left sticky top-0 z-10">
@@ -4262,8 +4273,8 @@ export default function BookingBoard() {
 
                     return (
                       <React.Fragment key={rowId}>
-                        <tr className="odd:bg-white even:bg-gray-50 align-top">
-                          <td className="sticky left-0 z-20 bg-white px-3 py-2 shadow-[2px_0_0_0_rgba(229,231,235,1)]">
+                        <tr className="border-b border-gray-100 bg-white align-top transition-colors hover:bg-sky-50/60">
+                          <td className="sticky left-0 z-20 bg-inherit px-3 py-2 shadow-[1px_0_0_0_rgba(229,231,235,1)]">
                             <div className="font-medium text-gray-900">
                               {clientFirstNames}
                             </div>
@@ -4630,7 +4641,22 @@ export default function BookingBoard() {
                                         />
                                       </td>
                                       <td className={cellClass}>
-                                        {r.eventType || "—"}
+                                        <select
+                                          className={inputClass}
+                                          value={r.eventType || ""}
+                                          onChange={(event) =>
+                                            onInlineEdit(r._id, {
+                                              eventType: event.target.value,
+                                            })
+                                          }
+                                        >
+                                          <option value="">Select event type</option>
+                                          {EVENT_TYPE_OPTIONS.map((option) => (
+                                            <option key={option} value={option}>
+                                              {option}
+                                            </option>
+                                          ))}
+                                        </select>
                                       </td>
                                       <td className={cellClass}>
                                         <InlineInput

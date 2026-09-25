@@ -8,7 +8,7 @@ import GatekeeperModal from "./GatekeeperModal";
 const normalize = (s) => (s || "").toLowerCase().trim();
 const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
 
-const Sidebar = ({ userRole, firstName, userId, email }) => {
+const Sidebar = ({ userRole, firstName, userId, email, collapsed = false, onToggle }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const userFirstName = firstName;
@@ -210,7 +210,9 @@ useEffect(() => {
   console.log("SIDEBAR props:", { userFirstName, userEmail, userId, musicianId });
 
   return (
-<div className="w-[18%] border-r-2 sticky top-0 h-screen overflow-y-auto">      <div className="flex flex-col gap-4 pt-6 pl-[20%] text-[15px] rounded-md">
+<div className={`${collapsed ? "w-16" : "w-[18%] min-w-[210px]"} relative sticky top-0 h-screen flex-shrink-0 overflow-y-auto border-r border-gray-200 bg-white transition-[width] duration-200`}>
+      <button type="button" onClick={onToggle} className="sticky top-2 z-20 ml-auto mr-2 grid h-8 w-8 place-items-center rounded-md border border-gray-200 bg-white text-gray-600 shadow-sm hover:bg-gray-50" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>{collapsed ? "›" : "‹"}</button>
+      <div className={`flex flex-col gap-3 pb-6 pt-3 text-[15px] rounded-md ${collapsed ? "px-2 [&_p]:hidden" : "pl-[12%]"}`}>
  {/* Deputy CTA */}
         <NavLink
           className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
@@ -218,7 +220,7 @@ useEffect(() => {
           state={{ userRole, userFirstName }}
         >
           <img className="w-5 h-5" src={assets.deputy_icon} alt="" />
-          <p className="hidden md:block text-white">{deputyCtaLabel}</p>
+          <p className={`${collapsed ? "hidden" : "hidden md:block"} text-white`}>{deputyCtaLabel}</p>
         </NavLink>
 
 

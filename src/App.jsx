@@ -181,6 +181,17 @@ const App = () => {
     }),
     [email, userRole, firstName, lastName, phone, password, userId],
   );
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem("sidebarCollapsed") === "true",
+  );
+
+  const toggleSidebar = () => {
+    setSidebarCollapsed((current) => {
+      const next = !current;
+      localStorage.setItem("sidebarCollapsed", String(next));
+      return next;
+    });
+  };
 
   return (
     <div className="w-full min-h-screen overflow-x-hidden bg-gray-50">
@@ -198,12 +209,12 @@ const App = () => {
       {isLoggedIn ? <hr /> : null}
 
       <div className={isLoggedIn ? "flex w-full" : "w-full"}>
-        {isLoggedIn ? <Sidebar {...sidebarProps} /> : null}
+        {isLoggedIn ? <Sidebar {...sidebarProps} collapsed={sidebarCollapsed} onToggle={toggleSidebar} /> : null}
 
         <div
           className={
             isLoggedIn
-              ? "w-[70%] mx-auto ml-[max(5vw,25px)] my-8 text-gray-600 text-base"
+              ? `${sidebarCollapsed ? "w-[calc(100%-4rem)] px-4" : "min-w-0 flex-1 px-4 lg:px-6"} my-6 text-gray-600 text-base`
               : "w-full min-h-screen"
           }
         >
