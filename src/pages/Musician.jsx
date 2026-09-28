@@ -57,6 +57,29 @@ const getPublicProfileUrl = (musician) => {
 const sectionCardClass = "bg-white border border-gray-200 rounded-2xl p-5 shadow-sm";
 const sectionTitleClass = "text-lg font-semibold text-gray-900 mb-3";
 
+const FormattedBio = ({ value, fallback = "No biography added yet." }) => {
+  const text = String(value || fallback)
+    .replace(/<br\s*\/?\s*>/gi, "\n")
+    .replace(/<\/p\s*>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .trim();
+
+  const renderBold = (paragraph) =>
+    paragraph.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
+      part.startsWith("**") && part.endsWith("**")
+        ? <strong key={index}>{part.slice(2, -2)}</strong>
+        : <React.Fragment key={index}>{part}</React.Fragment>
+    );
+
+  return (
+    <div className="space-y-3">
+      {text.split(/\n{2,}/).filter(Boolean).map((paragraph, index) => (
+        <p key={index}>{renderBold(paragraph)}</p>
+      ))}
+    </div>
+  );
+};
+
 const InfoList = ({ items = [] }) => {
   const visible = items.filter(
     (item) =>
@@ -390,8 +413,8 @@ const Musician = () => {
         <div className="xl:col-span-7 space-y-6">
           <section className={sectionCardClass}>
             <h2 className={sectionTitleClass}>Biography</h2>
-            <div className="text-gray-700 leading-7 whitespace-pre-wrap">
-              {musician?.tscApprovedBio || musician?.bio || "No biography added yet."}
+            <div className="text-gray-700 leading-7">
+              <FormattedBio value={musician?.tscApprovedBio || musician?.bio} />
             </div>
           </section>
 

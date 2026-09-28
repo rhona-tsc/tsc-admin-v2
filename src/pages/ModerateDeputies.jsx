@@ -33,6 +33,15 @@ const REVIEW_PILL = ({ needsReview }) => {
   );
 };
 
+const AI_BIO_PILL = ({ required }) => {
+  if (!required) return null;
+  return (
+    <span className="mt-1 inline-block rounded bg-cyan-100 px-2 py-[2px] text-xs font-semibold text-cyan-800">
+      AI bio – review needed
+    </span>
+  );
+};
+
 const VIDEO_REVIEW_PILL = ({ count }) => {
   if (!count) {
     return <span className="text-xs text-gray-500">No unvetted videos</span>;
@@ -87,6 +96,7 @@ const ModerateDeputies = ({ token }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [analysingId, setAnalysingId] = useState("");
+  const [generatingBioId, setGeneratingBioId] = useState("");
 
   const [sortField, setSortField] = useState("profileLastEditedAt");
   const [sortDirection, setSortDirection] = useState("desc");
@@ -96,6 +106,7 @@ const ModerateDeputies = ({ token }) => {
   const [updatedByUserFilter, setUpdatedByUserFilter] = useState("all");
   const [needsReviewFilter, setNeedsReviewFilter] = useState("all");
   const [videoReviewFilter, setVideoReviewFilter] = useState("all");
+  const [aiBioReviewFilter, setAiBioReviewFilter] = useState("all");
 
   const navigate = useNavigate();
 
@@ -153,6 +164,23 @@ const ModerateDeputies = ({ token }) => {
     }
   };
 
+  const handleGenerateBio = async (id) => {
+    setGeneratingBioId(id);
+    try {
+      const res = await axios.post(
+        `${backendUrl}/api/musician/moderation/deputy/${id}/generate-bio`,
+        {},
+        { headers: { token, Authorization: `Bearer ${token}` } },
+      );
+      toast(<CustomToast type="success" message={res.data?.message || "AI bio published and flagged for review"} />);
+      await fetchQueue();
+    } catch (err) {
+      toast(<CustomToast type="error" message={err.response?.data?.message || "Failed to generate the bio"} />);
+    } finally {
+      setGeneratingBioId("");
+    }
+  };
+
   const filteredAndSorted = useMemo(() => {
     let result = [...rows];
 
@@ -192,6 +220,11 @@ const ModerateDeputies = ({ token }) => {
       } else if (videoReviewFilter === "none") {
         result = result.filter((m) => Number(m?.uploadedVideoCount || 0) === 0);
       }
+    }
+
+    if (aiBioReviewFilter !== "all") {
+      const wanted = aiBioReviewFilter === "required";
+      result = result.filter((m) => Boolean(m?.aiBioReviewRequired) === wanted);
     }
 
     result.sort((a, b) => {
@@ -245,6 +278,7 @@ const ModerateDeputies = ({ token }) => {
     updatedByUserFilter,
     needsReviewFilter,
     videoReviewFilter,
+    aiBioReviewFilter,
     sortField,
     sortDirection,
   ]);
@@ -268,7 +302,7 @@ const ModerateDeputies = ({ token }) => {
       </div>
 
       <div className="bg-white border rounded p-4 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-8 gap-3">
           <input
             type="text"
             placeholder="Search name or email"
@@ -288,6 +322,16 @@ const ModerateDeputies = ({ token }) => {
                 {status}
               </option>
             ))}
+          </select>
+
+          <select
+            className="border rounded px-3 py-2 text-sm"
+            value={aiBioReviewFilter}
+            onChange={(e) => setAiBioReviewFilter(e.target.value)}
+          >
+            <option value="all">AI bio review: all</option>
+            <option value="required">AI bio review: required</option>
+            <option value="complete">AI bio review: complete</option>
           </select>
 
           <select
@@ -330,6 +374,7 @@ const ModerateDeputies = ({ token }) => {
               setUpdatedByUserFilter("all");
               setNeedsReviewFilter("all");
               setVideoReviewFilter("all");
+              setAiBioReviewFilter("all");
               setSortField("profileLastEditedAt");
               setSortDirection("desc");
             }}
@@ -414,6 +459,7 @@ const ModerateDeputies = ({ token }) => {
         </td>
         <td className="px-4 py-3">
           <REVIEW_PILL needsReview={needsReview} />
+          <AI_BIO_PILL required={Boolean(m.aiBioReviewRequired)} />
         </td>
         <td className="px-4 py-3">
           <VIDEO_REVIEW_PILL count={Number(m.unvettedVideoCount || 0)} />
@@ -459,6 +505,14 @@ const ModerateDeputies = ({ token }) => {
               onClick={() => handleVideoAnalysis(m._id)}
             >
               {analysingId === m._id ? "Starting…" : "Check videos"}
+            </button>
+
+            <button
+              className="px-3 py-1 bg-cyan-700 text-white rounded disabled:opacity-50"
+              disabled={generatingBioId === m._id}
+              onClick={() => handleGenerateBio(m._id)}
+            >
+              {generatingBioId === m._id ? "Writing…" : "Generate bio"}
             </button>
 
             <button
