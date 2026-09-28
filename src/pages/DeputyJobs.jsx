@@ -80,6 +80,21 @@ const isPastJobDate = (job = {}) => {
   return jobDateEnd.getTime() < Date.now();
 };
 
+const toDateInputValue = (value) => {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    const raw = String(value).slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : "";
+  }
+
+  return date.toISOString().slice(0, 10);
+};
+
+const getJobDateValue = (job) =>
+  toDateInputValue(job?.date || job?.eventDate || "");
+
 const hasStoredCardForJob = (job = {}) => {
   const paymentStatus = String(job?.paymentStatus || "").toLowerCase();
   const jobType = String(job?.jobType || "booked").toLowerCase();
@@ -125,6 +140,7 @@ const DeputyJobs = () => {
   const [sortType, setSortType] = useState("date_asc");
   const [loadingClose, setLoadingClose] = useState(false);
   const [showEnquiryOnly, setShowEnquiryOnly] = useState(false);
+  const [showHistorical, setShowHistorical] = useState(false);
   const [authNotice, setAuthNotice] = useState("");
 
   const [filters, setFilters] = useState({
@@ -192,25 +208,9 @@ const DeputyJobs = () => {
     currentUserEmail === "hello@thesupremecollective.co.uk";
 
   const isLoggedIn = Boolean(authToken);
-  const isAdminLike =
-    ["admin", "superadmin", "tsc_admin", "agent"].includes(currentUserRole) ||
+  const canViewHistorical =
+    ["admin", "superadmin", "tsc_admin"].includes(currentUserRole) ||
     currentUserEmail === "hello@thesupremecollective.co.uk";
-
-  const toDateInputValue = (value) => {
-    if (!value) return "";
-
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) {
-      const raw = String(value).slice(0, 10);
-      return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : "";
-    }
-
-    return d.toISOString().slice(0, 10);
-  };
-
-  const getJobDateValue = (job) => {
-    return toDateInputValue(job?.date || job?.eventDate || "");
-  };
 
   const fetchJobs = useCallback(async () => {
     try {
@@ -219,6 +219,9 @@ const DeputyJobs = () => {
 
       const { data } = await axios.get(`${BACKEND_URL}/api/deputy-jobs`, {
         headers: authHeaders,
+        params: {
+          includeHistorical: canViewHistorical && showHistorical,
+        },
         withCredentials: true,
       });
 
@@ -242,7 +245,7 @@ const DeputyJobs = () => {
     } finally {
       setLoading(false);
     }
-  }, [authHeaders]);
+  }, [authHeaders, canViewHistorical, showHistorical]);
 
   useEffect(() => {
     fetchJobs();
@@ -315,18 +318,21 @@ const DeputyJobs = () => {
       const status = String(job?.status || "open").toLowerCase();
       const jobType = String(job?.jobType || "booked").toLowerCase();
 
-      if (isPastJobDate(job)) return false;
+      if (!showHistorical && isPastJobDate(job)) return false;
 
       const requiresStoredCard =
         jobType !== "enquiry" &&
         ["open", "allocated", "filled", "closed", "cancelled"].includes(status);
 
-      if (requiresStoredCard && !hasStoredCardForJob(job)) return false;
+      if (!showHistorical && requiresStoredCard && !hasStoredCardForJob(job)) {
+        return false;
+      }
       if (showEnquiryOnly && jobType !== "enquiry") return false;
       if (jobTypeFilter && jobType !== jobTypeFilter) return false;
       if (filters.onlyOpen && status !== "open") return false;
 
       if (
+        !showHistorical &&
         !filters.onlyOpen &&
         ["allocated", "filled", "closed", "cancelled"].includes(status)
       ) {
@@ -376,7 +382,7 @@ const DeputyJobs = () => {
     });
 
     return sortJobs(next, sortType);
-  }, [jobs, filters, sortType, showEnquiryOnly]);
+  }, [jobs, filters, sortType, showEnquiryOnly, showHistorical]);
 
   useEffect(() => {
     if (!filteredJobs.length) {
@@ -403,6 +409,7 @@ const DeputyJobs = () => {
       jobType: "",
     });
     setShowEnquiryOnly(false);
+    setShowHistorical(false);
     setSortType("date_asc");
   };
 
@@ -547,6 +554,17 @@ const DeputyJobs = () => {
                   onChange={(e) => setShowEnquiryOnly(e.target.checked)}
                 />
                 Enquiry jobs only
+              </label>
+            ) : null}
+
+            {canViewHistorical ? (
+              <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={showHistorical}
+                  onChange={(e) => setShowHistorical(e.target.checked)}
+                />
+                Show historical posts
               </label>
             ) : null}
 

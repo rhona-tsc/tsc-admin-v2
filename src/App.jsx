@@ -46,6 +46,7 @@ import StripeConnectReturn from "./pages/StripeConnectReturn";
 import FinanceCommandCentre from "./pages/FinanceCommandCentre";
 import Noticeboard from "./pages/Noticeboard";
 import PaymentTracker from "./pages/PaymentTracker";
+import Automations from "./pages/Automations";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -505,6 +506,16 @@ const App = () => {
                 element={
                   <RequireAuth>
                     <BookingBoard token={token} />
+                  </RequireAuth>
+                }
+              />
+            )}
+            {isAdminAgent && (
+              <Route
+                path="/automations"
+                element={
+                  <RequireAuth>
+                    <Automations />
                   </RequireAuth>
                 }
               />

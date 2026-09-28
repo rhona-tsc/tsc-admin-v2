@@ -316,6 +316,15 @@ useEffect(() => {
             </NavLink>
 
             <NavLink
+              className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+              to="/automations"
+              state={{ userRole }}
+            >
+              <span className="grid h-5 w-5 place-items-center rounded bg-white text-xs font-bold text-black">A</span>
+              <p className="hidden md:block text-white">Automations</p>
+            </NavLink>
+
+            <NavLink
               className="relative flex items-center justify-between bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
               to="/moderate"
               state={{ userRole }}

@@ -2753,6 +2753,7 @@ export default function BookingBoard() {
     bookingRef: "",
     eventDateISO: "",
     invoiceDueDateISO: "",
+    eventType: "",
 
     enquiryDateISO: "",
     bookingDateISO: "",
@@ -2786,6 +2787,7 @@ export default function BookingBoard() {
     "past-clients": true,
   });
   const [expandedRows, setExpandedRows] = useState({});
+  const [rowSaveState, setRowSaveState] = useState({});
 
   const toggleExpandedRow = (rowId) => {
     setExpandedRows((prev) => ({
@@ -3001,6 +3003,13 @@ export default function BookingBoard() {
 
   const onInlineEdit = async (id, patch) => {
     const url = `${API_BASE}/board/bookings/${id}`;
+    const previousRow = rows.find((row) => String(row._id) === String(id));
+    setRows((prev) =>
+      prev.map((row) =>
+        String(row._id) === String(id) ? { ...row, ...patch } : row,
+      ),
+    );
+    setRowSaveState((prev) => ({ ...prev, [id]: "saving" }));
     try {
       const res = await fetch(url, {
         method: "PATCH",
@@ -3013,10 +3022,28 @@ export default function BookingBoard() {
       try {
         json = JSON.parse(raw);
       } catch {}
-      if (json?.success)
+      if (json?.success) {
         setRows((prev) => prev.map((r) => (r._id === id ? json.row : r)));
+        setRowSaveState((prev) => ({ ...prev, [id]: "saved" }));
+        window.setTimeout(
+          () => setRowSaveState((prev) => ({ ...prev, [id]: "" })),
+          1400,
+        );
+        return;
+      }
+
+      throw new Error(json?.message || `Update failed (${res.status})`);
     } catch (e) {
       console.error("PATCH failed", e);
+      if (previousRow) {
+        setRows((prev) =>
+          prev.map((row) =>
+            String(row._id) === String(id) ? previousRow : row,
+          ),
+        );
+      }
+      setRowSaveState((prev) => ({ ...prev, [id]: "error" }));
+      window.alert(e.message || "This booking could not be updated.");
     }
   };
 
@@ -4034,6 +4061,7 @@ export default function BookingBoard() {
           bookingRef: "",
           eventDateISO: "",
           invoiceDueDateISO: "",
+          eventType: "",
           agent: "Direct",
           clientEmail: "",
           clientAddress: "",
@@ -4197,7 +4225,7 @@ export default function BookingBoard() {
                   <col style={{ width: 170 }} /> {/* Actions */}
                 </colgroup>
 
-                <thead className="bg-gray-50 text-left sticky top-0 z-10">
+                <thead className="hidden">
                   <tr>
                     <th className="sticky left-0 z-30 bg-gray-50 px-3 py-2 border-b shadow-[2px_0_0_0_rgba(229,231,235,1)]">
                       Client
@@ -4212,9 +4240,9 @@ export default function BookingBoard() {
                 </thead>
 
                 <tbody>
-                  {section.rows.map((r) => {
+                  {section.rows.map((r, rowIndex) => {
                     const rowId = String(r._id || getDisplayBookingRef(r));
-                    const isExpanded = Boolean(expandedRows[rowId]);
+                    const isExpanded = true;
                     const summary = getCompactRowSummary(r);
                     const clientFirstNames = getClientFirstNames(r);
                     const bookingRef = getDisplayBookingRef(r);
@@ -4273,7 +4301,7 @@ export default function BookingBoard() {
 
                     return (
                       <React.Fragment key={rowId}>
-                        <tr className="border-b border-gray-100 bg-white align-top transition-colors hover:bg-sky-50/60">
+                        <tr className="hidden">
                           <td className="sticky left-0 z-20 bg-inherit px-3 py-2 shadow-[1px_0_0_0_rgba(229,231,235,1)]">
                             <div className="font-medium text-gray-900">
                               {clientFirstNames}
@@ -4325,11 +4353,17 @@ export default function BookingBoard() {
                         </tr>
 
                         {isExpanded ? (
-                          <tr className="bg-yellow-50 align-top">
+                          <tr className="bg-white align-top border-b-2 border-slate-200">
                             <td colSpan={7} className="p-0">
-                              <div className="overflow-x-auto border-t border-yellow-200">
+                              <div className="overflow-x-auto">
                                 <table className="min-w-[4200px] table-fixed text-xs">
-                                  <thead className="bg-yellow-100 text-left text-[11px] uppercase tracking-wide text-gray-700">
+                                  <thead
+                                    className={
+                                      rowIndex === 0
+                                        ? "bg-slate-50 text-left text-[11px] uppercase tracking-wide text-gray-700 sticky top-0 z-10"
+                                        : "hidden"
+                                    }
+                                  >
                                     <tr>
                                       {[
                                         "Client",
@@ -4371,8 +4405,8 @@ export default function BookingBoard() {
                                           scope="col"
                                           className={
                                             index === 0
-                                              ? "sticky left-0 z-30 bg-yellow-100 px-3 py-2 border-b border-yellow-200 shadow-[2px_0_0_0_rgba(229,231,235,1)]"
-                                              : "px-3 py-2 border-b border-yellow-200 whitespace-nowrap"
+                                              ? "sticky left-0 z-30 bg-slate-50 px-3 py-2 border-b-2 border-slate-200 shadow-[2px_0_0_0_rgba(229,231,235,1)]"
+                                              : "px-3 py-2 border-b-2 border-slate-200 whitespace-nowrap"
                                           }
                                         >
                                           {label}
@@ -4382,7 +4416,7 @@ export default function BookingBoard() {
                                   </thead>
                                   <tbody>
                                     <tr className="align-middle">
-                                      <td className="sticky left-0 z-20 bg-yellow-50 px-3 py-2 shadow-[2px_0_0_0_rgba(229,231,235,1)]">
+                                      <td className="sticky left-0 z-20 bg-white px-3 py-2 shadow-[2px_0_0_0_rgba(229,231,235,1)]">
                                         <InlineInput
                                           value={clientFirstNames}
                                           placeholder="Client name"
@@ -4657,6 +4691,21 @@ export default function BookingBoard() {
                                             </option>
                                           ))}
                                         </select>
+                                        {rowSaveState[r._id] && (
+                                          <div
+                                            className={`mt-1 text-[10px] ${
+                                              rowSaveState[r._id] === "error"
+                                                ? "text-red-600"
+                                                : "text-gray-500"
+                                            }`}
+                                          >
+                                            {rowSaveState[r._id] === "saving"
+                                              ? "Saving…"
+                                              : rowSaveState[r._id] === "saved"
+                                                ? "Saved"
+                                                : "Not saved"}
+                                          </div>
+                                        )}
                                       </td>
                                       <td className={cellClass}>
                                         <InlineInput
@@ -5200,6 +5249,24 @@ export default function BookingBoard() {
                               {AGENTS.map((a) => (
                                 <option key={a} value={a}>
                                   {a}
+                                </option>
+                              ))}
+                            </select>
+
+                            <select
+                              className="border rounded px-2 py-1 w-48"
+                              value={newRow.eventType}
+                              onChange={(e) =>
+                                setNewRow((v) => ({
+                                  ...v,
+                                  eventType: e.target.value,
+                                }))
+                              }
+                            >
+                              <option value="">Event type</option>
+                              {EVENT_TYPE_OPTIONS.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
                                 </option>
                               ))}
                             </select>
