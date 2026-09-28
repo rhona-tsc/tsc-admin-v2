@@ -99,6 +99,9 @@ const ModerateDeputies = ({ token }) => {
   const [generatingBioId, setGeneratingBioId] = useState("");
   const [bulkGeneratingBios, setBulkGeneratingBios] = useState(false);
   const [bulkBioProgress, setBulkBioProgress] = useState(null);
+  const [bioBackfillJobId, setBioBackfillJobId] = useState(
+    () => window.localStorage.getItem("musicianBioBackfillJobId") || "",
+  );
 
   const [sortField, setSortField] = useState("profileLastEditedAt");
   const [sortDirection, setSortDirection] = useState("desc");
@@ -190,52 +193,67 @@ const ModerateDeputies = ({ token }) => {
     if (!confirmed) return;
 
     setBulkGeneratingBios(true);
-    setBulkBioProgress({ processed: 0, generated: 0, skipped: 0 });
-    let cursor = "";
-    let totals = { processed: 0, generated: 0, skipped: 0, reasons: {} };
+    setBulkBioProgress({ processed: 0, generated: 0, skipped: 0, totalEligible: 0, status: "queued" });
     try {
-      do {
-        const res = await axios.post(
-          `${backendUrl}/api/musician/moderation/bios/backfill`,
-          { cursor, limit: 5 },
-          { headers: { token, Authorization: `Bearer ${token}` } },
-        );
-        const batch = res.data || {};
-        totals = {
-          processed: totals.processed + Number(batch.processed || 0),
-          generated: totals.generated + Number(batch.generated || 0),
-          skipped: totals.skipped + Number(batch.skipped || 0),
-          reasons: Object.entries(batch.reasons || {}).reduce(
-            (summary, [reason, count]) => ({
-              ...summary,
-              [reason]: Number(summary[reason] || 0) + Number(count || 0),
-            }),
-            totals.reasons,
-          ),
-        };
-        setBulkBioProgress(totals);
-        cursor = batch.nextCursor || cursor;
-        if (!batch.hasMore) break;
-      } while (cursor);
-
-      toast(
-        <CustomToast
-          type="success"
-          message={`${totals.generated} bios generated and published; ${totals.skipped} skipped${totals.reasons.insufficient_profile_information ? ` (${totals.reasons.insufficient_profile_information} need more profile information)` : ""}.`}
-        />,
+      const res = await axios.post(
+        `${backendUrl}/api/musician/moderation/bios/backfill/start`,
+        {},
+        { headers: { token, Authorization: `Bearer ${token}` } },
       );
-      await fetchQueue();
+      const job = res.data?.job;
+      if (!job?._id) throw new Error("The background job did not start");
+      window.localStorage.setItem("musicianBioBackfillJobId", job._id);
+      setBioBackfillJobId(job._id);
+      setBulkBioProgress(job);
+      toast(<CustomToast type="success" message="Biography generation is now running in the background. You can leave this page." />);
     } catch (err) {
+      setBulkGeneratingBios(false);
       toast(
         <CustomToast
           type="error"
-          message={err.response?.data?.message || "The bio backfill stopped before it completed"}
+          message={err.response?.data?.message || err.message || "The biography job could not be started"}
         />,
       );
-    } finally {
-      setBulkGeneratingBios(false);
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer;
+
+    const poll = async () => {
+      try {
+        const endpoint = bioBackfillJobId
+          ? `${backendUrl}/api/musician/moderation/bios/backfill/${bioBackfillJobId}`
+          : `${backendUrl}/api/musician/moderation/bios/backfill/latest`;
+        const res = await axios.get(endpoint, {
+          headers: { token, Authorization: `Bearer ${token}` },
+        });
+        if (cancelled || !res.data?.job) return;
+        const job = res.data.job;
+        setBulkBioProgress(job);
+        setBulkGeneratingBios(["queued", "running"].includes(job.status));
+        if (job?._id && job._id !== bioBackfillJobId) {
+          window.localStorage.setItem("musicianBioBackfillJobId", job._id);
+          setBioBackfillJobId(job._id);
+        }
+        if (["completed", "failed", "cancelled"].includes(job.status)) {
+          window.localStorage.removeItem("musicianBioBackfillJobId");
+          if (job.status === "completed") await fetchQueue();
+          return;
+        }
+      } catch (error) {
+        console.error("Failed to read biography background job", error);
+      }
+      if (!cancelled) timer = window.setTimeout(poll, 3000);
+    };
+
+    poll();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [bioBackfillJobId, fetchQueue, token]);
 
   const filteredAndSorted = useMemo(() => {
     let result = [...rows];
@@ -354,12 +372,19 @@ const ModerateDeputies = ({ token }) => {
 
         <div className="flex items-center gap-3 flex-wrap">
           {bulkBioProgress ? (
-            <span className="text-xs text-gray-500">
+            <span className={`text-xs ${bulkBioProgress.status === "failed" ? "font-semibold text-red-700" : "text-gray-500"}`}>
               {bulkGeneratingBios ? "Generating… " : "Last run: "}
               {bulkBioProgress.generated} published, {bulkBioProgress.skipped} skipped
-              {bulkBioProgress.reasons?.insufficient_profile_information
-                ? ` — ${bulkBioProgress.reasons.insufficient_profile_information} lacked enough profile information`
+              {bulkBioProgress.failedCount
+                ? ` (${bulkBioProgress.failedCount} profile-specific generation errors)`
                 : ""}
+              {bulkGeneratingBios && bulkBioProgress.totalEligible
+                ? ` — ${bulkBioProgress.processed}/${bulkBioProgress.totalEligible} checked`
+                : ""}
+              {bulkBioProgress.currentMusicianName && bulkGeneratingBios
+                ? ` — currently ${bulkBioProgress.currentMusicianName}`
+                : ""}
+              {bulkBioProgress.error ? ` — ${bulkBioProgress.error}` : ""}
             </span>
           ) : null}
           <button
