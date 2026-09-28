@@ -192,7 +192,7 @@ const ModerateDeputies = ({ token }) => {
     setBulkGeneratingBios(true);
     setBulkBioProgress({ processed: 0, generated: 0, skipped: 0 });
     let cursor = "";
-    let totals = { processed: 0, generated: 0, skipped: 0 };
+    let totals = { processed: 0, generated: 0, skipped: 0, reasons: {} };
     try {
       do {
         const res = await axios.post(
@@ -205,6 +205,13 @@ const ModerateDeputies = ({ token }) => {
           processed: totals.processed + Number(batch.processed || 0),
           generated: totals.generated + Number(batch.generated || 0),
           skipped: totals.skipped + Number(batch.skipped || 0),
+          reasons: Object.entries(batch.reasons || {}).reduce(
+            (summary, [reason, count]) => ({
+              ...summary,
+              [reason]: Number(summary[reason] || 0) + Number(count || 0),
+            }),
+            totals.reasons,
+          ),
         };
         setBulkBioProgress(totals);
         cursor = batch.nextCursor || cursor;
@@ -214,7 +221,7 @@ const ModerateDeputies = ({ token }) => {
       toast(
         <CustomToast
           type="success"
-          message={`${totals.generated} bios generated and published; ${totals.skipped} profiles skipped because they need more information.`}
+          message={`${totals.generated} bios generated and published; ${totals.skipped} skipped${totals.reasons.insufficient_profile_information ? ` (${totals.reasons.insufficient_profile_information} need more profile information)` : ""}.`}
         />,
       );
       await fetchQueue();
@@ -350,6 +357,9 @@ const ModerateDeputies = ({ token }) => {
             <span className="text-xs text-gray-500">
               {bulkGeneratingBios ? "Generating… " : "Last run: "}
               {bulkBioProgress.generated} published, {bulkBioProgress.skipped} skipped
+              {bulkBioProgress.reasons?.insufficient_profile_information
+                ? ` — ${bulkBioProgress.reasons.insufficient_profile_information} lacked enough profile information`
+                : ""}
             </span>
           ) : null}
           <button
