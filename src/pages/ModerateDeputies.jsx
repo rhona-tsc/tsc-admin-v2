@@ -97,6 +97,8 @@ const ModerateDeputies = ({ token }) => {
   const [loading, setLoading] = useState(true);
   const [analysingId, setAnalysingId] = useState("");
   const [generatingBioId, setGeneratingBioId] = useState("");
+  const [bulkGeneratingBios, setBulkGeneratingBios] = useState(false);
+  const [bulkBioProgress, setBulkBioProgress] = useState(null);
 
   const [sortField, setSortField] = useState("profileLastEditedAt");
   const [sortDirection, setSortDirection] = useState("desc");
@@ -178,6 +180,53 @@ const ModerateDeputies = ({ token }) => {
       toast(<CustomToast type="error" message={err.response?.data?.message || "Failed to generate the bio"} />);
     } finally {
       setGeneratingBioId("");
+    }
+  };
+
+  const handleBackfillBios = async () => {
+    const confirmed = window.confirm(
+      "Generate and publish AI bios for every musician who does not currently have an approved bio? Existing manually written bios will be preserved.",
+    );
+    if (!confirmed) return;
+
+    setBulkGeneratingBios(true);
+    setBulkBioProgress({ processed: 0, generated: 0, skipped: 0 });
+    let cursor = "";
+    let totals = { processed: 0, generated: 0, skipped: 0 };
+    try {
+      do {
+        const res = await axios.post(
+          `${backendUrl}/api/musician/moderation/bios/backfill`,
+          { cursor, limit: 5 },
+          { headers: { token, Authorization: `Bearer ${token}` } },
+        );
+        const batch = res.data || {};
+        totals = {
+          processed: totals.processed + Number(batch.processed || 0),
+          generated: totals.generated + Number(batch.generated || 0),
+          skipped: totals.skipped + Number(batch.skipped || 0),
+        };
+        setBulkBioProgress(totals);
+        cursor = batch.nextCursor || cursor;
+        if (!batch.hasMore) break;
+      } while (cursor);
+
+      toast(
+        <CustomToast
+          type="success"
+          message={`${totals.generated} bios generated and published; ${totals.skipped} profiles skipped because they need more information.`}
+        />,
+      );
+      await fetchQueue();
+    } catch (err) {
+      toast(
+        <CustomToast
+          type="error"
+          message={err.response?.data?.message || "The bio backfill stopped before it completed"}
+        />,
+      );
+    } finally {
+      setBulkGeneratingBios(false);
     }
   };
 
@@ -296,8 +345,24 @@ const ModerateDeputies = ({ token }) => {
       <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
         <h1 className="text-xl font-bold">Moderate Deputies</h1>
 
-        <div className="text-sm text-gray-500">
-          Showing {filteredAndSorted.length} of {rows.length}
+        <div className="flex items-center gap-3 flex-wrap">
+          {bulkBioProgress ? (
+            <span className="text-xs text-gray-500">
+              {bulkGeneratingBios ? "Generating… " : "Last run: "}
+              {bulkBioProgress.generated} published, {bulkBioProgress.skipped} skipped
+            </span>
+          ) : null}
+          <button
+            type="button"
+            className="rounded bg-cyan-700 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+            disabled={bulkGeneratingBios}
+            onClick={handleBackfillBios}
+          >
+            {bulkGeneratingBios ? "Generating missing bios…" : "Generate missing bios"}
+          </button>
+          <span className="text-sm text-gray-500">
+            Showing {filteredAndSorted.length} of {rows.length}
+          </span>
         </div>
       </div>
 

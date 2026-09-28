@@ -1051,6 +1051,232 @@ const buildEditStateFromRow = (row) => {
   };
 };
 
+const normaliseAllocationRole = (value = "") => String(value || "").trim();
+
+const getBookingRoleSlots = (row = {}) => {
+  const explicit = Array.isArray(row.lineupComposition)
+    ? row.lineupComposition
+    : [];
+  const lineupMembers =
+    row?.actsSummary?.[0]?.lineup?.bandMembers ||
+    row?.actsSummary?.[0]?.bandMembers ||
+    [];
+  const assignedRoles = getBookingMemberTags(row).map(
+    (member) => member?.role || member?.instrument || "",
+  );
+  const roles = explicit.length
+    ? explicit
+    : lineupMembers.length
+      ? lineupMembers.map((member) => member?.instrument || member?.role || "")
+      : assignedRoles;
+  const counts = new Map();
+  return roles
+    .map(normaliseAllocationRole)
+    .filter((role) => role && !["manager", "admin"].includes(role.toLowerCase()))
+    .map((role) => {
+      const count = (counts.get(role.toLowerCase()) || 0) + 1;
+      counts.set(role.toLowerCase(), count);
+      const matchingMembers = lineupMembers.filter(
+        (member) =>
+          normaliseAllocationRole(member?.instrument || member?.role).toLowerCase() ===
+          role.toLowerCase(),
+      );
+      const sourceMember = matchingMembers[count - 1] || matchingMembers[0];
+      return {
+        role,
+        roleSlotId: `${role.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${count}`,
+        originalBandMemberId: sourceMember?._id || "",
+        fee: Number(sourceMember?.fee || sourceMember?.gigFee || 0) || 0,
+      };
+    });
+};
+
+function RoleAllocationCell({ row }) {
+  const slots = useMemo(() => getBookingRoleSlots(row), [row]);
+  const [assignments, setAssignments] = useState(() => getBookingMemberTags(row));
+  const [activeSlot, setActiveSlot] = useState("");
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => setAssignments(getBookingMemberTags(row)), [row]);
+
+  const findAssignment = (slot, slotIndex) =>
+    assignments.find((member) => member?.roleSlotId === slot.roleSlotId) ||
+    assignments.filter(
+      (member) =>
+        normaliseAllocationRole(member?.role || member?.instrument).toLowerCase() ===
+        slot.role.toLowerCase(),
+    )[slotIndex];
+
+  const loadCandidates = async (slot, search = "") => {
+    setActiveSlot(slot.roleSlotId);
+    setLoading(true);
+    setError("");
+    try {
+      const params = new URLSearchParams({
+        bookingBoardItemId: String(row?._id || row?.bookingRef || ""),
+        role: slot.role,
+      });
+      if (search.trim()) params.set("query", search.trim());
+      const response = await fetch(
+        `${API_BASE}/allocations/role-candidates?${params.toString()}`,
+        { headers: buildAuthHeaders(), credentials: "include" },
+      );
+      const json = await response.json().catch(() => null);
+      if (!response.ok || json?.success === false) {
+        throw new Error(json?.message || "Could not load musicians");
+      }
+      setResults(Array.isArray(json?.candidates) ? json.candidates : []);
+    } catch (candidateError) {
+      setResults([]);
+      setError(candidateError?.message || "Could not load musicians");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendOffer = async (slot, candidate) => {
+    if (!candidate?.available) return;
+    setSending(slot.roleSlotId);
+    setError("");
+    try {
+      const response = await fetch(`${API_BASE}/allocations/offer-role`, {
+        method: "POST",
+        headers: { ...buildAuthHeaders(), "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          bookingBoardItemId: row?._id,
+          role: slot.role,
+          roleSlotId: slot.roleSlotId,
+          originalBandMemberId: slot.originalBandMemberId || undefined,
+          musicianId: candidate._id,
+          candidateSource: candidate.source,
+          fee: Number(slot.fee || 0) || 0,
+        }),
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || json?.success === false) {
+        throw new Error(json?.message || "Could not send the availability request");
+      }
+      const next = {
+        musicianId: candidate._id,
+        name: candidate.name,
+        email: candidate.email,
+        phone: candidate.phone,
+        role: slot.role,
+        instrument: slot.role,
+        roleSlotId: slot.roleSlotId,
+        status: "offered",
+        candidateSource: candidate.source,
+        offerRequestId: json.requestId,
+      };
+      setAssignments((current) => {
+        const remaining = current.filter(
+          (member) => member?.roleSlotId !== slot.roleSlotId,
+        );
+        return [...remaining, next];
+      });
+      setActiveSlot("");
+      setResults([]);
+      setQuery("");
+    } catch (offerError) {
+      setError(offerError?.message || "Could not send the availability request");
+    } finally {
+      setSending("");
+    }
+  };
+
+  if (!slots.length) {
+    return <span className="text-xs text-gray-500">Add a lineup to create role slots</span>;
+  }
+
+  const roleSeen = new Map();
+  return (
+    <div className="min-w-[360px] space-y-1.5">
+      {slots.map((slot) => {
+        const roleIndex = roleSeen.get(slot.role.toLowerCase()) || 0;
+        roleSeen.set(slot.role.toLowerCase(), roleIndex + 1);
+        const assignment = findAssignment(slot, roleIndex);
+        const status = assignment?.status || "unfilled";
+        const isOpen = activeSlot === slot.roleSlotId;
+        return (
+          <div key={slot.roleSlotId} className="relative rounded border border-gray-300 bg-white px-2 py-1.5">
+            <div className="grid grid-cols-[90px_1fr_auto] items-center gap-2 text-xs">
+              <span className="font-semibold text-gray-700">{slot.role}</span>
+              <button
+                type="button"
+                className="truncate text-left text-gray-700 underline decoration-dotted underline-offset-2"
+                onClick={() => loadCandidates(slot, "")}
+              >
+                {assignment?.name || "Choose musician"}
+              </button>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                status === "accepted" || status === "confirmed"
+                  ? "bg-green-100 text-green-800"
+                  : status === "offered"
+                    ? "bg-amber-100 text-amber-800"
+                    : status === "posted_to_job_board"
+                      ? "bg-purple-100 text-purple-800"
+                      : "bg-gray-100 text-gray-600"
+              }`}>
+                {status === "offered" ? "Awaiting reply" : status.replaceAll("_", " ")}
+              </span>
+            </div>
+            {isOpen ? (
+              <div className="absolute left-0 top-full z-30 mt-1 w-[420px] rounded-lg border bg-white p-2 shadow-xl">
+                <form
+                  className="mb-2 flex gap-2"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    loadCandidates(slot, query);
+                  }}
+                >
+                  <input
+                    autoFocus
+                    className="min-w-0 flex-1 rounded border px-2 py-1.5 text-xs"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder={`Search ${slot.role.toLowerCase()} players`}
+                  />
+                  <button className="rounded bg-black px-3 py-1.5 text-xs text-white" type="submit">Search</button>
+                  <button className="px-1 text-xs text-gray-500" type="button" onClick={() => setActiveSlot("")}>Close</button>
+                </form>
+                {error ? <div className="mb-2 text-xs text-red-600">{error}</div> : null}
+                <div className="max-h-56 overflow-y-auto divide-y">
+                  {loading ? <div className="p-3 text-xs text-gray-500">Checking availability…</div> : null}
+                  {!loading && results.map((candidate) => (
+                    <button
+                      key={candidate._id}
+                      type="button"
+                      disabled={!candidate.available || sending === slot.roleSlotId}
+                      onClick={() => sendOffer(slot, candidate)}
+                      className={`flex w-full items-center justify-between gap-3 p-2 text-left text-xs ${
+                        candidate.available ? "hover:bg-blue-50" : "cursor-not-allowed bg-gray-50 text-gray-400"
+                      }`}
+                    >
+                      <span>
+                        <span className="block font-medium">{candidate.name}</span>
+                        <span className="block text-[10px]">
+                          {candidate.source === "primary" ? "Usual band member" : candidate.source === "act_deputy" ? "Act deputy" : "Musician directory"}
+                          {candidate.unavailableReason ? ` • ${candidate.unavailableReason}` : ""}
+                        </span>
+                      </span>
+                      <span className="shrink-0">{candidate.available ? "Send request" : "Unavailable"}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
   const [musicianSearchQuery, setMusicianSearchQuery] = useState("");
   const [musicianSearchResults, setMusicianSearchResults] = useState([]);
@@ -1160,7 +1386,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
           fee: 0,
           totalFee: 0,
           paymentStatus: "not_due",
-          status: "confirmed",
+          status: "selected",
           source: "manual_lookup",
         },
       ],
@@ -3189,7 +3415,7 @@ export default function BookingBoard() {
               fee,
               totalFee: fee,
               paymentStatus: member?.paymentStatus || "not_due",
-              status: member?.status || "confirmed",
+              status: member?.status || "selected",
               source: member?.source || "manual_lookup",
             };
           })
@@ -4805,17 +5031,7 @@ export default function BookingBoard() {
                                           : "No"}
                                       </td>
                                       <td className={cellClass}>
-                                        {r.allocation?.status ===
-                                        "fully_allocated" ? (
-                                          <Tag>✅ Allocated</Tag>
-                                        ) : r.allocation?.status === "gap" ? (
-                                          <Tag>⚠️ Gap</Tag>
-                                        ) : r.allocation?.status ===
-                                          "in_progress" ? (
-                                          <Tag>⏳ In progress</Tag>
-                                        ) : (
-                                          <Tag>—</Tag>
-                                        )}
+                                        <RoleAllocationCell row={r} />
                                       </td>
                                       <td className={cellClass}>
                                         <div className="flex flex-col items-start gap-1">
