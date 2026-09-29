@@ -99,6 +99,7 @@ const ModerateDeputies = ({ token }) => {
   const [generatingBioId, setGeneratingBioId] = useState("");
   const [bulkGeneratingBios, setBulkGeneratingBios] = useState(false);
   const [bulkBioProgress, setBulkBioProgress] = useState(null);
+  const [bioBackfillConnectionLost, setBioBackfillConnectionLost] = useState(false);
   const [bioBackfillJobId, setBioBackfillJobId] = useState(
     () => window.localStorage.getItem("musicianBioBackfillJobId") || "",
   );
@@ -220,8 +221,10 @@ const ModerateDeputies = ({ token }) => {
   useEffect(() => {
     let cancelled = false;
     let timer;
+    let consecutiveFailures = 0;
 
     const poll = async () => {
+      let nextPollDelay = 3000;
       try {
         const endpoint = bioBackfillJobId
           ? `${backendUrl}/api/musician/moderation/bios/backfill/${bioBackfillJobId}`
@@ -230,6 +233,8 @@ const ModerateDeputies = ({ token }) => {
           headers: { token, Authorization: `Bearer ${token}` },
         });
         if (cancelled || !res.data?.job) return;
+        consecutiveFailures = 0;
+        setBioBackfillConnectionLost(false);
         const job = res.data.job;
         setBulkBioProgress(job);
         setBulkGeneratingBios(["queued", "running"].includes(job.status));
@@ -243,9 +248,13 @@ const ModerateDeputies = ({ token }) => {
           return;
         }
       } catch (error) {
-        console.error("Failed to read biography background job", error);
+        consecutiveFailures += 1;
+        setBioBackfillConnectionLost(true);
+        // A temporary DNS/network outage should not overwrite the last known
+        // progress or imply that the persisted server-side job has stopped.
+        nextPollDelay = Math.min(60000, 5000 * 2 ** Math.min(consecutiveFailures - 1, 4));
       }
-      if (!cancelled) timer = window.setTimeout(poll, 3000);
+      if (!cancelled) timer = window.setTimeout(poll, nextPollDelay);
     };
 
     poll();
@@ -372,8 +381,12 @@ const ModerateDeputies = ({ token }) => {
 
         <div className="flex items-center gap-3 flex-wrap">
           {bulkBioProgress ? (
-            <span className={`text-xs ${bulkBioProgress.status === "failed" ? "font-semibold text-red-700" : "text-gray-500"}`}>
-              {bulkGeneratingBios ? "Generating… " : "Last run: "}
+            <span className={`text-xs ${bulkBioProgress.status === "failed" || bioBackfillConnectionLost ? "font-semibold text-red-700" : "text-gray-500"}`}>
+              {bioBackfillConnectionLost
+                ? "Backend temporarily unreachable — last confirmed progress: "
+                : bulkGeneratingBios
+                  ? "Generating… "
+                  : "Last run: "}
               {bulkBioProgress.generated} published, {bulkBioProgress.skipped} skipped
               {bulkBioProgress.failedCount
                 ? ` (${bulkBioProgress.failedCount} profile-specific generation errors)`
@@ -381,9 +394,10 @@ const ModerateDeputies = ({ token }) => {
               {bulkGeneratingBios && bulkBioProgress.totalEligible
                 ? ` — ${bulkBioProgress.processed}/${bulkBioProgress.totalEligible} checked`
                 : ""}
-              {bulkBioProgress.currentMusicianName && bulkGeneratingBios
+              {bulkBioProgress.currentMusicianName && bulkGeneratingBios && !bioBackfillConnectionLost
                 ? ` — currently ${bulkBioProgress.currentMusicianName}`
                 : ""}
+              {bioBackfillConnectionLost ? " — reconnecting automatically" : ""}
               {bulkBioProgress.error ? ` — ${bulkBioProgress.error}` : ""}
             </span>
           ) : null}

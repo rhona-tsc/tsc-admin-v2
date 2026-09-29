@@ -47,6 +47,14 @@ import FinanceCommandCentre from "./pages/FinanceCommandCentre";
 import Noticeboard from "./pages/Noticeboard";
 import PaymentTracker from "./pages/PaymentTracker";
 import Automations from "./pages/Automations";
+import ListOriginalProject from "./pages/ListOriginalProject";
+import OriginalProjects from "./pages/OriginalProjects";
+import MyOriginalProjects from "./pages/MyOriginalProjects";
+import ModerateOriginals from "./pages/ModerateOriginals";
+import OriginalProjectWorkspace from "./pages/OriginalProjectWorkspace";
+import OriginalsReadiness from "./pages/OriginalsReadiness";
+import RegularDeputies from "./pages/RegularDeputies";
+import RegularDeputyDetails from "./pages/RegularDeputyDetails";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -56,6 +64,8 @@ if (!import.meta.env.VITE_BACKEND_URL) {
 }
 
 export const currency = "£";
+const originalsEnabled =
+  String(import.meta.env.VITE_ORIGINALS_ENABLED || "").toLowerCase() === "true";
 
 function parseToken(t) {
   if (!t) return {};
@@ -131,6 +141,9 @@ const App = () => {
 
   const isAdminAgent =
     userRole === "agent" || email === "hello@thesupremecollective.co.uk";
+  const isOriginalsAdmin =
+    userId === "693ac400ef2c3100595c0ed8" ||
+    email.toLowerCase() === "hello@thesupremecollective.co.uk";
 
   const isLoggedIn = Boolean(token) && hydrated;
 
@@ -220,6 +233,7 @@ const App = () => {
           }
         >
           <Routes>
+            <Route path="/regular-deputies/details/:token" element={<RegularDeputyDetails />} />
             {/* PUBLIC ROUTES */}
             <Route
               path="/login"
@@ -433,6 +447,42 @@ const App = () => {
                 </RequireAuth>
               }
             />
+
+            {originalsEnabled && isOriginalsAdmin && (
+              <>
+                <Route
+                  path="/originals"
+                  element={<RequireAuth><OriginalProjects token={token} /></RequireAuth>}
+                />
+                <Route
+                  path="/originals/new"
+                  element={<RequireAuth><ListOriginalProject token={token} /></RequireAuth>}
+                />
+                <Route
+                  path="/originals/mine"
+                  element={<RequireAuth><MyOriginalProjects token={token} /></RequireAuth>}
+                />
+                <Route
+                  path="/originals/:id"
+                  element={<RequireAuth><OriginalProjectWorkspace token={token} /></RequireAuth>}
+                />
+                <Route
+                  path="/originals/moderation"
+                  element={<RequireAuth><ModerateOriginals token={token} /></RequireAuth>}
+                />
+                <Route
+                  path="/originals/readiness"
+                  element={<RequireAuth><OriginalsReadiness token={token} /></RequireAuth>}
+                />
+              </>
+            )}
+
+            {isAdminAgent && (
+              <Route
+                path="/regular-deputies"
+                element={<RequireAuth><RegularDeputies token={token} /></RequireAuth>}
+              />
+            )}
 
             {isAdminAgent && (
               <Route

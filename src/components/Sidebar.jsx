@@ -7,6 +7,8 @@ import GatekeeperModal from "./GatekeeperModal";
 
 const normalize = (s) => (s || "").toLowerCase().trim();
 const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
+const originalsEnabled =
+  String(import.meta.env.VITE_ORIGINALS_ENABLED || "").toLowerCase() === "true";
 
 const Sidebar = ({ userRole, firstName, userId, email, collapsed = false, onToggle }) => {
   const navigate = useNavigate();
@@ -25,6 +27,9 @@ const Sidebar = ({ userRole, firstName, userId, email, collapsed = false, onTogg
   const [pendingSongCount, setPendingSongCount] = useState(0);
   const [pendingActCount, setPendingActCount] = useState(0);
   const [actPreSubmissions, setActPreSubmissions] = useState(0);
+  const isOriginalsAdmin =
+    userId === "693ac400ef2c3100595c0ed8" ||
+    normalize(email) === "hello@thesupremecollective.co.uk";
 
 // 🔔 Tech issue modal
 const [showTechModal, setShowTechModal] = useState(false);
@@ -262,10 +267,35 @@ useEffect(() => {
           <p className="hidden md:block text-white">Security</p>
         </NavLink>
 
+        {originalsEnabled && isOriginalsAdmin ? (
+          <>
+            <NavLink className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l" to="/originals/new">
+              <span className="grid h-5 w-5 place-items-center rounded bg-white text-xs font-bold text-black">O+</span>
+              <p className="hidden md:block text-white">List an Originals Project</p>
+            </NavLink>
+            <NavLink className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l" to="/originals">
+              <span className="grid h-5 w-5 place-items-center rounded bg-white text-xs font-bold text-black">O</span>
+              <p className="hidden md:block text-white">Originals Projects</p>
+            </NavLink>
+            <NavLink className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l" to="/originals/mine">
+              <span className="grid h-5 w-5 place-items-center rounded bg-white text-xs font-bold text-black">MY</span>
+              <p className="hidden md:block text-white">My Original Projects</p>
+            </NavLink>
+          </>
+        ) : null}
+
        
 
         {normalize(userRole) === "agent" && (
           <>
+
+            <NavLink
+              className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+              to="/regular-deputies"
+            >
+              <span className="grid h-5 w-5 place-items-center rounded bg-white text-xs font-bold text-black">RD</span>
+              <p className="hidden md:block text-white">Regular Deputies</p>
+            </NavLink>
 
                <NavLink
           className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
@@ -371,6 +401,25 @@ useEffect(() => {
                 </span>
               )}
             </NavLink>
+
+            {originalsEnabled && isOriginalsAdmin ? (
+              <>
+              <NavLink
+                className="relative flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+                to="/originals/moderation"
+              >
+                <span className="grid h-5 w-5 place-items-center rounded bg-white text-xs font-bold text-black">O</span>
+                <p className="hidden md:block text-white">Moderate Originals</p>
+              </NavLink>
+              <NavLink
+                className="relative flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
+                to="/originals/readiness"
+              >
+                <span className="grid h-5 w-5 place-items-center rounded bg-white text-xs font-bold text-black">✓</span>
+                <p className="hidden md:block text-white">Originals Readiness</p>
+              </NavLink>
+              </>
+            ) : null}
 
             <NavLink
               className="relative flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"
