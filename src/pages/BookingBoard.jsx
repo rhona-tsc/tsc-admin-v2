@@ -150,6 +150,11 @@ const getDisplayDeposit = (row) => {
 
 const round2 = (n) => Math.round(Number(n || 0) * 100) / 100;
 
+const parseMoneyInput = (value) => {
+  const parsed = Number(String(value ?? "").replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(parsed) ? round2(parsed) : 0;
+};
+
 const clamp0 = (n) => Math.max(0, Number(n || 0) || 0);
 
 const vatSplitFromGross = (gross, vatRate = 0.2) => {
@@ -532,6 +537,71 @@ const isBookingPaid = (row) =>
     row?.balancePaid ||
     row?.balanceStatus === "paid",
   );
+
+const toDateInputValue = (value) => {
+  if (!value) return new Date().toLocaleDateString("en-CA");
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? new Date().toLocaleDateString("en-CA")
+    : date.toLocaleDateString("en-CA");
+};
+
+function ReceiptOptionsModal({ value, onChange, onCancel, onConfirm, saving }) {
+  if (!value?.row) return null;
+  const email = getPrimaryEmail(value.row);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl">
+        <h2 className="text-lg font-semibold text-gray-900">Generate receipt</h2>
+        <p className="mt-1 text-sm text-gray-600">
+          {getDisplayBookingRef(value.row)}
+          {email ? ` • ${email}` : " • No client email saved"}
+        </p>
+
+        <label className="mt-5 block text-sm font-medium text-gray-700">
+          Date payment was received
+        </label>
+        <input
+          type="date"
+          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
+          value={value.paymentDate}
+          onChange={(event) => onChange({ ...value, paymentDate: event.target.value })}
+        />
+
+        <label className="mt-4 flex items-start gap-3 rounded-lg border border-gray-200 p-3">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4"
+            checked={value.sendReceipt}
+            disabled={!email}
+            onChange={(event) => onChange({ ...value, sendReceipt: event.target.checked })}
+          />
+          <span>
+            <span className="block text-sm font-medium text-gray-800">Send receipt to the client</span>
+            <span className="block text-xs text-gray-500">
+              {email ? `The receipt will be emailed to ${email}.` : "Add a client email before sending."}
+            </span>
+          </span>
+        </label>
+
+        <div className="mt-6 flex justify-end gap-2">
+          <button type="button" className="rounded border px-4 py-2 text-sm" onClick={onCancel} disabled={saving}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="rounded bg-purple-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            onClick={onConfirm}
+            disabled={saving || !value.paymentDate}
+          >
+            {saving ? "Generating…" : value.sendReceipt ? "Generate and send" : "Generate receipt"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const buildFullLineup = (row) => {
   const label =
@@ -3006,6 +3076,8 @@ export default function BookingBoard() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [creatingPayLinkId, setCreatingPayLinkId] = useState(null);
   const [syncingFinanceId, setSyncingFinanceId] = useState(null);
+  const [receiptOptions, setReceiptOptions] = useState(null);
+  const [savingReceipt, setSavingReceipt] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState({
     enquiries: false,
     "upcoming-bookings": false,
@@ -3988,7 +4060,7 @@ export default function BookingBoard() {
     }
   };
 
-  const createReceiptForRow = async (row, receiptType = "main") => {
+  const createReceiptForRow = async (row, receiptType = "main", options = null) => {
     const isExtrasReceipt = receiptType === "extras";
 
     const isPaid = isExtrasReceipt
@@ -4009,7 +4081,21 @@ export default function BookingBoard() {
       return;
     }
 
+    if (!options) {
+      const storedPaidAt = isExtrasReceipt
+        ? row?.payments?.extrasPaidAt || row?.extrasPaidAt
+        : row?.payments?.paidAt || row?.paidAt || row?.payments?.invoicePaidAt || row?.payments?.balancePaymentReceivedAt;
+      setReceiptOptions({
+        row,
+        receiptType,
+        paymentDate: toDateInputValue(storedPaidAt),
+        sendReceipt: Boolean(getPrimaryEmail(row)),
+      });
+      return;
+    }
+
     try {
+      setSavingReceipt(true);
       const res = await fetch(`${API_BASE}/invoices/create-board-receipt`, {
         method: "POST",
         headers: buildHeaders(),
@@ -4018,6 +4104,8 @@ export default function BookingBoard() {
           bookingId: row._id,
           documentType: "receipt",
           invoiceType: receiptType,
+          paymentDate: options.paymentDate,
+          sendReceipt: Boolean(options.sendReceipt),
         }),
       });
 
@@ -4085,9 +4173,15 @@ export default function BookingBoard() {
       } else {
         window.alert("Receipt generated, but no receipt URL was returned.");
       }
+      setReceiptOptions(null);
+      if (options.sendReceipt && json?.receiptEmailResult && !json.receiptEmailResult.ok) {
+        window.alert(`The receipt was generated, but the email could not be sent: ${json.receiptEmailResult.error || json.receiptEmailResult.reason || "email delivery failed"}`);
+      }
     } catch (error) {
       console.error("create receipt failed", error);
       window.alert(error?.message || "Receipt failed.");
+    } finally {
+      setSavingReceipt(false);
     }
   };
 
@@ -4712,15 +4806,17 @@ export default function BookingBoard() {
                                       </td>
                                       <td className={cellClass}>
                                         <InlineInput
-                                          value={fmtShort(
-                                            r.enquiryDateISO || r.createdAt,
-                                          )}
+                                          type="date"
+                                          value={String(r.enquiryDateISO || r.createdAt || "").slice(0, 10)}
+                                          onCommit={(val) => onInlineEdit(r._id, { enquiryDateISO: val })}
                                         />
                                       </td>
                                       <td className={cellClass}>
-                                        {fmtShort(
-                                          r.bookingDateISO || r.createdAt,
-                                        )}
+                                        <InlineInput
+                                          type="date"
+                                          value={String(r.bookingDateISO || r.createdAt || "").slice(0, 10)}
+                                          onCommit={(val) => onInlineEdit(r._id, { bookingDateISO: val, invoiceDateISO: val })}
+                                        />
                                       </td>
                                       <td className={cellClass}>
                                         <InlineInput
@@ -4747,6 +4843,13 @@ export default function BookingBoard() {
                                                 value={
                                                   gross ? money(gross) : ""
                                                 }
+                                                onCommit={(val) => {
+                                                  const nextGross = parseMoneyInput(val);
+                                                  onInlineEdit(r._id, {
+                                                    grossValue: nextGross,
+                                                    totals: { ...(r.totals || {}), fullAmount: nextGross },
+                                                  });
+                                                }}
                                               />
                                             </div>
 
@@ -4807,6 +4910,13 @@ export default function BookingBoard() {
                                                 value={
                                                   deposit ? money(deposit) : ""
                                                 }
+                                                onCommit={(val) => {
+                                                  const nextDeposit = parseMoneyInput(val);
+                                                  onInlineEdit(r._id, {
+                                                    depositAmount: nextDeposit,
+                                                    totals: { ...(r.totals || {}), depositAmount: nextDeposit },
+                                                  });
+                                                }}
                                               />
                                             </div>
 
@@ -4829,6 +4939,17 @@ export default function BookingBoard() {
                                               ? money(balance)
                                               : ""
                                           }
+                                          onCommit={(val) => {
+                                            const nextBalance = parseMoneyInput(val);
+                                            onInlineEdit(r._id, {
+                                              balanceAmountPence: Math.round(nextBalance * 100),
+                                              totals: {
+                                                ...(r.totals || {}),
+                                                fullAmount: Number(gross || 0),
+                                                chargedAmount: Math.max(0, Number(gross || 0) - nextBalance),
+                                              },
+                                            });
+                                          }}
                                         />
                                       </td>
                                       <td className={cellClass}>
@@ -4842,6 +4963,22 @@ export default function BookingBoard() {
                                                     ? fmtMoney0(commission)
                                                     : ""
                                                 }
+                                                onCommit={(val) => {
+                                                  const commissionGross = parseMoneyInput(val);
+                                                  const vatSplit = calcVatFromVatInclusiveGross(
+                                                    commissionGross,
+                                                    split?.vatRate ?? 0.2,
+                                                  );
+                                                  onInlineEdit(r._id, {
+                                                    netCommission: vatSplit.net,
+                                                    accounting: {
+                                                      ...(r.accounting || {}),
+                                                      commissionGross,
+                                                      commissionVat: vatSplit.vat,
+                                                      commissionNet: vatSplit.net,
+                                                    },
+                                                  });
+                                                }}
                                               />
                                             </div>
                                             {split?.hasAccounting ? (
@@ -4864,6 +5001,14 @@ export default function BookingBoard() {
                                       <td className={cellClass}>
                                         <InlineInput
                                           value={hold ? money(hold) : ""}
+                                          onCommit={(val) =>
+                                            onInlineEdit(r._id, {
+                                              accounting: {
+                                                ...(r.accounting || {}),
+                                                passThroughGross: parseMoneyInput(val),
+                                              },
+                                            })
+                                          }
                                         />
                                       </td>
                                       <td className={cellClass}>
@@ -4976,7 +5121,12 @@ export default function BookingBoard() {
                                         />
                                       </td>
                                       <td className={cellClass}>
-                                        {extractBandSize(r)}
+                                        <InlineInput
+                                          type="number"
+                                          value={extractBandSize(r) || ""}
+                                          placeholder="Band size"
+                                          onCommit={(val) => onInlineEdit(r._id, { bandSize: Number(val || 0) || 0 })}
+                                        />
                                       </td>
                                       <td className={cellClass}>
                                         <InlineInput
@@ -5026,9 +5176,21 @@ export default function BookingBoard() {
                                         </div>
                                       </td>
                                       <td className={cellClass}>
-                                        {r.bookingDetails?.djServicesBooked
-                                          ? "Yes"
-                                          : "No"}
+                                        <select
+                                          className={inputClass}
+                                          value={r.bookingDetails?.djServicesBooked ? "yes" : "no"}
+                                          onChange={(event) =>
+                                            onInlineEdit(r._id, {
+                                              bookingDetails: {
+                                                ...(r.bookingDetails || {}),
+                                                djServicesBooked: event.target.value === "yes",
+                                              },
+                                            })
+                                          }
+                                        >
+                                          <option value="no">No</option>
+                                          <option value="yes">Yes</option>
+                                        </select>
                                       </td>
                                       <td className={cellClass}>
                                         <RoleAllocationCell row={r} />
@@ -5762,6 +5924,21 @@ export default function BookingBoard() {
           }}
           onSave={saveBookingUpdate}
           saving={savingEdit}
+        />
+      )}
+      {receiptOptions && (
+        <ReceiptOptionsModal
+          value={receiptOptions}
+          onChange={setReceiptOptions}
+          onCancel={() => setReceiptOptions(null)}
+          saving={savingReceipt}
+          onConfirm={() =>
+            createReceiptForRow(
+              receiptOptions.row,
+              receiptOptions.receiptType,
+              receiptOptions,
+            )
+          }
         />
       )}
     </div>
