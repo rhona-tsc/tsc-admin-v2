@@ -4726,7 +4726,7 @@ export default function BookingBoard() {
                                           scope="col"
                                           className={
                                             index === 0
-                                              ? "sticky left-0 z-30 bg-slate-50 px-3 py-2 border-b-2 border-slate-200 shadow-[2px_0_0_0_rgba(229,231,235,1)]"
+                                              ? "sticky left-0 z-30 w-[180px] min-w-[180px] max-w-[180px] bg-slate-50 px-3 py-2 border-b-2 border-r-2 border-slate-200 shadow-[4px_0_8px_-6px_rgba(15,23,42,0.45)]"
                                               : "px-3 py-2 border-b-2 border-slate-200 whitespace-nowrap"
                                           }
                                         >
@@ -4737,7 +4737,7 @@ export default function BookingBoard() {
                                   </thead>
                                   <tbody>
                                     <tr className="align-middle">
-                                      <td className="sticky left-0 z-20 bg-white px-3 py-2 shadow-[2px_0_0_0_rgba(229,231,235,1)]">
+                                      <td className="sticky left-0 z-20 w-[180px] min-w-[180px] max-w-[180px] bg-white px-3 py-2 border-r-2 border-slate-200 shadow-[4px_0_8px_-6px_rgba(15,23,42,0.45)]">
                                         <InlineInput
                                           value={clientFirstNames}
                                           placeholder="Client name"
