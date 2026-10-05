@@ -1352,6 +1352,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
   const [musicianSearchResults, setMusicianSearchResults] = useState([]);
   const [searchingMusicians, setSearchingMusicians] = useState(false);
   const [musicianSearchError, setMusicianSearchError] = useState("");
+  const [sendingOfferIndex, setSendingOfferIndex] = useState(null);
 
   if (!row || !value) return null;
 
@@ -1457,10 +1458,64 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
           totalFee: 0,
           paymentStatus: "not_due",
           status: "selected",
-          source: "manual_lookup",
+          earlyArrivalMinutes: 0,
+          earlyArrivalTime: "",
+          source: "manual",
         },
       ],
     });
+  };
+
+  const sendAssignedMusicianOffer = async (index) => {
+    const member = assignedMusicians[index] || {};
+    const role = String(member?.role || member?.instrument || "").trim();
+    const musicianId = String(member?.musicianId || "").trim();
+    if (!musicianId || !role) {
+      setMusicianSearchError(
+        "Choose a musician and enter their role before sending the request.",
+      );
+      return;
+    }
+
+    setSendingOfferIndex(index);
+    setMusicianSearchError("");
+    try {
+      const response = await fetch(`${API_BASE}/allocations/offer-role`, {
+        method: "POST",
+        headers: buildAuthHeaders(),
+        credentials: "include",
+        body: JSON.stringify({
+          bookingBoardItemId: row?._id,
+          musicianId,
+          role,
+          roleSlotId:
+            member?.roleSlotId ||
+            `manual-${musicianId}-${role.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+          fee: Number(member?.fee || member?.totalFee || 0) || 0,
+          earlyArrivalMinutes:
+            Number(member?.earlyArrivalMinutes || 0) || 0,
+          earlyArrivalTime: member?.earlyArrivalTime || "",
+          candidateSource: "manual",
+        }),
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || json?.success === false) {
+        throw new Error(json?.message || "Could not send availability request");
+      }
+      updateAssignedMusician(index, {
+        status: "offered",
+        source: "booking_role_offer",
+        offerRequestId: json?.requestId || "",
+        roleSlotId: json?.roleSlotId || member?.roleSlotId || "",
+        offeredAt: new Date().toISOString(),
+      });
+    } catch (offerError) {
+      setMusicianSearchError(
+        offerError?.message || "Could not send availability request",
+      );
+    } finally {
+      setSendingOfferIndex(null);
+    }
   };
 
   const searchMusicians = useCallback(
@@ -2437,7 +2492,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
           </div>
         </div>
 
-        <div className="mb-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="mb-5 grid grid-cols-1 gap-4">
           <div className="border rounded-lg p-4">
             <div className="mb-5 border rounded-lg p-4 bg-white">
               <div className="font-medium mb-2">
@@ -2529,9 +2584,9 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                   assignedMusicians.map((member, index) => (
                     <div
                       key={`${member?.musicianId || member?.email || member?.name || index}-${index}`}
-                      className="grid grid-cols-1 gap-2 rounded border p-3 md:grid-cols-12 md:items-end"
+                      className="grid grid-cols-1 gap-3 rounded-lg border-2 border-gray-200 bg-gray-50/60 p-4 lg:grid-cols-12 lg:items-end"
                     >
-                      <div className="md:col-span-4">
+                      <div className="lg:col-span-3">
                         <label className="block text-xs text-gray-600 mb-1">
                           Musician
                         </label>
@@ -2546,7 +2601,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                           readOnly
                         />
                       </div>
-                      <div className="md:col-span-3">
+                      <div className="lg:col-span-3">
                         <label className="block text-xs text-gray-600 mb-1">
                           Role / instrument
                         </label>
@@ -2589,7 +2644,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                           })}
                         </div>
                       </div>
-                      <div className="md:col-span-2">
+                      <div className="lg:col-span-2">
                         <label className="block text-xs text-gray-600 mb-1">
                           Gig fee £
                         </label>
@@ -2609,7 +2664,28 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                           placeholder="0.00"
                         />
                       </div>
-                      <div className="md:col-span-2">
+                      <div className="lg:col-span-2">
+                        <label className="block text-xs text-gray-600 mb-1">
+                          Early arrival
+                        </label>
+                        <select
+                          className="border rounded px-3 py-2 w-full bg-white"
+                          value={Number(member?.earlyArrivalMinutes || 0)}
+                          onChange={(e) =>
+                            updateAssignedMusician(index, {
+                              earlyArrivalMinutes: Number(e.target.value || 0),
+                            })
+                          }
+                        >
+                          <option value={0}>Normal arrival</option>
+                          <option value={15}>15 mins early</option>
+                          <option value={30}>30 mins early</option>
+                          <option value={45}>45 mins early</option>
+                          <option value={60}>60 mins early</option>
+                          <option value={90}>90 mins early</option>
+                        </select>
+                      </div>
+                      <div className="lg:col-span-2">
                         <label className="block text-xs text-gray-600 mb-1">
                           Payment
                         </label>
@@ -2629,10 +2705,30 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                           <option value="cancelled">Cancelled</option>
                         </select>
                       </div>
-                      <div className="md:col-span-1">
+                      <div className="flex flex-wrap gap-2 lg:col-span-12 lg:justify-end">
                         <button
                           type="button"
-                          className="w-full rounded border px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                          disabled={
+                            sendingOfferIndex === index ||
+                            member?.status === "offered" ||
+                            member?.status === "accepted" ||
+                            member?.status === "confirmed"
+                          }
+                          className="rounded bg-[#087f9c] px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                          onClick={() => sendAssignedMusicianOffer(index)}
+                        >
+                          {sendingOfferIndex === index
+                            ? "Sending…"
+                            : member?.status === "accepted" ||
+                                member?.status === "confirmed"
+                              ? "Accepted"
+                              : member?.status === "offered"
+                                ? "Request sent"
+                                : "Send availability request"}
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded border px-3 py-2 text-sm text-red-600 hover:bg-red-50"
                           onClick={() => removeAssignedMusician(index)}
                         >
                           Remove
@@ -2923,7 +3019,22 @@ const getBookingMemberTags = (row = {}) => {
 
       if (!name && !email && !musicianId) return null;
 
-      return { name, email, musicianId, fee, totalFee: fee };
+      return {
+        ...member,
+        name,
+        email,
+        musicianId,
+        fee,
+        totalFee: fee,
+        role: String(member?.role || member?.instrument || "").trim(),
+        instrument: String(member?.instrument || member?.role || "").trim(),
+        earlyArrivalMinutes:
+          Number(member?.earlyArrivalMinutes || 0) || 0,
+        earlyArrivalTime: String(member?.earlyArrivalTime || "").trim(),
+        status: member?.status || "selected",
+        paymentStatus: member?.paymentStatus || "not_due",
+        source: member?.source || "manual",
+      };
     })
     .filter(Boolean);
 };
@@ -3487,9 +3598,12 @@ export default function BookingBoard() {
               ).trim(),
               fee,
               totalFee: fee,
+              earlyArrivalMinutes:
+                Number(member?.earlyArrivalMinutes || 0) || 0,
+              earlyArrivalTime: String(member?.earlyArrivalTime || "").trim(),
               paymentStatus: member?.paymentStatus || "not_due",
               status: member?.status || "selected",
-              source: member?.source || "manual_lookup",
+              source: member?.source || "manual",
             };
           })
           .filter((member) => member.name || member.email || member.musicianId)
