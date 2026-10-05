@@ -2776,6 +2776,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
 const AGENTS = [
   "Alive Network",
   "Direct",
+  "The Supreme Collective",
   "Encore",
   "Entertainment Nation",
   "Freak Music",

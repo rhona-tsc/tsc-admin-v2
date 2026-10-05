@@ -498,6 +498,7 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
   const [myActs, setMyActs] = useState([]);
   const [deppingActs, setDeppingActs] = useState([]);
   const [appliedJobs, setAppliedJobs] = useState([]);
+  const [newDeputyJobs, setNewDeputyJobs] = useState([]);
   const [authNotice, setAuthNotice] = useState("");
   const [socialPromptDismissed, setSocialPromptDismissed] = useState(false);
   const [socialStatus, setSocialStatus] = useState(null);
@@ -587,6 +588,25 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
     } catch (err) {
       console.error("Error fetching applied jobs", err);
       setAppliedJobs([]);
+    }
+  };
+
+  const fetchNewDeputyJobs = async () => {
+    try {
+      if (!authToken || isJwtExpiredToken(authToken)) return;
+      const res = await axios.get(`${backendUrl}/api/deputy-jobs`, {
+        headers,
+        withCredentials: true,
+      });
+      const jobs = Array.isArray(res.data?.jobs) ? res.data.jobs : [];
+      setNewDeputyJobs(
+        jobs
+          .filter((job) => String(job?.status || "").toLowerCase() === "open")
+          .slice(0, 4),
+      );
+    } catch (err) {
+      console.error("Error fetching new deputy jobs", err);
+      setNewDeputyJobs([]);
     }
   };
 
@@ -926,6 +946,7 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
     fetchStats();
     fetchPeerReview();
     fetchAppliedJobs();
+    fetchNewDeputyJobs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1122,6 +1143,44 @@ useEffect(() => {
           </div>
 
           {/* ------- Deputy Jobs Applied For ------- */}
+
+          <div className="bg-white shadow rounded p-4 my-6">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold">New Deputy Jobs</h3>
+                <p className="text-sm text-gray-500">The latest roles currently accepting applications.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate("/deputy-jobs")}
+                className="shrink-0 rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-[#ff6667]"
+              >
+                View more
+              </button>
+            </div>
+            {newDeputyJobs.length === 0 ? (
+              <p className="text-gray-600">There are no new jobs open right now.</p>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {newDeputyJobs.map((job) => (
+                  <button
+                    type="button"
+                    key={job._id}
+                    onClick={() => navigate(`/deputy-jobs/${job._id}`)}
+                    className="flex w-full items-center justify-between gap-4 py-3 text-left hover:bg-gray-50"
+                  >
+                    <span>
+                      <span className="block font-medium text-gray-900">{job.title || "Deputy opportunity"}</span>
+                      <span className="block text-sm text-gray-500">
+                        {job.eventDate ? formatDate(job.eventDate) : "Date TBC"} · {job.location || job.venue || "Location TBC"}
+                      </span>
+                    </span>
+                    <span className="text-sm font-semibold text-[#d84f51]">{job.deputyNetAmount || job.fee ? `£${Number(job.deputyNetAmount || job.fee).toFixed(2)}` : "View"}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
             <h3 className="text-lg font-semibold mb-3">

@@ -180,6 +180,7 @@ const BookingList = ({ token }) => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [withdrawingId, setWithdrawingId] = useState("");
 
   const authToken = useMemo(() => getBestAuthToken(token), [token]);
 
@@ -229,6 +230,44 @@ const BookingList = ({ token }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authToken]);
 
+  const confirmedBookings = useMemo(
+    () =>
+      bookings.filter((booking) => {
+        const status = String(getMusicianTag(booking)?.status || "confirmed").toLowerCase();
+        return ["accepted", "confirmed"].includes(status);
+      }),
+    [bookings],
+  );
+
+  const withdrawAvailability = async (booking) => {
+    const ref = getBookingRef(booking);
+    if (!ref || withdrawingId) return;
+    const confirmed = window.confirm(
+      "Withdraw from this confirmed gig? The role will be reopened so another musician can be booked.",
+    );
+    if (!confirmed) return;
+    const reason = window.prompt("Optional: tell us why you are no longer available.", "") || "";
+    try {
+      setWithdrawingId(String(ref));
+      const { data } = await axios.post(
+        `${backendUrl}/api/booking/bookings/${encodeURIComponent(ref)}/withdraw`,
+        { reason },
+        { headers: { Authorization: `Bearer ${authToken}`, token: authToken }, withCredentials: true },
+      );
+      toast(<CustomToast type="success" message={data?.message || "Availability withdrawn."} />);
+      await fetchBookings();
+    } catch (error) {
+      toast(
+        <CustomToast
+          type="error"
+          message={error?.response?.data?.message || "Could not withdraw availability."}
+        />,
+      );
+    } finally {
+      setWithdrawingId("");
+    }
+  };
+
   return (
     <div className="p-6 w-full">
       <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -259,13 +298,13 @@ const BookingList = ({ token }) => {
         <div className="rounded border bg-white p-6 text-gray-500">
           Loading your gigs…
         </div>
-      ) : bookings.length === 0 ? (
+      ) : confirmedBookings.length === 0 ? (
         <div className="rounded border bg-white p-6 text-gray-500">
           No gigs have been assigned to your profile yet.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {bookings.map((booking) => {
+          {confirmedBookings.map((booking) => {
             const fee = getMusicianFee(booking);
             const musicianTag = getMusicianTag(booking);
             const arrivalTime = getArrivalTime(booking);
@@ -335,6 +374,17 @@ const BookingList = ({ token }) => {
                     </p>
                   ) : null}
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => withdrawAvailability(booking)}
+                  disabled={withdrawingId === String(getBookingRef(booking))}
+                  className="mt-5 w-full rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                >
+                  {withdrawingId === String(getBookingRef(booking))
+                    ? "Withdrawing…"
+                    : "I’m no longer available"}
+                </button>
               </div>
             );
           })}

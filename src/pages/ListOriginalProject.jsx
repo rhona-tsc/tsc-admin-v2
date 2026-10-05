@@ -10,12 +10,15 @@ const ListOriginalProject = ({ token }) => {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [initialFile, setInitialFile] = useState(null);
+  const [voiceNote, setVoiceNote] = useState(null);
   const [form, setForm] = useState({
     title: "",
     description: "",
     genres: "",
     requestedRoles: [emptyRole()],
     hasInitialStem: false,
+    sourceType: "none",
+    ownerSongwritingClaim: false,
     ownerAnonymous: false,
     ownerCreditName: "",
     bpm: "",
@@ -43,10 +46,10 @@ const ListOriginalProject = ({ token }) => {
   const submit = async (event) => {
     event.preventDefault();
     if (!validRoles.length) return toast.error("Add at least one instrument or role");
-    if (!form.hasInitialStem && !validRoles.some((role) => role.foundationEligible)) {
+    if (["none", "video_demo"].includes(form.sourceType) && !validRoles.some((role) => role.foundationEligible)) {
       return toast.error("Choose at least one role that can start the foundation");
     }
-    if (form.hasInitialStem && !initialFile) return toast.error("Choose the initial stem file");
+    if (form.sourceType !== "none" && !initialFile) return toast.error("Choose the starting reference file");
 
     try {
       setSaving(true);
@@ -64,12 +67,19 @@ const ListOriginalProject = ({ token }) => {
       if (initialFile) {
         const upload = new FormData();
         upload.append("file", initialFile);
-        upload.append("kind", "initial_stem");
+        upload.append("kind", form.sourceType === "guide_track" ? "guide_track" : form.sourceType === "video_demo" ? "video_submission" : "initial_stem");
+        upload.append("songwritingClaim", String(form.ownerSongwritingClaim));
         await originalsRequest(token, {
           method: "post",
           url: `/projects/${created.data.project._id}/assets`,
           data: upload,
         });
+      }
+      if (voiceNote) {
+        const voiceUpload = new FormData();
+        voiceUpload.append("file", voiceNote);
+        voiceUpload.append("kind", "voice_note");
+        await originalsRequest(token, { method: "post", url: `/projects/${created.data.project._id}/assets`, data: voiceUpload });
       }
       await originalsRequest(token, {
         method: "post",
@@ -119,7 +129,7 @@ const ListOriginalProject = ({ token }) => {
               <div key={index} className="flex flex-col gap-2 rounded border p-3 sm:flex-row sm:items-center">
                 <span className="text-xs font-semibold text-gray-400">{index + 1}</span>
                 <input value={role.name} onChange={(e) => setRole(index, { name: e.target.value })} placeholder="Guitar, vocals, mix producer…" className="flex-1 rounded border px-3 py-2" />
-                {!form.hasInitialStem ? (
+                {["none", "video_demo"].includes(form.sourceType) ? (
                   <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={role.foundationEligible} onChange={(e) => setRole(index, { foundationEligible: e.target.checked })} />
                     Can start foundation
@@ -133,20 +143,24 @@ const ListOriginalProject = ({ token }) => {
           </div>
         </section>
 
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-          <input type="checkbox" checked={form.hasInitialStem} onChange={(e) => setField("hasInitialStem", e.target.checked)} />
-          I have an initial stem for this project
+        <label className="block text-sm font-medium text-gray-700">Starting material
+          <select value={form.sourceType} onChange={(e) => { const sourceType = e.target.value; setForm((current) => ({ ...current, sourceType, hasInitialStem: ["final_eligible_stem", "guide_track"].includes(sourceType), ownerSongwritingClaim: sourceType !== "none" })); setInitialFile(null); }} className="mt-2 w-full rounded border px-3 py-2"><option value="none">No starting file — musicians create the foundation</option><option value="final_eligible_stem">Original stem intended for the final track</option><option value="guide_track">Guide track — reference only, remove from final production</option><option value="video_demo">Video demo/reference</option></select>
         </label>
-        {form.hasInitialStem ? (
+        {form.sourceType !== "none" ? (
           <label className="block rounded border border-dashed bg-gray-50 p-4 text-sm text-gray-700">
-            Private initial stem (WAV, MP3, AIFF, FLAC or M4A; maximum 100 MB)
-            <input required type="file" accept="audio/*,.wav,.aiff,.flac,.m4a" onChange={(event) => setInitialFile(event.target.files?.[0] || null)} className="mt-2 block w-full" />
+            Private starting reference (audio, or MP4/MOV for a video demo; maximum 100 MB)
+            <input required type="file" accept={form.sourceType === "video_demo" ? "video/mp4,video/quicktime,.mp4,.mov" : "audio/*,.wav,.aiff,.flac,.m4a"} onChange={(event) => setInitialFile(event.target.files?.[0] || null)} className="mt-2 block w-full" />
+            <label className="mt-3 flex items-start gap-2"><input type="checkbox" checked={form.ownerSongwritingClaim} onChange={(e) => setField("ownerSongwritingClaim", e.target.checked)} />I am claiming songwriting credit for the composition demonstrated in this {form.sourceType === "video_demo" ? "video" : form.sourceType === "guide_track" ? "guide track" : "stem"}.</label>
+            {form.sourceType === "guide_track" ? <p className="mt-2 text-xs text-amber-700">This file will remain available as a private reference but is marked ineligible for the final production.</p> : null}
           </label>
         ) : (
           <div className="rounded border border-dashed bg-gray-50 p-4 text-sm text-gray-600">
             Without a starting stem, up to three musicians can compete to create the foundation.
           </div>
         )}
+        <label className="block rounded border border-dashed bg-gray-50 p-4 text-sm text-gray-700">Optional voice note explaining the idea
+          <input type="file" accept="audio/*,.m4a,.aac,.mp3,.wav,.ogg" onChange={(event) => setVoiceNote(event.target.files?.[0] || null)} className="mt-2 block w-full" />
+        </label>
 
         <div className="grid gap-3 sm:grid-cols-3">
           <input type="number" min="1" max="400" value={form.bpm} onChange={(e) => setField("bpm", e.target.value)} placeholder="BPM (optional)" className="rounded border px-3 py-2" />
