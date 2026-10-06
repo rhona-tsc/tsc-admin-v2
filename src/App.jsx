@@ -55,6 +55,7 @@ import OriginalProjectWorkspace from "./pages/OriginalProjectWorkspace";
 import OriginalsReadiness from "./pages/OriginalsReadiness";
 import RegularDeputies from "./pages/RegularDeputies";
 import RegularDeputyDetails from "./pages/RegularDeputyDetails";
+import MyDeputyApplications from "./pages/MyDeputyApplications";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -268,6 +269,14 @@ const App = () => {
               />
             )}
             <Route path="/deputy-jobs/:id" element={<DeputyJobDetail />} />
+            <Route
+              path="/my-deputy-applications"
+              element={
+                <RequireAuth>
+                  <MyDeputyApplications />
+                </RequireAuth>
+              }
+            />
 
             {/* Private musician record preview */}
             <Route

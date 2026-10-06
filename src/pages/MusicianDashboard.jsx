@@ -576,7 +576,7 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
       }
 
       const res = await axios.get(
-        `${backendUrl}/api/deputy-jobs?appliedBy=${id}`,
+        `${backendUrl}/api/deputy-jobs?appliedBy=${id}&includeHistorical=true`,
         {
           headers,
           withCredentials: true,
@@ -1183,9 +1183,16 @@ useEffect(() => {
           </div>
 
           <div className="bg-white shadow rounded p-4 gap-4 space-y-2 md:space-y-0 my-6">
-            <h3 className="text-lg font-semibold mb-3">
-              Jobs You’ve Applied For
-            </h3>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h3 className="text-lg font-semibold">Jobs You’ve Applied For</h3>
+              <button
+                type="button"
+                onClick={() => navigate("/my-deputy-applications")}
+                className="shrink-0 rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:border-black hover:text-black"
+              >
+                View all applications
+              </button>
+            </div>
 
             {appliedJobs.length === 0 ? (
               <p className="text-gray-600">

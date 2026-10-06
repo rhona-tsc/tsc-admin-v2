@@ -683,7 +683,9 @@ const DeputyJobDetail = () => {
       }
 
       const confirmed = window.confirm(
-        `Allocate this job to ${getApplicantShortName(application)}?`
+        isEnquiryJob
+          ? `Confirm ${getApplicantShortName(application)} as the client’s choice? This will mark the post as allocated.`
+          : `Allocate this job to ${getApplicantShortName(application)}?`
       );
       if (!confirmed) return;
 
@@ -717,7 +719,7 @@ const DeputyJobDetail = () => {
         setAssigningId("");
       }
     },
-    [handleExpiredAuth, headers, id, loadJob]
+    [handleExpiredAuth, headers, id, isEnquiryJob, loadJob]
   );
 
   const handlePresentApplicant = useCallback(
@@ -1213,7 +1215,7 @@ const DeputyJobDetail = () => {
                       );
 
                       const canAllocate =
-                        !isEnquiryJob &&
+                        (!isEnquiryJob || status === "presented") &&
                         !isAssigned &&
                         Boolean(musicianId) &&
                         canManageThisJob;
@@ -1267,7 +1269,9 @@ const DeputyJobDetail = () => {
                                 >
                                   {isAllocating
                                     ? "Allocating…"
-                                    : "Allocate applicant"}
+                                    : isEnquiryJob
+                                      ? "Book client’s choice"
+                                      : "Allocate applicant"}
                                 </button>
                               ) : null}
 

@@ -434,7 +434,11 @@ const ManageDeputyApplications = () => {
         return;
       }
 
-      const confirmed = window.confirm(`Allocate this job to ${application.fullName || "this applicant"}?`);
+      const confirmed = window.confirm(
+        isEnquiryJob
+          ? `Confirm ${application.fullName || "this applicant"} as the client’s choice? This will mark the post as allocated.`
+          : `Allocate this job to ${application.fullName || "this applicant"}?`
+      );
       if (!confirmed) return;
 
       try {
@@ -459,7 +463,7 @@ const ManageDeputyApplications = () => {
         setAssigningId("");
       }
     },
-    [headers, id, loadApplications]
+    [headers, id, isEnquiryJob, loadApplications]
   );
 
   const handlePresentApplicant = useCallback(
@@ -663,14 +667,18 @@ const profileLink = getApplicantProfileLink(application, job?._id || "");
 
                   {canManageThisJob ? (
                     <div className="mt-4 flex flex-wrap gap-2">
-                      {!isEnquiryJob && !isAssigned ? (
+                      {(!isEnquiryJob || status === "presented") && !isAssigned ? (
                         <button
                           type="button"
                           onClick={() => handleAllocateApplicant(application)}
                           disabled={assigningId === musicianId}
                           className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-[#ff6667] disabled:opacity-60"
                         >
-                          {assigningId === musicianId ? "Allocating…" : "Allocate applicant"}
+                          {assigningId === musicianId
+                            ? "Allocating…"
+                            : isEnquiryJob
+                              ? "Book client’s choice"
+                              : "Allocate applicant"}
                         </button>
                       ) : null}
 
