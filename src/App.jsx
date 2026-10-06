@@ -269,8 +269,15 @@ const App = () => {
             )}
             <Route path="/deputy-jobs/:id" element={<DeputyJobDetail />} />
 
-            {/* PUBLIC MUSICIAN PROFILE */}
-            <Route path="/musician/:slug" element={<Musician />} />
+            {/* Private musician record preview */}
+            <Route
+              path="/musician/:slug"
+              element={
+                <RequireAuth>
+                  <Musician />
+                </RequireAuth>
+              }
+            />
 
             {/* DEFAULT */}
             <Route

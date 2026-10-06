@@ -195,6 +195,7 @@ const Musician = () => {
       setError("");
 
       try {
+        const token = localStorage.getItem("token") || "";
         const attempts = [
           `${BACKEND_URL}/api/musician/admin/profile/${musicianKey}`
         ].filter(Boolean);
@@ -203,7 +204,11 @@ const Musician = () => {
 
         for (const url of attempts) {
           try {
-            const res = await axios.get(url);
+            const res = await axios.get(url, {
+              headers: token
+                ? { Authorization: `Bearer ${token}`, token }
+                : {},
+            });
             const payload = res?.data;
             const candidate =
               payload?.musician || payload?.deputy || payload?.data || payload;
