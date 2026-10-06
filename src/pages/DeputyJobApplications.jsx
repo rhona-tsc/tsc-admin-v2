@@ -29,6 +29,12 @@ const formatDateLong = (value) => {
   return `${weekday}, ${day}${getOrdinal(day)} ${month} ${year}`;
 };
 
+const formatDateRange = (start, end) => {
+  const startText = formatDateLong(start);
+  if (!end || end === start) return startText;
+  return `${startText} – ${formatDateLong(end)}`;
+};
+
 const formatDateTime = (value) => {
   if (!value) return "—";
   const date = new Date(value);
@@ -309,6 +315,30 @@ const ManageDeputyApplications = () => {
 
     return roles.map((role) => ({
       role,
+      quantity: Math.max(
+        1,
+        Number(
+          (Array.isArray(job?.roleRequirements)
+            ? job.roleRequirements
+            : []
+          ).find(
+            (requirement) =>
+              normaliseString(requirement?.role).toLowerCase() ===
+              normaliseString(role).toLowerCase(),
+          )?.quantity,
+        ) || 1,
+      ),
+      allocatedCount: (Array.isArray(job?.roleAllocations)
+        ? job.roleAllocations
+        : []
+      ).filter(
+        (allocation) =>
+          normaliseString(allocation?.role).toLowerCase() ===
+            normaliseString(role).toLowerCase() &&
+          ["allocated", "booked"].includes(
+            normaliseString(allocation?.status).toLowerCase(),
+          ),
+      ).length,
       applications: filteredApplications.filter((application) => {
         const appliedRoles =
           Array.isArray(application?.appliedRoles) &&
@@ -322,7 +352,13 @@ const ManageDeputyApplications = () => {
         );
       }),
     }));
-  }, [filteredApplications, job?.instrument, job?.requiredInstruments]);
+  }, [
+    filteredApplications,
+    job?.instrument,
+    job?.requiredInstruments,
+    job?.roleAllocations,
+    job?.roleRequirements,
+  ]);
 
   const handleCopyPresentedApplicants = useCallback(async () => {
     if (!presentedApplications.length) {
@@ -632,7 +668,7 @@ const ManageDeputyApplications = () => {
             </p>
 
             <p className="mt-1 text-sm text-gray-500">
-              {formatDateLong(job?.eventDate)} ·{" "}
+              {formatDateRange(job?.eventDate, job?.eventEndDate)} ·{" "}
               {job?.location || "Location TBC"}
             </p>
           </div>
@@ -689,19 +725,33 @@ const ManageDeputyApplications = () => {
         {filteredApplications.length ? (
           <div className="space-y-8">
             {applicationsByRole.map(
-              ({ role, applications: roleApplications }) => (
+              ({
+                role,
+                quantity,
+                allocatedCount,
+                applications: roleApplications,
+              }) => (
                 <section
                   key={role}
                   className="rounded-2xl border border-gray-200 bg-gray-50 p-4"
                 >
                   <div className="mb-4 flex items-center justify-between gap-3">
                     <h2 className="text-lg font-semibold text-gray-900">
-                      {role}
+                      {role} {quantity > 1 ? `×${quantity}` : ""}
                     </h2>
-                    <Badge>
-                      {roleApplications.length} applicant
-                      {roleApplications.length === 1 ? "" : "s"}
-                    </Badge>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge>
+                        {Math.max(0, quantity - allocatedCount)} place
+                        {Math.max(0, quantity - allocatedCount) === 1
+                          ? ""
+                          : "s"}{" "}
+                        remaining
+                      </Badge>
+                      <Badge>
+                        {roleApplications.length} applicant
+                        {roleApplications.length === 1 ? "" : "s"}
+                      </Badge>
+                    </div>
                   </div>
                   {roleApplications.length ? (
                     <div className="space-y-3">

@@ -140,6 +140,12 @@ const formatDateLong = (value) => {
   return `${weekday}, ${day}${getOrdinal(day)} ${month} ${year}`;
 };
 
+const formatDateRange = (start, end) => {
+  const startText = formatDateLong(start);
+  if (!end || end === start) return startText;
+  return `${startText} – ${formatDateLong(end)}`;
+};
+
 const formatMoney = (value, currency = "GBP") => {
   const amount = Number(value || 0);
   if (!Number.isFinite(amount)) return "TBC";
@@ -977,7 +983,10 @@ const DeputyJobDetail = () => {
               {job.title || job.instrument || "Deputy job"}
             </h1>
             <p className="mt-2 text-sm text-gray-600">
-              {formatDateLong(job.eventDate || job.date)}
+              {formatDateRange(
+                job.eventDate || job.date,
+                job.eventEndDate || job.endDate,
+              )}
             </p>
             <p className="mt-1 text-sm text-gray-600">{fullLocation}</p>
           </div>
@@ -1053,6 +1062,12 @@ const DeputyJobDetail = () => {
 
             {canApplyToJob ? (
               <div className="mb-4">
+                {job?.eventEndDate && job.eventEndDate !== job?.eventDate ? (
+                  <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+                    Please apply only if you are available for every date from{" "}
+                    {formatDateRange(job.eventDate, job.eventEndDate)}.
+                  </p>
+                ) : null}
                 {applyRoleOptions.length > 1 ? (
                   <fieldset className="mb-3 rounded-xl border border-gray-200 p-4">
                     <legend className="px-1 text-sm font-semibold text-gray-900">
@@ -1122,7 +1137,10 @@ const DeputyJobDetail = () => {
               />
               <DetailRow
                 label="Date"
-                value={formatDateLong(job.eventDate || job.date)}
+                value={formatDateRange(
+                  job.eventDate || job.date,
+                  job.eventEndDate || job.endDate,
+                )}
               />
               <DetailRow
                 label="Call time"
@@ -1138,7 +1156,21 @@ const DeputyJobDetail = () => {
                 label="Required instruments"
                 value={
                   toArray(job.requiredInstruments).length
-                    ? toArray(job.requiredInstruments).join(", ")
+                    ? toArray(job.requiredInstruments)
+                        .map((role) => {
+                          const quantity =
+                            Number(
+                              toArray(job.roleRequirements).find(
+                                (requirement) =>
+                                  normaliseString(
+                                    requirement?.role,
+                                  ).toLowerCase() ===
+                                  normaliseString(role).toLowerCase(),
+                              )?.quantity,
+                            ) || 1;
+                          return `${role}${quantity > 1 ? ` ×${quantity}` : ""}`;
+                        })
+                        .join(", ")
                     : "—"
                 }
               />

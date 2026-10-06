@@ -6,7 +6,10 @@ import Title from "../components/Title";
 import DeputyJobCard from "../components/DeputyJobCard";
 import DeputyJobPreviewPanel from "../components/DeputyJobPreviewPanel";
 
-const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
+const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "").replace(
+  /\/+$/,
+  "",
+);
 
 const parseJwtPayload = (token = "") => {
   try {
@@ -27,7 +30,8 @@ const getStoredAuthToken = (fallbackToken = "") => {
   if (fallbackToken) return fallbackToken;
 
   for (const key of AUTH_TOKEN_KEYS) {
-    const value = localStorage.getItem(key) || sessionStorage.getItem(key) || "";
+    const value =
+      localStorage.getItem(key) || sessionStorage.getItem(key) || "";
     if (value) return value;
   }
 
@@ -60,6 +64,11 @@ const formatDate = (dateString) => {
   });
 };
 
+const formatDateRange = (start, end) => {
+  const startText = formatDate(start);
+  if (!end || end === start) return startText;
+  return `${startText} – ${formatDate(end)}`;
+};
 
 const getFeeLabel = (job) => {
   const fee = Number(job?.fee || 0);
@@ -98,7 +107,9 @@ const getJobDateValue = (job) =>
 const hasStoredCardForJob = (job = {}) => {
   const paymentStatus = String(job?.paymentStatus || "").toLowerCase();
   const jobType = String(job?.jobType || "booked").toLowerCase();
-  const createdByEmail = String(job?.createdByEmail || "").trim().toLowerCase();
+  const createdByEmail = String(job?.createdByEmail || "")
+    .trim()
+    .toLowerCase();
 
   if (jobType === "enquiry") return true;
   if (paymentStatus === "not_required") return true;
@@ -154,7 +165,8 @@ const DeputyJobs = () => {
   const navigate = useNavigate();
 
   const rawAuthToken = getStoredAuthToken();
-  const authToken = rawAuthToken && !isJwtExpiredToken(rawAuthToken) ? rawAuthToken : "";
+  const authToken =
+    rawAuthToken && !isJwtExpiredToken(rawAuthToken) ? rawAuthToken : "";
 
   const authHeaders = useMemo(
     () =>
@@ -199,8 +211,12 @@ const DeputyJobs = () => {
     };
   }, [authToken]);
 
-  const currentUserEmail = String(currentUser?.email || "").trim().toLowerCase();
-  const currentUserRole = String(currentUser?.role || "").trim().toLowerCase();
+  const currentUserEmail = String(currentUser?.email || "")
+    .trim()
+    .toLowerCase();
+  const currentUserRole = String(currentUser?.role || "")
+    .trim()
+    .toLowerCase();
 
   const canCreateEnquiryJob =
     currentUserRole === "admin" ||
@@ -311,7 +327,9 @@ const DeputyJobs = () => {
     const query = filters.search.trim().toLowerCase();
     const instrumentFilter = filters.instrument.trim().toLowerCase();
     const dateFilter = String(filters.date || "").trim();
-    const jobTypeFilter = String(filters.jobType || "").trim().toLowerCase();
+    const jobTypeFilter = String(filters.jobType || "")
+      .trim()
+      .toLowerCase();
     const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
 
     const next = jobs.filter((job) => {
@@ -427,35 +445,35 @@ const DeputyJobs = () => {
           </button>
         </div>
       ) : null}
-     <div className="mb-6 flex items-start justify-between gap-4">
-  <div>
-    <Title text1="DEPUTY" text2="JOBS" />
-    <p className="text-sm text-gray-500 mt-3 max-w-2xl">
-      Browse deputy jobs, hover to preview full details, and jump into
-      applicants or allocation from the job panel.
-    </p>
-  </div>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <Title text1="DEPUTY" text2="JOBS" />
+          <p className="text-sm text-gray-500 mt-3 max-w-2xl">
+            Browse deputy jobs, hover to preview full details, and jump into
+            applicants or allocation from the job panel.
+          </p>
+        </div>
 
-  <div className="flex flex-col items-end gap-2">
-    {isLoggedIn ? (
-      <div className="text-xs text-gray-500">
-        Signed in as{" "}
-        <span className="font-medium text-gray-700">
-          {currentUserEmail || "user"}
-        </span>
+        <div className="flex flex-col items-end gap-2">
+          {isLoggedIn ? (
+            <div className="text-xs text-gray-500">
+              Signed in as{" "}
+              <span className="font-medium text-gray-700">
+                {currentUserEmail || "user"}
+              </span>
+            </div>
+          ) : (
+            <div className="text-xs text-gray-500"></div>
+          )}
+
+          <Link
+            to="/login"
+            className="inline-flex items-center justify-center rounded-full bg-[#ff6667] px-4 py-2.5 text-sm font-medium text-white transition-colors duration-200 hover:bg-black"
+          >
+            {isLoggedIn ? "Account" : "Login or Create Account"}
+          </Link>
+        </div>
       </div>
-    ) : (
-      <div className="text-xs text-gray-500"></div>
-    )}
-
-    <Link
-      to="/login"
-      className="inline-flex items-center justify-center rounded-full bg-[#ff6667] px-4 py-2.5 text-sm font-medium text-white transition-colors duration-200 hover:bg-black"
-    >
-      {isLoggedIn ? "Account" : "Login or Create Account"}
-    </Link>
-  </div>
-</div>
 
       {/* Filters full width above cards */}
       <div className="mb-6 rounded border border-gray-200 bg-white p-4 shadow-sm">
@@ -627,8 +645,9 @@ const DeputyJobs = () => {
                       String(hoveredJob?._id || "") !== String(job._id)
                     }
                     onRefresh={fetchJobs}
-                    subtitle={`${formatDate(
+                    subtitle={`${formatDateRange(
                       job?.date || job?.eventDate,
+                      job?.endDate || job?.eventEndDate,
                     )} • ${getFeeLabel(job)}`}
                     onClick={() => navigate(`/deputy-jobs/${job._id}`)}
                   />

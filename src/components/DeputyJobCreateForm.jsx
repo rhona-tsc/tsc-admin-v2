@@ -60,6 +60,7 @@ const buildInitialState = (initialValues = {}) => ({
 
   title: initialValues.title || "",
   date: initialValues.date || initialValues.eventDate || "",
+  endDate: initialValues.endDate || initialValues.eventEndDate || "",
   callTime: initialValues.callTime || initialValues.startTime || "",
   finishTime: initialValues.finishTime || initialValues.endTime || "",
   venue: initialValues.venue || initialValues.locationName || "",
@@ -162,6 +163,19 @@ const DeputyJobCreateForm = ({
   const [submittingAction, setSubmittingAction] = useState("");
   const [jobType, setJobType] = useState(
     () => buildInitialState(initialValues).jobType,
+  );
+  const [roleQuantities, setRoleQuantities] = useState(() =>
+    Object.fromEntries(
+      (Array.isArray(initialValues.roleRequirements)
+        ? initialValues.roleRequirements
+        : []
+      ).map((requirement) => [
+        String(requirement?.role || "")
+          .trim()
+          .toLowerCase(),
+        Math.max(1, Number(requirement?.quantity) || 1),
+      ]),
+    ),
   );
 
   const showEnquiryOption = Boolean(canCreateEnquiryJob);
@@ -268,6 +282,14 @@ const DeputyJobCreateForm = ({
       nextErrors.date = "Please add a job date.";
     }
 
+    if (
+      formData.endDate &&
+      formData.date &&
+      new Date(formData.endDate).getTime() < new Date(formData.date).getTime()
+    ) {
+      nextErrors.endDate = "The end date must be on or after the start date.";
+    }
+
     if (!String(formData.callTime || "").trim()) {
       nextErrors.callTime = "Please add a call time.";
     }
@@ -325,6 +347,13 @@ const DeputyJobCreateForm = ({
 
   const buildPayload = (previewOnlyOverride = false) => {
     const requiredInstruments = normaliseCsvArray(formData.requiredInstruments);
+    const roleRequirements = requiredInstruments.map((role) => ({
+      role,
+      quantity: Math.max(
+        1,
+        Math.min(50, Number(roleQuantities[role.toLowerCase()]) || 1),
+      ),
+    }));
     const requiredSkills = normaliseCsvArray(formData.requiredSkills);
     const desiredRoles = normaliseCsvArray(formData.desiredRoles);
     const capabilityRequirements = [
@@ -371,6 +400,7 @@ const DeputyJobCreateForm = ({
       title: String(formData.title || "").trim(),
       date: formData.date || "",
       eventDate: formData.date || "",
+      eventEndDate: formData.endDate || "",
       callTime: formData.callTime || "",
       startTime: formData.callTime || "",
       finishTime: formData.finishTime || "",
@@ -390,6 +420,7 @@ const DeputyJobCreateForm = ({
       notes: String(formData.notes || "").trim(),
       instrument: primaryInstrument,
       requiredInstruments,
+      roleRequirements,
       requiredSkills,
       essentialRoles,
       desiredRoles: mergedDesiredRoles,
@@ -522,7 +553,7 @@ const DeputyJobCreateForm = ({
 
           <div>
             <label className={labelClass} htmlFor="date">
-              Date
+              Start date
             </label>
             <input
               id="date"
@@ -534,6 +565,28 @@ const DeputyJobCreateForm = ({
             />
             {errors.date ? (
               <p className="mt-2 text-sm text-red-600">{errors.date}</p>
+            ) : null}
+          </div>
+
+          <div>
+            <label className={labelClass} htmlFor="endDate">
+              End date{" "}
+              <span className="font-normal text-gray-400">(optional)</span>
+            </label>
+            <input
+              id="endDate"
+              name="endDate"
+              type="date"
+              min={formData.date || undefined}
+              value={formData.endDate}
+              onChange={handleChange}
+              className={inputClass}
+            />
+            <p className={hintClass}>
+              Use this when musicians must be available across several days.
+            </p>
+            {errors.endDate ? (
+              <p className="mt-2 text-sm text-red-600">{errors.endDate}</p>
             ) : null}
           </div>
 
@@ -790,6 +843,38 @@ const DeputyJobCreateForm = ({
                 );
               })}
             </div>
+            {normaliseCsvArray(formData.requiredInstruments).length ? (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {normaliseCsvArray(formData.requiredInstruments).map((role) => (
+                  <label
+                    key={`quantity-${role}`}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700"
+                  >
+                    <span className="min-w-0 truncate">{role}</span>
+                    <span className="flex items-center gap-2 whitespace-nowrap">
+                      ×
+                      <input
+                        type="number"
+                        min="1"
+                        max="50"
+                        value={roleQuantities[role.toLowerCase()] || 1}
+                        onChange={(event) =>
+                          setRoleQuantities((current) => ({
+                            ...current,
+                            [role.toLowerCase()]: Math.max(
+                              1,
+                              Math.min(50, Number(event.target.value) || 1),
+                            ),
+                          }))
+                        }
+                        className="w-16 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-center"
+                        aria-label={`Number of ${role} places`}
+                      />
+                    </span>
+                  </label>
+                ))}
+              </div>
+            ) : null}
             {errors.requiredInstruments ? (
               <p className="mt-2 text-sm text-red-600">
                 {errors.requiredInstruments}
