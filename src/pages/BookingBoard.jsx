@@ -683,6 +683,42 @@ const Tag = ({ children }) => (
 
 const cellClass = "px-2 py-1 whitespace-nowrap align-middle";
 
+const BOOKING_BOARD_COLUMNS = [
+  "Client",
+  "Booking ref",
+  "Event sheet",
+  "Contract",
+  "Enquiry date",
+  "Booking date",
+  "Event date",
+  "Gross",
+  "Deposit",
+  "Balance",
+  "Commission",
+  "VAT",
+  "Funds held",
+  "Agent",
+  "Client email",
+  "Billing address",
+  "Event type",
+  "Act",
+  "Public act name",
+  "Venue address",
+  "County",
+  "Band size",
+  "Lineup",
+  "Times",
+  "Booking details",
+  "DJ services",
+  "Allocation",
+  "Review",
+  "Client payment",
+  "Band payment",
+  "Documents",
+  "Invoice actions",
+  "Row actions",
+];
+
 const inputClass =
   "w-full min-w-[105px] rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs whitespace-nowrap focus:border-sky-400 focus:ring-1 focus:ring-sky-100";
 
@@ -4649,7 +4685,28 @@ export default function BookingBoard() {
             </div>
 
             <div className="overflow-auto max-h-[48vh]">
-              <table className="min-w-[900px] table-fixed text-xs">
+              {!collapsedSections[section.key] && section.rows.length > 0 ? (
+                <div
+                  className="sticky top-0 z-30 grid min-w-[4200px] bg-slate-50 text-left text-[11px] uppercase tracking-wide text-gray-700"
+                  style={{
+                    gridTemplateColumns: `180px repeat(${BOOKING_BOARD_COLUMNS.length - 1}, minmax(0, 1fr))`,
+                  }}
+                >
+                  {BOOKING_BOARD_COLUMNS.map((label, index) => (
+                    <div
+                      key={label}
+                      className={
+                        index === 0
+                          ? "sticky left-0 z-40 bg-slate-50 px-3 py-2 border-b-2 border-r-2 border-slate-200 shadow-[4px_0_8px_-6px_rgba(15,23,42,0.45)]"
+                          : "px-3 py-2 border-b-2 border-slate-200 whitespace-nowrap"
+                      }
+                    >
+                      {label}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              <table className="min-w-[4200px] table-fixed text-xs">
                 <colgroup>
                   <col style={{ width: 180 }} /> {/* Client */}
                   <col style={{ width: 145 }} /> {/* Ref */}
@@ -4675,7 +4732,7 @@ export default function BookingBoard() {
                 </thead>
 
                 <tbody>
-                  {section.rows.map((r, rowIndex) => {
+                  {section.rows.map((r) => {
                     const rowId = String(r._id || getDisplayBookingRef(r));
                     const isExpanded = true;
                     const summary = getCompactRowSummary(r);
@@ -4790,51 +4847,11 @@ export default function BookingBoard() {
                         {isExpanded ? (
                           <tr className="bg-white align-top border-b-2 border-slate-200">
                             <td colSpan={7} className="p-0">
-                              <div className="overflow-x-auto">
+                              <div className="overflow-visible">
                                 <table className="min-w-[4200px] table-fixed text-xs">
-                                  <thead
-                                    className={
-                                      rowIndex === 0
-                                        ? "bg-slate-50 text-left text-[11px] uppercase tracking-wide text-gray-700 sticky top-0 z-10"
-                                        : "hidden"
-                                    }
-                                  >
+                                  <thead className="hidden">
                                     <tr>
-                                      {[
-                                        "Client",
-                                        "Booking ref",
-                                        "Event sheet",
-                                        "Contract",
-                                        "Enquiry date",
-                                        "Booking date",
-                                        "Event date",
-                                        "Gross",
-                                        "Deposit",
-                                        "Balance",
-                                        "Commission",
-                                        "VAT",
-                                        "Funds held",
-                                        "Agent",
-                                        "Client email",
-                                        "Billing address",
-                                        "Event type",
-                                        "Act",
-                                        "Public act name",
-                                        "Venue address",
-                                        "County",
-                                        "Band size",
-                                        "Lineup",
-                                        "Times",
-                                        "Booking details",
-                                        "DJ services",
-                                        "Allocation",
-                                        "Review",
-                                        "Client payment",
-                                        "Band payment",
-                                        "Documents",
-                                        "Invoice actions",
-                                        "Row actions",
-                                      ].map((label, index) => (
+                                      {BOOKING_BOARD_COLUMNS.map((label, index) => (
                                         <th
                                           key={label}
                                           scope="col"
