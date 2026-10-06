@@ -80,6 +80,8 @@ const buildInitialState = (initialValues = {}) => ({
     initialValues.fee === 0 || initialValues.fee
       ? String(initialValues.fee)
       : "",
+  feeBasis:
+    initialValues.feeBasis === "per_day" ? "per_day" : "full_engagement",
   notes: initialValues.notes || "",
   setLengths: Array.isArray(initialValues.setLengths)
     ? initialValues.setLengths.join(", ")
@@ -417,6 +419,7 @@ const DeputyJobCreateForm = ({
       clientPhone: String(formData.clientPhone || "").trim(),
       saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
       fee: formData.fee === "" ? 0 : Number(formData.fee),
+      feeBasis: formData.feeBasis,
       notes: String(formData.notes || "").trim(),
       instrument: primaryInstrument,
       requiredInstruments,
@@ -592,7 +595,7 @@ const DeputyJobCreateForm = ({
 
           <div>
             <label className={labelClass} htmlFor="fee">
-              Fee (£)
+              Rate (£)
             </label>
             <input
               id="fee"
@@ -608,6 +611,22 @@ const DeputyJobCreateForm = ({
             {errors.fee ? (
               <p className="mt-2 text-sm text-red-600">{errors.fee}</p>
             ) : null}
+          </div>
+
+          <div>
+            <label className={labelClass} htmlFor="feeBasis">
+              Rate applies
+            </label>
+            <select
+              id="feeBasis"
+              name="feeBasis"
+              value={formData.feeBasis}
+              onChange={handleChange}
+              className={inputClass}
+            >
+              <option value="full_engagement">For the whole engagement</option>
+              <option value="per_day">Per day</option>
+            </select>
           </div>
 
           <div>

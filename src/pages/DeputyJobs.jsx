@@ -73,7 +73,7 @@ const formatDateRange = (start, end) => {
 const getFeeLabel = (job) => {
   const fee = Number(job?.fee || 0);
   if (!fee) return "Fee TBC";
-  return `£${fee.toLocaleString("en-GB")}`;
+  return `£${fee.toLocaleString("en-GB")} ${job?.feeBasis === "per_day" ? "per day" : "full engagement"}`;
 };
 
 const isPastJobDate = (job = {}) => {

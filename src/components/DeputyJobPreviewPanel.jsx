@@ -727,6 +727,11 @@ const DeputyJobPreviewPanel = ({
                 <p className="text-3xl font-semibold text-gray-900">
                   {formatMoney(displayFee)}
                 </p>
+                <p className="mt-1 text-sm font-medium text-gray-600">
+                  {job?.feeBasis === "per_day"
+                    ? "per day"
+                    : "for the full engagement"}
+                </p>
                 {Number(job?.commissionAmount || 0) > 0 ? (
                   <p className="mt-2 text-sm text-gray-500">
                     Net fee after commission

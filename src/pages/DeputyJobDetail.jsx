@@ -838,10 +838,10 @@ const DeputyJobDetail = () => {
       .join(", ") ||
     "Location TBC";
 
-  const feeText = formatMoney(
+  const feeText = `${formatMoney(
     job?.deputyNetAmount || job?.fee || 0,
     job?.currency || "GBP",
-  );
+  )} ${job?.feeBasis === "per_day" ? "per day" : "for the full engagement"}`;
 
   const statusTone =
     statusToneMap[normaliseString(job?.status).toLowerCase()] || "default";

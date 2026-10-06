@@ -152,7 +152,7 @@ const DeputyJobCard = ({
             0,
           )
         : Number(job?.fee || 0);
-  const feeText = formatMoney(netFeeValue);
+  const feeText = `${formatMoney(netFeeValue)} ${job?.feeBasis === "per_day" ? "per day" : "for full engagement"}`;
   const status = String(job.status || "open").toLowerCase();
   const isUnavailable = ["allocated", "filled", "closed", "cancelled"].includes(
     status,
