@@ -94,6 +94,8 @@ const getStatusRank = (status) => {
 
 const ModerateDeputies = ({ token }) => {
   const [rows, setRows] = useState([]);
+  const [videoSubmissions, setVideoSubmissions] = useState([]);
+  const [videoActionId, setVideoActionId] = useState("");
   const [loading, setLoading] = useState(true);
   const [analysingId, setAnalysingId] = useState("");
   const [generatingBioId, setGeneratingBioId] = useState("");
@@ -129,6 +131,39 @@ const ModerateDeputies = ({ token }) => {
       setLoading(false);
     }
   }, [token]);
+
+  const fetchVideoSubmissions = useCallback(async () => {
+    try {
+      const res = await axios.get(`${backendUrl}/api/moderation/video-submissions`, { headers: { token, Authorization: `Bearer ${token}` } });
+      setVideoSubmissions(res.data?.submissions || []);
+    } catch (err) {
+      console.error("Failed to load direct video submissions", err);
+    }
+  }, [token]);
+
+  const refreshDirectVideo = async (item) => {
+    setVideoActionId(item._id);
+    try {
+      await axios.post(`${backendUrl}/api/musician/${item.musician?._id || item.musicianId?._id || item.musicianId}/video-submissions/${item._id}/refresh`, {}, { headers: { token, Authorization: `Bearer ${token}` } });
+      await fetchVideoSubmissions();
+    } catch (err) {
+      toast(<CustomToast type="error" message={err.response?.data?.message || "Could not refresh checks"} />);
+    } finally { setVideoActionId(""); }
+  };
+
+  const decideDirectVideo = async (item, decision) => {
+    const reason = decision === "reject" ? window.prompt("What must be removed from the replacement video?", item.moderationReason || "Identifying text or branding must be removed") : "Final visual check completed";
+    if (decision === "reject" && reason === null) return;
+    setVideoActionId(item._id);
+    try {
+      await axios.patch(`${backendUrl}/api/moderation/video-submissions/${item._id}/review`, { decision, reason }, { headers: { token, Authorization: `Bearer ${token}` } });
+      toast(<CustomToast type="success" message={decision === "approve" ? "Approved and sent for TSC YouTube publishing" : "Replacement requested"} />);
+      await fetchVideoSubmissions();
+    } catch (err) {
+      toast(<CustomToast type="error" message={err.response?.data?.message || "Could not save video decision"} />);
+      await fetchVideoSubmissions();
+    } finally { setVideoActionId(""); }
+  };
 
   const handleApproval = async (id, action) => {
     const endpoint = action === "approve" ? "approve-deputy" : "reject-deputy";
@@ -372,7 +407,8 @@ const ModerateDeputies = ({ token }) => {
 
   useEffect(() => {
     fetchQueue();
-  }, [fetchQueue]);
+    fetchVideoSubmissions();
+  }, [fetchQueue, fetchVideoSubmissions]);
 
   return (
     <div className="p-6">
@@ -414,6 +450,29 @@ const ModerateDeputies = ({ token }) => {
           </span>
         </div>
       </div>
+
+      {videoSubmissions.length ? (
+        <section className="mb-5 rounded border border-fuchsia-200 bg-fuchsia-50 p-4">
+          <h2 className="font-semibold text-fuchsia-950">Direct video review queue</h2>
+          <p className="mt-1 text-xs text-fuchsia-900">Files remain private until you approve them. Review the whole video before publishing.</p>
+          <div className="mt-3 grid gap-4 lg:grid-cols-2">
+            {videoSubmissions.map((item) => {
+              const musician = item.musician || {};
+              return <article key={item._id} className="rounded border bg-white p-3">
+                <div className="flex items-start justify-between gap-3"><div><b>{[musician.firstName, musician.lastName].filter(Boolean).join(" ") || "Musician"}</b><p className="text-xs text-gray-500">{item.suppliedTitle || item.originalName}</p></div><span className="rounded bg-gray-100 px-2 py-1 text-xs">{String(item.status).replaceAll("_", " ")}</span></div>
+                {item.accessUrl ? <video className="mt-3 aspect-video w-full rounded bg-black" src={item.accessUrl} controls playsInline /> : null}
+                <p className="mt-2 text-xs text-gray-700">{item.moderationReason}</p>
+                {item.moderationFlags?.length ? <ul className="mt-2 list-disc pl-5 text-xs text-red-700">{item.moderationFlags.map((flag, index) => <li key={`${flag.type}-${index}`}>{flag.label}: {flag.evidence}</li>)}</ul> : null}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button disabled={videoActionId === item._id} onClick={() => refreshDirectVideo(item)} className="rounded border px-3 py-1 text-xs disabled:opacity-40">Refresh checks</button>
+                  <button disabled={videoActionId === item._id || item.status === "processing"} onClick={() => decideDirectVideo(item, "approve")} className="rounded bg-green-700 px-3 py-1 text-xs text-white disabled:opacity-40">Approve and publish</button>
+                  <button disabled={videoActionId === item._id} onClick={() => decideDirectVideo(item, "reject")} className="rounded bg-red-700 px-3 py-1 text-xs text-white disabled:opacity-40">Request clean version</button>
+                </div>
+              </article>;
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <div className="bg-white border rounded p-4 mb-4">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-8 gap-3">

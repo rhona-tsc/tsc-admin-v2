@@ -12,6 +12,17 @@ const ADMIN_EMAIL = "hello@thesupremecollective.co.uk";
 const AUTH_TOKEN_KEYS = ["token", "adminToken", "musicianToken"];
 const AUTH_USER_KEYS = ["userId", "musicianId", "userEmail", "userRole"];
 
+const formatDate = (value) => {
+  if (!value) return "Date TBC";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+};
+
 const getStoredAuthToken = (fallbackToken = "") => {
   if (fallbackToken) return fallbackToken;
 

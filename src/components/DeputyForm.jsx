@@ -1146,6 +1146,7 @@ const DeputyForm = ({
             <DeputyStepOne
               formData={formData}
               setFormData={setFormData}
+              musicianId={deputyId}
               userRole={userRole}
               isUploadingImages={isUploadingImages}
               setIsUploadingImages={setIsUploadingImages} // ✅ ADD THIS

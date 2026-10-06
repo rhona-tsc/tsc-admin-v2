@@ -5,6 +5,7 @@ import { assets } from "../assets/assets";
 import Mp3Uploader from "./Mp3Uploader";
 import renameAndCompressImage from "../pages/utils/renameAndCompressDeputyImage";
 import MusicianReviewsEditor from "./MusicianReviewsEditor";
+import { backendUrl } from "../App";
 
 const AUTH_TOKEN_KEYS = ["token", "adminToken", "musicianToken"];
 const AUTH_USER_KEYS = ["userId", "musicianId", "userEmail", "userRole"];
@@ -80,6 +81,7 @@ const getUploadErrorMessage = (err) => {
 const DeputyStepOne = ({
   formData = {},
   setFormData = () => {},
+  musicianId,
   userRole,
   isUploadingImages = false,
   setIsUploadingImages = () => {},
@@ -1033,21 +1035,15 @@ const DeputyStepOne = ({
           branding.
         </p>
 
-        <SortableVideoLinkList
-          links={asVideoLinksArray(formData.functionBandVideoLinks)}
-          setLinks={(updated) => {
-            console.log("🎥 [VID-FUNCTION] UPDATE", {
-              previous: formData.functionBandVideoLinks,
-              updated,
-            });
-
-            setFormData((prev) => ({
-              ...prev,
-              functionBandVideoLinks: updated,
-            }));
-          }}
-          placeholderPrefix="Function"
-        />
+        {!userRole?.includes?.("agent") ? (
+          <DirectVideoUploader musicianId={musicianId} category="function" />
+        ) : (
+          <SortableVideoLinkList
+            links={asVideoLinksArray(formData.functionBandVideoLinks)}
+            setLinks={(updated) => setFormData((prev) => ({ ...prev, functionBandVideoLinks: updated }))}
+            placeholderPrefix="Function"
+          />
+        )}
 
         {userRole?.includes?.("agent") && (
           <SortableVideoLinkList
@@ -1079,21 +1075,15 @@ const DeputyStepOne = ({
           Add links to your original band videos here.
         </p>
 
-        <SortableVideoLinkList
-          links={asVideoLinksArray(formData.originalBandVideoLinks)}
-          setLinks={(updated) => {
-            console.log("🎥 [VID-ORIGINAL] UPDATE", {
-              previous: formData.originalBandVideoLinks,
-              updated,
-            });
-
-            setFormData((prev) => ({
-              ...prev,
-              originalBandVideoLinks: updated,
-            }));
-          }}
-          placeholderPrefix="Original"
-        />
+        {!userRole?.includes?.("agent") ? (
+          <DirectVideoUploader musicianId={musicianId} category="original" />
+        ) : (
+          <SortableVideoLinkList
+            links={asVideoLinksArray(formData.originalBandVideoLinks)}
+            setLinks={(updated) => setFormData((prev) => ({ ...prev, originalBandVideoLinks: updated }))}
+            placeholderPrefix="Original"
+          />
+        )}
 
         {userRole?.includes?.("agent") && (
           <SortableVideoLinkList
@@ -1222,6 +1212,77 @@ export default DeputyStepOne;
 /* ================================
    Helpers below (same file)
 ================================ */
+
+function DirectVideoUploader({ musicianId, category }) {
+  const [file, setFile] = useState(null);
+  const [title, setTitle] = useState("");
+  const [items, setItems] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const token = getStoredAuthToken();
+  const headers = token ? { Authorization: `Bearer ${token}`, token } : {};
+
+  const load = async () => {
+    if (!musicianId || !token) return;
+    try {
+      const response = await fetch(`${backendUrl}/api/musician/${musicianId}/video-submissions`, { headers, credentials: "include" });
+      const data = await response.json();
+      if (response.ok) setItems((data.submissions || []).filter((item) => item.category === category));
+    } catch {
+      setMessage("Video status is temporarily unavailable.");
+    }
+  };
+
+  useEffect(() => { load(); }, [musicianId, category]);
+
+  const uploadVideo = async () => {
+    if (!file || !musicianId) return;
+    setBusy(true);
+    setMessage("Uploading securely…");
+    try {
+      const body = new FormData();
+      body.append("video", file);
+      body.append("category", category);
+      body.append("title", title.trim());
+      const response = await fetch(`${backendUrl}/api/musician/${musicianId}/video-submissions`, { method: "POST", headers, body, credentials: "include" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Upload failed");
+      setFile(null);
+      setTitle("");
+      setMessage("Uploaded. We are checking the full video for identifying text, speech and branding.");
+      await load();
+    } catch (error) {
+      setMessage(error.message || "Video upload failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const statusLabel = (status) => ({
+    processing: "Checking video",
+    manual_required: "Needs TSC review",
+    ready_for_review: "Awaiting final TSC check",
+    publishing: "Publishing",
+    published: "Published",
+    rejected: "Clean replacement needed",
+    failed: "Check failed",
+  }[status] || status);
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+      <p className="text-sm font-semibold">Upload a clean video file</p>
+      <p className="mt-1 text-xs text-gray-600">MP4, MOV or WebM, up to 100 MB. Do not include surnames, social handles, websites, phone numbers, email addresses or third-party branding.</p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+        <input type="text" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Short description, e.g. Live soul set" className="rounded border bg-white px-3 py-2 text-sm" />
+        <input type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onChange={(event) => setFile(event.target.files?.[0] || null)} className="rounded border bg-white p-2 text-sm" />
+        <button type="button" disabled={!file || busy || !musicianId} onClick={uploadVideo} className="rounded bg-[#ff6667] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{busy ? "Uploading…" : "Upload video"}</button>
+      </div>
+      {message ? <p className="mt-2 text-xs text-gray-700">{message}</p> : null}
+      {items.length ? <div className="mt-3 space-y-2">{items.map((item) => <div key={item._id} className="rounded border bg-white px-3 py-2 text-xs"><div className="flex items-center justify-between gap-3"><span className="font-medium">{item.suppliedTitle || item.originalName}</span><span className="rounded-full bg-gray-100 px-2 py-1">{statusLabel(item.status)}</span></div>{item.moderationReason ? <p className="mt-1 text-gray-600">{item.moderationReason}</p> : null}</div>)}</div> : null}
+    </div>
+  );
+}
 
 function SortableList({ files, setFiles, previewAltPrefix }) {
   const dragItem = useRef();
