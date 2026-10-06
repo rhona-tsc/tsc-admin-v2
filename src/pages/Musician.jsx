@@ -71,9 +71,27 @@ const FormattedBio = ({ value, fallback = "No biography added yet." }) => {
         : <React.Fragment key={index}>{part}</React.Fragment>
     );
 
+  let paragraphs = text.split(/\n{2,}/).filter(Boolean);
+  if (paragraphs.length === 1 && text.length >= 420) {
+    const sentences = text.match(/[^.!?]+[.!?]+(?:["”’']+)?|[^.!?]+$/g)
+      ?.map((sentence) => sentence.trim())
+      .filter(Boolean) || [text];
+    if (sentences.length >= 4) {
+      paragraphs = [];
+      let cursor = 0;
+      const paragraphCount = Math.min(3, sentences.length);
+      for (let index = 0; index < paragraphCount; index += 1) {
+        const remaining = sentences.length - cursor;
+        const take = Math.ceil(remaining / (paragraphCount - index));
+        paragraphs.push(sentences.slice(cursor, cursor + take).join(" "));
+        cursor += take;
+      }
+    }
+  }
+
   return (
     <div className="space-y-3">
-      {text.split(/\n{2,}/).filter(Boolean).map((paragraph, index) => (
+      {paragraphs.map((paragraph, index) => (
         <p key={index}>{renderBold(paragraph)}</p>
       ))}
     </div>
