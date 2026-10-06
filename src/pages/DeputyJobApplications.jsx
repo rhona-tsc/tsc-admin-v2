@@ -87,7 +87,9 @@ const getApplicantShortDisplayName = (application = {}) => {
 
 const getApplicantProfileLink = (application = {}, jobId = "") => {
   const slug = normaliseString(application?.musicianSlug || "");
-  const musicianId = normaliseString(application?.musicianId || application?._id || "");
+  const musicianId = normaliseString(
+    application?.musicianId || application?._id || "",
+  );
   const presentationId = normaliseString(application?.presentationId || "");
 
   const basePath = slug
@@ -112,15 +114,22 @@ const getMusicianProfileLink = (musician = {}) => {
   const slug = normaliseString(musician?.musicianSlug || "");
   if (slug) return `https://thesupremecollective.co.uk/musician/${slug}`;
 
-  const musicianId = normaliseString(musician?._id || musician?.id || musician?.musicianId || "");
-  if (musicianId) return `https://thesupremecollective.co.uk/musician/${musicianId}`;
+  const musicianId = normaliseString(
+    musician?._id || musician?.id || musician?.musicianId || "",
+  );
+  if (musicianId)
+    return `https://thesupremecollective.co.uk/musician/${musicianId}`;
 
   return "";
 };
 
 const getMusicianDisplayName = (musician = {}) => {
-  const firstName = normaliseString(musician?.firstName || musician?.basicInfo?.firstName || "");
-  const lastName = normaliseString(musician?.lastName || musician?.basicInfo?.lastName || "");
+  const firstName = normaliseString(
+    musician?.firstName || musician?.basicInfo?.firstName || "",
+  );
+  const lastName = normaliseString(
+    musician?.lastName || musician?.basicInfo?.lastName || "",
+  );
   const fullName = [firstName, lastName].filter(Boolean).join(" ").trim();
 
   return (
@@ -136,13 +145,15 @@ const Badge = ({ children, tone = "default" }) => {
     tone === "green"
       ? "bg-green-100 text-green-800"
       : tone === "yellow"
-      ? "bg-yellow-100 text-yellow-800"
-      : tone === "red"
-      ? "bg-red-100 text-red-800"
-      : "bg-gray-100 text-gray-800";
+        ? "bg-yellow-100 text-yellow-800"
+        : tone === "red"
+          ? "bg-red-100 text-red-800"
+          : "bg-gray-100 text-gray-800";
 
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${toneClass}`}>
+    <span
+      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${toneClass}`}
+    >
       {children}
     </span>
   );
@@ -166,7 +177,8 @@ const ManageDeputyApplications = () => {
   const [manualAddResults, setManualAddResults] = useState([]);
   const [searchingMusicians, setSearchingMusicians] = useState(false);
   const [manuallyApplyingId, setManuallyApplyingId] = useState("");
-  const [manuallyApplyAndPresentId, setManuallyApplyAndPresentId] = useState("");
+  const [manuallyApplyAndPresentId, setManuallyApplyAndPresentId] =
+    useState("");
 
   const adminToken = localStorage.getItem("adminToken") || "";
   const musicianToken = localStorage.getItem("musicianToken") || "";
@@ -183,7 +195,7 @@ const ManageDeputyApplications = () => {
             token,
           }
         : {},
-    [token]
+    [token],
   );
 
   const loadApplications = useCallback(async () => {
@@ -191,20 +203,29 @@ const ManageDeputyApplications = () => {
       setLoading(true);
       setError("");
 
-      const res = await axios.get(`${backendUrl}/api/deputy-jobs/${id}/applications`, {
-        headers,
-        withCredentials: true,
-      });
+      const res = await axios.get(
+        `${backendUrl}/api/deputy-jobs/${id}/applications`,
+        {
+          headers,
+          withCredentials: true,
+        },
+      );
 
       if (!res.data?.success) {
         throw new Error(res.data?.message || "Failed to load applications");
       }
 
       setJob(res.data.job || null);
-      setApplications(Array.isArray(res.data.applications) ? res.data.applications : []);
+      setApplications(
+        Array.isArray(res.data.applications) ? res.data.applications : [],
+      );
     } catch (err) {
       console.error("❌ Failed to load deputy applications:", err);
-      setError(err?.response?.data?.message || err?.message || "Failed to load applications");
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Failed to load applications",
+      );
     } finally {
       setLoading(false);
     }
@@ -214,16 +235,22 @@ const ManageDeputyApplications = () => {
     loadApplications();
   }, [loadApplications]);
 
-  const currentUserRole = String(currentUser?.role || currentUser?.userrole || "")
+  const currentUserRole = String(
+    currentUser?.role || currentUser?.userrole || "",
+  )
     .trim()
     .toLowerCase();
 
   const isAdminEmail =
-    String(currentUser?.email || "").trim().toLowerCase() ===
-    "hello@thesupremecollective.co.uk";
+    String(currentUser?.email || "")
+      .trim()
+      .toLowerCase() === "hello@thesupremecollective.co.uk";
 
   const canManageThisJob =
-    isAdminEmail || currentUserRole === "admin" || currentUserRole === "agent" || Boolean(adminToken);
+    isAdminEmail ||
+    currentUserRole === "admin" ||
+    currentUserRole === "agent" ||
+    Boolean(adminToken);
 
   const normalisedJobType = normaliseString(job?.jobType)
     .replace(/([a-z])([A-Z])/g, "$1 $2")
@@ -231,14 +258,20 @@ const ManageDeputyApplications = () => {
     .replace(/[_-]+/g, " ");
 
   const isEnquiryJob = normalisedJobType === "enquiry";
-  const isConfirmedBooking = ["booked", "booking", "confirmed", "confirmed booking"].includes(
-    normalisedJobType
-  );
+  const isConfirmedBooking = [
+    "booked",
+    "booking",
+    "confirmed",
+    "confirmed booking",
+  ].includes(normalisedJobType);
   const canPresentApplicants = isEnquiryJob || isConfirmedBooking;
 
   const presentedApplications = useMemo(() => {
     return applications.filter(
-      (application) => String(application?.status || "").trim().toLowerCase() === "presented"
+      (application) =>
+        String(application?.status || "")
+          .trim()
+          .toLowerCase() === "presented",
     );
   }, [applications]);
 
@@ -246,7 +279,7 @@ const ManageDeputyApplications = () => {
     return new Set(
       applications
         .map((application) => normaliseString(application?.musicianId || ""))
-        .filter(Boolean)
+        .filter(Boolean),
     );
   }, [applications]);
 
@@ -268,17 +301,40 @@ const ManageDeputyApplications = () => {
     });
   }, [applications, query]);
 
+  const applicationsByRole = useMemo(() => {
+    const roles =
+      Array.isArray(job?.requiredInstruments) && job.requiredInstruments.length
+        ? job.requiredInstruments
+        : [job?.instrument || "Musician"];
+
+    return roles.map((role) => ({
+      role,
+      applications: filteredApplications.filter((application) => {
+        const appliedRoles =
+          Array.isArray(application?.appliedRoles) &&
+          application.appliedRoles.length
+            ? application.appliedRoles
+            : [job?.instrument || "Musician"];
+        return appliedRoles.some(
+          (appliedRole) =>
+            normaliseString(appliedRole).toLowerCase() ===
+            normaliseString(role).toLowerCase(),
+        );
+      }),
+    }));
+  }, [filteredApplications, job?.instrument, job?.requiredInstruments]);
+
   const handleCopyPresentedApplicants = useCallback(async () => {
     if (!presentedApplications.length) {
       toast.info("There are no presented applicants to copy.");
       return;
     }
 
- const lines = presentedApplications.map((application) => {
-  const shortName = getApplicantShortDisplayName(application);
-  const profileLink = getApplicantProfileLink(application, job?._id || "");
-  return profileLink ? `${shortName} – ${profileLink}` : shortName;
-});
+    const lines = presentedApplications.map((application) => {
+      const shortName = getApplicantShortDisplayName(application);
+      const profileLink = getApplicantProfileLink(application, job?._id || "");
+      return profileLink ? `${shortName} – ${profileLink}` : shortName;
+    });
 
     const text = lines.join("\n");
 
@@ -306,7 +362,9 @@ const ManageDeputyApplications = () => {
 
       const trimmedQuery = normaliseString(manualAddQuery);
       if (!trimmedQuery) {
-        toast.error("Search for a musician by name, email, phone or instrument.");
+        toast.error(
+          "Search for a musician by name, email, phone or instrument.",
+        );
         return;
       }
 
@@ -334,17 +392,23 @@ const ManageDeputyApplications = () => {
         }
       } catch (err) {
         console.error("❌ Failed to search musicians:", err);
-        toast.error(err?.response?.data?.message || err?.message || "Failed to search musicians");
+        toast.error(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Failed to search musicians",
+        );
       } finally {
         setSearchingMusicians(false);
       }
     },
-    [headers, manualAddQuery]
+    [headers, manualAddQuery],
   );
 
   const handleManualApply = useCallback(
     async (musician) => {
-      const musicianId = normaliseString(musician?._id || musician?.id || musician?.musicianId || "");
+      const musicianId = normaliseString(
+        musician?._id || musician?.id || musician?.musicianId || "",
+      );
       if (!musicianId) {
         toast.error("That musician is missing an ID.");
         return;
@@ -360,11 +424,13 @@ const ManageDeputyApplications = () => {
         const res = await axios.post(
           `${backendUrl}/api/deputy-jobs/${id}/manual-apply`,
           { musicianId },
-          { headers, withCredentials: true }
+          { headers, withCredentials: true },
         );
 
         if (!res.data?.success) {
-          throw new Error(res.data?.message || "Failed to manually add applicant");
+          throw new Error(
+            res.data?.message || "Failed to manually add applicant",
+          );
         }
 
         toast.success(res.data?.message || "Applicant added");
@@ -374,24 +440,32 @@ const ManageDeputyApplications = () => {
         await loadApplications();
       } catch (err) {
         console.error("❌ Failed to manually add applicant:", err);
-        toast.error(err?.response?.data?.message || err?.message || "Failed to manually add applicant");
+        toast.error(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Failed to manually add applicant",
+        );
       } finally {
         setManuallyApplyingId("");
       }
     },
-    [headers, id, loadApplications]
+    [headers, id, loadApplications],
   );
 
   const handleManualApplyAndPresent = useCallback(
     async (musician) => {
-      const musicianId = normaliseString(musician?._id || musician?.id || musician?.musicianId || "");
+      const musicianId = normaliseString(
+        musician?._id || musician?.id || musician?.musicianId || "",
+      );
       if (!musicianId) {
         toast.error("That musician is missing an ID.");
         return;
       }
 
       const displayName = getMusicianDisplayName(musician);
-      const confirmed = window.confirm(`Add ${displayName} as an applicant and present them to the client?`);
+      const confirmed = window.confirm(
+        `Add ${displayName} as an applicant and present them to the client?`,
+      );
       if (!confirmed) return;
 
       try {
@@ -400,11 +474,13 @@ const ManageDeputyApplications = () => {
         const res = await axios.post(
           `${backendUrl}/api/deputy-jobs/${id}/manual-apply-and-present`,
           { musicianId },
-          { headers, withCredentials: true }
+          { headers, withCredentials: true },
         );
 
         if (!res.data?.success) {
-          throw new Error(res.data?.message || "Failed to manually add and present applicant");
+          throw new Error(
+            res.data?.message || "Failed to manually add and present applicant",
+          );
         }
 
         toast.success(res.data?.message || "Applicant added and presented");
@@ -417,17 +493,17 @@ const ManageDeputyApplications = () => {
         toast.error(
           err?.response?.data?.message ||
             err?.message ||
-            "Failed to manually add and present applicant"
+            "Failed to manually add and present applicant",
         );
       } finally {
         setManuallyApplyAndPresentId("");
       }
     },
-    [headers, id, loadApplications]
+    [headers, id, loadApplications],
   );
 
   const handleAllocateApplicant = useCallback(
-    async (application) => {
+    async (application, role = "") => {
       const musicianId = String(application?.musicianId || "").trim();
       if (!musicianId) {
         toast.error("This applicant is missing a musician ID.");
@@ -436,8 +512,8 @@ const ManageDeputyApplications = () => {
 
       const confirmed = window.confirm(
         isEnquiryJob
-          ? `Confirm ${application.fullName || "this applicant"} as the client’s choice? This will mark the post as allocated.`
-          : `Allocate this job to ${application.fullName || "this applicant"}?`
+          ? `Confirm ${application.fullName || "this applicant"} as the client’s choice for ${role || "this role"}?`
+          : `Allocate ${role || "this role"} to ${application.fullName || "this applicant"}?`,
       );
       if (!confirmed) return;
 
@@ -446,8 +522,8 @@ const ManageDeputyApplications = () => {
 
         const res = await axios.post(
           `${backendUrl}/api/deputy-jobs/${id}/manual-allocate`,
-          { musicianId },
-          { headers, withCredentials: true }
+          { musicianId, role },
+          { headers, withCredentials: true },
         );
 
         if (!res.data?.success) {
@@ -458,16 +534,20 @@ const ManageDeputyApplications = () => {
         await loadApplications();
       } catch (err) {
         console.error("❌ Failed to allocate applicant:", err);
-        toast.error(err?.response?.data?.message || err?.message || "Failed to allocate applicant");
+        toast.error(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Failed to allocate applicant",
+        );
       } finally {
         setAssigningId("");
       }
     },
-    [headers, id, isEnquiryJob, loadApplications]
+    [headers, id, isEnquiryJob, loadApplications],
   );
 
   const handlePresentApplicant = useCallback(
-    async (application) => {
+    async (application, role) => {
       const musicianId = String(application?.musicianId || "").trim();
       if (!musicianId) {
         toast.error("This applicant is missing a musician ID.");
@@ -475,7 +555,7 @@ const ManageDeputyApplications = () => {
       }
 
       const confirmed = window.confirm(
-        `Present ${application.fullName || "this applicant"} to the client?`
+        `Present ${application.fullName || "this applicant"} to the client for ${role}?`,
       );
       if (!confirmed) return;
 
@@ -484,8 +564,8 @@ const ManageDeputyApplications = () => {
 
         const res = await axios.post(
           `${backendUrl}/api/deputy-jobs/${id}/present-applicant`,
-          { musicianId },
-          { headers, withCredentials: true }
+          { musicianId, role },
+          { headers, withCredentials: true },
         );
 
         if (!res.data?.success) {
@@ -496,12 +576,16 @@ const ManageDeputyApplications = () => {
         await loadApplications();
       } catch (err) {
         console.error("❌ Failed to present applicant:", err);
-        toast.error(err?.response?.data?.message || err?.message || "Failed to present applicant");
+        toast.error(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Failed to present applicant",
+        );
       } finally {
         setPresentingId("");
       }
     },
-    [headers, id, loadApplications]
+    [headers, id, loadApplications],
   );
 
   if (loading) {
@@ -548,7 +632,8 @@ const ManageDeputyApplications = () => {
             </p>
 
             <p className="mt-1 text-sm text-gray-500">
-              {formatDateLong(job?.eventDate)} · {job?.location || "Location TBC"}
+              {formatDateLong(job?.eventDate)} ·{" "}
+              {job?.location || "Location TBC"}
             </p>
           </div>
 
@@ -602,112 +687,195 @@ const ManageDeputyApplications = () => {
         </div>
 
         {filteredApplications.length ? (
-          <div className="space-y-3">
-            {filteredApplications.map((application) => {
-              const musicianId = String(application?.musicianId || "");
-              const status = String(application?.status || "applied").toLowerCase();
-              const isAssigned = ["allocated", "booked", "assigned"].includes(status);
-const profileLink = getApplicantProfileLink(application, job?._id || "");
-              return (
-                <div
-                  key={musicianId || `${application.fullName}-${application.appliedAt}`}
-                  className="rounded-xl border border-gray-200 p-4"
+          <div className="space-y-8">
+            {applicationsByRole.map(
+              ({ role, applications: roleApplications }) => (
+                <section
+                  key={role}
+                  className="rounded-2xl border border-gray-200 bg-gray-50 p-4"
                 >
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {application.fullName || "Unnamed applicant"}
-                      </p>
-
-                      {profileLink ? (
-                        <a
-                          href={profileLink}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="mt-1 inline-block text-sm text-[#ff6667] hover:underline"
-                        >
-                          View profile
-                        </a>
-                      ) : null}
-
-                      {application.email ? (
-                        <p className="text-sm text-gray-500">{application.email}</p>
-                      ) : null}
-
-                      {application.phone ? (
-                        <p className="text-sm text-gray-500">{application.phone}</p>
-                      ) : null}
-
-                      <p className="mt-2 text-xs text-gray-500">
-                        Applied {formatDateTime(application.appliedAt)}
-                      </p>
-                      <div className="mt-3">
-                        <MusicianCapabilityFlags matchFlags={application.matchFlags} />
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge
-                        tone={
-                          status === "booked" || status === "allocated"
-                            ? "green"
-                            : status === "presented"
-                              ? "yellow"
-                              : "default"
-                        }
-                      >
-                        {formatLabel(status, "Applied")}
-                      </Badge>
-
-                      {typeof application.deputyMatchScore === "number" ? (
-  <Badge>{Math.round(application.deputyMatchScore * 100)}% match</Badge>
-) : null}
-                    </div>
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <h2 className="text-lg font-semibold text-gray-900">
+                      {role}
+                    </h2>
+                    <Badge>
+                      {roleApplications.length} applicant
+                      {roleApplications.length === 1 ? "" : "s"}
+                    </Badge>
                   </div>
+                  {roleApplications.length ? (
+                    <div className="space-y-3">
+                      {roleApplications.map((application) => {
+                        const musicianId = String(
+                          application?.musicianId || "",
+                        );
+                        const status = String(
+                          application?.status || "applied",
+                        ).toLowerCase();
+                        const allocatedRoles = Array.isArray(
+                          application?.allocatedRoles,
+                        )
+                          ? application.allocatedRoles
+                          : [];
+                        const presentedRoles = Array.isArray(
+                          application?.presentedRoles,
+                        )
+                          ? application.presentedRoles
+                          : [];
+                        const roleMatches = (candidateRole) =>
+                          normaliseString(candidateRole).toLowerCase() ===
+                          normaliseString(role).toLowerCase();
+                        const isAssigned =
+                          allocatedRoles.some(roleMatches) ||
+                          ((job?.requiredInstruments?.length || 0) <= 1 &&
+                            ["allocated", "booked", "assigned"].includes(
+                              status,
+                            ));
+                        const isPresented =
+                          presentedRoles.some(roleMatches) ||
+                          ((job?.requiredInstruments?.length || 0) <= 1 &&
+                            status === "presented");
+                        const profileLink = getApplicantProfileLink(
+                          application,
+                          job?._id || "",
+                        );
+                        return (
+                          <div
+                            key={
+                              musicianId ||
+                              `${application.fullName}-${application.appliedAt}`
+                            }
+                            className="rounded-xl border border-gray-200 p-4"
+                          >
+                            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                              <div>
+                                <p className="font-medium text-gray-900">
+                                  {application.fullName || "Unnamed applicant"}
+                                </p>
 
-                  {canManageThisJob ? (
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {(!isEnquiryJob || status === "presented") && !isAssigned ? (
-                        <button
-                          type="button"
-                          onClick={() => handleAllocateApplicant(application)}
-                          disabled={assigningId === musicianId}
-                          className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-[#ff6667] disabled:opacity-60"
-                        >
-                          {assigningId === musicianId
-                            ? "Allocating…"
-                            : isEnquiryJob
-                              ? "Book client’s choice"
-                              : "Allocate applicant"}
-                        </button>
-                      ) : null}
+                                {profileLink ? (
+                                  <a
+                                    href={profileLink}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mt-1 inline-block text-sm text-[#ff6667] hover:underline"
+                                  >
+                                    View profile
+                                  </a>
+                                ) : null}
 
-                      {canPresentApplicants && !isAssigned ? (
-                        <button
-                          type="button"
-                          onClick={() => handlePresentApplicant(application)}
-                          disabled={presentingId === musicianId}
-                          className="rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-60"
-                        >
-                          {presentingId === musicianId ? "Sending…" : "Present applicant"}
-                        </button>
-                      ) : null}
+                                {application.email ? (
+                                  <p className="text-sm text-gray-500">
+                                    {application.email}
+                                  </p>
+                                ) : null}
 
-                      {status === "presented" ? (
-                        <button
-                          type="button"
-                          onClick={handleCopyPresentedApplicants}
-                          disabled={copyingPresented}
-                          className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
-                        >
-                          {copyingPresented ? "Copying…" : "Copy presented list"}
-                        </button>
-                      ) : null}
+                                {application.phone ? (
+                                  <p className="text-sm text-gray-500">
+                                    {application.phone}
+                                  </p>
+                                ) : null}
+
+                                <p className="mt-2 text-xs text-gray-500">
+                                  Applied{" "}
+                                  {formatDateTime(application.appliedAt)}
+                                </p>
+                                <div className="mt-3">
+                                  <MusicianCapabilityFlags
+                                    matchFlags={application.matchFlags}
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge
+                                  tone={
+                                    status === "booked" ||
+                                    status === "allocated"
+                                      ? "green"
+                                      : status === "presented"
+                                        ? "yellow"
+                                        : "default"
+                                  }
+                                >
+                                  {formatLabel(status, "Applied")}
+                                </Badge>
+
+                                {typeof application.deputyMatchScore ===
+                                "number" ? (
+                                  <Badge>
+                                    {Math.round(
+                                      application.deputyMatchScore * 100,
+                                    )}
+                                    % match
+                                  </Badge>
+                                ) : null}
+                              </div>
+                            </div>
+
+                            {canManageThisJob ? (
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                {(!isEnquiryJob || isPresented) &&
+                                !isAssigned ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleAllocateApplicant(application, role)
+                                    }
+                                    disabled={assigningId === musicianId}
+                                    className="rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-[#ff6667] disabled:opacity-60"
+                                  >
+                                    {assigningId === musicianId
+                                      ? "Allocating…"
+                                      : isEnquiryJob
+                                        ? "Book client’s choice"
+                                        : "Allocate applicant"}
+                                  </button>
+                                ) : null}
+
+                                {canPresentApplicants && !isAssigned ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handlePresentApplicant(application, role)
+                                    }
+                                    disabled={presentingId === musicianId}
+                                    className="rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-60"
+                                  >
+                                    {presentingId === musicianId
+                                      ? "Sending…"
+                                      : isPresented
+                                        ? "Present again"
+                                        : "Present applicant"}
+                                  </button>
+                                ) : null}
+
+                                {isPresented ? (
+                                  <button
+                                    type="button"
+                                    onClick={handleCopyPresentedApplicants}
+                                    disabled={copyingPresented}
+                                    className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                                  >
+                                    {copyingPresented
+                                      ? "Copying…"
+                                      : "Copy presented list"}
+                                  </button>
+                                ) : null}
+                              </div>
+                            ) : null}
+                          </div>
+                        );
+                      })}
                     </div>
-                  ) : null}
-                </div>
-              );
-            })}
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      No applications for this role yet.
+                    </p>
+                  )}
+                </section>
+              ),
+            )}
           </div>
         ) : (
           <p className="text-sm text-gray-500">No applications found.</p>
@@ -719,9 +887,12 @@ const profileLink = getApplicantProfileLink(application, job?._id || "");
           <div className="w-full max-w-3xl rounded-2xl bg-white shadow-xl">
             <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-6 py-5">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Manual add applicant</h3>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Manual add applicant
+                </h3>
                 <p className="mt-1 text-sm text-gray-500">
-                  Search for a musician, then either add them as an applicant or add and present them immediately.
+                  Search for a musician, then either add them as an applicant or
+                  add and present them immediately.
                 </p>
               </div>
 
@@ -736,7 +907,10 @@ const profileLink = getApplicantProfileLink(application, job?._id || "");
             </div>
 
             <div className="px-6 py-5">
-              <form onSubmit={handleSearchManualApplicants} className="flex flex-col gap-3 md:flex-row">
+              <form
+                onSubmit={handleSearchManualApplicants}
+                className="flex flex-col gap-3 md:flex-row"
+              >
                 <input
                   value={manualAddQuery}
                   onChange={(e) => setManualAddQuery(e.target.value)}
@@ -757,17 +931,24 @@ const profileLink = getApplicantProfileLink(application, job?._id || "");
                   <div className="divide-y divide-gray-100">
                     {manualAddResults.map((musician) => {
                       const musicianId = normaliseString(
-                        musician?._id || musician?.id || musician?.musicianId || ""
+                        musician?._id ||
+                          musician?.id ||
+                          musician?.musicianId ||
+                          "",
                       );
                       const displayName = getMusicianDisplayName(musician);
                       const email = normaliseString(
-                        musician?.email || musician?.basicInfo?.email || ""
+                        musician?.email || musician?.basicInfo?.email || "",
                       );
                       const phone = normaliseString(
-                        musician?.phone || musician?.phoneNumber || musician?.basicInfo?.phone || ""
+                        musician?.phone ||
+                          musician?.phoneNumber ||
+                          musician?.basicInfo?.phone ||
+                          "",
                       );
                       const profileLink = getMusicianProfileLink(musician);
-                      const alreadyApplied = existingApplicationMusicianIds.has(musicianId);
+                      const alreadyApplied =
+                        existingApplicationMusicianIds.has(musicianId);
 
                       return (
                         <div
@@ -791,7 +972,8 @@ const profileLink = getApplicantProfileLink(application, job?._id || "");
                             ) : null}
 
                             <p className="mt-1 truncate text-xs text-gray-500">
-                              {[email, phone].filter(Boolean).join(" • ") || "No contact details"}
+                              {[email, phone].filter(Boolean).join(" • ") ||
+                                "No contact details"}
                             </p>
 
                             {alreadyApplied ? (
@@ -805,17 +987,31 @@ const profileLink = getApplicantProfileLink(application, job?._id || "");
                             <button
                               type="button"
                               onClick={() => handleManualApply(musician)}
-                              disabled={!musicianId || alreadyApplied || manuallyApplyingId === musicianId || manuallyApplyAndPresentId === musicianId}
+                              disabled={
+                                !musicianId ||
+                                alreadyApplied ||
+                                manuallyApplyingId === musicianId ||
+                                manuallyApplyAndPresentId === musicianId
+                              }
                               className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                              {manuallyApplyingId === musicianId ? "Adding…" : "Add applicant"}
+                              {manuallyApplyingId === musicianId
+                                ? "Adding…"
+                                : "Add applicant"}
                             </button>
 
                             {canPresentApplicants ? (
                               <button
                                 type="button"
-                                onClick={() => handleManualApplyAndPresent(musician)}
-                                disabled={!musicianId || alreadyApplied || manuallyApplyAndPresentId === musicianId || manuallyApplyingId === musicianId}
+                                onClick={() =>
+                                  handleManualApplyAndPresent(musician)
+                                }
+                                disabled={
+                                  !musicianId ||
+                                  alreadyApplied ||
+                                  manuallyApplyAndPresentId === musicianId ||
+                                  manuallyApplyingId === musicianId
+                                }
                                 className="rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 {manuallyApplyAndPresentId === musicianId

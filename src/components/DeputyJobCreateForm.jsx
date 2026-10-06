@@ -31,6 +31,19 @@ const CLAIMABLE_EXPENSE_OPTIONS = [
   "other",
 ];
 
+const COMMON_DEPUTY_ROLES = [
+  "Lead Vocalist",
+  "Backing Vocalist",
+  "Guitar",
+  "Bass",
+  "Drums",
+  "Keys",
+  "Saxophone",
+  "Trumpet",
+  "DJ",
+  "Sound Engineer",
+];
+
 const normaliseCsvArray = (value = "") =>
   String(value || "")
     .split(",")
@@ -39,7 +52,9 @@ const normaliseCsvArray = (value = "") =>
 
 const buildInitialState = (initialValues = {}) => ({
   jobType:
-    String(initialValues.jobType || "").trim().toLowerCase() === "enquiry"
+    String(initialValues.jobType || "")
+      .trim()
+      .toLowerCase() === "enquiry"
       ? "enquiry"
       : "booked",
 
@@ -56,7 +71,9 @@ const buildInitialState = (initialValues = {}) => ({
   clientPhone: initialValues.clientPhone || "",
   saveClientCard:
     initialValues.saveClientCard === undefined
-      ? String(initialValues.jobType || "").trim().toLowerCase() !== "enquiry"
+      ? String(initialValues.jobType || "")
+          .trim()
+          .toLowerCase() !== "enquiry"
       : Boolean(initialValues.saveClientCard),
   fee:
     initialValues.fee === 0 || initialValues.fee
@@ -72,15 +89,16 @@ const buildInitialState = (initialValues = {}) => ({
   requiredSkills: Array.isArray(initialValues.requiredSkills)
     ? initialValues.requiredSkills.join(", ")
     : Array.isArray(initialValues.essentialRoles)
-    ? initialValues.essentialRoles.join(", ")
-    : initialValues.requiredSkills || "",
+      ? initialValues.essentialRoles.join(", ")
+      : initialValues.requiredSkills || "",
   requireSoundEngineering: Array.isArray(initialValues.essentialRoles)
     ? initialValues.essentialRoles.includes("Sound Engineering")
     : false,
   requirePA: Array.isArray(initialValues.essentialRoles)
     ? initialValues.essentialRoles.includes("PA Provision")
     : false,
-  lightingRequirement: Array.isArray(initialValues.essentialRoles) &&
+  lightingRequirement:
+    Array.isArray(initialValues.essentialRoles) &&
     initialValues.essentialRoles.includes("Lighting Provision")
       ? "required"
       : Array.isArray(initialValues.desiredRoles) &&
@@ -101,27 +119,27 @@ const buildInitialState = (initialValues = {}) => ({
     : initialValues.tags || "",
   whatsIncluded: Array.isArray(initialValues.whatsIncluded)
     ? initialValues.whatsIncluded.filter((item) =>
-        WHATS_INCLUDED_OPTIONS.includes(String(item).toLowerCase())
+        WHATS_INCLUDED_OPTIONS.includes(String(item).toLowerCase()),
       )
     : [],
   whatsIncludedOther: Array.isArray(initialValues.whatsIncluded)
     ? initialValues.whatsIncluded
         .filter(
           (item) =>
-            !WHATS_INCLUDED_OPTIONS.includes(String(item).toLowerCase())
+            !WHATS_INCLUDED_OPTIONS.includes(String(item).toLowerCase()),
         )
         .join(", ")
     : initialValues.whatsIncludedOther || "",
   claimableExpenses: Array.isArray(initialValues.claimableExpenses)
     ? initialValues.claimableExpenses.filter((item) =>
-        CLAIMABLE_EXPENSE_OPTIONS.includes(String(item).toLowerCase())
+        CLAIMABLE_EXPENSE_OPTIONS.includes(String(item).toLowerCase()),
       )
     : [],
   claimableExpensesOther: Array.isArray(initialValues.claimableExpenses)
     ? initialValues.claimableExpenses
         .filter(
           (item) =>
-            !CLAIMABLE_EXPENSE_OPTIONS.includes(String(item).toLowerCase())
+            !CLAIMABLE_EXPENSE_OPTIONS.includes(String(item).toLowerCase()),
         )
         .join(", ")
     : initialValues.claimableExpensesOther || "",
@@ -137,11 +155,13 @@ const DeputyJobCreateForm = ({
   onCreated,
   canCreateEnquiryJob = false,
 }) => {
-  const [formData, setFormData] = useState(() => buildInitialState(initialValues));
+  const [formData, setFormData] = useState(() =>
+    buildInitialState(initialValues),
+  );
   const [errors, setErrors] = useState({});
   const [submittingAction, setSubmittingAction] = useState("");
   const [jobType, setJobType] = useState(
-    () => buildInitialState(initialValues).jobType
+    () => buildInitialState(initialValues).jobType,
   );
 
   const showEnquiryOption = Boolean(canCreateEnquiryJob);
@@ -163,7 +183,9 @@ const DeputyJobCreateForm = ({
       tags: normaliseCsvArray(formData.tags),
       setLengths: normaliseCsvArray(formData.setLengths),
       whatsIncluded: [
-        ...(Array.isArray(formData.whatsIncluded) ? formData.whatsIncluded : []),
+        ...(Array.isArray(formData.whatsIncluded)
+          ? formData.whatsIncluded
+          : []),
         ...normaliseCsvArray(formData.whatsIncludedOther),
       ],
       claimableExpenses: [
@@ -185,7 +207,7 @@ const DeputyJobCreateForm = ({
       formData.whatsIncludedOther,
       formData.claimableExpenses,
       formData.claimableExpensesOther,
-    ]
+    ],
   );
 
   const handleChange = (event) => {
@@ -221,6 +243,20 @@ const DeputyJobCreateForm = ({
     setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
+  const toggleRequiredInstrument = (role) => {
+    setFormData((prev) => {
+      const current = normaliseCsvArray(prev.requiredInstruments);
+      const selected = current.some(
+        (item) => item.toLowerCase() === role.toLowerCase(),
+      );
+      const next = selected
+        ? current.filter((item) => item.toLowerCase() !== role.toLowerCase())
+        : [...current, role];
+      return { ...prev, requiredInstruments: next.join(", ") };
+    });
+    setErrors((prev) => ({ ...prev, requiredInstruments: "" }));
+  };
+
   const validate = () => {
     const nextErrors = {};
 
@@ -248,7 +284,7 @@ const DeputyJobCreateForm = ({
       nextErrors.postcode = "Please add a postcode.";
     }
 
-if (!isEnquiryJob && formData.saveClientCard) {
+    if (!isEnquiryJob && formData.saveClientCard) {
       if (!String(formData.clientName || "").trim()) {
         nextErrors.clientName = "Please add the client name for card setup.";
       }
@@ -258,12 +294,17 @@ if (!isEnquiryJob && formData.saveClientCard) {
       }
     }
 
-    if (!String(formData.location || formData.venue || formData.county || "").trim()) {
+    if (
+      !String(
+        formData.location || formData.venue || formData.county || "",
+      ).trim()
+    ) {
       nextErrors.location = "Please add at least a location, venue or county.";
     }
 
     if (!normaliseCsvArray(formData.requiredInstruments).length) {
-      nextErrors.requiredInstruments = "Please add at least one required instrument.";
+      nextErrors.requiredInstruments =
+        "Please add at least one required instrument.";
     }
 
     if (!normaliseCsvArray(formData.genres).length) {
@@ -295,8 +336,12 @@ if (!isEnquiryJob && formData.saveClientCard) {
       new Set([...requiredSkills, ...capabilityRequirements]),
     );
     const capabilityPreferences =
-      formData.lightingRequirement === "preferred" ? ["Lighting Provision"] : [];
-    const secondaryInstruments = normaliseCsvArray(formData.secondaryInstruments);
+      formData.lightingRequirement === "preferred"
+        ? ["Lighting Provision"]
+        : [];
+    const secondaryInstruments = normaliseCsvArray(
+      formData.secondaryInstruments,
+    );
     const genres = normaliseCsvArray(formData.genres);
     const tags = normaliseCsvArray(formData.tags);
     const setLengths = normaliseCsvArray(formData.setLengths);
@@ -314,11 +359,13 @@ if (!isEnquiryJob && formData.saveClientCard) {
     ];
 
     const mergedDesiredRoles = Array.from(
-      new Set([...desiredRoles, ...capabilityPreferences])
+      new Set([...desiredRoles, ...capabilityPreferences]),
     );
 
     const primaryInstrument = requiredInstruments[0] || "";
-    const inferredIsVocalSlot = /vocal|singer|rapper|rap|mc/i.test(primaryInstrument);
+    const inferredIsVocalSlot = /vocal|singer|rapper|rap|mc/i.test(
+      primaryInstrument,
+    );
 
     return {
       title: String(formData.title || "").trim(),
@@ -334,9 +381,11 @@ if (!isEnquiryJob && formData.saveClientCard) {
       county: String(formData.county || "").trim(),
       postcode: String(formData.postcode || "").trim(),
       clientName: String(formData.clientName || "").trim(),
-      clientEmail: String(formData.clientEmail || "").trim().toLowerCase(),
+      clientEmail: String(formData.clientEmail || "")
+        .trim()
+        .toLowerCase(),
       clientPhone: String(formData.clientPhone || "").trim(),
-saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
+      saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
       fee: formData.fee === "" ? 0 : Number(formData.fee),
       notes: String(formData.notes || "").trim(),
       instrument: primaryInstrument,
@@ -377,28 +426,28 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
       });
       console.log("[DeputyJobCreateForm] create response", res.data);
 
-     if (res.data?.success) {
-  if (payload.previewOnly) {
-    toast.success(
-      `Preview ready. ${res.data.matchedCount || 0} musicians matched.`
-    );
-  } else if (isEnquiryJob) {
-    toast.success("Enquiry-only deputy post created.");
-  } else {
-    toast.success(
-      `Deputy job created. ${res.data?.matchedCount || 0} matched, ready to notify them!`
-    );
-  }
+      if (res.data?.success) {
+        if (payload.previewOnly) {
+          toast.success(
+            `Preview ready. ${res.data.matchedCount || 0} musicians matched.`,
+          );
+        } else if (isEnquiryJob) {
+          toast.success("Enquiry-only deputy post created.");
+        } else {
+          toast.success(
+            `Deputy job created. ${res.data?.matchedCount || 0} matched, ready to notify them!`,
+          );
+        }
 
-  onCreated?.(res.data.job || res.data);
-  return;
-}
+        onCreated?.(res.data.job || res.data);
+        return;
+      }
 
       toast.error(res.data?.message || "Failed to create deputy job.");
     } catch (error) {
       console.error("Failed to submit deputy job:", error);
       toast.error(
-        error?.response?.data?.message || "Failed to create deputy job."
+        error?.response?.data?.message || "Failed to create deputy job.",
       );
     } finally {
       setSubmittingAction("");
@@ -416,41 +465,43 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
         <div className="border-b border-gray-200 px-6 py-5">
           <h2 className={sectionTitleClass}>Create deputy opportunity</h2>
           <p className={`${sectionTextClass} mt-1`}>
-  Add the job details below and we’ll match musicians using instrument and vocal fit first, then refine the ranking using essential skills, preferred extras, genres and location.
-</p>
+            Add the job details below and we’ll match musicians using instrument
+            and vocal fit first, then refine the ranking using essential skills,
+            preferred extras, genres and location.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 gap-6 px-6 py-6 lg:grid-cols-2">
-         <div>
-  <label className="block text-sm font-medium text-gray-700 mb-2">
-    Job type
-  </label>
-  <select
-    value={showEnquiryOption ? jobType : "booked"}
-    onChange={(e) => {
-      const nextJobType = e.target.value;
-      setJobType(nextJobType);
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Job type
+            </label>
+            <select
+              value={showEnquiryOption ? jobType : "booked"}
+              onChange={(e) => {
+                const nextJobType = e.target.value;
+                setJobType(nextJobType);
 
-      if (nextJobType === "enquiry") {
-        setFormData((prev) => ({
-          ...prev,
-          saveClientCard: false,
-        }));
-        setErrors((prev) => ({
-          ...prev,
-          clientName: "",
-          clientEmail: "",
-        }));
-      }
-    }}
-    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 outline-none"
-  >
-    <option value="booked">Confirmed booking</option>
-    {showEnquiryOption ? (
-      <option value="enquiry">Enquiry / potential gig</option>
-    ) : null}
-  </select>
-</div>
+                if (nextJobType === "enquiry") {
+                  setFormData((prev) => ({
+                    ...prev,
+                    saveClientCard: false,
+                  }));
+                  setErrors((prev) => ({
+                    ...prev,
+                    clientName: "",
+                    clientEmail: "",
+                  }));
+                }
+              }}
+              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 outline-none"
+            >
+              <option value="booked">Confirmed booking</option>
+              {showEnquiryOption ? (
+                <option value="enquiry">Enquiry / potential gig</option>
+              ) : null}
+            </select>
+          </div>
           <div className="lg:col-span-2">
             <label className={labelClass} htmlFor="title">
               Job title
@@ -464,7 +515,9 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
               className={inputClass}
               placeholder="e.g. Female lead vocalist for wedding band"
             />
-            {errors.title ? <p className="mt-2 text-sm text-red-600">{errors.title}</p> : null}
+            {errors.title ? (
+              <p className="mt-2 text-sm text-red-600">{errors.title}</p>
+            ) : null}
           </div>
 
           <div>
@@ -479,7 +532,9 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
               onChange={handleChange}
               className={inputClass}
             />
-            {errors.date ? <p className="mt-2 text-sm text-red-600">{errors.date}</p> : null}
+            {errors.date ? (
+              <p className="mt-2 text-sm text-red-600">{errors.date}</p>
+            ) : null}
           </div>
 
           <div>
@@ -497,7 +552,9 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
               className={inputClass}
               placeholder="0"
             />
-            {errors.fee ? <p className="mt-2 text-sm text-red-600">{errors.fee}</p> : null}
+            {errors.fee ? (
+              <p className="mt-2 text-sm text-red-600">{errors.fee}</p>
+            ) : null}
           </div>
 
           <div>
@@ -512,7 +569,9 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
               onChange={handleChange}
               className={inputClass}
             />
-            {errors.callTime ? <p className="mt-2 text-sm text-red-600">{errors.callTime}</p> : null}
+            {errors.callTime ? (
+              <p className="mt-2 text-sm text-red-600">{errors.callTime}</p>
+            ) : null}
           </div>
 
           <div>
@@ -527,7 +586,9 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
               onChange={handleChange}
               className={inputClass}
             />
-            {errors.finishTime ? <p className="mt-2 text-sm text-red-600">{errors.finishTime}</p> : null}
+            {errors.finishTime ? (
+              <p className="mt-2 text-sm text-red-600">{errors.finishTime}</p>
+            ) : null}
           </div>
 
           <div>
@@ -558,7 +619,9 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
               className={inputClass}
               placeholder="e.g. Essex"
             />
-            {errors.county ? <p className="mt-2 text-sm text-red-600">{errors.county}</p> : null}
+            {errors.county ? (
+              <p className="mt-2 text-sm text-red-600">{errors.county}</p>
+            ) : null}
           </div>
 
           <div>
@@ -574,7 +637,9 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
               className={inputClass}
               placeholder="e.g. CM19 5LE"
             />
-            {errors.postcode ? <p className="mt-2 text-sm text-red-600">{errors.postcode}</p> : null}
+            {errors.postcode ? (
+              <p className="mt-2 text-sm text-red-600">{errors.postcode}</p>
+            ) : null}
           </div>
 
           <div className="lg:col-span-2">
@@ -590,94 +655,108 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
               className={inputClass}
               placeholder="Town, county or full address"
             />
-            {errors.location ? <p className="mt-2 text-sm text-red-600">{errors.location}</p> : null}
+            {errors.location ? (
+              <p className="mt-2 text-sm text-red-600">{errors.location}</p>
+            ) : null}
           </div>
 
-         {!isEnquiryJob ? (
-  <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div>
-        <h3 className="text-sm font-semibold text-gray-900">Payment card setup</h3>
-        <p className="text-xs text-gray-500 mt-1">
-          Save the client’s card details now so payment can be taken automatically when a deputy is allocated.
-        </p>
-      </div>
+          {!isEnquiryJob ? (
+            <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">
+                    Payment card setup
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Save the client’s card details now so payment can be taken
+                    automatically when a deputy is allocated.
+                  </p>
+                </div>
 
-      <label className="inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
-        <input
-          type="checkbox"
-          name="saveClientCard"
-          checked={Boolean(formData.saveClientCard)}
-          onChange={handleChange}
-          className="h-4 w-4 accent-black"
-        />
-        Save payment card
-      </label>
-    </div>
+                <label className="inline-flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    name="saveClientCard"
+                    checked={Boolean(formData.saveClientCard)}
+                    onChange={handleChange}
+                    className="h-4 w-4 accent-black"
+                  />
+                  Save payment card
+                </label>
+              </div>
 
-    {formData.saveClientCard ? (
-      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div>
-          <label className={labelClass} htmlFor="clientName">
-            Payer name
-          </label>
-          <input
-            id="clientName"
-            name="clientName"
-            type="text"
-            value={formData.clientName}
-            onChange={handleChange}
-            className={inputClass}
-            placeholder="Full name"
-          />
-          {errors.clientName ? (
-            <p className="mt-2 text-sm text-red-600">{errors.clientName}</p>
-          ) : null}
-        </div>
+              {formData.saveClientCard ? (
+                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div>
+                    <label className={labelClass} htmlFor="clientName">
+                      Payer name
+                    </label>
+                    <input
+                      id="clientName"
+                      name="clientName"
+                      type="text"
+                      value={formData.clientName}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="Full name"
+                    />
+                    {errors.clientName ? (
+                      <p className="mt-2 text-sm text-red-600">
+                        {errors.clientName}
+                      </p>
+                    ) : null}
+                  </div>
 
-        <div>
-          <label className={labelClass} htmlFor="clientEmail">
-            Payer email
-          </label>
-          <input
-            id="clientEmail"
-            name="clientEmail"
-            type="email"
-            value={formData.clientEmail}
-            onChange={handleChange}
-            className={inputClass}
-            placeholder="name@example.com"
-          />
-          {errors.clientEmail ? (
-            <p className="mt-2 text-sm text-red-600">{errors.clientEmail}</p>
-          ) : null}
-        </div>
+                  <div>
+                    <label className={labelClass} htmlFor="clientEmail">
+                      Payer email
+                    </label>
+                    <input
+                      id="clientEmail"
+                      name="clientEmail"
+                      type="email"
+                      value={formData.clientEmail}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="name@example.com"
+                    />
+                    {errors.clientEmail ? (
+                      <p className="mt-2 text-sm text-red-600">
+                        {errors.clientEmail}
+                      </p>
+                    ) : null}
+                  </div>
 
-        <div>
-          <label className={labelClass} htmlFor="clientPhone">
-            Payer phone
-          </label>
-          <input
-            id="clientPhone"
-            name="clientPhone"
-            type="text"
-            value={formData.clientPhone}
-            onChange={handleChange}
-            className={inputClass}
-            placeholder="Optional"
-          />
-        </div>
-      </div>
-    ) : null}
-  </div>
-) : (
-  <div className="lg:col-span-2 rounded-2xl border border-blue-200 bg-blue-50 p-4">
-    <h3 className="text-sm font-semibold text-blue-900">Enquiry-only post</h3>
-    <p className={`${sectionTextClass} mt-1`}>
-  This will create an enquiry-only deputy post for a potential gig. No card details will be collected and no automatic charge flow will be set up, but matching and ranking will still run in the same way.
-</p>
-  </div>
-)}
+                  <div>
+                    <label className={labelClass} htmlFor="clientPhone">
+                      Payer phone
+                    </label>
+                    <input
+                      id="clientPhone"
+                      name="clientPhone"
+                      type="text"
+                      value={formData.clientPhone}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="Optional"
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="lg:col-span-2 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+              <h3 className="text-sm font-semibold text-blue-900">
+                Enquiry-only post
+              </h3>
+              <p className={`${sectionTextClass} mt-1`}>
+                This will create an enquiry-only deputy post for a potential
+                gig. No card details will be collected and no automatic charge
+                flow will be set up, but matching and ranking will still run in
+                the same way.
+              </p>
+            </div>
+          )}
 
           <div className="lg:col-span-2">
             <label className={labelClass} htmlFor="requiredInstruments">
@@ -693,8 +772,28 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
               placeholder="e.g. Lead Vocalist, Guitar, Saxophone"
             />
             <p className={hintClass}>Separate multiple items with commas.</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {COMMON_DEPUTY_ROLES.map((role) => {
+                const selected = normaliseCsvArray(
+                  formData.requiredInstruments,
+                ).some((item) => item.toLowerCase() === role.toLowerCase());
+                return (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => toggleRequiredInstrument(role)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${selected ? "border-[#ff6667] bg-[#fff1f1] text-[#c43f41]" : "border-gray-300 bg-white text-gray-600 hover:border-gray-500"}`}
+                  >
+                    {selected ? "✓ " : "+ "}
+                    {role}
+                  </button>
+                );
+              })}
+            </div>
             {errors.requiredInstruments ? (
-              <p className="mt-2 text-sm text-red-600">{errors.requiredInstruments}</p>
+              <p className="mt-2 text-sm text-red-600">
+                {errors.requiredInstruments}
+              </p>
             ) : null}
           </div>
 
@@ -753,8 +852,12 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
                   className={inputClass}
                 >
                   <option value="none">Not needed</option>
-                  <option value="preferred">Preferred — flag if unconfirmed</option>
-                  <option value="required">Required — exclude if unconfirmed</option>
+                  <option value="preferred">
+                    Preferred — flag if unconfirmed
+                  </option>
+                  <option value="required">
+                    Required — exclude if unconfirmed
+                  </option>
                 </select>
               </label>
             </div>
@@ -803,7 +906,9 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
               className={inputClass}
               placeholder="e.g. Motown, Soul, Pop"
             />
-            {errors.genres ? <p className="mt-2 text-sm text-red-600">{errors.genres}</p> : null}
+            {errors.genres ? (
+              <p className="mt-2 text-sm text-red-600">{errors.genres}</p>
+            ) : null}
           </div>
 
           <div className="lg:col-span-2">
@@ -834,12 +939,16 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
               className={inputClass}
               placeholder="e.g. 2x45 mins, 3x40 mins"
             />
-            <p className={hintClass}>Separate multiple set formats with commas.</p>
+            <p className={hintClass}>
+              Separate multiple set formats with commas.
+            </p>
           </div>
 
           <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 p-4">
             <div>
-              <h3 className="text-sm font-semibold text-gray-900">What’s included</h3>
+              <h3 className="text-sm font-semibold text-gray-900">
+                What’s included
+              </h3>
               <p className="text-xs text-gray-500 mt-1">
                 Tick anything the deputy can expect on the job.
               </p>
@@ -888,7 +997,9 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
 
           <div className="lg:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 p-4">
             <div>
-              <h3 className="text-sm font-semibold text-gray-900">Claimable expenses</h3>
+              <h3 className="text-sm font-semibold text-gray-900">
+                Claimable expenses
+              </h3>
               <p className="text-xs text-gray-500 mt-1">
                 Tick any expenses the deputy can claim back.
               </p>
@@ -955,14 +1066,15 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
       <div className="rounded-3xl border border-gray-200 bg-gray-50 px-6 py-5">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h3 className="text-base font-semibold text-gray-900">Matching preview</h3>
+            <h3 className="text-base font-semibold text-gray-900">
+              Matching preview
+            </h3>
             <p className="mt-1 text-sm text-gray-500">
-  Required instruments and vocal fit act as the main filter. Essential skills are treated as hard requirements, while preferred extras, genres and location help rank the best matches.
-</p>
+              Required instruments and vocal fit act as the main filter.
+              Essential skills are treated as hard requirements, while preferred
+              extras, genres and location help rank the best matches.
+            </p>
           </div>
-
-        
-        
         </div>
 
         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -981,7 +1093,9 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
                   </span>
                 ))
               ) : (
-                <span className="text-sm text-gray-400">No instruments added</span>
+                <span className="text-sm text-gray-400">
+                  No instruments added
+                </span>
               )}
             </div>
           </div>
@@ -1001,7 +1115,9 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
                   </span>
                 ))
               ) : (
-                <span className="text-sm text-gray-400">No essential skills added</span>
+                <span className="text-sm text-gray-400">
+                  No essential skills added
+                </span>
               )}
             </div>
           </div>
@@ -1012,16 +1128,20 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               {[...parsedPreview.tags, ...parsedPreview.genres].length ? (
-                [...parsedPreview.tags, ...parsedPreview.genres].map((item, index) => (
-                  <span
-                    key={`tag-${item}-${index}`}
-                    className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700 border border-gray-200"
-                  >
-                    {item}
-                  </span>
-                ))
+                [...parsedPreview.tags, ...parsedPreview.genres].map(
+                  (item, index) => (
+                    <span
+                      key={`tag-${item}-${index}`}
+                      className="inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700 border border-gray-200"
+                    >
+                      {item}
+                    </span>
+                  ),
+                )
               ) : (
-                <span className="text-sm text-gray-400">No tags or genres added</span>
+                <span className="text-sm text-gray-400">
+                  No tags or genres added
+                </span>
               )}
             </div>
           </div>
@@ -1043,7 +1163,9 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
                   </span>
                 ))
               ) : (
-                <span className="text-sm text-gray-400">No preferred extras added</span>
+                <span className="text-sm text-gray-400">
+                  No preferred extras added
+                </span>
               )}
             </div>
           </div>
@@ -1063,7 +1185,9 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
                   </span>
                 ))
               ) : (
-                <span className="text-sm text-gray-400">No secondary instruments added</span>
+                <span className="text-sm text-gray-400">
+                  No secondary instruments added
+                </span>
               )}
             </div>
           </div>
@@ -1085,7 +1209,9 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
                   </span>
                 ))
               ) : (
-                <span className="text-sm text-gray-400">No set lengths added</span>
+                <span className="text-sm text-gray-400">
+                  No set lengths added
+                </span>
               )}
             </div>
           </div>
@@ -1105,7 +1231,9 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
                   </span>
                 ))
               ) : (
-                <span className="text-sm text-gray-400">No inclusions added</span>
+                <span className="text-sm text-gray-400">
+                  No inclusions added
+                </span>
               )}
             </div>
           </div>
@@ -1125,7 +1253,9 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
                   </span>
                 ))
               ) : (
-                <span className="text-sm text-gray-400">No claimable expenses added</span>
+                <span className="text-sm text-gray-400">
+                  No claimable expenses added
+                </span>
               )}
             </div>
           </div>
@@ -1143,17 +1273,17 @@ saveClientCard: isEnquiryJob ? false : Boolean(formData.saveClientCard),
           </button>
         ) : null}
 
-       <button
-  type="submit"
-  disabled={isSubmitting || submittingAction === "create"}
-  className="inline-flex items-center rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-60"
->
-{submittingAction === "create"
-  ? "Creating…"
-  : showEnquiryOption && isEnquiryJob
-  ? "Create enquiry post"
-  : "Create and notify"}
-</button>
+        <button
+          type="submit"
+          disabled={isSubmitting || submittingAction === "create"}
+          className="inline-flex items-center rounded-full bg-black px-5 py-2.5 text-sm font-medium text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {submittingAction === "create"
+            ? "Creating…"
+            : showEnquiryOption && isEnquiryJob
+              ? "Create enquiry post"
+              : "Create and notify"}
+        </button>
       </div>
     </form>
   );

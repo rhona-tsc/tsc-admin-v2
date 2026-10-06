@@ -78,7 +78,9 @@ const isAuthExpiredError = (err) => {
   const responseMessage = String(err?.response?.data?.message || "")
     .trim()
     .toLowerCase();
-  const errorMessage = String(err?.message || "").trim().toLowerCase();
+  const errorMessage = String(err?.message || "")
+    .trim()
+    .toLowerCase();
   const status = Number(err?.response?.status || 0);
 
   return (
@@ -142,7 +144,10 @@ const formatMoney = (value, currency = "GBP") => {
   const amount = Number(value || 0);
   if (!Number.isFinite(amount)) return "TBC";
 
-  const safeCurrency = String(currency || "GBP").trim().toUpperCase() || "GBP";
+  const safeCurrency =
+    String(currency || "GBP")
+      .trim()
+      .toUpperCase() || "GBP";
 
   if (safeCurrency === "GBP" || safeCurrency === "£") {
     return `£${amount.toFixed(2).replace(/\.00$/, "")}`;
@@ -290,23 +295,25 @@ const DeputyJobDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [applying, setApplying] = useState(false);
+  const [selectedApplyRoles, setSelectedApplyRoles] = useState([]);
   const [assigningId, setAssigningId] = useState("");
   const [presentingId, setPresentingId] = useState("");
   const [manualAllocating, setManualAllocating] = useState(false);
   const [manualAllocateOpen, setManualAllocateOpen] = useState(false);
   const [manualAllocateQuery, setManualAllocateQuery] = useState("");
   const [manualAllocateSelectedId, setManualAllocateSelectedId] = useState("");
+  const [manualAllocateRole, setManualAllocateRole] = useState("");
   const [showMatchedMusicians, setShowMatchedMusicians] = useState(false);
   const [showApplications, setShowApplications] = useState(true);
   const [showNotifications, setShowNotifications] = useState(false);
   const [visibleMatchedCount, setVisibleMatchedCount] = useState(
-    INITIAL_MATCHED_VISIBLE
+    INITIAL_MATCHED_VISIBLE,
   );
   const [visibleApplicationsCount, setVisibleApplicationsCount] = useState(
-    INITIAL_APPLICATIONS_VISIBLE
+    INITIAL_APPLICATIONS_VISIBLE,
   );
   const [visibleNotificationsCount, setVisibleNotificationsCount] = useState(
-    INITIAL_NOTIFICATIONS_VISIBLE
+    INITIAL_NOTIFICATIONS_VISIBLE,
   );
 
   const { adminToken, token } = useMemo(() => getPreferredAuthToken(), []);
@@ -325,7 +332,7 @@ const DeputyJobDetail = () => {
           getStoredValue("adminEmail") ||
           getStoredValue("musicianEmail") ||
           getStoredValue("email") ||
-          ""
+          "",
       )
         .trim()
         .toLowerCase(),
@@ -335,7 +342,7 @@ const DeputyJobDetail = () => {
           getStoredValue("userRole") ||
           getStoredValue("adminRole") ||
           getStoredValue("musicianRole") ||
-          ""
+          "",
       )
         .trim()
         .toLowerCase(),
@@ -349,7 +356,7 @@ const DeputyJobDetail = () => {
             Authorization: `Bearer ${token}`,
           }
         : {},
-    [token]
+    [token],
   );
 
   const handleExpiredAuth = useCallback(() => {
@@ -384,7 +391,7 @@ const DeputyJobDetail = () => {
       setError(
         err?.response?.data?.message ||
           err?.message ||
-          "Failed to load deputy job"
+          "Failed to load deputy job",
       );
     } finally {
       setLoading(false);
@@ -409,25 +416,28 @@ const DeputyJobDetail = () => {
 
   const createdByEmail = normaliseString(job?.createdByEmail).toLowerCase();
   const managerEmail = normaliseString(
-    job?.managerEmail || job?.createdBy?.email
+    job?.managerEmail || job?.createdBy?.email,
   ).toLowerCase();
 
   const isAdminViewer = Boolean(adminToken) && token === adminToken;
   const isJobManager = Boolean(
     currentUserEmail &&
-      (currentUserEmail === createdByEmail || currentUserEmail === managerEmail)
+    (currentUserEmail === createdByEmail || currentUserEmail === managerEmail),
   );
 
-  const currentUserRole = String(currentUser?.role || "").trim().toLowerCase();
+  const currentUserRole = String(currentUser?.role || "")
+    .trim()
+    .toLowerCase();
   const isAdminEmail =
-    String(currentUserEmail || "").trim().toLowerCase() ===
-    "hello@thesupremecollective.co.uk";
+    String(currentUserEmail || "")
+      .trim()
+      .toLowerCase() === "hello@thesupremecollective.co.uk";
 
   const canManageThisJob = Boolean(
     isAdminEmail ||
-      currentUserRole === "admin" ||
-      currentUserRole === "agent" ||
-      isJobManager
+    currentUserRole === "admin" ||
+    currentUserRole === "agent" ||
+    isJobManager,
   );
 
   const canSeeApplicationsSection = canManageThisJob;
@@ -439,71 +449,103 @@ const DeputyJobDetail = () => {
     isAdminViewer
   );
 
-  const jobType = String(job?.jobType || job?.type || "").trim().toLowerCase();
+  const jobType = String(job?.jobType || job?.type || "")
+    .trim()
+    .toLowerCase();
   const isEnquiryJob =
     job?.isEnquiry === true ||
     job?.enquiryOnly === true ||
     jobType === "enquiry" ||
-    String(job?.title || "").toLowerCase().includes("enquiry");
+    String(job?.title || "")
+      .toLowerCase()
+      .includes("enquiry");
 
   const canViewMatchedMusicians = isAdminViewer;
   const canViewNotifications = isAdminViewer;
 
-  const applications = useMemo(() => toArray(job?.applications), [job?.applications]);
-
-  const applicationEmails = applications
-    .map((application) => normaliseString(application?.email).toLowerCase())
-    .filter(Boolean);
-
-  const hasApplied = Boolean(
-    currentUserEmail && applicationEmails.includes(currentUserEmail)
+  const applications = useMemo(
+    () => toArray(job?.applications),
+    [job?.applications],
   );
+  const applyRoleOptions = useMemo(() => {
+    const roles = toArray(job?.requiredInstruments)
+      .map((role) => normaliseString(role))
+      .filter(Boolean);
+    return roles.length
+      ? roles
+      : [normaliseString(job?.instrument || "Musician")];
+  }, [job?.instrument, job?.requiredInstruments]);
+  const appliedRoles = useMemo(
+    () =>
+      toArray(job?.myApplication?.appliedRoles)
+        .map(normaliseString)
+        .filter(Boolean),
+    [job?.myApplication?.appliedRoles],
+  );
+  const hasApplied = Boolean(job?.myApplication);
+  const remainingApplyRoles = applyRoleOptions.filter(
+    (role) =>
+      !appliedRoles.some(
+        (appliedRole) => appliedRole.toLowerCase() === role.toLowerCase(),
+      ),
+  );
+
+  useEffect(() => {
+    setSelectedApplyRoles((current) => {
+      const stillAvailable = current.filter((role) =>
+        remainingApplyRoles.includes(role),
+      );
+      return stillAvailable.length
+        ? stillAvailable
+        : remainingApplyRoles.slice(0, 1);
+    });
+  }, [job?._id, appliedRoles.join("|"), remainingApplyRoles.join("|")]);
 
   const canApplyToJob = Boolean(
     !isAdminViewer &&
-      hasAnyUserToken &&
-      job &&
-      !hasApplied &&
-      !isJobManager &&
-      !canManageThisJob &&
-      !["filled", "closed", "cancelled"].includes(
-        normaliseString(job?.status).toLowerCase()
-      )
+    hasAnyUserToken &&
+    job &&
+    remainingApplyRoles.length > 0 &&
+    !isJobManager &&
+    !canManageThisJob &&
+    !["filled", "closed", "cancelled"].includes(
+      normaliseString(job?.status).toLowerCase(),
+    ),
   );
 
   const shouldShowSignInToApply = Boolean(
     !isAdminViewer &&
-      !hasAnyUserToken &&
-      !canManageThisJob &&
-      job &&
-      !["filled", "closed", "cancelled"].includes(
-        normaliseString(job?.status).toLowerCase()
-      )
+    !hasAnyUserToken &&
+    !canManageThisJob &&
+    job &&
+    !["filled", "closed", "cancelled"].includes(
+      normaliseString(job?.status).toLowerCase(),
+    ),
   );
 
   const matchedMusicians = useMemo(
     () => toArray(job?.matchedMusicians),
-    [job?.matchedMusicians]
+    [job?.matchedMusicians],
   );
 
   const notifications = useMemo(
     () => toArray(job?.notifications),
-    [job?.notifications]
+    [job?.notifications],
   );
 
   const visibleMatchedMusicians = useMemo(
     () => matchedMusicians.slice(0, visibleMatchedCount),
-    [matchedMusicians, visibleMatchedCount]
+    [matchedMusicians, visibleMatchedCount],
   );
 
   const visibleApplications = useMemo(
     () => applications.slice(0, visibleApplicationsCount),
-    [applications, visibleApplicationsCount]
+    [applications, visibleApplicationsCount],
   );
 
   const visibleNotifications = useMemo(
     () => notifications.slice(0, visibleNotificationsCount),
-    [notifications, visibleNotificationsCount]
+    [notifications, visibleNotificationsCount],
   );
 
   const getApplicantFullName = (application = {}) => {
@@ -516,7 +558,9 @@ const DeputyJobDetail = () => {
     const firstName = String(application.firstName || "").trim();
     const lastName = String(application.lastName || "").trim();
     const lastInitial = lastName ? `${lastName.charAt(0).toUpperCase()}.` : "";
-    return [firstName, lastInitial].filter(Boolean).join(" ") || "Unnamed applicant";
+    return (
+      [firstName, lastInitial].filter(Boolean).join(" ") || "Unnamed applicant"
+    );
   };
 
   const handleManualAllocateClick = () => {
@@ -535,7 +579,7 @@ const DeputyJobDetail = () => {
 
     const pushCandidate = (candidate = {}) => {
       const musicianId = String(
-        candidate?.musicianId || candidate?._id || candidate?.id || ""
+        candidate?.musicianId || candidate?._id || candidate?.id || "",
       ).trim();
 
       if (!musicianId) return;
@@ -574,7 +618,9 @@ const DeputyJobDetail = () => {
   }, [applications, matchedMusicians]);
 
   const filteredManualAllocateCandidates = useMemo(() => {
-    const q = String(manualAllocateQuery || "").trim().toLowerCase();
+    const q = String(manualAllocateQuery || "")
+      .trim()
+      .toLowerCase();
     if (!q) return manualAllocateCandidates;
 
     return manualAllocateCandidates.filter((m) => {
@@ -591,7 +637,7 @@ const DeputyJobDetail = () => {
 
   const handleRedirectToLoginToApply = useCallback(() => {
     toast.info(
-      "Please log in or create an account to apply. We’ll bring you back to this job afterwards."
+      "Please log in or create an account to apply. We’ll bring you back to this job afterwards.",
     );
     navigate("/login", {
       state: { from: `/deputy-jobs/${id}` },
@@ -607,7 +653,9 @@ const DeputyJobDetail = () => {
     }
 
     const lastInitial = lastName ? `${lastName.charAt(0).toUpperCase()}.` : "";
-    return [firstName, lastInitial].filter(Boolean).join(" ") || "Unnamed musician";
+    return (
+      [firstName, lastInitial].filter(Boolean).join(" ") || "Unnamed musician"
+    );
   };
 
   const submitManualAllocate = useCallback(async () => {
@@ -617,16 +665,17 @@ const DeputyJobDetail = () => {
     }
 
     const musicianId = String(manualAllocateSelectedId || "").trim();
+    const role = manualAllocateRole || applyRoleOptions[0] || "";
 
     if (!isValidObjectId(musicianId)) {
       toast.error(
-        "Please select a musician (or enter a valid 24-character musicianId)."
+        "Please select a musician (or enter a valid 24-character musicianId).",
       );
       return;
     }
 
     const confirmed = window.confirm(
-      `Manually allocate this job to musicianId: ${musicianId}?`
+      `Manually allocate ${role || "this role"} to the selected musician?`,
     );
     if (!confirmed) return;
 
@@ -635,13 +684,13 @@ const DeputyJobDetail = () => {
 
       const res = await axios.post(
         `${backendUrl}/api/deputy-jobs/${id}/manual-allocate`,
-        { musicianId },
-        { headers, withCredentials: true }
+        { musicianId, role },
+        { headers, withCredentials: true },
       );
 
       if (!res.data?.success) {
         throw new Error(
-          res.data?.message || "Failed to manually allocate musician"
+          res.data?.message || "Failed to manually allocate musician",
         );
       }
 
@@ -657,7 +706,7 @@ const DeputyJobDetail = () => {
       toast.error(
         err?.response?.data?.message ||
           err?.message ||
-          "Failed to manually allocate musician"
+          "Failed to manually allocate musician",
       );
     } finally {
       setManualAllocating(false);
@@ -666,15 +715,17 @@ const DeputyJobDetail = () => {
     canManageThisJob,
     handleExpiredAuth,
     manualAllocateSelectedId,
+    manualAllocateRole,
+    applyRoleOptions,
     headers,
     id,
     loadJob,
   ]);
 
   const handleAllocateApplicant = useCallback(
-    async (application) => {
+    async (application, role = "") => {
       const musicianId = String(
-        application?.musicianId || application?._id || ""
+        application?.musicianId || application?._id || "",
       ).trim();
 
       if (!musicianId) {
@@ -684,8 +735,8 @@ const DeputyJobDetail = () => {
 
       const confirmed = window.confirm(
         isEnquiryJob
-          ? `Confirm ${getApplicantShortName(application)} as the client’s choice? This will mark the post as allocated.`
-          : `Allocate this job to ${getApplicantShortName(application)}?`
+          ? `Confirm ${getApplicantShortName(application)} as the client’s choice for ${role || "this role"}?`
+          : `Allocate ${role || "this role"} to ${getApplicantShortName(application)}?`,
       );
       if (!confirmed) return;
 
@@ -694,8 +745,8 @@ const DeputyJobDetail = () => {
 
         const res = await axios.post(
           `${backendUrl}/api/deputy-jobs/${id}/manual-allocate`,
-          { musicianId },
-          { headers, withCredentials: true }
+          { musicianId, role },
+          { headers, withCredentials: true },
         );
 
         if (!res.data?.success) {
@@ -713,19 +764,19 @@ const DeputyJobDetail = () => {
         toast.error(
           err?.response?.data?.message ||
             err?.message ||
-            "Failed to allocate applicant"
+            "Failed to allocate applicant",
         );
       } finally {
         setAssigningId("");
       }
     },
-    [handleExpiredAuth, headers, id, isEnquiryJob, loadJob]
+    [handleExpiredAuth, headers, id, isEnquiryJob, loadJob],
   );
 
   const handlePresentApplicant = useCallback(
-    async (application) => {
+    async (application, role) => {
       const musicianId = String(
-        application?.musicianId || application?._id || ""
+        application?.musicianId || application?._id || "",
       ).trim();
 
       if (!musicianId) {
@@ -736,7 +787,7 @@ const DeputyJobDetail = () => {
       const confirmed = window.confirm(
         `Present ${getApplicantShortName(application)} to the client for ${
           job?.title || "this enquiry"
-        }?`
+        }?`,
       );
       if (!confirmed) return;
 
@@ -745,8 +796,8 @@ const DeputyJobDetail = () => {
 
         const res = await axios.post(
           `${backendUrl}/api/deputy-jobs/${id}/present-applicant`,
-          { musicianId },
-          { headers, withCredentials: true }
+          { musicianId, role },
+          { headers, withCredentials: true },
         );
 
         if (!res.data?.success) {
@@ -764,13 +815,13 @@ const DeputyJobDetail = () => {
         toast.error(
           err?.response?.data?.message ||
             err?.message ||
-            "Failed to present applicant"
+            "Failed to present applicant",
         );
       } finally {
         setPresentingId("");
       }
     },
-    [handleExpiredAuth, headers, id, job?.title, loadJob]
+    [handleExpiredAuth, headers, id, job?.title, loadJob],
   );
 
   const fullLocation =
@@ -783,7 +834,7 @@ const DeputyJobDetail = () => {
 
   const feeText = formatMoney(
     job?.deputyNetAmount || job?.fee || 0,
-    job?.currency || "GBP"
+    job?.currency || "GBP",
   );
 
   const statusTone =
@@ -807,8 +858,8 @@ const DeputyJobDetail = () => {
   };
 
   const handleApply = useCallback(async () => {
-    if (hasApplied) {
-      toast.success("You have already applied for this deputy job");
+    if (!selectedApplyRoles.length) {
+      toast.error("Please select at least one role");
       return;
     }
 
@@ -817,11 +868,11 @@ const DeputyJobDetail = () => {
 
       const res = await axios.post(
         `${backendUrl}/api/deputy-jobs/${id}/apply`,
-        {},
+        { roles: selectedApplyRoles },
         {
           headers,
           withCredentials: true,
-        }
+        },
       );
 
       if (!res.data?.success) {
@@ -839,12 +890,12 @@ const DeputyJobDetail = () => {
       toast.error(
         err?.response?.data?.message ||
           err?.message ||
-          "Failed to apply for deputy job"
+          "Failed to apply for deputy job",
       );
     } finally {
       setApplying(false);
     }
-  }, [handleExpiredAuth, hasApplied, headers, id, loadJob]);
+  }, [handleExpiredAuth, headers, id, loadJob, selectedApplyRoles]);
 
   if (loading) {
     return (
@@ -885,26 +936,29 @@ const DeputyJobDetail = () => {
   }
 
   const getJobDisplayStatus = (job = {}) => {
-  const status = normaliseString(job.status).toLowerCase();
-  const stage = normaliseString(job.workflowStage).toLowerCase();
+    const status = normaliseString(job.status).toLowerCase();
+    const stage = normaliseString(job.workflowStage).toLowerCase();
 
-  if (["closed", "cancelled", "filled"].includes(status)) {
-    return { label: getStatusLabel(status), tone: statusToneMap[status] || "default" };
-  }
+    if (["closed", "cancelled", "filled"].includes(status)) {
+      return {
+        label: getStatusLabel(status),
+        tone: statusToneMap[status] || "default",
+      };
+    }
 
-  if (status === "allocated") {
-    return { label: "Allocation Requested", tone: "yellow" };
-  }
+    if (status === "allocated") {
+      return { label: "Allocation Requested", tone: "yellow" };
+    }
 
-  if (stage === "allocated") {
-    return { label: "Allocated", tone: "yellow" };
-  }
+    if (stage === "allocated") {
+      return { label: "Allocated", tone: "yellow" };
+    }
 
-  return {
-    label: getStatusLabel(status || stage || "open", "Open"),
-    tone: statusToneMap[status || stage] || "default",
+    return {
+      label: getStatusLabel(status || stage || "open", "Open"),
+      tone: statusToneMap[status || stage] || "default",
+    };
   };
-};
 
   const displayStatus = getJobDisplayStatus(job);
 
@@ -931,7 +985,7 @@ const DeputyJobDetail = () => {
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone={displayStatus.tone}>{displayStatus.label}</Badge>
 
-            {hasApplied ? (
+            {hasApplied && !remainingApplyRoles.length ? (
               <span className="inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
                 Applied
               </span>
@@ -942,7 +996,13 @@ const DeputyJobDetail = () => {
                 disabled={applying}
                 className="inline-flex items-center rounded-lg border border-[#ff6667] px-4 py-2 text-sm font-medium text-[#ff6667] hover:bg-[#fff1f1] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {applying ? "Applying…" : "One-click apply"}
+                {applying
+                  ? "Applying…"
+                  : appliedRoles.length
+                    ? "Apply for another role"
+                    : applyRoleOptions.length > 1
+                      ? "Apply for selected roles"
+                      : "Apply now"}
               </button>
             ) : shouldShowSignInToApply ? (
               <button
@@ -987,22 +1047,61 @@ const DeputyJobDetail = () => {
       <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
         <div className="space-y-6">
           <div className="rounded-2xl bg-white p-6 shadow">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">Job details</h2>
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">
+              Job details
+            </h2>
 
-            {hasApplied ? (
-              <div className="mb-4 inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
-                You have applied for this deputy job
-              </div>
-            ) : canApplyToJob ? (
+            {canApplyToJob ? (
               <div className="mb-4">
+                {applyRoleOptions.length > 1 ? (
+                  <fieldset className="mb-3 rounded-xl border border-gray-200 p-4">
+                    <legend className="px-1 text-sm font-semibold text-gray-900">
+                      Which roles would you like to apply for?
+                    </legend>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {remainingApplyRoles.map((role) => {
+                        const checked = selectedApplyRoles.includes(role);
+                        return (
+                          <label
+                            key={role}
+                            className={`cursor-pointer rounded-full border px-3 py-2 text-sm ${checked ? "border-[#ff6667] bg-[#fff1f1] text-[#c43f41]" : "border-gray-300 bg-white text-gray-700"}`}
+                          >
+                            <input
+                              type="checkbox"
+                              className="mr-2"
+                              checked={checked}
+                              onChange={() =>
+                                setSelectedApplyRoles((current) =>
+                                  checked
+                                    ? current.filter((item) => item !== role)
+                                    : [...current, role],
+                                )
+                              }
+                            />
+                            {role}
+                          </label>
+                        );
+                      })}
+                    </div>
+                    {appliedRoles.length ? (
+                      <p className="mt-3 text-xs text-green-700">
+                        Already applied for: {appliedRoles.join(", ")}
+                      </p>
+                    ) : null}
+                  </fieldset>
+                ) : null}
                 <button
                   type="button"
                   onClick={handleApply}
                   disabled={applying}
                   className="rounded-lg bg-[#ff6667] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {applying ? "Applying…" : "One-click apply"}
+                  {applying ? "Applying…" : "Apply for selected role"}
                 </button>
+              </div>
+            ) : hasApplied ? (
+              <div className="mb-4 inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
+                Applied for {appliedRoles.join(", ") || "this deputy job"}
               </div>
             ) : shouldShowSignInToApply ? (
               <div className="mb-4">
@@ -1017,10 +1116,22 @@ const DeputyJobDetail = () => {
             ) : null}
 
             <div>
-              <DetailRow label="Job title" value={job.title || job.instrument || "—"} />
-              <DetailRow label="Date" value={formatDateLong(job.eventDate || job.date)} />
-              <DetailRow label="Call time" value={job.callTime || job.startTime || "TBC"} />
-              <DetailRow label="Finish time" value={job.finishTime || job.endTime || "TBC"} />
+              <DetailRow
+                label="Job title"
+                value={job.title || job.instrument || "—"}
+              />
+              <DetailRow
+                label="Date"
+                value={formatDateLong(job.eventDate || job.date)}
+              />
+              <DetailRow
+                label="Call time"
+                value={job.callTime || job.startTime || "TBC"}
+              />
+              <DetailRow
+                label="Finish time"
+                value={job.finishTime || job.endTime || "TBC"}
+              />
               <DetailRow label="Location" value={fullLocation} />
               <DetailRow label="Instrument" value={job.instrument || "—"} />
               <DetailRow
@@ -1057,7 +1168,11 @@ const DeputyJobDetail = () => {
               />
               <DetailRow
                 label="Genres"
-                value={toArray(job.genres).length ? toArray(job.genres).join(", ") : "—"}
+                value={
+                  toArray(job.genres).length
+                    ? toArray(job.genres).join(", ")
+                    : "—"
+                }
               />
               <DetailRow
                 label="Set lengths"
@@ -1090,7 +1205,9 @@ const DeputyJobDetail = () => {
           {canViewMatchedMusicians ? (
             <div className="rounded-2xl bg-white p-6 shadow">
               <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-gray-900">Matched musicians</h2>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Matched musicians
+                </h2>
                 <SectionToggleButton
                   open={showMatchedMusicians}
                   onClick={() => setShowMatchedMusicians((prev) => !prev)}
@@ -1116,12 +1233,18 @@ const DeputyJobDetail = () => {
 
                       return (
                         <div
-                          key={musician.musicianId || musician._id || `${name}-${index}`}
+                          key={
+                            musician.musicianId ||
+                            musician._id ||
+                            `${name}-${index}`
+                          }
                           className="rounded-xl border border-gray-200 p-4"
                         >
                           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                             <div>
-                              <p className="font-medium text-gray-900">{name}</p>
+                              <p className="font-medium text-gray-900">
+                                {name}
+                              </p>
                               {musician.email ? (
                                 <p className="text-sm text-gray-500">
                                   {maskEmail(musician.email)}
@@ -1132,7 +1255,9 @@ const DeputyJobDetail = () => {
                               {typeof musician.matchPct === "number" ? (
                                 <Badge>{musician.matchPct}% match</Badge>
                               ) : null}
-                              {musician.notified ? <Badge tone="green">Notified</Badge> : null}
+                              {musician.notified ? (
+                                <Badge tone="green">Notified</Badge>
+                              ) : null}
                             </div>
                           </div>
                         </div>
@@ -1146,7 +1271,7 @@ const DeputyJobDetail = () => {
                         type="button"
                         onClick={() =>
                           setVisibleMatchedCount(
-                            (prev) => prev + INITIAL_MATCHED_VISIBLE
+                            (prev) => prev + INITIAL_MATCHED_VISIBLE,
                           )
                         }
                         className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -1167,7 +1292,9 @@ const DeputyJobDetail = () => {
           {canSeeApplicationsSection ? (
             <div className="rounded-2xl bg-white p-6 shadow">
               <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-gray-900">Applications</h2>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Applications
+                </h2>
 
                 <div className="flex items-center gap-2">
                   <SectionToggleButton
@@ -1183,7 +1310,9 @@ const DeputyJobDetail = () => {
                   isAdminViewer ? (
                     <button
                       type="button"
-                      onClick={() => navigate(`/deputy-jobs/${id}/applications`)}
+                      onClick={() =>
+                        navigate(`/deputy-jobs/${id}/applications`)
+                      }
                       className="rounded-full border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-black hover:text-black"
                     >
                       Manage applicants
@@ -1201,18 +1330,22 @@ const DeputyJobDetail = () => {
                 <>
                   <div className="space-y-3">
                     {visibleApplications.map((application, index) => {
-                      const musicianId = String(application?.musicianId || "").trim();
+                      const musicianId = String(
+                        application?.musicianId || "",
+                      ).trim();
                       const status = String(
-                        application?.status || "applied"
+                        application?.status || "applied",
                       ).toLowerCase();
 
                       const displayName = shouldMaskApplicantNames
                         ? getApplicantShortName(application)
                         : getApplicantFullName(application);
 
-                      const isAssigned = ["allocated", "booked", "assigned"].includes(
-                        status
-                      );
+                      const isAssigned = [
+                        "allocated",
+                        "booked",
+                        "assigned",
+                      ].includes(status);
 
                       const canAllocate =
                         (!isEnquiryJob || status === "presented") &&
@@ -1231,12 +1364,16 @@ const DeputyJobDetail = () => {
 
                       return (
                         <div
-                          key={application.musicianId || `${displayName}-${index}`}
+                          key={
+                            application.musicianId || `${displayName}-${index}`
+                          }
                           className="rounded-xl border border-gray-200 p-4"
                         >
                           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                             <div className="min-w-0">
-                              <p className="font-medium text-gray-900">{displayName}</p>
+                              <p className="font-medium text-gray-900">
+                                {displayName}
+                              </p>
 
                               {isAdminViewer && application.email ? (
                                 <p className="text-sm text-gray-500">
@@ -1252,7 +1389,8 @@ const DeputyJobDetail = () => {
 
                               {application.appliedAt ? (
                                 <span className="text-xs text-gray-500">
-                                  Applied {formatDateTime(application.appliedAt)}
+                                  Applied{" "}
+                                  {formatDateTime(application.appliedAt)}
                                 </span>
                               ) : null}
                             </div>
@@ -1263,7 +1401,14 @@ const DeputyJobDetail = () => {
                               {canAllocate ? (
                                 <button
                                   type="button"
-                                  onClick={() => handleAllocateApplicant(application)}
+                                  onClick={() =>
+                                    handleAllocateApplicant(
+                                      application,
+                                      toArray(application?.appliedRoles)[0] ||
+                                        job?.instrument ||
+                                        "Musician",
+                                    )
+                                  }
                                   disabled={isAllocating}
                                   className="inline-flex items-center rounded-full bg-black px-4 py-2 text-sm font-medium text-white hover:bg-[#ff6667] disabled:cursor-not-allowed disabled:opacity-60"
                                 >
@@ -1278,11 +1423,20 @@ const DeputyJobDetail = () => {
                               {canPresent ? (
                                 <button
                                   type="button"
-                                  onClick={() => handlePresentApplicant(application)}
+                                  onClick={() =>
+                                    handlePresentApplicant(
+                                      application,
+                                      toArray(application?.appliedRoles)[0] ||
+                                        job?.instrument ||
+                                        "Musician",
+                                    )
+                                  }
                                   disabled={isPresenting}
                                   className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
-                                  {isPresenting ? "Sending…" : "Present applicant"}
+                                  {isPresenting
+                                    ? "Sending…"
+                                    : "Present applicant"}
                                 </button>
                               ) : null}
 
@@ -1322,7 +1476,7 @@ const DeputyJobDetail = () => {
                         type="button"
                         onClick={() =>
                           setVisibleApplicationsCount(
-                            (prev) => prev + INITIAL_APPLICATIONS_VISIBLE
+                            (prev) => prev + INITIAL_APPLICATIONS_VISIBLE,
                           )
                         }
                         className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -1341,9 +1495,10 @@ const DeputyJobDetail = () => {
 
         <div className="space-y-6">
           <div className="rounded-2xl bg-white p-6 shadow">
-            <h2 className="mb-4 text-lg font-semibold text-gray-900">Summary</h2>
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">
+              Summary
+            </h2>
             <div className="space-y-3 text-sm text-gray-700">
-             
               <div className="flex items-center justify-between">
                 <span>Deputy net</span>
                 <span className="font-medium text-gray-900">{feeText}</span>
@@ -1360,7 +1515,9 @@ const DeputyJobDetail = () => {
           {canViewNotifications ? (
             <div className="rounded-2xl bg-white p-6 shadow">
               <div className="mb-4 flex items-center justify-between gap-3">
-                <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Notifications
+                </h2>
                 <SectionToggleButton
                   open={showNotifications}
                   onClick={() => setShowNotifications((prev) => !prev)}
@@ -1431,7 +1588,7 @@ const DeputyJobDetail = () => {
                         type="button"
                         onClick={() =>
                           setVisibleNotificationsCount(
-                            (prev) => prev + INITIAL_NOTIFICATIONS_VISIBLE
+                            (prev) => prev + INITIAL_NOTIFICATIONS_VISIBLE,
                           )
                         }
                         className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -1475,6 +1632,22 @@ const DeputyJobDetail = () => {
             </div>
 
             <div className="px-6 py-5">
+              {applyRoleOptions.length > 1 ? (
+                <select
+                  value={manualAllocateRole}
+                  onChange={(event) =>
+                    setManualAllocateRole(event.target.value)
+                  }
+                  className="mb-3 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 outline-none focus:border-black"
+                >
+                  <option value="">Select the role to allocate</option>
+                  {applyRoleOptions.map((role) => (
+                    <option key={role} value={role}>
+                      {role}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
               <input
                 value={manualAllocateQuery}
                 onChange={(e) => setManualAllocateQuery(e.target.value)}
@@ -1487,13 +1660,16 @@ const DeputyJobDetail = () => {
                   <div className="divide-y divide-gray-100">
                     {filteredManualAllocateCandidates.map((m) => {
                       const selected =
-                        String(manualAllocateSelectedId) === String(m.musicianId);
+                        String(manualAllocateSelectedId) ===
+                        String(m.musicianId);
 
                       return (
                         <button
                           key={m.musicianId}
                           type="button"
-                          onClick={() => setManualAllocateSelectedId(m.musicianId)}
+                          onClick={() =>
+                            setManualAllocateSelectedId(m.musicianId)
+                          }
                           className={[
                             "w-full px-4 py-3 text-left transition",
                             selected ? "bg-gray-50" : "hover:bg-gray-50",
