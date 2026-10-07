@@ -808,6 +808,7 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
       await loadSocialStatus();
     } catch (error) {
       setSocialMessage(error.response?.data?.message || "Unable to refresh social highlights.");
+      await loadSocialStatus();
     } finally {
       setSocialBusy("");
     }
