@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
 import {
@@ -174,6 +174,11 @@ const CreateDeputyJob = () => {
   });
   const [createdPreviewJob, setCreatedPreviewJob] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const initialValues = location.state?.initialValues || {};
+  const isRegularDeputyVacancy = Boolean(
+    location.state?.regularDeputyVacancy,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitLockRef = useRef(false);
   const lastSubmissionIdRef = useRef("");
@@ -504,8 +509,9 @@ if (!isEnquiryJob && createdJobId) {
                   Create a deputy job
                 </h1>
                 <p className="mt-3 text-sm sm:text-base text-gray-600 max-w-3xl leading-7">
-                  Post either a booked deputy job or an enquiry-only deputy post.
-                  Matching members can be notified automatically based on the job type.
+                  {isRegularDeputyVacancy
+                    ? "Post an ongoing regular-deputy vacancy to matched musicians. Review the prefilled role details and add the location, style and any expectations before publishing."
+                    : "Post either a booked deputy job or an enquiry-only deputy post. Matching members can be notified automatically based on the job type."}
                 </p>
               </div>
 
@@ -564,6 +570,7 @@ if (!isEnquiryJob && createdJobId) {
           ) : null
         ) : (
     <DeputyJobCreateForm
+  initialValues={initialValues}
   onSubmit={handleSubmit}
   isSubmitting={isSubmitting}
   submitLabel={isSubmitting ? "Creating job..." : "Create job"}

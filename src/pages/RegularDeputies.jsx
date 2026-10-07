@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import Title from "../components/Title";
 import { DEPUTY_GENRE_OPTIONS } from "../constants/deputyGenres";
@@ -12,6 +12,7 @@ const fullName = (person) =>
   "Not assigned";
 
 const RegularDeputies = ({ token }) => {
+  const navigate = useNavigate();
   const [acts, setActs] = useState([]);
   const [selectedActId, setSelectedActId] = useState("");
   const [selectedLineupId, setSelectedLineupId] = useState("");
@@ -270,6 +271,34 @@ const RegularDeputies = ({ token }) => {
     } finally {
       setBusy("");
     }
+  };
+
+  const postRegularDeputyVacancy = (role) => {
+    const applicationDeadline = new Date();
+    applicationDeadline.setDate(applicationDeadline.getDate() + 30);
+    const deadline = applicationDeadline.toISOString().slice(0, 10);
+    const roleName = role.roleLabel || role.role || "musician";
+    const selectedGenre = String(genreSearch[role.memberId] || "").trim();
+
+    navigate("/deputy-jobs/create", {
+      state: {
+        regularDeputyVacancy: true,
+        initialValues: {
+          jobType: "enquiry",
+          title: `Regular ${roleName} for ${selectedAct.name}`,
+          date: deadline,
+          callTime: "09:00",
+          finishTime: "17:00",
+          fee: 0,
+          requiredInstruments: [role.role || roleName],
+          requiredSkills: role.essentialAdditionalRoles || [],
+          genres: selectedGenre ? [selectedGenre] : [],
+          tags: ["regular deputy vacancy", selectedAct.name],
+          notes: `Ongoing opportunity to join ${selectedAct.name} as a regular deputy ${roleName}. The date shown is the application deadline, not a performance date. Please apply with relevant live-performance experience and availability information.`,
+          saveClientCard: false,
+        },
+      },
+    });
   };
 
   return (
@@ -647,6 +676,13 @@ const RegularDeputies = ({ token }) => {
                         </button>
                       </div>
                     </details>
+                    <button
+                      type="button"
+                      onClick={() => postRegularDeputyVacancy(role)}
+                      className="mt-3 w-full rounded border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-900 hover:bg-blue-100"
+                    >
+                      Post a regular deputy vacancy
+                    </button>
                     {roleResults.length ? (
                       <div className="mt-3">
                         <p className="mb-2 text-xs text-gray-500">
