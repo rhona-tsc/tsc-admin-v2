@@ -366,13 +366,43 @@ const ManageDeputyApplications = () => {
       return;
     }
 
-    const lines = presentedApplications.map((application) => {
+    const roleOrder =
+      Array.isArray(job?.requiredInstruments) && job.requiredInstruments.length
+        ? job.requiredInstruments
+        : [job?.instrument || "Musician"];
+    const groupedApplicants = new Map(roleOrder.map((role) => [role, []]));
+
+    presentedApplications.forEach((application) => {
+      const roles =
+        Array.isArray(application?.presentedRoles) &&
+        application.presentedRoles.length
+          ? application.presentedRoles
+          : Array.isArray(application?.appliedRoles) &&
+              application.appliedRoles.length
+            ? application.appliedRoles
+            : [job?.instrument || "Musician"];
       const shortName = getApplicantShortDisplayName(application);
       const profileLink = getApplicantProfileLink(application, job?._id || "");
-      return profileLink ? `${shortName} – ${profileLink}` : shortName;
+      const line = profileLink ? `${shortName} – ${profileLink}` : shortName;
+
+      roles.forEach((role) => {
+        const canonicalRole =
+          roleOrder.find(
+            (candidate) =>
+              normaliseString(candidate).toLowerCase() ===
+              normaliseString(role).toLowerCase(),
+          ) || normaliseString(role) || "Musician";
+        if (!groupedApplicants.has(canonicalRole)) {
+          groupedApplicants.set(canonicalRole, []);
+        }
+        groupedApplicants.get(canonicalRole).push(line);
+      });
     });
 
-    const text = lines.join("\n");
+    const text = Array.from(groupedApplicants.entries())
+      .filter(([, lines]) => lines.length)
+      .map(([role, lines]) => `${role.toUpperCase()}\n${lines.join("\n")}`)
+      .join("\n\n");
 
     try {
       setCopyingPresented(true);
@@ -384,7 +414,7 @@ const ManageDeputyApplications = () => {
     } finally {
       setCopyingPresented(false);
     }
-  }, [presentedApplications]);
+  }, [job?._id, job?.instrument, job?.requiredInstruments, presentedApplications]);
 
   const handleOpenManualAdd = useCallback(() => {
     setManualAddOpen(true);
