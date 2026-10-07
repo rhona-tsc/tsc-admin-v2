@@ -1035,14 +1035,26 @@ useEffect(() => {
                   <span className={`h-2.5 w-2.5 rounded-full ${connected ? "bg-green-500" : "bg-gray-300"}`} />
                   <span className="font-medium text-gray-800">{label}</span>
                   {connected ? (
-                    <button
-                      type="button"
-                      disabled={socialBusy === key}
-                      onClick={() => syncSocialProvider(key)}
-                      className="rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-black disabled:opacity-50"
-                    >
-                      {socialBusy === key ? "Refreshing…" : "Refresh posts"}
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        disabled={socialBusy === key}
+                        onClick={() => syncSocialProvider(key)}
+                        className="rounded-md bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-black disabled:opacity-50"
+                      >
+                        {socialBusy === key ? "Refreshing…" : "Refresh posts"}
+                      </button>
+                      {key === "tiktok" ? (
+                        <button
+                          type="button"
+                          disabled={socialBusy === key}
+                          onClick={() => connectSocialProvider(key)}
+                          className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-800 hover:bg-gray-100 disabled:opacity-50"
+                        >
+                          Reconnect
+                        </button>
+                      ) : null}
+                    </>
                   ) : (
                     <button
                       type="button"
