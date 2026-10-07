@@ -477,9 +477,20 @@ const ManageDeputyApplications = () => {
       try {
         setPresentingId(musicianId);
 
+        const role =
+          (Array.isArray(application?.appliedRoles)
+            ? application.appliedRoles.find((item) =>
+                (job?.requiredInstruments || []).some(
+                  (candidate) =>
+                    normaliseString(candidate).toLowerCase() ===
+                    normaliseString(item).toLowerCase(),
+                ),
+              )
+            : "") || job?.instrument || "";
+
         const res = await axios.post(
           `${backendUrl}/api/deputy-jobs/${id}/present-applicant`,
-          { musicianId },
+          { musicianId, role },
           { headers, withCredentials: true }
         );
 
@@ -496,7 +507,7 @@ const ManageDeputyApplications = () => {
         setPresentingId("");
       }
     },
-    [headers, id, loadApplications]
+    [headers, id, job?.instrument, job?.requiredInstruments, loadApplications]
   );
 
   if (loading) {

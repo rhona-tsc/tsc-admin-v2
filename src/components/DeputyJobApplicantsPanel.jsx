@@ -426,7 +426,12 @@ const DeputyJobApplicantsPanel = ({
 
     try {
       setPresentingId(applicationMusicianId);
-      await onPresentApplicant(mergedApplication);
+      await onPresentApplicant(
+        mergedApplication,
+        (Array.isArray(mergedApplication?.appliedRoles)
+          ? mergedApplication.appliedRoles[0]
+          : "") || job?.instrument || "",
+      );
 
       setLocalApplicants((prev) =>
         prev.map((app) => {
