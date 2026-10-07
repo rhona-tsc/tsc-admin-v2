@@ -17,6 +17,7 @@ const DeputyStepTwo = ({
     awards = [],
     tagLine = "",
   } = formData;
+  const tagLineLength = String(tagLine || "").length;
 
   const updateField = (field, value) => {
     console.log("🟨 updateField", { field, value });
@@ -46,15 +47,26 @@ const DeputyStepTwo = ({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <label className="block font-semibold mb-1">Tag Line</label>
+        <div className="mb-1 flex items-center justify-between gap-3">
+          <label htmlFor="musician-tagline" className="font-semibold">
+            Tag Line
+          </label>
+          <span
+            className={`text-sm tabular-nums ${tagLineLength >= 120 ? "font-semibold text-amber-700" : "text-gray-500"}`}
+            aria-live="polite"
+          >
+            {tagLineLength} / 120
+          </span>
+        </div>
         <p>A short and snappy description of you and your performance style</p>
         <textarea
+          id="musician-tagline"
           className="w-full p-2 border rounded"
-          maxLength={160}
+          maxLength={120}
           value={tagLine}
           onChange={(e) => {
             console.log("✏️ tagLine changed", e.target.value);
-            updateField("tagLine", e.target.value ?? "");
+            updateField("tagLine", (e.target.value ?? "").slice(0, 120));
           }}
         ></textarea>
       </div>
