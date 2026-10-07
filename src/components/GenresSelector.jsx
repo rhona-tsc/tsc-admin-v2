@@ -1,29 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { DEPUTY_GENRE_OPTIONS } from "../constants/deputyGenres";
 
 const GenresSelector = ({ selectedGenres = [], onChange = () => {} }) => {
-  const genresList = [
-    "Soul & Motown",
-    "Funk & Disco",
-    "Indie & Rock",
-    "Alternative & Punk",
-    "Pop & Classic Pop",
-    "Dance & Electronic",
-    "Reggae & Afrobeat",
-    "RnB, HipHop & Garage",
-    "80s",
-    "90s",
-    "00s",
-    "Latin",
-    "Folk & Acoustic",
-    "Roaming",
-    "Jazz & Swing",
-    "Classical",
-    "Israeli",
-    "Other",
-  ];
-
   const standardSet = useMemo(
-    () => new Set(genresList.filter((g) => g !== "Other")),
+    () => new Set(DEPUTY_GENRE_OPTIONS.filter((g) => g !== "Other")),
     []
   );
 
@@ -138,7 +118,7 @@ const GenresSelector = ({ selectedGenres = [], onChange = () => {} }) => {
       </label>
 
       <div className="grid grid-cols-2 gap-2 text-sm">
-        {genresList.map((genre) => (
+        {DEPUTY_GENRE_OPTIONS.map((genre) => (
           <label key={genre} className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
