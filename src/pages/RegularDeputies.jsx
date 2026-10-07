@@ -24,6 +24,7 @@ const RegularDeputies = ({ token }) => {
   const [busy, setBusy] = useState("");
   const [detailsLinks, setDetailsLinks] = useState({});
   const [detailsDelivery, setDetailsDelivery] = useState({});
+  const [inviteDrafts, setInviteDrafts] = useState({});
 
   const load = useCallback(async () => {
     try {
@@ -234,6 +235,43 @@ const RegularDeputies = ({ token }) => {
     }
   };
 
+  const updateInviteDraft = (memberId, field, value) => {
+    setInviteDrafts((current) => ({
+      ...current,
+      [memberId]: { ...(current[memberId] || {}), [field]: value },
+    }));
+  };
+
+  const inviteDeputy = async (role) => {
+    const draft = inviteDrafts[role.memberId] || {};
+    if (!draft.firstName?.trim() || !draft.email?.trim()) {
+      return toast.error("Enter their first name and email address");
+    }
+    try {
+      setBusy(`${role.memberId}:invite`);
+      const response = await axios.post(
+        `${backendUrl}/api/regular-deputies/acts/${selectedAct._id}/lineups/${selectedLineup._id}/members/${role.memberId}/invite`,
+        {
+          firstName: draft.firstName.trim(),
+          lastName: draft.lastName?.trim() || "",
+          email: draft.email.trim(),
+        },
+        { headers: authHeaders(token) },
+      );
+      toast.success(
+        response.data.emailSent === false
+          ? "Deputy was added, but the invitation email could not be delivered"
+          : "Deputy added and invitation emailed",
+      );
+      setInviteDrafts((current) => ({ ...current, [role.memberId]: {} }));
+      await load();
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Could not invite deputy");
+    } finally {
+      setBusy("");
+    }
+  };
+
   return (
     <div className="px-4 py-8 sm:px-6">
       <Title text1="REGULAR" text2="DEPUTIES" />
@@ -393,9 +431,16 @@ const RegularDeputies = ({ token }) => {
                           className="rounded border px-3 py-2 text-sm"
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="min-w-0 flex-1 truncate">
-                              {fullName(deputy)}
-                            </span>
+                            <div className="min-w-0 flex-1">
+                              <span className="block truncate">
+                                {fullName(deputy)}
+                              </span>
+                              {deputy.invitePending ? (
+                                <span className="mt-1 inline-block rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">
+                                  Invite pending
+                                </span>
+                              ) : null}
+                            </div>
                             <div className="flex shrink-0 items-center gap-1">
                               <button
                                 type="button"
@@ -542,6 +587,66 @@ const RegularDeputies = ({ token }) => {
                         </button>
                       </div>
                     </div>
+                    <details className="mt-4 rounded border border-dashed border-[#ff999a] bg-[#fff8f8] p-3">
+                      <summary className="cursor-pointer text-sm font-semibold text-[#b53639]">
+                        Invite someone not yet on The Books
+                      </summary>
+                      <p className="mt-2 text-xs text-gray-600">
+                        They will be added to this role as an invite-pending
+                        deputy and emailed a secure link to create their profile.
+                      </p>
+                      <div className="mt-3 grid gap-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            value={inviteDrafts[role.memberId]?.firstName || ""}
+                            onChange={(event) =>
+                              updateInviteDraft(
+                                role.memberId,
+                                "firstName",
+                                event.target.value,
+                              )
+                            }
+                            placeholder="First name"
+                            className="min-w-0 rounded border bg-white px-3 py-2 text-sm"
+                          />
+                          <input
+                            value={inviteDrafts[role.memberId]?.lastName || ""}
+                            onChange={(event) =>
+                              updateInviteDraft(
+                                role.memberId,
+                                "lastName",
+                                event.target.value,
+                              )
+                            }
+                            placeholder="Last name"
+                            className="min-w-0 rounded border bg-white px-3 py-2 text-sm"
+                          />
+                        </div>
+                        <input
+                          type="email"
+                          value={inviteDrafts[role.memberId]?.email || ""}
+                          onChange={(event) =>
+                            updateInviteDraft(
+                              role.memberId,
+                              "email",
+                              event.target.value,
+                            )
+                          }
+                          placeholder="Email address"
+                          className="rounded border bg-white px-3 py-2 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => inviteDeputy(role)}
+                          disabled={Boolean(busy)}
+                          className="rounded bg-[#ff6667] px-3 py-2 text-sm font-semibold text-white hover:bg-[#f45152] disabled:opacity-50"
+                        >
+                          {busy === `${role.memberId}:invite`
+                            ? "Sending invitation…"
+                            : "Add deputy and send invitation"}
+                        </button>
+                      </div>
+                    </details>
                     {roleResults.length ? (
                       <div className="mt-3">
                         <p className="mb-2 text-xs text-gray-500">
