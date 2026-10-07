@@ -26,6 +26,7 @@ const RegularDeputies = ({ token }) => {
   const [detailsLinks, setDetailsLinks] = useState({});
   const [detailsDelivery, setDetailsDelivery] = useState({});
   const [inviteDrafts, setInviteDrafts] = useState({});
+  const [testedInviteDrafts, setTestedInviteDrafts] = useState({});
 
   const load = useCallback(async () => {
     try {
@@ -241,12 +242,53 @@ const RegularDeputies = ({ token }) => {
       ...current,
       [memberId]: { ...(current[memberId] || {}), [field]: value },
     }));
+    setTestedInviteDrafts((current) => ({ ...current, [memberId]: "" }));
+  };
+
+  const inviteDraftKey = (memberId) => {
+    const draft = inviteDrafts[memberId] || {};
+    return JSON.stringify({
+      firstName: draft.firstName?.trim() || "",
+      lastName: draft.lastName?.trim() || "",
+      email: draft.email?.trim().toLowerCase() || "",
+    });
+  };
+
+  const sendInviteTest = async (role) => {
+    const draft = inviteDrafts[role.memberId] || {};
+    if (!draft.firstName?.trim() || !draft.email?.trim()) {
+      return toast.error("Enter their first name and email address");
+    }
+    try {
+      setBusy(`${role.memberId}:invite-test`);
+      await axios.post(
+        `${backendUrl}/api/regular-deputies/acts/${selectedAct._id}/lineups/${selectedLineup._id}/members/${role.memberId}/invite-preview`,
+        {
+          firstName: draft.firstName.trim(),
+          lastName: draft.lastName?.trim() || "",
+          email: draft.email.trim(),
+        },
+        { headers: authHeaders(token) },
+      );
+      setTestedInviteDrafts((current) => ({
+        ...current,
+        [role.memberId]: inviteDraftKey(role.memberId),
+      }));
+      toast.success("Test invitation sent to hello@thesupremecollective.co.uk");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Could not send the test invitation");
+    } finally {
+      setBusy("");
+    }
   };
 
   const inviteDeputy = async (role) => {
     const draft = inviteDrafts[role.memberId] || {};
     if (!draft.firstName?.trim() || !draft.email?.trim()) {
       return toast.error("Enter their first name and email address");
+    }
+    if (testedInviteDrafts[role.memberId] !== inviteDraftKey(role.memberId)) {
+      return toast.error("Send yourself a test of this invitation before sending it live");
     }
     try {
       setBusy(`${role.memberId}:invite`);
@@ -265,6 +307,7 @@ const RegularDeputies = ({ token }) => {
           : "Deputy added and invitation emailed",
       );
       setInviteDrafts((current) => ({ ...current, [role.memberId]: {} }));
+      setTestedInviteDrafts((current) => ({ ...current, [role.memberId]: "" }));
       await load();
     } catch (error) {
       toast.error(error?.response?.data?.message || "Could not invite deputy");
@@ -621,8 +664,9 @@ const RegularDeputies = ({ token }) => {
                         Invite someone not yet on The Books
                       </summary>
                       <p className="mt-2 text-xs text-gray-600">
-                        They will be added to this role as an invite-pending
-                        deputy and emailed a secure link to create their profile.
+                        First send a test to hello@thesupremecollective.co.uk.
+                        Nothing is sent to the deputy until you approve the test
+                        and use the live invitation button.
                       </p>
                       <div className="mt-3 grid gap-2">
                         <div className="grid grid-cols-2 gap-2">
@@ -664,16 +708,39 @@ const RegularDeputies = ({ token }) => {
                           placeholder="Email address"
                           className="rounded border bg-white px-3 py-2 text-sm"
                         />
-                        <button
-                          type="button"
-                          onClick={() => inviteDeputy(role)}
-                          disabled={Boolean(busy)}
-                          className="rounded bg-[#ff6667] px-3 py-2 text-sm font-semibold text-white hover:bg-[#f45152] disabled:opacity-50"
-                        >
-                          {busy === `${role.memberId}:invite`
-                            ? "Sending invitation…"
-                            : "Add deputy and send invitation"}
-                        </button>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <button
+                            type="button"
+                            onClick={() => sendInviteTest(role)}
+                            disabled={Boolean(busy)}
+                            className="rounded border border-[#ff6667] bg-white px-3 py-2 text-sm font-semibold text-[#b53639] hover:bg-[#fff0f0] disabled:opacity-50"
+                          >
+                            {busy === `${role.memberId}:invite-test`
+                              ? "Sending test…"
+                              : "Send test to me"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => inviteDeputy(role)}
+                            disabled={
+                              Boolean(busy) ||
+                              testedInviteDrafts[role.memberId] !==
+                                inviteDraftKey(role.memberId)
+                            }
+                            className="rounded bg-[#ff6667] px-3 py-2 text-sm font-semibold text-white hover:bg-[#f45152] disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {busy === `${role.memberId}:invite`
+                              ? "Sending invitation…"
+                              : "Approve and send live"}
+                          </button>
+                        </div>
+                        {testedInviteDrafts[role.memberId] ===
+                        inviteDraftKey(role.memberId) ? (
+                          <p className="text-xs font-medium text-green-700">
+                            Test sent. The live invitation is now available and
+                            will BCC hello@thesupremecollective.co.uk.
+                          </p>
+                        ) : null}
                       </div>
                     </details>
                     <button
