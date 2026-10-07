@@ -814,6 +814,29 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
     }
   };
 
+  const disconnectSocialProvider = async (provider) => {
+    const label = provider === "meta" ? "Instagram / Facebook" : "TikTok";
+    if (!window.confirm(`Disconnect ${label}? This will remove its imported posts from your profile.`)) return;
+    setSocialBusy(provider);
+    setSocialMessage("");
+    try {
+      const response = await axios.delete(
+        `${backendUrl}/api/social-oauth/${provider}`,
+        { headers, withCredentials: true },
+      );
+      const removedCount = Number(response.data?.removedPostCount || 0);
+      setSocialMessage(
+        `${label} disconnected${removedCount ? ` and ${removedCount} imported ${removedCount === 1 ? "post was" : "posts were"} removed` : ""}.`,
+      );
+      await loadSocialStatus();
+    } catch (error) {
+      setSocialMessage(error.response?.data?.message || `Unable to disconnect ${label}.`);
+      await loadSocialStatus();
+    } finally {
+      setSocialBusy("");
+    }
+  };
+
   const fetchPeerReview = async () => {
     const id = storedUserId || userId;
     if (!id) return;
@@ -1057,6 +1080,14 @@ useEffect(() => {
                           Reconnect
                         </button>
                       ) : null}
+                      <button
+                        type="button"
+                        disabled={socialBusy === key}
+                        onClick={() => disconnectSocialProvider(key)}
+                        className="rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Disconnect
+                      </button>
                     </>
                   ) : (
                     <button
