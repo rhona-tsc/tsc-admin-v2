@@ -454,7 +454,12 @@ const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
             Automatic social highlights
           </legend>
           <p className="mb-3 text-sm text-gray-600">
-            Connect Instagram, TikTok or Facebook from your musician dashboard so selected or recent public performance posts can appear automatically. You will approve read-only access directly with each platform before anything is imported, and your public profile will not show your username or profile link.
+            Connect Instagram, TikTok or Facebook from your musician dashboard
+            to add image-only highlights from selected or recent public
+            performance posts. We will not show your username or profile link,
+            and linked social posts will not play as embedded social videos. If
+            you want a particular social video to play on your profile, submit
+            that video separately in the video section of your musician form.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row sm:gap-6">
             <label className="inline-flex items-center gap-2 text-sm text-gray-800">
@@ -485,9 +490,10 @@ const DeputyStepThree = ({ formData = {}, setFormData = () => {} }) => {
             Individual highlight posts (optional)
           </h3>
           <p className="mt-1 text-sm text-gray-600">
-            Add a public post or reel you would be happy for us to feature. Your
-            username and profile link will not be shown on your public musician
-            profile.
+            Add a public post or reel you would be happy for us to feature as
+            an image-only highlight. Your username and profile link will not be
+            shown. To feature the video itself, submit the original video or a
+            downloadable file link separately in the video section.
           </p>
 
           <div className="mt-4 space-y-3">

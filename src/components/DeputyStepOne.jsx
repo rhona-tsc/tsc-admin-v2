@@ -1022,7 +1022,8 @@ const DeputyStepOne = ({
       <div className="mt-4">
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
           <p className="font-semibold">Video link guidance</p>
-          <p className="mt-1">YouTube, Vimeo, Instagram, TikTok and Facebook links are welcome and will be checked manually. For automated checks, use a direct video file or a public Google Drive/Dropbox file.</p>
+          <p className="mt-1">To include a video from Instagram, TikTok or Facebook as a playable profile video, cherry-pick it and submit the original video file or a public downloadable link here. Social-account connections create image-only highlights and do not embed the social video or reveal your handle.</p>
+          <p className="mt-1">YouTube and Vimeo links can also be checked manually. For automated checks, use a direct video file or a public Google Drive/Dropbox file.</p>
           <p className="mt-1">For Google Drive, choose one video file (not a folder), set access to “Anyone with the link – Viewer”, and allow downloads.</p>
         </div>
         <label className="block font-semibold mb-1">
@@ -1107,7 +1108,7 @@ const DeputyStepOne = ({
       <div className="mt-4 rounded-lg border border-gray-200 p-4">
         <label className="block font-semibold mb-1">Social highlight posts</label>
         <p className="text-sm text-gray-500 mb-3">
-          Add links to individual Instagram posts or reels, TikTok videos, or Facebook posts/videos. Use a specific post URL rather than your profile handle. These appear below your audio without an added caption from this website.
+          Add links to individual Instagram, TikTok or Facebook posts to use as image-only highlights. Use a specific post URL rather than your profile handle. These links will not create a playable social embed or display your username. Submit any video you want visitors to play separately in the video sections above.
         </p>
         <SortableVideoLinkList
           links={asVideoLinksArray(formData.socialHighlightPostLinks)}

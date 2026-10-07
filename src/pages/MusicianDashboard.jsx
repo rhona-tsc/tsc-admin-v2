@@ -1009,7 +1009,10 @@ useEffect(() => {
             <div>
               <p className="font-semibold">Connect your social media accounts to your profile</p>
               <p className="mt-1 max-w-3xl text-blue-800">
-                Securely import selected or recent performance posts.
+                Securely import image-only highlights from selected or recent
+                performance posts. Social handles and profile links are not
+                displayed. Submit any videos you want to be playable separately
+                through your musician form.
               </p>
             </div>
             <button
