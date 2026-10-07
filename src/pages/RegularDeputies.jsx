@@ -15,6 +15,9 @@ const RegularDeputies = ({ token }) => {
   const [acts, setActs] = useState([]);
   const [selectedActId, setSelectedActId] = useState("");
   const [selectedLineupId, setSelectedLineupId] = useState("");
+  const [sourceActId, setSourceActId] = useState("");
+  const [sourceLineupId, setSourceLineupId] = useState("");
+  const [copyToAllLineups, setCopyToAllLineups] = useState(true);
   const [search, setSearch] = useState({});
   const [genreSearch, setGenreSearch] = useState({});
   const [results, setResults] = useState({});
@@ -55,6 +58,24 @@ const RegularDeputies = ({ token }) => {
   const selectedLineup = selectedAct?.lineups?.find(
     (lineup) => String(lineup._id) === selectedLineupId,
   );
+  const sourceAct = useMemo(
+    () => acts.find((act) => String(act._id) === sourceActId),
+    [acts, sourceActId],
+  );
+  const sourceLineup = sourceAct?.lineups?.find(
+    (lineup) => String(lineup._id) === sourceLineupId,
+  );
+  useEffect(() => {
+    if (!sourceAct) {
+      setSourceLineupId("");
+      return;
+    }
+    setSourceLineupId((current) =>
+      sourceAct.lineups.some((lineup) => String(lineup._id) === current)
+        ? current
+        : String(sourceAct.lineups[0]?._id || ""),
+    );
+  }, [sourceAct]);
 
   const findMusicians = async (memberId, genreOverride) => {
     const query = String(search[memberId] || "").trim();
@@ -170,6 +191,49 @@ const RegularDeputies = ({ token }) => {
     }
   };
 
+  const copyFromAct = async () => {
+    if (!selectedAct || !selectedLineup || !sourceAct || !sourceLineup) return;
+    const destination = copyToAllLineups
+      ? `every lineup in ${selectedAct.name}`
+      : selectedLineup.actSize || "the selected lineup";
+    if (
+      !window.confirm(
+        `Copy regular deputies from ${sourceAct.name} — ${sourceLineup.actSize || "selected lineup"} into ${destination}? Matching roles will be updated and existing additional deputies will be kept.`,
+      )
+    )
+      return;
+
+    try {
+      setBusy("copy-from-act");
+      const response = await axios.post(
+        `${backendUrl}/api/regular-deputies/acts/${selectedAct._id}/copy-from-act`,
+        {
+          sourceActId: sourceAct._id,
+          sourceLineupId: sourceLineup._id,
+          targetLineupId: selectedLineup._id,
+          applyToAllLineups: copyToAllLineups,
+        },
+        { headers: authHeaders(token) },
+      );
+      const added = response.data.deputiesAdded || 0;
+      const matched = response.data.rolesMatched || 0;
+      toast.success(
+        added
+          ? `${added} ${added === 1 ? "deputy was" : "deputies were"} copied across ${matched} matched ${matched === 1 ? "role" : "roles"}`
+          : matched
+            ? "The matched roles already contain these deputies"
+            : "No matching roles were found",
+      );
+      await load();
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Could not copy deputies from that act",
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+
   return (
     <div className="px-4 py-8 sm:px-6">
       <Title text1="REGULAR" text2="DEPUTIES" />
@@ -204,6 +268,72 @@ const RegularDeputies = ({ token }) => {
           ))}
         </select>
       </div>
+      {selectedAct && selectedLineup ? (
+        <section className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
+          <div className="flex flex-col gap-1">
+            <h2 className="font-semibold text-blue-950">
+              Copy deputies from another act
+            </h2>
+            <p className="text-sm text-blue-800">
+              Deputies are matched by original musician first, then by role.
+              Existing additional deputies are retained and duplicates are
+              skipped.
+            </p>
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <select
+              value={sourceActId}
+              onChange={(event) => setSourceActId(event.target.value)}
+              className="rounded border bg-white px-3 py-2"
+            >
+              <option value="">Choose source act</option>
+              {acts
+                .filter((act) => String(act._id) !== selectedActId)
+                .map((act) => (
+                  <option key={act._id} value={act._id}>
+                    {act.name} ({act.status})
+                  </option>
+                ))}
+            </select>
+            <select
+              value={sourceLineupId}
+              onChange={(event) => setSourceLineupId(event.target.value)}
+              disabled={!sourceAct}
+              className="rounded border bg-white px-3 py-2 disabled:bg-gray-100"
+            >
+              <option value="">Choose source lineup</option>
+              {(sourceAct?.lineups || []).map((lineup, index) => (
+                <option key={lineup._id} value={lineup._id}>
+                  {lineup.actSize || `Lineup ${index + 1}`} —{" "}
+                  {(lineup.roles || []).reduce(
+                    (total, role) => total + (role.deputies || []).length,
+                    0,
+                  )}{" "}
+                  deputies
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mt-3 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+            <label className="inline-flex items-center gap-2 text-sm text-blue-950">
+              <input
+                type="checkbox"
+                checked={copyToAllLineups}
+                onChange={(event) => setCopyToAllLineups(event.target.checked)}
+              />
+              Copy into every lineup of {selectedAct.name}
+            </label>
+            <button
+              type="button"
+              onClick={copyFromAct}
+              disabled={!sourceLineup || Boolean(busy)}
+              className="rounded bg-blue-900 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-950 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {busy === "copy-from-act" ? "Copying deputies…" : "Copy deputies"}
+            </button>
+          </div>
+        </section>
+      ) : null}
       {selectedAct?.lineups?.length > 1 ? (
         <div className="mt-3 flex justify-end">
           <button
