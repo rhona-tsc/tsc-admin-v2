@@ -739,6 +739,21 @@ const BOOKING_BOARD_COLUMNS = [
   "Row actions",
 ];
 
+// One shared width map keeps the sticky heading strip aligned with every
+// editable control in the nested booking rows.
+const BOOKING_BOARD_COLUMN_WIDTHS = [
+  180, 150, 110, 100, 150, 150, 150, 180, 150, 150, 160, 110, 160, 150,
+  230, 260, 160, 180, 180, 280, 140, 100, 220, 220, 240, 130, 180, 160,
+  200, 180, 200, 220, 160,
+];
+const BOOKING_BOARD_GRID_TEMPLATE = BOOKING_BOARD_COLUMN_WIDTHS.map(
+  (width) => `${width}px`,
+).join(" ");
+const BOOKING_BOARD_WIDTH = BOOKING_BOARD_COLUMN_WIDTHS.reduce(
+  (sum, width) => sum + width,
+  0,
+);
+
 const inputClass =
   "w-full min-w-[105px] rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs whitespace-nowrap focus:border-sky-400 focus:ring-1 focus:ring-sky-100";
 
@@ -3275,6 +3290,8 @@ export default function BookingBoard() {
   const [contractFile, setContractFile] = useState(null);
   const [supportingInvoiceFile, setSupportingInvoiceFile] = useState(null);
   const [importingContract, setImportingContract] = useState(false);
+  const [contractImportWillOverwrite, setContractImportWillOverwrite] =
+    useState(false);
   const [hideInternalTests, setHideInternalTests] = useState(true);
   const [editingRow, setEditingRow] = useState(null);
   const [editForm, setEditForm] = useState(null);
@@ -4589,8 +4606,32 @@ export default function BookingBoard() {
       } catch {}
 
       if (json?.success) {
-        setRows((r) => [...r, json.row]);
+        setRows((currentRows) => {
+          const savedId = String(json.row?._id || "");
+          const savedRef = String(json.row?.bookingRef || "")
+            .trim()
+            .toLowerCase();
+          const existingIndex = currentRows.findIndex(
+            (row) =>
+              (savedId && String(row?._id || "") === savedId) ||
+              (savedRef &&
+                String(row?.bookingRef || "").trim().toLowerCase() ===
+                  savedRef),
+          );
+
+          if (existingIndex === -1) return [...currentRows, json.row];
+
+          return currentRows.map((row, index) =>
+            index === existingIndex ? json.row : row,
+          );
+        });
         setAdding(false);
+        setContractImportWillOverwrite(false);
+        if (json.operation === "updated") {
+          window.alert(
+            `Booking ${json.row?.bookingRef || ""} was updated from the re-uploaded contract.`,
+          );
+        }
         setNewRow({
           bookerName: "",
           clientFirstNames: "",
@@ -4650,12 +4691,22 @@ export default function BookingBoard() {
       }
 
       setNewRow((current) => ({ ...current, ...json.draft }));
+      const importedRef = String(json.draft?.bookingRef || "")
+        .trim()
+        .toLowerCase();
+      const willOverwrite = rows.some(
+        (row) =>
+          String(row?.bookingRef || "").trim().toLowerCase() === importedRef,
+      );
+      setContractImportWillOverwrite(willOverwrite);
       setAdding(true);
       const missing = json.draft?.importMetadata?.incompleteFields || [];
       window.alert(
-        missing.length
-          ? `Contract imported for review. Still to add later: ${missing.join(", ")}.`
-          : "Contract imported. Please review the details, then save the booking.",
+        willOverwrite
+          ? `Contract imported for review. Saving will update the existing ${json.draft.bookingRef} booking rather than create a duplicate.${missing.length ? ` Still to add later: ${missing.join(", ")}.` : ""}`
+          : missing.length
+            ? `Contract imported for review. Still to add later: ${missing.join(", ")}.`
+            : "Contract imported. Please review the details, then save the booking.",
       );
     } catch (error) {
       window.alert(error?.message || "Could not import this contract.");
@@ -4829,9 +4880,11 @@ export default function BookingBoard() {
             <div className="overflow-auto max-h-[48vh]">
               {!collapsedSections[section.key] && section.rows.length > 0 ? (
                 <div
-                  className="sticky top-0 z-30 grid min-w-[4200px] bg-slate-50 text-left text-[11px] uppercase tracking-wide text-gray-700"
+                  className="sticky top-0 z-30 grid bg-slate-50 text-left text-[11px] uppercase tracking-wide text-gray-700"
                   style={{
-                    gridTemplateColumns: `180px repeat(${BOOKING_BOARD_COLUMNS.length - 1}, minmax(0, 1fr))`,
+                    gridTemplateColumns: BOOKING_BOARD_GRID_TEMPLATE,
+                    minWidth: BOOKING_BOARD_WIDTH,
+                    width: BOOKING_BOARD_WIDTH,
                   }}
                 >
                   {BOOKING_BOARD_COLUMNS.map((label, index) => (
@@ -4839,7 +4892,7 @@ export default function BookingBoard() {
                       key={label}
                       className={
                         index === 0
-                          ? "sticky left-0 z-40 bg-slate-50 px-3 py-2 border-b-2 border-r-2 border-slate-200 shadow-[4px_0_8px_-6px_rgba(15,23,42,0.45)]"
+                          ? "sticky left-0 z-[60] bg-slate-50 px-3 py-2 border-b-2 border-r-2 border-slate-200 shadow-[4px_0_8px_-6px_rgba(15,23,42,0.45)]"
                           : "px-3 py-2 border-b-2 border-slate-200 whitespace-nowrap"
                       }
                     >
@@ -4848,7 +4901,13 @@ export default function BookingBoard() {
                   ))}
                 </div>
               ) : null}
-              <table className="min-w-[4200px] table-fixed text-xs">
+              <table
+                className="table-fixed text-xs"
+                style={{
+                  minWidth: BOOKING_BOARD_WIDTH,
+                  width: BOOKING_BOARD_WIDTH,
+                }}
+              >
                 <colgroup>
                   <col style={{ width: 180 }} /> {/* Client */}
                   <col style={{ width: 145 }} /> {/* Ref */}
@@ -4990,7 +5049,23 @@ export default function BookingBoard() {
                           <tr className="bg-white align-top border-b-2 border-slate-200">
                             <td colSpan={7} className="p-0">
                               <div className="overflow-visible">
-                                <table className="min-w-[4200px] table-fixed text-xs">
+                                <table
+                                  className="table-fixed border-separate border-spacing-0 text-xs"
+                                  style={{
+                                    minWidth: BOOKING_BOARD_WIDTH,
+                                    width: BOOKING_BOARD_WIDTH,
+                                  }}
+                                >
+                                  <colgroup>
+                                    {BOOKING_BOARD_COLUMN_WIDTHS.map(
+                                      (width, index) => (
+                                        <col
+                                          key={`${BOOKING_BOARD_COLUMNS[index]}-${width}`}
+                                          style={{ width }}
+                                        />
+                                      ),
+                                    )}
+                                  </colgroup>
                                   <thead className="hidden">
                                     <tr>
                                       {BOOKING_BOARD_COLUMNS.map((label, index) => (
@@ -5010,7 +5085,7 @@ export default function BookingBoard() {
                                   </thead>
                                   <tbody>
                                     <tr className="align-middle">
-                                      <td className="sticky left-0 z-20 w-[180px] min-w-[180px] max-w-[180px] bg-white px-3 py-2 border-r-2 border-slate-200 shadow-[4px_0_8px_-6px_rgba(15,23,42,0.45)]">
+                                      <td className="sticky left-0 z-40 w-[180px] min-w-[180px] max-w-[180px] bg-white px-3 py-2 border-r-2 border-slate-200 shadow-[6px_0_10px_-7px_rgba(15,23,42,0.65)]">
                                         <InlineInput
                                           value={clientFirstNames}
                                           placeholder="Client name"
@@ -6196,7 +6271,9 @@ export default function BookingBoard() {
                               className="px-3 py-2 bg-black text-white rounded"
                               onClick={postManualRow}
                             >
-                              Save
+                              {contractImportWillOverwrite
+                                ? "Update existing booking"
+                                : "Save"}
                             </button>
                             <button
                               className="px-3 py-2 border rounded"
