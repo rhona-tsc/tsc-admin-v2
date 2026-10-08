@@ -4668,7 +4668,7 @@ export default function BookingBoard() {
 
   const previewContractImport = async () => {
     if (!contractFile) {
-      window.alert("Please choose a contract PDF first.");
+      window.alert("Please choose a booking or contract PDF first.");
       return;
     }
 
@@ -4777,11 +4777,11 @@ export default function BookingBoard() {
 
       <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-3">
         <div className="mb-2 text-sm font-semibold text-blue-950">
-          Import a booking from a contract
+          Import a booking from PDFs
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-xs text-gray-700">
-            Contract PDF
+            Booking or contract PDF
             <input
               type="file"
               accept="application/pdf,.pdf"
@@ -4789,7 +4789,7 @@ export default function BookingBoard() {
             />
           </label>
           <label className="flex flex-col gap-1 text-xs text-gray-700">
-            Invoice PDF (optional)
+            Supporting email or invoice PDF (optional)
             <input
               type="file"
               accept="application/pdf,.pdf"
