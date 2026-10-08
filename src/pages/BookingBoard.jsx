@@ -1871,9 +1871,22 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
               {value.actTscName || value.actName || "—"}
             </div>
           </div>
-          <button className="px-3 py-2 border rounded" onClick={onClose}>
-            Close
-          </button>
+          <div className="flex flex-wrap justify-end gap-2">
+            {Number(row?.depositInvoice?.gross || 0) > 0 ? (
+              <a
+                className="rounded bg-amber-100 px-3 py-2 text-sm font-medium text-amber-950 hover:bg-amber-200"
+                href={`${API_BASE}/invoices/board-invoice/${row._id}?invoiceType=deposit`}
+                target="_blank"
+                rel="noreferrer"
+                download
+              >
+                Download deposit invoice
+              </a>
+            ) : null}
+            <button className="px-3 py-2 border rounded" onClick={onClose}>
+              Close
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
