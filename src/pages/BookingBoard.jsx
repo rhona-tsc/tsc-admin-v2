@@ -227,6 +227,23 @@ const getAccountingSplit = (row, gross, deposit) => {
 const fmtMoney0 = (n) =>
   `£${Number(n || 0).toLocaleString("en-GB", { maximumFractionDigits: 0 })}`;
 
+const getBookingCurrency = (row) =>
+  String(
+    row?.accounting?.currency ||
+      row?.depositInvoice?.currency ||
+      row?.totals?.currency ||
+      row?.payments?.currency ||
+      "GBP",
+  ).toUpperCase();
+
+const fmtBookingMoney = (row, value, fractionDigits = 0) =>
+  new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: getBookingCurrency(row),
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  }).format(Number(value || 0));
+
 const getDisplayArrivalTime = (row) => {
   return (
     row?.arrivalTime ||
@@ -3840,8 +3857,6 @@ export default function BookingBoard() {
     }
   };
 
-  const money = (n) => fmtMoney0(n);
-
   // --- Helpers for deposit, band size, booking details summary ---
   const calcDeposit = (gross) => {
     if (!gross) return null;
@@ -4921,7 +4936,7 @@ export default function BookingBoard() {
                             {summary.actName || "—"}
                           </td>
                           <td className="px-3 py-2">
-                            {summary.gross ? money(summary.gross) : "—"}
+                            {summary.gross ? fmtBookingMoney(r, summary.gross) : "—"}
                           </td>
                           <td className="px-3 py-2">
                             <div className="text-[11px] text-gray-600">
@@ -5084,7 +5099,7 @@ export default function BookingBoard() {
                                               {" "}
                                               <InlineInput
                                                 value={
-                                                  gross ? money(gross) : ""
+                                                  gross ? fmtBookingMoney(r, gross) : ""
                                                 }
                                                 onCommit={(val) => {
                                                   const nextGross = parseMoneyInput(val);
@@ -5104,37 +5119,18 @@ export default function BookingBoard() {
                                                 >
                                                   Comm
                                                 </span>
-                                                : £
-                                                {Number(
-                                                  split.commissionGross || 0,
-                                                ).toLocaleString("en-GB", {
-                                                  minimumFractionDigits: 2,
-                                                  maximumFractionDigits: 2,
-                                                })}
+                                                : {fmtBookingMoney(r, split.commissionGross, 2)}
                                                 {split?.commissionVat ? (
                                                   <>
                                                     {" "}
-                                                    (VAT £
-                                                    {Number(
-                                                      split.commissionVat || 0,
-                                                    ).toLocaleString("en-GB", {
-                                                      minimumFractionDigits: 2,
-                                                      maximumFractionDigits: 2,
-                                                    })}
+                                                    (VAT {fmtBookingMoney(r, split.commissionVat, 2)}
                                                     )
                                                   </>
                                                 ) : null}
                                                 {split?.passThroughGross ? (
                                                   <>
                                                     {" "}
-                                                    • Held: £
-                                                    {Number(
-                                                      split.passThroughGross ||
-                                                        0,
-                                                    ).toLocaleString("en-GB", {
-                                                      minimumFractionDigits: 2,
-                                                      maximumFractionDigits: 2,
-                                                    })}
+                                                    • Held: {fmtBookingMoney(r, split.passThroughGross, 2)}
                                                   </>
                                                 ) : null}
                                               </div>
@@ -5151,7 +5147,7 @@ export default function BookingBoard() {
                                               {" "}
                                               <InlineInput
                                                 value={
-                                                  deposit ? money(deposit) : ""
+                                                  deposit ? fmtBookingMoney(r, deposit) : ""
                                                 }
                                                 onCommit={(val) => {
                                                   const nextDeposit = parseMoneyInput(val);
@@ -5179,7 +5175,7 @@ export default function BookingBoard() {
                                         <InlineInput
                                           value={
                                             balance != null
-                                              ? money(balance)
+                                              ? fmtBookingMoney(r, balance)
                                               : ""
                                           }
                                           onCommit={(val) => {
@@ -5203,7 +5199,7 @@ export default function BookingBoard() {
                                               <InlineInput
                                                 value={
                                                   commission
-                                                    ? fmtMoney0(commission)
+                                                    ? fmtBookingMoney(r, commission)
                                                     : ""
                                                 }
                                                 onCommit={(val) => {
@@ -5239,11 +5235,11 @@ export default function BookingBoard() {
                                         )}
                                       </td>
                                       <td className={cellClass}>
-                                        {vat ? fmtMoney0(vat) : "—"}
+                                        {vat ? fmtBookingMoney(r, vat) : "—"}
                                       </td>
                                       <td className={cellClass}>
                                         <InlineInput
-                                          value={hold ? money(hold) : ""}
+                                          value={hold ? fmtBookingMoney(r, hold) : ""}
                                           onCommit={(val) =>
                                             onInlineEdit(r._id, {
                                               accounting: {
