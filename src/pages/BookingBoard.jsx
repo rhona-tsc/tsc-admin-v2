@@ -1492,6 +1492,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
           instrument: musician?.instrument || musician?.role || "",
           fee: 0,
           totalFee: 0,
+          currency: "GBP",
           paymentStatus: "not_due",
           status: "selected",
           earlyArrivalMinutes: 0,
@@ -1528,6 +1529,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
             member?.roleSlotId ||
             `manual-${musicianId}-${role.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
           fee: Number(member?.fee || member?.totalFee || 0) || 0,
+          currency: member?.currency || "GBP",
           earlyArrivalMinutes:
             Number(member?.earlyArrivalMinutes || 0) || 0,
           earlyArrivalTime: member?.earlyArrivalTime || "",
@@ -2682,23 +2684,38 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                       </div>
                       <div className="lg:col-span-2">
                         <label className="block text-xs text-gray-600 mb-1">
-                          Gig fee £
+                          Gig fee
                         </label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          className="border rounded px-3 py-2 w-full"
-                          value={member?.fee ?? ""}
-                          onChange={(e) => {
-                            const fee = Number(e.target.value || 0) || 0;
-                            updateAssignedMusician(index, {
-                              fee,
-                              totalFee: fee,
-                            });
-                          }}
-                          placeholder="0.00"
-                        />
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="min-w-0 flex-1 border rounded px-3 py-2"
+                            value={member?.fee ?? ""}
+                            onChange={(e) => {
+                              const fee = Number(e.target.value || 0) || 0;
+                              updateAssignedMusician(index, {
+                                fee,
+                                totalFee: fee,
+                              });
+                            }}
+                            placeholder="0.00"
+                          />
+                          <select
+                            className="w-20 rounded border bg-white px-2 py-2"
+                            value={member?.currency || "GBP"}
+                            onChange={(e) =>
+                              updateAssignedMusician(index, {
+                                currency: e.target.value,
+                              })
+                            }
+                          >
+                            <option value="GBP">GBP</option>
+                            <option value="EUR">EUR</option>
+                            <option value="USD">USD</option>
+                          </select>
+                        </div>
                       </div>
                       <div className="lg:col-span-2">
                         <label className="block text-xs text-gray-600 mb-1">
@@ -3062,6 +3079,7 @@ const getBookingMemberTags = (row = {}) => {
         musicianId,
         fee,
         totalFee: fee,
+        currency: String(member?.currency || "GBP").toUpperCase(),
         role: String(member?.role || member?.instrument || "").trim(),
         instrument: String(member?.instrument || member?.role || "").trim(),
         earlyArrivalMinutes:
@@ -3085,7 +3103,9 @@ const formatBookingMemberTags = (row = {}) =>
       const identity = extras ? `${member.name} (${extras})` : member.name;
       const fee = Number(member.fee || member.totalFee || 0) || 0;
 
-      return fee ? `${identity} - £${fee}` : identity;
+      const currency = String(member?.currency || "GBP").toUpperCase();
+      const symbol = currency === "EUR" ? "€" : currency === "USD" ? "$" : "£";
+      return fee ? `${identity} - ${symbol}${fee}` : identity;
     })
     .filter(Boolean)
     .join("\n");
@@ -3638,6 +3658,7 @@ export default function BookingBoard() {
               ).trim(),
               fee,
               totalFee: fee,
+              currency: String(member?.currency || "GBP").toUpperCase(),
               earlyArrivalMinutes:
                 Number(member?.earlyArrivalMinutes || 0) || 0,
               earlyArrivalTime: String(member?.earlyArrivalTime || "").trim(),
@@ -4192,7 +4213,9 @@ export default function BookingBoard() {
       const previewUrl = json.previewUrl
         ? `${apiRoot}${json.previewUrl}`
         : row?._id
-          ? `${API_BASE}/invoices/board-invoice/${row._id}`
+          ? `${API_BASE}/invoices/board-invoice/${row._id}${
+              invoiceType !== "main" ? `?invoiceType=${invoiceType}` : ""
+            }`
           : "";
 
       const nextInvoiceUrl =
@@ -5560,6 +5583,18 @@ export default function BookingBoard() {
                                           >
                                             Extras invoice
                                           </button>
+
+                                          {r?.depositInvoice?.gross ? (
+                                            <button
+                                              type="button"
+                                              className="px-2 py-1 border rounded text-xs bg-amber-50 text-amber-900 hover:bg-amber-100"
+                                              onClick={() =>
+                                                createInvoiceForRow(r, "deposit")
+                                              }
+                                            >
+                                              Download deposit invoice ({r?.depositInvoice?.currency || r?.accounting?.currency || "GBP"} {Number(r.depositInvoice.gross).toFixed(2)})
+                                            </button>
+                                          ) : null}
 
                                           <div className="flex flex-wrap gap-2">
                                             <button
