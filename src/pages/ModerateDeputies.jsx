@@ -106,7 +106,7 @@ const ModerateDeputies = ({ token }) => {
     () => window.localStorage.getItem("musicianBioBackfillJobId") || "",
   );
 
-  const [sortField, setSortField] = useState("profileLastEditedAt");
+  const [sortField, setSortField] = useState("clientPriority");
   const [sortDirection, setSortDirection] = useState("desc");
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -282,7 +282,7 @@ const ModerateDeputies = ({ token }) => {
           if (job.status === "completed") await fetchQueue();
           return;
         }
-      } catch (error) {
+      } catch {
         consecutiveFailures += 1;
         setBioBackfillConnectionLost(true);
         // A temporary DNS/network outage should not overwrite the last known
@@ -378,6 +378,10 @@ const ModerateDeputies = ({ token }) => {
           aVal = Number(a.unvettedVideoCount || 0);
           bVal = Number(b.unvettedVideoCount || 0);
           break;
+        case "clientPriority":
+          aVal = Number(a.clientPriority || 0);
+          bVal = Number(b.clientPriority || 0);
+          break;
         default:
           aVal = getTime(a.profileLastEditedAt);
           bVal = getTime(b.profileLastEditedAt);
@@ -385,6 +389,12 @@ const ModerateDeputies = ({ token }) => {
 
       if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
       if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+      if (sortField === "clientPriority") {
+        const videoDifference =
+          Number(b.unvettedVideoCount || 0) - Number(a.unvettedVideoCount || 0);
+        if (videoDifference) return videoDifference;
+        return getTime(b.profileLastEditedAt) - getTime(a.profileLastEditedAt);
+      }
       return 0;
     });
 
@@ -458,8 +468,8 @@ const ModerateDeputies = ({ token }) => {
           <div className="mt-3 grid gap-4 lg:grid-cols-2">
             {videoSubmissions.map((item) => {
               const musician = item.musician || {};
-              return <article key={item._id} className="rounded border bg-white p-3">
-                <div className="flex items-start justify-between gap-3"><div><b>{[musician.firstName, musician.lastName].filter(Boolean).join(" ") || "Musician"}</b><p className="text-xs text-gray-500">{item.suppliedTitle || item.originalName}</p></div><span className="rounded bg-gray-100 px-2 py-1 text-xs">{String(item.status).replaceAll("_", " ")}</span></div>
+              return <article key={item._id} className={`rounded border bg-white p-3 ${item.clientPriority ? "ring-2 ring-fuchsia-300" : ""}`}>
+                <div className="flex items-start justify-between gap-3"><div><b>{[musician.firstName, musician.lastName].filter(Boolean).join(" ") || "Musician"}</b><p className="text-xs text-gray-500">{item.suppliedTitle || item.originalName}</p>{item.clientPriorityStatus ? <span className={`mt-2 inline-block rounded px-2 py-1 text-[10px] font-bold uppercase ${item.clientPriorityStatus === "presented" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"}`}>{item.clientPriorityStatus === "presented" ? "Presented to client — priority" : "Active applicant — priority"}</span> : null}</div><span className="rounded bg-gray-100 px-2 py-1 text-xs">{String(item.status).replaceAll("_", " ")}</span></div>
                 {item.accessUrl ? <video className="mt-3 aspect-video w-full rounded bg-black" src={item.accessUrl} controls playsInline /> : null}
                 <p className="mt-2 text-xs text-gray-700">{item.moderationReason}</p>
                 {item.moderationFlags?.length ? <ul className="mt-2 list-disc pl-5 text-xs text-red-700">{item.moderationFlags.map((flag, index) => <li key={`${flag.type}-${index}`}>{flag.label}: {flag.evidence}</li>)}</ul> : null}
@@ -548,7 +558,7 @@ const ModerateDeputies = ({ token }) => {
               setNeedsReviewFilter("all");
               setVideoReviewFilter("all");
               setAiBioReviewFilter("all");
-              setSortField("profileLastEditedAt");
+              setSortField("clientPriority");
               setSortDirection("desc");
             }}
           >
@@ -562,6 +572,7 @@ const ModerateDeputies = ({ token }) => {
             value={sortField}
             onChange={(e) => setSortField(e.target.value)}
           >
+            <option value="clientPriority">Sort: Client priority</option>
             <option value="profileLastEditedAt">Sort: Last edited</option>
             <option value="profileLastReviewedAt">Sort: Last reviewed</option>
             <option value="dateRegistered">Sort: Date registered</option>
@@ -625,6 +636,11 @@ const ModerateDeputies = ({ token }) => {
   >
     {getDisplayName(m)}
   </a>
+  {m.clientPriorityStatus ? (
+    <div className={`mt-1 w-fit rounded px-2 py-1 text-[10px] font-bold uppercase ${m.clientPriorityStatus === "presented" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"}`}>
+      {m.clientPriorityStatus === "presented" ? "Presented — priority" : "Applicant — priority"}
+    </div>
+  ) : null}
 </td>
         <td className="px-4 py-3 text-gray-600">{m.email || "—"}</td>
         <td className="px-4 py-3">
