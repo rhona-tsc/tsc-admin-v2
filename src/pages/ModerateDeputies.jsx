@@ -639,7 +639,7 @@ const ModerateDeputies = ({ token }) => {
       >
         <td className="px-4 py-3 font-medium">
   <a
-    href={`/moderate-deputy/edit/${m._id}`}
+    href={`/musician/${m.musicianSlug || m._id}`}
     target="_blank"
     rel="noopener noreferrer"
     className="text-blue-600 hover:underline"
