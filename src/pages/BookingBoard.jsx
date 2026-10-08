@@ -236,13 +236,16 @@ const getBookingCurrency = (row) =>
       "GBP",
   ).toUpperCase();
 
-const fmtBookingMoney = (row, value, fractionDigits = 0) =>
-  new Intl.NumberFormat("en-GB", {
+const fmtBookingMoney = (row, value, fractionDigits = 0) => {
+  const currency = getBookingCurrency(row);
+  const formatted = new Intl.NumberFormat("en-GB", {
     style: "currency",
-    currency: getBookingCurrency(row),
+    currency,
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits,
   }).format(Number(value || 0));
+  return currency === "EUR" ? formatted.replace(/^€\s*/, "€ ") : formatted;
+};
 
 const getDisplayArrivalTime = (row) => {
   return (
