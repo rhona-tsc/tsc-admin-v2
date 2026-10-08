@@ -33,11 +33,16 @@ const REVIEW_PILL = ({ needsReview }) => {
   );
 };
 
-const AI_BIO_PILL = ({ required }) => {
-  if (!required) return null;
+const AI_COPY_PILL = ({ bioRequired, taglineRequired }) => {
+  if (!bioRequired && !taglineRequired) return null;
+  const label = bioRequired && taglineRequired
+    ? "AI bio + tagline – review needed"
+    : taglineRequired
+      ? "AI tagline – review needed"
+      : "AI bio – review needed";
   return (
     <span className="mt-1 inline-block rounded bg-cyan-100 px-2 py-[2px] text-xs font-semibold text-cyan-800">
-      AI bio – review needed
+      {label}
     </span>
   );
 };
@@ -213,10 +218,10 @@ const ModerateDeputies = ({ token }) => {
         {},
         { headers: { token, Authorization: `Bearer ${token}` } },
       );
-      toast(<CustomToast type="success" message={res.data?.message || "AI bio published and flagged for review"} />);
+      toast(<CustomToast type="success" message={res.data?.message || "AI profile copy generated and flagged for review"} />);
       await fetchQueue();
     } catch (err) {
-      toast(<CustomToast type="error" message={err.response?.data?.message || "Failed to generate the bio"} />);
+      toast(<CustomToast type="error" message={err.response?.data?.message || "Failed to generate profile copy"} />);
     } finally {
       setGeneratingBioId("");
     }
@@ -224,7 +229,7 @@ const ModerateDeputies = ({ token }) => {
 
   const handleBackfillBios = async () => {
     const confirmed = window.confirm(
-      "Generate and publish AI bios for every musician who does not currently have an approved bio? Existing manually written bios will be preserved.",
+      "Generate missing AI biographies and taglines from each musician’s profile information? Existing manually written biographies and taglines will be preserved.",
     );
     if (!confirmed) return;
 
@@ -241,13 +246,13 @@ const ModerateDeputies = ({ token }) => {
       window.localStorage.setItem("musicianBioBackfillJobId", job._id);
       setBioBackfillJobId(job._id);
       setBulkBioProgress(job);
-      toast(<CustomToast type="success" message="Biography generation is now running in the background. You can leave this page." />);
+      toast(<CustomToast type="success" message="Profile-copy generation is now running in the background. You can leave this page." />);
     } catch (err) {
       setBulkGeneratingBios(false);
       toast(
         <CustomToast
           type="error"
-          message={err.response?.data?.message || err.message || "The biography job could not be started"}
+          message={err.response?.data?.message || err.message || "The profile-copy job could not be started"}
         />,
       );
     }
@@ -342,7 +347,10 @@ const ModerateDeputies = ({ token }) => {
 
     if (aiBioReviewFilter !== "all") {
       const wanted = aiBioReviewFilter === "required";
-      result = result.filter((m) => Boolean(m?.aiBioReviewRequired) === wanted);
+      result = result.filter(
+        (m) =>
+          Boolean(m?.aiBioReviewRequired || m?.aiTaglineReviewRequired) === wanted,
+      );
     }
 
     result.sort((a, b) => {
@@ -453,7 +461,9 @@ const ModerateDeputies = ({ token }) => {
             disabled={bulkGeneratingBios}
             onClick={handleBackfillBios}
           >
-            {bulkGeneratingBios ? "Generating missing bios…" : "Generate missing bios"}
+            {bulkGeneratingBios
+              ? "Generating missing bios and taglines…"
+              : "Generate missing bios and taglines"}
           </button>
           <span className="text-sm text-gray-500">
             Showing {filteredAndSorted.length} of {rows.length}
@@ -512,9 +522,9 @@ const ModerateDeputies = ({ token }) => {
             value={aiBioReviewFilter}
             onChange={(e) => setAiBioReviewFilter(e.target.value)}
           >
-            <option value="all">AI bio review: all</option>
-            <option value="required">AI bio review: required</option>
-            <option value="complete">AI bio review: complete</option>
+            <option value="all">AI copy review: all</option>
+            <option value="required">AI copy review: required</option>
+            <option value="complete">AI copy review: complete</option>
           </select>
 
           <select
@@ -648,7 +658,10 @@ const ModerateDeputies = ({ token }) => {
         </td>
         <td className="px-4 py-3">
           <REVIEW_PILL needsReview={needsReview} />
-          <AI_BIO_PILL required={Boolean(m.aiBioReviewRequired)} />
+          <AI_COPY_PILL
+            bioRequired={Boolean(m.aiBioReviewRequired)}
+            taglineRequired={Boolean(m.aiTaglineReviewRequired)}
+          />
         </td>
         <td className="px-4 py-3">
           <VIDEO_REVIEW_PILL count={Number(m.unvettedVideoCount || 0)} />
@@ -701,7 +714,7 @@ const ModerateDeputies = ({ token }) => {
               disabled={generatingBioId === m._id}
               onClick={() => handleGenerateBio(m._id)}
             >
-              {generatingBioId === m._id ? "Writing…" : "Generate bio"}
+              {generatingBioId === m._id ? "Writing…" : "Generate profile copy"}
             </button>
 
             <button
