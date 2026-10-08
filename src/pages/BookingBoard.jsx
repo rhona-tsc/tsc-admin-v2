@@ -5604,7 +5604,10 @@ export default function BookingBoard() {
                                                 createInvoiceForRow(r, "deposit")
                                               }
                                             >
-                                              Download deposit invoice ({r?.depositInvoice?.currency || r?.accounting?.currency || "GBP"} {Number(r.depositInvoice.gross).toFixed(2)})
+                                              {r?.depositInvoice?.invoiceUrl ||
+                                              r?.depositInvoice?.invoicePdfUrl
+                                                ? "Regenerate"
+                                                : "Generate"} deposit invoice ({r?.depositInvoice?.currency || r?.accounting?.currency || "GBP"} {Number(r.depositInvoice.gross).toFixed(2)})
                                             </button>
                                           ) : null}
 
