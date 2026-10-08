@@ -32,7 +32,7 @@ import DeputyJobs from "./pages/DeputyJobs";
 import CreateDeputyJob from "./pages/CreateDeputyJob";
 import PayoutSettings from "./pages/PayoutSettings";
 import DeputyJobDetail from "./pages/DeputyJobDetail";
-import ManageDeputyApplications from "./pages/ManageDeputyApplications";
+import ManageDeputyApplications from "./pages/DeputyJobApplications";
 import FinanceDashboard from "./pages/FinanceDashboard";
 import FinanceAccounts from "./pages/FinanceAccounts";
 import FinanceTransactions from "./pages/FinanceTransactions";

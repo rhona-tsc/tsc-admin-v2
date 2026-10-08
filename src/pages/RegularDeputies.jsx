@@ -287,9 +287,6 @@ const RegularDeputies = ({ token }) => {
     if (!draft.firstName?.trim() || !draft.email?.trim()) {
       return toast.error("Enter their first name and email address");
     }
-    if (testedInviteDrafts[role.memberId] !== inviteDraftKey(role.memberId)) {
-      return toast.error("Send yourself a test of this invitation before sending it live");
-    }
     try {
       setBusy(`${role.memberId}:invite`);
       const response = await axios.post(
@@ -664,9 +661,9 @@ const RegularDeputies = ({ token }) => {
                         Invite someone not yet on The Books
                       </summary>
                       <p className="mt-2 text-xs text-gray-600">
-                        First send a test to hello@thesupremecollective.co.uk.
-                        Nothing is sent to the deputy until you approve the test
-                        and use the live invitation button.
+                        You can optionally send a test to
+                        hello@thesupremecollective.co.uk before sending the
+                        invitation live.
                       </p>
                       <div className="mt-3 grid gap-2">
                         <div className="grid grid-cols-2 gap-2">
@@ -722,11 +719,7 @@ const RegularDeputies = ({ token }) => {
                           <button
                             type="button"
                             onClick={() => inviteDeputy(role)}
-                            disabled={
-                              Boolean(busy) ||
-                              testedInviteDrafts[role.memberId] !==
-                                inviteDraftKey(role.memberId)
-                            }
+                            disabled={Boolean(busy)}
                             className="rounded bg-[#ff6667] px-3 py-2 text-sm font-semibold text-white hover:bg-[#f45152] disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             {busy === `${role.memberId}:invite`
