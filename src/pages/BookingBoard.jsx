@@ -3216,8 +3216,12 @@ export default function BookingBoard() {
     paymentLink: "",
     invoiceUrl: "",
     vatRate: 0, // (since you're not VAT registered yet)
+    currency: "GBP",
   });
   const [adding, setAdding] = useState(false);
+  const [contractFile, setContractFile] = useState(null);
+  const [supportingInvoiceFile, setSupportingInvoiceFile] = useState(null);
+  const [importingContract, setImportingContract] = useState(false);
   const [hideInternalTests, setHideInternalTests] = useState(true);
   const [editingRow, setEditingRow] = useState(null);
   const [editForm, setEditForm] = useState(null);
@@ -4213,6 +4217,7 @@ export default function BookingBoard() {
 
   const createReceiptForRow = async (row, receiptType = "main", options = null) => {
     const isExtrasReceipt = receiptType === "extras";
+    const isDepositReceipt = receiptType === "deposit";
 
     const isPaid = isExtrasReceipt
       ? Boolean(
@@ -4221,12 +4226,16 @@ export default function BookingBoard() {
           row?.payments?.extrasPaymentReceived ||
           row?.payments?.extrasInvoicePaid,
         )
+      : isDepositReceipt
+        ? String(row?.depositInvoice?.status || "").toLowerCase() === "paid"
       : isBookingPaid(row);
 
     if (!isPaid) {
       window.alert(
         isExtrasReceipt
           ? "Please mark the extras invoice as paid before generating an extras receipt."
+          : isDepositReceipt
+            ? "Please mark the deposit invoice as paid before generating its receipt."
           : "Please mark the invoice as paid before generating a receipt.",
       );
       return;
@@ -4235,7 +4244,9 @@ export default function BookingBoard() {
     if (!options) {
       const storedPaidAt = isExtrasReceipt
         ? row?.payments?.extrasPaidAt || row?.extrasPaidAt
-        : row?.payments?.paidAt || row?.paidAt || row?.payments?.invoicePaidAt || row?.payments?.balancePaymentReceivedAt;
+        : isDepositReceipt
+          ? row?.depositInvoice?.paidAt
+          : row?.payments?.paidAt || row?.paidAt || row?.payments?.invoicePaidAt || row?.payments?.balancePaymentReceivedAt;
       setReceiptOptions({
         row,
         receiptType,
@@ -4493,7 +4504,7 @@ export default function BookingBoard() {
               commissionVat: Number(commissionVat.toFixed(2)),
               commissionNet: Number(commissionNet.toFixed(2)),
               passThroughGross: Number(passThroughGross.toFixed(2)),
-              currency: "GBP",
+              currency: newRow.currency || "GBP",
             }
           : undefined,
 
@@ -4552,10 +4563,50 @@ export default function BookingBoard() {
           bookingDateISO: "",
           paymentLink: "",
           invoiceUrl: "",
+          currency: "GBP",
         });
       }
     } catch (e) {
       console.error("manual add failed", e);
+    }
+  };
+
+  const previewContractImport = async () => {
+    if (!contractFile) {
+      window.alert("Please choose a contract PDF first.");
+      return;
+    }
+
+    setImportingContract(true);
+    try {
+      const formData = new FormData();
+      formData.append("contract", contractFile);
+      if (supportingInvoiceFile) {
+        formData.append("invoice", supportingInvoiceFile);
+      }
+      const res = await fetch(`${API_BASE}/board/bookings/import-contract/preview`, {
+        method: "POST",
+        headers: buildAuthHeaders(),
+        credentials: "include",
+        body: formData,
+      });
+      const json = await res.json();
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.message || "Could not read this contract.");
+      }
+
+      setNewRow((current) => ({ ...current, ...json.draft }));
+      setAdding(true);
+      const missing = json.draft?.importMetadata?.incompleteFields || [];
+      window.alert(
+        missing.length
+          ? `Contract imported for review. Still to add later: ${missing.join(", ")}.`
+          : "Contract imported. Please review the details, then save the booking.",
+      );
+    } catch (error) {
+      window.alert(error?.message || "Could not import this contract.");
+    } finally {
+      setImportingContract(false);
     }
   };
 
@@ -4616,6 +4667,43 @@ export default function BookingBoard() {
           >
             {adding ? "Close manual entry" : "+ Add manual entry"}
           </button>
+        </div>
+      </div>
+
+      <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-3">
+        <div className="mb-2 text-sm font-semibold text-blue-950">
+          Import a booking from a contract
+        </div>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-xs text-gray-700">
+            Contract PDF
+            <input
+              type="file"
+              accept="application/pdf,.pdf"
+              onChange={(event) => setContractFile(event.target.files?.[0] || null)}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs text-gray-700">
+            Invoice PDF (optional)
+            <input
+              type="file"
+              accept="application/pdf,.pdf"
+              onChange={(event) =>
+                setSupportingInvoiceFile(event.target.files?.[0] || null)
+              }
+            />
+          </label>
+          <button
+            type="button"
+            className="rounded bg-blue-700 px-4 py-2 text-sm text-white disabled:opacity-50"
+            disabled={!contractFile || importingContract}
+            onClick={previewContractImport}
+          >
+            {importingContract ? "Reading PDFs…" : "Preview imported booking"}
+          </button>
+          <span className="text-xs text-blue-900">
+            Nothing is saved until you review the form and choose Add.
+          </span>
         </div>
       </div>
 
@@ -5556,6 +5644,38 @@ export default function BookingBoard() {
                                               Generate receipt
                                             </button>
                                           )}
+                                          {r?.depositInvoice?.gross ? (
+                                            <div className="flex flex-col gap-1 rounded border border-amber-200 bg-amber-50 p-2 text-xs">
+                                              <span>
+                                                Deposit invoice: {r?.depositInvoice?.currency || r?.accounting?.currency || "GBP"} {Number(r.depositInvoice.gross).toFixed(2)}
+                                              </span>
+                                              {String(r?.depositInvoice?.status || "").toLowerCase() === "paid" ? (
+                                                <button
+                                                  type="button"
+                                                  className="text-left underline text-purple-700"
+                                                  onClick={() => createReceiptForRow(r, "deposit")}
+                                                >
+                                                  Generate deposit receipt
+                                                </button>
+                                              ) : (
+                                                <button
+                                                  type="button"
+                                                  className="text-left underline text-green-700"
+                                                  onClick={() =>
+                                                    onInlineEdit(r._id, {
+                                                      depositInvoice: {
+                                                        ...(r.depositInvoice || {}),
+                                                        status: "paid",
+                                                        paidAt: new Date().toISOString(),
+                                                      },
+                                                    })
+                                                  }
+                                                >
+                                                  Mark deposit paid
+                                                </button>
+                                              )}
+                                            </div>
+                                          ) : null}
                                           {!extrasPaid && extrasInvoiceUrl ? (
                                             <button
                                               type="button"
@@ -5816,6 +5936,22 @@ export default function BookingBoard() {
                                 }))
                               }
                             />
+
+                            <select
+                              className="border rounded px-2 py-1 w-24"
+                              aria-label="Currency"
+                              value={newRow.currency || "GBP"}
+                              onChange={(e) =>
+                                setNewRow((v) => ({
+                                  ...v,
+                                  currency: e.target.value,
+                                }))
+                              }
+                            >
+                              <option value="GBP">GBP</option>
+                              <option value="EUR">EUR</option>
+                              <option value="USD">USD</option>
+                            </select>
 
                             {/* NEW: Commission (VAT-inc) */}
                             <input
