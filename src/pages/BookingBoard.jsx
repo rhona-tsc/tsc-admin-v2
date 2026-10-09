@@ -1282,13 +1282,24 @@ function RoleAllocationCell({ row }) {
     }));
   };
 
-  const findAssignment = (slot, slotIndex) =>
-    assignments.find((member) => member?.roleSlotId === slot.roleSlotId) ||
-    assignments.filter(
+  const findAssignment = (slot, slotIndex) => {
+    const exact = assignments.find(
+      (member) => member?.roleSlotId === slot.roleSlotId,
+    );
+    if (exact) return exact;
+
+    const sameRole = assignments.filter(
       (member) =>
         normaliseAllocationRole(member?.role || member?.instrument).toLowerCase() ===
         slot.role.toLowerCase(),
-    )[slotIndex];
+    );
+
+    // Legacy allocations did not have slot IDs. Only use the positional
+    // fallback when every matching allocation is legacy; otherwise an exact
+    // assignment from one repeated role would leak into its sibling card.
+    if (sameRole.some((member) => member?.roleSlotId)) return undefined;
+    return sameRole[slotIndex];
+  };
 
   const loadCandidates = async (slot, search = "") => {
     setActiveSlot(slot.roleSlotId);
@@ -1377,12 +1388,22 @@ function RoleAllocationCell({ row }) {
   };
 
   const confirmCandidate = async (slot, candidate) => {
+    const assignment = assignments.find(
+      (member) => member?.roleSlotId === slot.roleSlotId,
+    );
+    const displayName =
+      candidate?.name || assignment?.name || "this musician";
+    if (
+      !window.confirm(
+        `Manually accept the fee and duties for ${displayName}? This confirms them on the booking and sends their confirmation and shared calendar invitation.`,
+      )
+    ) {
+      return;
+    }
+
     setSending(slot.roleSlotId);
     setError("");
     try {
-      const assignment = assignments.find(
-        (member) => member?.roleSlotId === slot.roleSlotId,
-      );
       const draft = getSlotDraft(slot, assignment);
       const response = await fetch(`${API_BASE}/allocations/confirm-role`, {
         method: "POST",
@@ -1508,7 +1529,9 @@ function RoleAllocationCell({ row }) {
                   }
                   className="justify-self-start rounded border border-emerald-700 px-2.5 py-1.5 font-medium text-emerald-800 hover:bg-emerald-50 disabled:opacity-50"
                 >
-                  {sending === slot.roleSlotId ? "Saving…" : "Save fee & duties"}
+                  {sending === slot.roleSlotId
+                    ? "Accepting…"
+                    : "Manually accept fee & duties"}
                 </button>
               ) : null}
             </div>
@@ -1580,7 +1603,7 @@ function RoleAllocationCell({ row }) {
                               }}
                               className="rounded bg-emerald-700 px-2 py-1 text-white"
                             >
-                              Add confirmed
+                              Manually accept
                             </span>
                           </>
                         ) : "Unavailable"}
