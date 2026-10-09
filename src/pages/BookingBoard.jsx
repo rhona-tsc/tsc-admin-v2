@@ -249,19 +249,29 @@ const fmtBookingMoney = (row, value, fractionDigits = 0) => {
 
 const getDisplayArrivalTime = (row) => {
   return (
-    row?.arrivalTime ||
     row?.performanceTimes?.arrivalTime ||
     row?.actsSummary?.[0]?.performance?.arrivalTime ||
+    row?.arrivalTime ||
     row?.eventSheet?.answers?.schedule_simple_arrival ||
+    ""
+  );
+};
+
+const getDisplayStartTime = (row) => {
+  return (
+    row?.performanceTimes?.startTime ||
+    row?.actsSummary?.[0]?.performance?.startTime ||
+    row?.startTime ||
+    row?.eventSheet?.answers?.schedule_simple_start_time ||
     ""
   );
 };
 
 const getDisplayFinishTime = (row) => {
   return (
-    row?.finishTime ||
     row?.performanceTimes?.finishTime ||
     row?.actsSummary?.[0]?.performance?.finishTime ||
+    row?.finishTime ||
     row?.eventSheet?.answers?.schedule_simple_finish_time ||
     ""
   );
@@ -1158,8 +1168,10 @@ const buildEditStateFromRow = (row) => {
         ? Math.ceil((Number(gross) - 50) * 0.2) + 50
         : 0;
 
-  const performance =
-    row?.actsSummary?.[0]?.performance || row?.performanceTimes || {};
+  const performance = {
+    ...(row?.actsSummary?.[0]?.performance || {}),
+    ...(row?.performanceTimes || {}),
+  };
 
   const split = getAccountingSplit(row, gross, depositFromBackend ?? deposit);
 
@@ -2374,6 +2386,20 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
               value={value.arrivalTime || ""}
               onChange={(e) =>
                 onChange({ ...value, arrivalTime: e.target.value })
+              }
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">
+              Performance start
+            </label>
+            <input
+              type="time"
+              step="300"
+              className="border rounded px-3 py-2 w-full"
+              value={value.startTime || ""}
+              onChange={(e) =>
+                onChange({ ...value, startTime: e.target.value })
               }
             />
           </div>
@@ -4062,16 +4088,12 @@ export default function BookingBoard() {
       : [];
     const firstAct = currentActsSummary[0] || {};
     const nextPerformance = {
-      ...(editingRow?.performanceTimes || {}),
       ...(firstAct?.performance || {}),
-      arrivalTime: editForm.arrivalTime || "",
-      startTime:
-        editForm.startTime ||
-        firstAct?.performance?.startTime ||
-        editingRow?.performanceTimes?.startTime ||
-        "",
-      finishTime: editForm.finishTime || "",
-      paLightsFinishTime: editForm.paLightsFinishTime || "",
+      ...(editingRow?.performanceTimes || {}),
+      arrivalTime: editForm.arrivalTime ?? "",
+      startTime: editForm.startTime ?? "",
+      finishTime: editForm.finishTime ?? "",
+      paLightsFinishTime: editForm.paLightsFinishTime ?? "",
       paLightsFinishDayOffset:
         Number(editForm.paLightsFinishDayOffset || 0) || 0,
     };
@@ -5291,6 +5313,7 @@ export default function BookingBoard() {
                     const address = getDisplayAddress(r);
                     const county = getDisplayCounty(r);
                     const arrivalTime = getDisplayArrivalTime(r);
+                    const startTime = getDisplayStartTime(r);
                     const finishTime = getDisplayFinishTime(r);
                     const clientEmails = getDisplayClientEmails(r);
                     const performanceTimes =
@@ -5786,7 +5809,23 @@ export default function BookingBoard() {
                                             placeholder="Arrival"
                                             onCommit={(val) =>
                                               onInlineEdit(r._id, {
-                                                arrivalTime: val,
+                                                performanceTimes: {
+                                                  ...performanceTimes,
+                                                  arrivalTime: val,
+                                                },
+                                              })
+                                            }
+                                          />
+                                          <InlineInput
+                                            type="time"
+                                            value={startTime || ""}
+                                            placeholder="Start"
+                                            onCommit={(val) =>
+                                              onInlineEdit(r._id, {
+                                                performanceTimes: {
+                                                  ...performanceTimes,
+                                                  startTime: val,
+                                                },
                                               })
                                             }
                                           />
@@ -5796,7 +5835,10 @@ export default function BookingBoard() {
                                             placeholder="Finish"
                                             onCommit={(val) =>
                                               onInlineEdit(r._id, {
-                                                finishTime: val,
+                                                performanceTimes: {
+                                                  ...performanceTimes,
+                                                  finishTime: val,
+                                                },
                                               })
                                             }
                                           />
