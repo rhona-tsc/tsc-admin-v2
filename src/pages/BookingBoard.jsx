@@ -1336,7 +1336,7 @@ function RoleAllocationCell({ row }) {
 
   const roleSeen = new Map();
   return (
-    <div className="min-w-[360px] space-y-1.5">
+    <div className="min-w-[440px] space-y-2">
       {slots.map((slot) => {
         const roleIndex = roleSeen.get(slot.role.toLowerCase()) || 0;
         roleSeen.set(slot.role.toLowerCase(), roleIndex + 1);
@@ -1344,17 +1344,19 @@ function RoleAllocationCell({ row }) {
         const status = assignment?.status || "unfilled";
         const isOpen = activeSlot === slot.roleSlotId;
         return (
-          <div key={slot.roleSlotId} className="relative rounded border border-gray-300 bg-white px-2 py-1.5">
-            <div className="grid grid-cols-[90px_1fr_auto] items-center gap-2 text-xs">
-              <span className="font-semibold text-gray-700">{slot.role}</span>
+          <div key={slot.roleSlotId} className="relative rounded-lg border border-gray-300 bg-white p-3">
+            <div className="mb-2 text-sm font-semibold leading-tight text-gray-800">
+              {slot.role}
+            </div>
+            <div className="flex min-w-0 items-center justify-between gap-3 text-xs">
               <button
                 type="button"
-                className="truncate text-left text-gray-700 underline decoration-dotted underline-offset-2"
+                className="min-w-0 flex-1 truncate text-left text-gray-700 underline decoration-dotted underline-offset-4 hover:text-black"
                 onClick={() => loadCandidates(slot, "")}
               >
                 {assignment?.name || "Choose musician"}
               </button>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+              <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${
                 status === "accepted" || status === "confirmed"
                   ? "bg-green-100 text-green-800"
                   : status === "offered"
@@ -1367,9 +1369,9 @@ function RoleAllocationCell({ row }) {
               </span>
             </div>
             {isOpen ? (
-              <div className="absolute left-0 top-full z-30 mt-1 w-[420px] rounded-lg border bg-white p-2 shadow-xl">
+              <div className="absolute left-0 top-full z-30 mt-2 w-[min(520px,calc(100vw-2rem))] rounded-xl border border-gray-200 bg-white p-3 shadow-2xl">
                 <form
-                  className="mb-2 flex gap-2"
+                  className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2"
                   onSubmit={(event) => {
                     event.preventDefault();
                     loadCandidates(slot, query);
@@ -1377,24 +1379,27 @@ function RoleAllocationCell({ row }) {
                 >
                   <input
                     autoFocus
-                    className="min-w-0 flex-1 rounded border px-2 py-1.5 text-xs"
+                    className="min-w-0 rounded-lg border px-3 py-2 text-sm"
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder={`Search ${slot.role.toLowerCase()} players`}
                   />
-                  <button className="rounded bg-black px-3 py-1.5 text-xs text-white" type="submit">Search</button>
-                  <button className="px-1 text-xs text-gray-500" type="button" onClick={() => setActiveSlot("")}>Close</button>
+                  <button className="rounded-lg bg-black px-4 py-2 text-sm text-white" type="submit">Search</button>
+                  <button className="col-span-2 justify-self-end px-1 text-xs text-gray-500 hover:text-black" type="button" onClick={() => setActiveSlot("")}>Close chooser</button>
                 </form>
                 {error ? <div className="mb-2 text-xs text-red-600">{error}</div> : null}
                 <div className="max-h-56 overflow-y-auto divide-y">
                   {loading ? <div className="p-3 text-xs text-gray-500">Checking availability…</div> : null}
+                  {!loading && !error && results.length === 0 ? (
+                    <div className="p-3 text-xs text-gray-500">No matching musicians found.</div>
+                  ) : null}
                   {!loading && results.map((candidate) => (
                     <button
                       key={candidate._id}
                       type="button"
                       disabled={!candidate.available || sending === slot.roleSlotId}
                       onClick={() => sendOffer(slot, candidate)}
-                      className={`flex w-full items-center justify-between gap-3 p-2 text-left text-xs ${
+                      className={`flex w-full items-center justify-between gap-4 p-3 text-left text-xs ${
                         candidate.available ? "hover:bg-blue-50" : "cursor-not-allowed bg-gray-50 text-gray-400"
                       }`}
                     >
