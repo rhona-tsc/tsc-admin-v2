@@ -381,6 +381,37 @@ const getMergeKey = (row) => {
   return `fallback:${email}|${eventDate}|${actKey}|${names}`;
 };
 
+const mergeRowsPreservingAllocations = (base = {}, preferred = {}) => {
+  const merged = { ...base, ...preferred };
+  const pickAssignments = (key) =>
+    Array.isArray(preferred?.[key]) && preferred[key].length
+      ? preferred[key]
+      : Array.isArray(base?.[key]) && base[key].length
+        ? base[key]
+        : preferred?.[key] || base?.[key] || [];
+
+  merged.assignedMusicians = pickAssignments("assignedMusicians");
+  merged.bookingMusicians = pickAssignments("bookingMusicians");
+  merged.bandLineup = pickAssignments("bandLineup");
+
+  const preferredDetails = preferred?.bookingDetails || {};
+  const baseDetails = base?.bookingDetails || {};
+  const preferredDetailAssignments = preferredDetails?.assignedMusicians;
+  const baseDetailAssignments = baseDetails?.assignedMusicians;
+  merged.bookingDetails = {
+    ...baseDetails,
+    ...preferredDetails,
+    assignedMusicians:
+      Array.isArray(preferredDetailAssignments) && preferredDetailAssignments.length
+        ? preferredDetailAssignments
+        : Array.isArray(baseDetailAssignments) && baseDetailAssignments.length
+          ? baseDetailAssignments
+          : merged.assignedMusicians,
+  };
+
+  return merged;
+};
+
 const chooseBetterRow = (current, incoming) => {
   if (!current) return incoming;
   if (!incoming) return current;
@@ -389,9 +420,9 @@ const chooseBetterRow = (current, incoming) => {
   const incomingHasContract = hasContractLink(incoming);
 
   if (incomingHasContract && !currentHasContract)
-    return { ...current, ...incoming };
+    return mergeRowsPreservingAllocations(current, incoming);
   if (currentHasContract && !incomingHasContract)
-    return { ...incoming, ...current };
+    return mergeRowsPreservingAllocations(incoming, current);
 
   const currentScore = [
     currentHasContract,
@@ -417,16 +448,19 @@ const chooseBetterRow = (current, incoming) => {
     ),
   ].filter(Boolean).length;
 
-  if (incomingScore > currentScore) return { ...current, ...incoming };
-  if (currentScore > incomingScore) return { ...incoming, ...current };
+  if (incomingScore > currentScore)
+    return mergeRowsPreservingAllocations(current, incoming);
+  if (currentScore > incomingScore)
+    return mergeRowsPreservingAllocations(incoming, current);
 
   const currentUpdated =
     new Date(current?.updatedAt || current?.createdAt || 0).getTime() || 0;
   const incomingUpdated =
     new Date(incoming?.updatedAt || incoming?.createdAt || 0).getTime() || 0;
 
-  if (incomingUpdated >= currentUpdated) return { ...current, ...incoming };
-  return { ...incoming, ...current };
+  if (incomingUpdated >= currentUpdated)
+    return mergeRowsPreservingAllocations(current, incoming);
+  return mergeRowsPreservingAllocations(incoming, current);
 };
 
 const isInternalTestBooking = (row) => {
@@ -3279,13 +3313,13 @@ const parseBookingMemberTags = (value = "") =>
     .filter(Boolean);
 
 const getBookingMemberTags = (row = {}) => {
-  const source =
-    row.assignedMusicians ||
-    row.bookingMusicians ||
-    row.bandLineup ||
-    row.musicians ||
-    row.actsSummary?.[0]?.assignedMusicians ||
-    [];
+  const source = [
+    row.assignedMusicians,
+    row.bookingMusicians,
+    row.bandLineup,
+    row.musicians,
+    row.actsSummary?.[0]?.assignedMusicians,
+  ].find((items) => Array.isArray(items) && items.length) || [];
 
   if (!Array.isArray(source)) return [];
 
