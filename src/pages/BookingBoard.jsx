@@ -5180,22 +5180,23 @@ export default function BookingBoard() {
         {boardSections.map((section) => (
           <section
             key={section.key}
-            className={`overflow-hidden border rounded-xl bg-white shadow-sm border-l-4 ${section.accentClass}`}
+            className={`border rounded-xl bg-white shadow-sm border-l-4 ${section.accentClass}`}
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
-              <div>
-                <button
-                  type="button"
-                  className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left"
-                  onClick={() => toggleSection(section.key)}
-                >
+            <div className="border-b bg-gray-50">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-sky-400"
+                onClick={() => toggleSection(section.key)}
+                aria-expanded={!collapsedSections[section.key]}
+                aria-controls={`booking-board-section-${section.key}`}
+              >
+                <div>
                   <h2 className={`text-xl font-semibold ${section.titleClass}`}>
                     <span className="inline-block w-5">
                       {collapsedSections[section.key] ? "▸" : "▾"}
                     </span>
                     {section.title} ({section.count})
                   </h2>
-                </button>
                 {!collapsedSections[section.key] && (
                   <>
                     {section.key === "past-clients" && (
@@ -5205,10 +5206,21 @@ export default function BookingBoard() {
                     )}
                   </>
                 )}
-              </div>
+                </div>
+                <span className="shrink-0 text-xs font-medium text-gray-500">
+                  {collapsedSections[section.key] ? "Expand" : "Collapse"}
+                </span>
+              </button>
             </div>
 
-            <div className="overflow-auto max-h-[48vh]">
+            <div
+              id={`booking-board-section-${section.key}`}
+              className={
+                collapsedSections[section.key]
+                  ? "hidden"
+                  : "max-h-[78vh] min-h-[24rem] overflow-auto"
+              }
+            >
               {!collapsedSections[section.key] && section.rows.length > 0 ? (
                 <div
                   className="sticky top-0 z-30 grid bg-slate-50 text-left text-[11px] uppercase tracking-wide text-gray-700"
