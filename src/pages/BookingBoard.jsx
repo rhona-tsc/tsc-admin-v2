@@ -1294,6 +1294,7 @@ function RoleAllocationCell({ row }) {
   const [sending, setSending] = useState("");
   const [error, setError] = useState("");
   const [slotDrafts, setSlotDrafts] = useState({});
+  const [newContact, setNewContact] = useState({ name: "", email: "", phone: "" });
 
   useEffect(() => setAssignments(getBookingMemberTags(row)), [row]);
 
@@ -1363,7 +1364,7 @@ function RoleAllocationCell({ row }) {
   };
 
   const sendOffer = async (slot, candidate) => {
-    if (!candidate?.available) return;
+    if (candidate?.available === false) return;
     setSending(slot.roleSlotId);
     setError("");
     try {
@@ -1380,7 +1381,14 @@ function RoleAllocationCell({ row }) {
           role: slot.role,
           roleSlotId: slot.roleSlotId,
           originalBandMemberId: slot.originalBandMemberId || undefined,
-          musicianId: candidate._id,
+          musicianId: candidate._id || undefined,
+          contact: candidate.isNewContact
+            ? {
+                name: candidate.name,
+                email: candidate.email,
+                phone: candidate.phone,
+              }
+            : undefined,
           candidateSource: candidate.source,
           fee: Number(draft.fee || 0) || 0,
           duties: draft.duties || [],
@@ -1390,11 +1398,12 @@ function RoleAllocationCell({ row }) {
       if (!response.ok || json?.success === false) {
         throw new Error(json?.message || "Could not send the availability request");
       }
+      const savedMusician = json?.musician || candidate;
       const next = {
-        musicianId: candidate._id,
-        name: candidate.name,
-        email: candidate.email,
-        phone: candidate.phone,
+        musicianId: savedMusician._id,
+        name: savedMusician.name || candidate.name,
+        email: savedMusician.email || candidate.email,
+        phone: savedMusician.phone || candidate.phone,
         role: slot.role,
         instrument: slot.role,
         roleSlotId: slot.roleSlotId,
@@ -1414,6 +1423,7 @@ function RoleAllocationCell({ row }) {
       setActiveSlot("");
       setResults([]);
       setQuery("");
+      setNewContact({ name: "", email: "", phone: "" });
     } catch (offerError) {
       setError(offerError?.message || "Could not send the availability request");
     } finally {
@@ -1645,6 +1655,69 @@ function RoleAllocationCell({ row }) {
                     </button>
                   ))}
                 </div>
+                <form
+                  className="mt-3 space-y-2 border-t pt-3"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    const name = newContact.name.trim();
+                    const email = newContact.email.trim();
+                    const phone = newContact.phone.trim();
+                    if (!name || !email || !phone) {
+                      setError("Enter their name, email address and mobile number.");
+                      return;
+                    }
+                    sendOffer(slot, {
+                      name,
+                      email,
+                      phone,
+                      source: "manual",
+                      isNewContact: true,
+                      available: true,
+                    });
+                  }}
+                >
+                  <div className="text-xs font-semibold text-gray-700">
+                    Not registered yet? Invite a new musician
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    <input
+                      className="min-w-0 rounded border px-2 py-2 text-xs"
+                      value={newContact.name}
+                      onChange={(event) =>
+                        setNewContact((current) => ({ ...current, name: event.target.value }))
+                      }
+                      placeholder="Full name"
+                    />
+                    <input
+                      type="email"
+                      className="min-w-0 rounded border px-2 py-2 text-xs"
+                      value={newContact.email}
+                      onChange={(event) =>
+                        setNewContact((current) => ({ ...current, email: event.target.value }))
+                      }
+                      placeholder="Email address"
+                    />
+                    <input
+                      type="tel"
+                      className="min-w-0 rounded border px-2 py-2 text-xs"
+                      value={newContact.phone}
+                      onChange={(event) =>
+                        setNewContact((current) => ({ ...current, phone: event.target.value }))
+                      }
+                      placeholder="Mobile number"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={sending === slot.roleSlotId}
+                    className="rounded bg-[#087f9c] px-3 py-2 text-xs font-medium text-white disabled:opacity-50"
+                  >
+                    {sending === slot.roleSlotId ? "Sending…" : "Create contact & send request"}
+                  </button>
+                  <p className="text-[10px] leading-4 text-gray-500">
+                    They can accept the gig immediately. After acceptance, we’ll send a fresh link to complete their profile.
+                  </p>
+                </form>
               </div>
             ) : null}
           </div>
