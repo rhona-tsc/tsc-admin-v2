@@ -18,6 +18,7 @@ const RegularDeputies = ({ token }) => {
   const [selectedLineupId, setSelectedLineupId] = useState("");
   const [sourceActId, setSourceActId] = useState("");
   const [sourceLineupId, setSourceLineupId] = useState("");
+  const [sourceMemberId, setSourceMemberId] = useState("");
   const [copyToAllLineups, setCopyToAllLineups] = useState(true);
   const [search, setSearch] = useState({});
   const [genreSearch, setGenreSearch] = useState({});
@@ -79,6 +80,9 @@ const RegularDeputies = ({ token }) => {
         : String(sourceAct.lineups[0]?._id || ""),
     );
   }, [sourceAct]);
+  useEffect(() => {
+    setSourceMemberId("");
+  }, [sourceLineupId]);
 
   const findMusicians = async (memberId, genreOverride) => {
     const query = String(search[memberId] || "").trim();
@@ -196,12 +200,15 @@ const RegularDeputies = ({ token }) => {
 
   const copyFromAct = async () => {
     if (!selectedAct || !selectedLineup || !sourceAct || !sourceLineup) return;
+    const sourceRole = sourceLineup.roles?.find(
+      (role) => String(role.memberId) === sourceMemberId,
+    );
     const destination = copyToAllLineups
       ? `every lineup in ${selectedAct.name}`
       : selectedLineup.actSize || "the selected lineup";
     if (
       !window.confirm(
-        `Copy regular deputies from ${sourceAct.name} — ${sourceLineup.actSize || "selected lineup"} into ${destination}? Matching roles will be updated and existing additional deputies will be kept.`,
+        `Copy ${sourceRole ? `${sourceRole.roleLabel || sourceRole.role} deputies` : "all matching regular deputies"} from ${sourceAct.name} — ${sourceLineup.actSize || "selected lineup"} into ${destination}? Existing additional deputies will be kept.`,
       )
     )
       return;
@@ -213,6 +220,7 @@ const RegularDeputies = ({ token }) => {
         {
           sourceActId: sourceAct._id,
           sourceLineupId: sourceLineup._id,
+          sourceMemberId: sourceMemberId || undefined,
           targetLineupId: selectedLineup._id,
           applyToAllLineups: copyToAllLineups,
         },
@@ -387,7 +395,7 @@ const RegularDeputies = ({ token }) => {
               skipped.
             </p>
           </div>
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <div className="mt-3 grid gap-3 md:grid-cols-3">
             <select
               value={sourceActId}
               onChange={(event) => setSourceActId(event.target.value)}
@@ -420,6 +428,19 @@ const RegularDeputies = ({ token }) => {
                 </option>
               ))}
             </select>
+            <select
+              value={sourceMemberId}
+              onChange={(event) => setSourceMemberId(event.target.value)}
+              disabled={!sourceLineup}
+              className="rounded border bg-white px-3 py-2 disabled:bg-gray-100"
+            >
+              <option value="">All matching roles</option>
+              {(sourceLineup?.roles || []).map((role) => (
+                <option key={role.memberId} value={role.memberId}>
+                  {role.roleLabel || role.role} — {fullName(role.primary)} ({role.deputies?.length || 0} deputies)
+                </option>
+              ))}
+            </select>
           </div>
           <div className="mt-3 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <label className="inline-flex items-center gap-2 text-sm text-blue-950">
@@ -436,7 +457,11 @@ const RegularDeputies = ({ token }) => {
               disabled={!sourceLineup || Boolean(busy)}
               className="rounded bg-blue-900 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-950 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {busy === "copy-from-act" ? "Copying deputies…" : "Copy deputies"}
+              {busy === "copy-from-act"
+                ? "Copying deputies…"
+                : sourceMemberId
+                  ? "Copy selected role"
+                  : "Copy deputies"}
             </button>
           </div>
         </section>

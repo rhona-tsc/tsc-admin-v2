@@ -701,7 +701,7 @@ const Tag = ({ children }) => (
   </span>
 );
 
-const cellClass = "px-2 py-1 whitespace-nowrap align-middle";
+const cellClass = "px-2 py-2 whitespace-nowrap align-top";
 
 const BOOKING_BOARD_COLUMNS = [
   "Client",
@@ -743,7 +743,7 @@ const BOOKING_BOARD_COLUMNS = [
 // editable control in the nested booking rows.
 const BOOKING_BOARD_COLUMN_WIDTHS = [
   180, 150, 110, 100, 150, 150, 150, 180, 150, 150, 160, 110, 160, 150,
-  230, 260, 160, 180, 180, 280, 140, 100, 220, 220, 240, 130, 180, 160,
+  230, 260, 160, 180, 180, 280, 140, 100, 220, 220, 440, 150, 480, 160,
   200, 180, 200, 220, 160,
 ];
 const BOOKING_BOARD_GRID_TEMPLATE = BOOKING_BOARD_COLUMN_WIDTHS.map(
@@ -1336,7 +1336,7 @@ function RoleAllocationCell({ row }) {
 
   const roleSeen = new Map();
   return (
-    <div className="min-w-[440px] space-y-2">
+    <div className="w-full min-w-0 space-y-2">
       {slots.map((slot) => {
         const roleIndex = roleSeen.get(slot.role.toLowerCase()) || 0;
         roleSeen.set(slot.role.toLowerCase(), roleIndex + 1);
@@ -1369,7 +1369,7 @@ function RoleAllocationCell({ row }) {
               </span>
             </div>
             {isOpen ? (
-              <div className="absolute left-0 top-full z-30 mt-2 w-[min(520px,calc(100vw-2rem))] rounded-xl border border-gray-200 bg-white p-3 shadow-2xl">
+              <div className="absolute inset-x-0 top-full z-30 mt-2 w-full rounded-xl border border-gray-200 bg-white p-3 shadow-2xl">
                 <form
                   className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2"
                   onSubmit={(event) => {
@@ -1405,6 +1405,9 @@ function RoleAllocationCell({ row }) {
                     >
                       <span>
                         <span className="block font-medium">{candidate.name}</span>
+                        <span className="block text-[11px] text-gray-600">
+                          {candidate.email || "No email address"}
+                        </span>
                         <span className="block text-[10px]">
                           {candidate.source === "primary" ? "Usual band member" : candidate.source === "act_deputy" ? "Act deputy" : "Musician directory"}
                           {candidate.unavailableReason ? ` • ${candidate.unavailableReason}` : ""}
@@ -5089,7 +5092,7 @@ export default function BookingBoard() {
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    <tr className="align-middle">
+                                    <tr className="align-top">
                                       <td className="sticky left-0 z-40 w-[180px] min-w-[180px] max-w-[180px] bg-white px-3 py-2 border-r-2 border-slate-200 shadow-[6px_0_10px_-7px_rgba(15,23,42,0.65)]">
                                         <InlineInput
                                           value={clientFirstNames}
@@ -5506,7 +5509,7 @@ export default function BookingBoard() {
                                               r.bookingDetails,
                                               r,
                                             )}
-                                            className={`${inputClass} min-w-[420px] bg-gray-50 text-gray-600`}
+                                            className={`${inputClass} min-w-0 bg-gray-50 text-gray-600`}
                                           />
                                         </div>
                                       </td>
