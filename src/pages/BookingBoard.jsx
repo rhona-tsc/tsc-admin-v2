@@ -1193,6 +1193,12 @@ const buildEditStateFromRow = (row) => {
 };
 
 const normaliseAllocationRole = (value = "") => String(value || "").trim();
+const ALLOCATION_DUTY_OPTIONS = [
+  "DJ with mixing console/decks",
+  "Sound engineering",
+  "PA provision",
+  "Lighting provision",
+];
 
 const getBookingRoleSlots = (row = {}) => {
   const explicit = Array.isArray(row.lineupComposition)
@@ -1228,6 +1234,18 @@ const getBookingRoleSlots = (row = {}) => {
         roleSlotId: `${role.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${count}`,
         originalBandMemberId: sourceMember?._id || "",
         fee: Number(sourceMember?.fee || sourceMember?.gigFee || 0) || 0,
+        duties: Array.from(new Set(
+          (sourceMember?.additionalRoles || [])
+            .map((item) => String(item?.role || item || "").trim())
+            .map((duty) => {
+              if (/\bdj|mixing console|decks/i.test(duty)) return "DJ with mixing console/decks";
+              if (/sound engineer/i.test(duty)) return "Sound engineering";
+              if (/\bpa\b/i.test(duty)) return "PA provision";
+              if (/light/i.test(duty)) return "Lighting provision";
+              return duty;
+            })
+            .filter(Boolean),
+        )),
       };
     });
 };
@@ -1241,8 +1259,28 @@ function RoleAllocationCell({ row }) {
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState("");
   const [error, setError] = useState("");
+  const [slotDrafts, setSlotDrafts] = useState({});
 
   useEffect(() => setAssignments(getBookingMemberTags(row)), [row]);
+
+  const getSlotDraft = (slot, assignment) =>
+    slotDrafts[slot.roleSlotId] || {
+      fee: Number(assignment?.fee ?? slot.fee ?? 0) || 0,
+      duties: Array.from(new Set([
+        ...(assignment?.duties || []),
+        ...(slot.duties || []),
+      ])),
+    };
+
+  const updateSlotDraft = (slot, assignment, changes) => {
+    setSlotDrafts((current) => ({
+      ...current,
+      [slot.roleSlotId]: {
+        ...getSlotDraft(slot, assignment),
+        ...changes,
+      },
+    }));
+  };
 
   const findAssignment = (slot, slotIndex) =>
     assignments.find((member) => member?.roleSlotId === slot.roleSlotId) ||
@@ -1284,6 +1322,10 @@ function RoleAllocationCell({ row }) {
     setSending(slot.roleSlotId);
     setError("");
     try {
+      const assignment = assignments.find(
+        (member) => member?.roleSlotId === slot.roleSlotId,
+      );
+      const draft = getSlotDraft(slot, assignment);
       const response = await fetch(`${API_BASE}/allocations/offer-role`, {
         method: "POST",
         headers: { ...buildAuthHeaders(), "Content-Type": "application/json" },
@@ -1295,7 +1337,8 @@ function RoleAllocationCell({ row }) {
           originalBandMemberId: slot.originalBandMemberId || undefined,
           musicianId: candidate._id,
           candidateSource: candidate.source,
-          fee: Number(slot.fee || 0) || 0,
+          fee: Number(draft.fee || 0) || 0,
+          duties: draft.duties || [],
         }),
       });
       const json = await response.json().catch(() => null);
@@ -1311,6 +1354,9 @@ function RoleAllocationCell({ row }) {
         instrument: slot.role,
         roleSlotId: slot.roleSlotId,
         status: "offered",
+        fee: Number(draft.fee || 0) || 0,
+        totalFee: Number(draft.fee || 0) || 0,
+        duties: draft.duties || [],
         candidateSource: candidate.source,
         offerRequestId: json.requestId,
       };
@@ -1330,6 +1376,47 @@ function RoleAllocationCell({ row }) {
     }
   };
 
+  const confirmCandidate = async (slot, candidate) => {
+    setSending(slot.roleSlotId);
+    setError("");
+    try {
+      const assignment = assignments.find(
+        (member) => member?.roleSlotId === slot.roleSlotId,
+      );
+      const draft = getSlotDraft(slot, assignment);
+      const response = await fetch(`${API_BASE}/allocations/confirm-role`, {
+        method: "POST",
+        headers: { ...buildAuthHeaders(), "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          bookingBoardItemId: row?._id,
+          role: slot.role,
+          roleSlotId: slot.roleSlotId,
+          originalBandMemberId: slot.originalBandMemberId || undefined,
+          musicianId: candidate._id,
+          fee: Number(draft.fee || 0) || 0,
+          duties: draft.duties || [],
+          currency: "GBP",
+        }),
+      });
+      const json = await response.json().catch(() => null);
+      if (!response.ok || json?.success === false) {
+        throw new Error(json?.message || "Could not confirm musician");
+      }
+      setAssignments((current) => [
+        ...current.filter((member) => member?.roleSlotId !== slot.roleSlotId),
+        json.musician,
+      ]);
+      setActiveSlot("");
+      setResults([]);
+      setQuery("");
+    } catch (confirmError) {
+      setError(confirmError?.message || "Could not confirm musician");
+    } finally {
+      setSending("");
+    }
+  };
+
   if (!slots.length) {
     return <span className="text-xs text-gray-500">Add a lineup to create role slots</span>;
   }
@@ -1343,6 +1430,7 @@ function RoleAllocationCell({ row }) {
         const assignment = findAssignment(slot, roleIndex);
         const status = assignment?.status || "unfilled";
         const isOpen = activeSlot === slot.roleSlotId;
+        const draft = getSlotDraft(slot, assignment);
         return (
           <div key={slot.roleSlotId} className="relative rounded-lg border border-gray-300 bg-white p-3">
             <div className="mb-2 text-sm font-semibold leading-tight text-gray-800">
@@ -1367,6 +1455,62 @@ function RoleAllocationCell({ row }) {
               }`}>
                 {status === "offered" ? "Awaiting reply" : status.replaceAll("_", " ")}
               </span>
+            </div>
+            <div className="mt-3 grid grid-cols-[90px_minmax(0,1fr)] items-center gap-2 border-t pt-3 text-xs">
+              <label className="font-medium text-gray-600">Fee</label>
+              <div className="flex items-center gap-1">
+                <span>£</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={draft.fee || ""}
+                  onChange={(event) =>
+                    updateSlotDraft(slot, assignment, {
+                      fee: Number(event.target.value || 0) || 0,
+                    })
+                  }
+                  placeholder="0.00"
+                  className="min-w-0 flex-1 rounded border px-2 py-1.5"
+                />
+              </div>
+              <span className="self-start font-medium text-gray-600">Duties</span>
+              <div className="flex flex-wrap gap-1.5">
+                {ALLOCATION_DUTY_OPTIONS.map((duty) => {
+                  const selected = draft.duties.includes(duty);
+                  return (
+                    <button
+                      key={duty}
+                      type="button"
+                      onClick={() =>
+                        updateSlotDraft(slot, assignment, {
+                          duties: selected
+                            ? draft.duties.filter((item) => item !== duty)
+                            : [...draft.duties, duty],
+                        })
+                      }
+                      className={`rounded-full border px-2 py-1 text-[10px] ${selected ? "border-blue-700 bg-blue-700 text-white" : "border-gray-300 bg-white text-gray-600"}`}
+                    >
+                      {duty}
+                    </button>
+                  );
+                })}
+              </div>
+              {assignment?.musicianId ? (
+                <span />
+              ) : null}
+              {assignment?.musicianId ? (
+                <button
+                  type="button"
+                  disabled={sending === slot.roleSlotId}
+                  onClick={() =>
+                    confirmCandidate(slot, { _id: assignment.musicianId })
+                  }
+                  className="justify-self-start rounded border border-emerald-700 px-2.5 py-1.5 font-medium text-emerald-800 hover:bg-emerald-50 disabled:opacity-50"
+                >
+                  {sending === slot.roleSlotId ? "Saving…" : "Save fee & duties"}
+                </button>
+              ) : null}
             </div>
             {isOpen ? (
               <div className="absolute inset-x-0 top-full z-30 mt-2 w-full rounded-xl border border-gray-200 bg-white p-3 shadow-2xl">
@@ -1413,7 +1557,34 @@ function RoleAllocationCell({ row }) {
                           {candidate.unavailableReason ? ` • ${candidate.unavailableReason}` : ""}
                         </span>
                       </span>
-                      <span className="shrink-0">{candidate.available ? "Send request" : "Unavailable"}</span>
+                      <span className="flex shrink-0 gap-2">
+                        {candidate.available ? (
+                          <>
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                sendOffer(slot, candidate);
+                              }}
+                              className="rounded border px-2 py-1 hover:bg-white"
+                            >
+                              Send request
+                            </span>
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                confirmCandidate(slot, candidate);
+                              }}
+                              className="rounded bg-emerald-700 px-2 py-1 text-white"
+                            >
+                              Add confirmed
+                            </span>
+                          </>
+                        ) : "Unavailable"}
+                      </span>
                     </button>
                   ))}
                 </div>
