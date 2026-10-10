@@ -393,30 +393,39 @@ const getMergeKey = (row) => {
 
 const mergeRowsPreservingAllocations = (base = {}, preferred = {}) => {
   const merged = { ...base, ...preferred };
-  const pickAssignments = (key) =>
-    Array.isArray(preferred?.[key]) && preferred[key].length
-      ? preferred[key]
-      : Array.isArray(base?.[key]) && base[key].length
-        ? base[key]
-        : preferred?.[key] || base?.[key] || [];
+  const mergeAssignmentLists = (...lists) => {
+    const combined = lists.flatMap((items) => Array.isArray(items) ? items : []);
+    const byIdentity = new Map();
+    combined.forEach((member, index) => {
+      const role = String(member?.role || member?.instrument || "").trim().toLowerCase();
+      const identity =
+        (member?.roleSlotId && `slot:${member.roleSlotId}`) ||
+        (member?.musicianId && `musician:${member.musicianId}:${role}`) ||
+        (member?.email && `email:${String(member.email).toLowerCase()}:${role}`) ||
+        (member?.name && `name:${String(member.name).toLowerCase()}:${role}`) ||
+        `row:${index}`;
+      const existing = byIdentity.get(identity);
+      byIdentity.set(identity, existing ? { ...existing, ...member } : member);
+    });
+    return Array.from(byIdentity.values());
+  };
+  const mergeAssignments = (key) =>
+    mergeAssignmentLists(base?.[key], preferred?.[key]);
 
-  merged.assignedMusicians = pickAssignments("assignedMusicians");
-  merged.bookingMusicians = pickAssignments("bookingMusicians");
-  merged.bandLineup = pickAssignments("bandLineup");
+  merged.assignedMusicians = mergeAssignments("assignedMusicians");
+  merged.bookingMusicians = mergeAssignments("bookingMusicians");
+  merged.bandLineup = mergeAssignments("bandLineup");
 
   const preferredDetails = preferred?.bookingDetails || {};
   const baseDetails = base?.bookingDetails || {};
-  const preferredDetailAssignments = preferredDetails?.assignedMusicians;
-  const baseDetailAssignments = baseDetails?.assignedMusicians;
   merged.bookingDetails = {
     ...baseDetails,
     ...preferredDetails,
-    assignedMusicians:
-      Array.isArray(preferredDetailAssignments) && preferredDetailAssignments.length
-        ? preferredDetailAssignments
-        : Array.isArray(baseDetailAssignments) && baseDetailAssignments.length
-          ? baseDetailAssignments
-          : merged.assignedMusicians,
+    assignedMusicians: mergeAssignmentLists(
+      baseDetails?.assignedMusicians,
+      preferredDetails?.assignedMusicians,
+      merged.assignedMusicians,
+    ),
   };
 
   return merged;
