@@ -1299,6 +1299,7 @@ const getBookingRoleSlots = (row = {}) => {
 function RoleAllocationCell({ row }) {
   const slots = useMemo(() => getBookingRoleSlots(row), [row]);
   const [assignments, setAssignments] = useState(() => getBookingMemberTags(row));
+  const [isExpanded, setIsExpanded] = useState(false);
   const [activeSlot, setActiveSlot] = useState("");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -1495,13 +1496,82 @@ function RoleAllocationCell({ row }) {
   };
 
   if (!slots.length) {
-    return <span className="text-xs text-gray-500">Add a lineup to create role slots</span>;
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+        <div className="font-semibold">Lineup roles needed</div>
+        <div className="mt-1 text-[11px]">Add a lineup to create role slots</div>
+      </div>
+    );
   }
+
+  const allocationRows = (() => {
+    const seen = new Map();
+    return slots.map((slot) => {
+      const roleKey = slot.role.toLowerCase();
+      const roleIndex = seen.get(roleKey) || 0;
+      seen.set(roleKey, roleIndex + 1);
+      return {
+        slot,
+        roleIndex,
+        assignment: findAssignment(slot, roleIndex),
+      };
+    });
+  })();
+  const isConfirmedAllocation = (assignment) =>
+    ["accepted", "confirmed"].includes(
+      String(assignment?.status || "").toLowerCase(),
+    );
+  const confirmedCount = allocationRows.filter(({ assignment }) =>
+    isConfirmedAllocation(assignment),
+  ).length;
+  const outstandingRows = allocationRows.filter(
+    ({ assignment }) => !isConfirmedAllocation(assignment),
+  );
+  const allAllocated = outstandingRows.length === 0;
+  const noneAllocated = confirmedCount === 0;
+  const outstandingRoleCounts = outstandingRows.reduce((counts, { slot }) => {
+    counts.set(slot.role, (counts.get(slot.role) || 0) + 1);
+    return counts;
+  }, new Map());
 
   const roleSeen = new Map();
   return (
     <div className="w-full min-w-0 space-y-2">
-      {slots.map((slot) => {
+      <button
+        type="button"
+        className={`flex w-full items-start justify-between gap-3 rounded-lg border p-3 text-left transition-colors ${
+          allAllocated
+            ? "border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
+            : "border-amber-200 bg-amber-50 text-amber-950 hover:bg-amber-100"
+        }`}
+        onClick={() => setIsExpanded((current) => !current)}
+        aria-expanded={isExpanded}
+      >
+        <span className="min-w-0">
+          <span className="block text-xs font-semibold">
+            {allAllocated
+              ? "Lineup allocated"
+              : noneAllocated
+                ? "Full band needs to be allocated"
+                : "Roles to be allocated"}
+          </span>
+          {!allAllocated && !noneAllocated ? (
+            <span className="mt-1 block whitespace-normal text-[11px] leading-4">
+              {Array.from(outstandingRoleCounts.entries())
+                .map(([role, count]) => (count > 1 ? `${role} × ${count}` : role))
+                .join(", ")}
+            </span>
+          ) : null}
+          <span className="mt-1 block text-[10px] opacity-75">
+            {confirmedCount} of {slots.length} roles allocated
+          </span>
+        </span>
+        <span className="shrink-0 text-sm" aria-hidden="true">
+          {isExpanded ? "▴" : "▾"}
+        </span>
+      </button>
+
+      {isExpanded ? slots.map((slot) => {
         const roleIndex = roleSeen.get(slot.role.toLowerCase()) || 0;
         roleSeen.set(slot.role.toLowerCase(), roleIndex + 1);
         const assignment = findAssignment(slot, roleIndex);
@@ -1734,7 +1804,7 @@ function RoleAllocationCell({ row }) {
             ) : null}
           </div>
         );
-      })}
+      }) : null}
     </div>
   );
 }
@@ -5429,7 +5499,7 @@ export default function BookingBoard() {
                                   </thead>
                                   <tbody>
                                     <tr className="align-top">
-                                      <td className="sticky left-0 z-40 w-[180px] min-w-[180px] max-w-[180px] bg-white px-3 py-2 border-r-2 border-slate-200 shadow-[6px_0_10px_-7px_rgba(15,23,42,0.65)]">
+                                      <td className="sticky left-0 top-[33px] z-40 w-[180px] min-w-[180px] max-w-[180px] bg-white px-3 py-2 border-r-2 border-slate-200 shadow-[6px_0_10px_-7px_rgba(15,23,42,0.65)]">
                                         <InlineInput
                                           value={clientFirstNames}
                                           placeholder="Client name"
