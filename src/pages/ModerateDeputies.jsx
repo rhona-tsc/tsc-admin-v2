@@ -485,7 +485,7 @@ const ModerateDeputies = ({ token }) => {
                 {item.moderationFlags?.length ? <ul className="mt-2 list-disc pl-5 text-xs text-red-700">{item.moderationFlags.map((flag, index) => <li key={`${flag.type}-${index}`}>{flag.label}: {flag.evidence}</li>)}</ul> : null}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button disabled={videoActionId === item._id} onClick={() => refreshDirectVideo(item)} className="rounded border px-3 py-1 text-xs disabled:opacity-40">Refresh checks</button>
-                  <button disabled={videoActionId === item._id || item.status === "processing"} onClick={() => decideDirectVideo(item, "approve")} className="rounded bg-green-700 px-3 py-1 text-xs text-white disabled:opacity-40">Approve and publish</button>
+                  <button disabled={videoActionId === item._id} onClick={() => decideDirectVideo(item, "approve")} className="rounded bg-green-700 px-3 py-1 text-xs text-white disabled:opacity-40">Approve and publish</button>
                   <button disabled={videoActionId === item._id} onClick={() => decideDirectVideo(item, "reject")} className="rounded bg-red-700 px-3 py-1 text-xs text-white disabled:opacity-40">Request clean version</button>
                 </div>
               </article>;
