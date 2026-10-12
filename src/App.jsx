@@ -56,6 +56,7 @@ import OriginalsReadiness from "./pages/OriginalsReadiness";
 import RegularDeputies from "./pages/RegularDeputies";
 import RegularDeputyDetails from "./pages/RegularDeputyDetails";
 import MyDeputyApplications from "./pages/MyDeputyApplications";
+import VenueBlackBook from "./pages/VenueBlackBook";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -574,6 +575,12 @@ const App = () => {
                     <BookingBoard token={token} />
                   </RequireAuth>
                 }
+              />
+            )}
+            {isAdminAgent && (
+              <Route
+                path="/venues"
+                element={<RequireAuth><VenueBlackBook token={token} /></RequireAuth>}
               />
             )}
             {isAdminAgent && (
