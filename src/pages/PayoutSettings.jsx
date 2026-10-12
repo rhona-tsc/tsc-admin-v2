@@ -7,7 +7,9 @@ const PayoutSettings = () => {
   const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [payoutStatus, setPayoutStatus] = useState(null);
 
   const token =
@@ -101,6 +103,34 @@ const PayoutSettings = () => {
       );
     } finally {
       setConnecting(false);
+    }
+  };
+
+  const handleResetStripe = async () => {
+    const confirmed = window.confirm(
+      "Reset this incomplete Stripe connection? You will need to start the payout setup again."
+    );
+    if (!confirmed) return;
+
+    try {
+      setResetting(true);
+      setError("");
+      setNotice("");
+      await axios.post(
+        `${backendUrl}/api/musician/account/stripe-connect/reset`,
+        {},
+        { headers, withCredentials: true }
+      );
+      setNotice("Stripe connection reset. You can now connect a different account.");
+      await loadStatus();
+    } catch (err) {
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Could not reset Stripe connection"
+      );
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -200,10 +230,22 @@ const PayoutSettings = () => {
             >
               Refresh status
             </button>
+
+            {status === "incomplete" && accountId ? (
+              <button
+                type="button"
+                onClick={handleResetStripe}
+                disabled={resetting || connecting}
+                className="px-4 py-2 rounded border border-red-300 bg-white text-red-700 hover:bg-red-50 disabled:opacity-60"
+              >
+                {resetting ? "Resetting…" : "Reset Stripe connection"}
+              </button>
+            ) : null}
           </div>
         </>
       )}
 
+      {notice && <p className="text-green-700 text-sm mt-4">{notice}</p>}
       {error && <p className="text-red-600 text-sm mt-4">{error}</p>}
     </div>
   );

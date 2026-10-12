@@ -151,6 +151,7 @@ const DeputyStepSix = ({
   const [errors, setErrors] = useState({ sortCode: "", accountNumber: "" });
   const [isSignaturePresent, setIsSignaturePresent] = useState(false);
   const [stripeLoading, setStripeLoading] = useState(false);
+  const [stripeResetting, setStripeResetting] = useState(false);
   const [stripeError, setStripeError] = useState("");
   const [stripeReturnMessage, setStripeReturnMessage] = useState("");
 
@@ -247,6 +248,55 @@ const DeputyStepSix = ({
       setStripeError(message);
     } finally {
       setStripeLoading(false);
+    }
+  };
+
+  const handleResetStripe = async () => {
+    if (
+      !window.confirm(
+        "Reset this incomplete Stripe connection? You will need to start the payout setup again.",
+      )
+    ) return;
+
+    try {
+      setStripeResetting(true);
+      setStripeError("");
+      const tokenToUse = getStoredAuthToken(authToken);
+      if (!tokenToUse || isJwtExpiredToken(tokenToUse)) {
+        clearExpiredAuth();
+        setStripeError("Your session has expired. Please log in again, then try the reset.");
+        return;
+      }
+
+      const response = await axios.post(
+        `${backendUrl}/api/musician/account/stripe-connect/reset`,
+        {},
+        {
+          headers: getAuthHeaders(tokenToUse, authHeaders),
+          withCredentials: true,
+        },
+      );
+      setFormData((prev) => ({
+        ...prev,
+        stripeConnect: response?.data?.stripeConnect || {
+          accountId: "",
+          onboardingComplete: false,
+          chargesEnabled: false,
+          payoutsEnabled: false,
+          detailsSubmitted: false,
+        },
+      }));
+      setStripeReturnMessage(
+        "Stripe connection reset. Click Connect Stripe for payouts to start again.",
+      );
+    } catch (err) {
+      setStripeError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Could not reset Stripe connection",
+      );
+    } finally {
+      setStripeResetting(false);
     }
   };
 
@@ -416,9 +466,19 @@ const DeputyStepSix = ({
               Stripe payouts ready
             </span>
           ) : formData?.stripeConnect?.accountId ? (
-            <span className="text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-              Stripe connected, payout verification pending
-            </span>
+            <>
+              <span className="text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+                Stripe connected, payout verification pending
+              </span>
+              <button
+                type="button"
+                onClick={handleResetStripe}
+                disabled={stripeResetting || stripeLoading}
+                className="px-3 py-2 rounded border border-red-300 bg-white text-sm text-red-700 hover:bg-red-50 disabled:opacity-60"
+              >
+                {stripeResetting ? "Resetting…" : "Reset Stripe connection"}
+              </button>
+            </>
           ) : null}
         </div>
 
