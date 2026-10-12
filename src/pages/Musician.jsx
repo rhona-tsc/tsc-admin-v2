@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
+import { toast } from "react-toastify";
 
 const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
 const PUBLIC_SITE_URL = (
@@ -191,6 +192,82 @@ const VideoList = ({ title, items = [] }) => {
   );
 };
 
+const getVideoEmbedUrl = (value = "") => {
+  try {
+    const url = new URL(value);
+    if (url.hostname.includes("youtube.com")) {
+      const id = url.searchParams.get("v");
+      return id ? `https://www.youtube.com/embed/${id}` : "";
+    }
+    if (url.hostname === "youtu.be") {
+      return `https://www.youtube.com/embed/${url.pathname.replace(/^\//, "")}`;
+    }
+    if (url.hostname.includes("vimeo.com")) {
+      const id = url.pathname.split("/").filter(Boolean).pop();
+      return id ? `https://player.vimeo.com/video/${id}` : "";
+    }
+  } catch {
+    return "";
+  }
+  return "";
+};
+
+const ReviewVideoGrid = ({ groups = [] }) => {
+  const videos = groups.flatMap(({ label, items }) =>
+    (Array.isArray(items) ? items : [])
+      .filter((item) => item?.url)
+      .map((item) => ({ ...item, label })),
+  );
+  if (!videos.length) return <p className="text-sm text-gray-500">No videos supplied.</p>;
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      {videos.map((video, index) => {
+        const embed = getVideoEmbedUrl(video.url);
+        return (
+          <article key={`${video.url}-${index}`} className="overflow-hidden rounded-xl border bg-white">
+            {embed ? (
+              <iframe
+                src={embed}
+                title={video.title || `Video ${index + 1}`}
+                className="aspect-video w-full bg-black"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            ) : (
+              <video src={video.url} controls playsInline className="aspect-video w-full bg-black" />
+            )}
+            <div className="p-3 text-sm">
+              <p className="font-medium">{video.title || `Video ${index + 1}`}</p>
+              <p className="text-xs text-gray-500">{video.label}</p>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+};
+
+const DownloadableImage = ({ url, label }) => {
+  if (!url) return null;
+  return (
+    <div className="overflow-hidden rounded-xl border bg-white">
+      <img src={url} alt={label} className="aspect-[4/3] w-full object-cover" />
+      <div className="flex items-center justify-between gap-2 p-3">
+        <span className="text-sm font-medium">{label}</span>
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          download
+          className="rounded border px-3 py-1 text-xs font-medium hover:bg-gray-50"
+        >
+          Download original
+        </a>
+      </div>
+    </div>
+  );
+};
+
 const Musician = () => {
   const navigate = useNavigate();
   const params = useParams();
@@ -198,6 +275,11 @@ const Musician = () => {
   const [musician, setMusician] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [bioDraft, setBioDraft] = useState("");
+  const [taglineDraft, setTaglineDraft] = useState("");
+  const [savingReview, setSavingReview] = useState(false);
+  const [moderating, setModerating] = useState(false);
+  const reviewMode = new URLSearchParams(window.location.search).get("review") === "1";
 
   useEffect(() => {
     let cancelled = false;
@@ -243,6 +325,8 @@ const Musician = () => {
 
         if (!cancelled) {
           setMusician(found);
+          setBioDraft(found?.tscApprovedBio || found?.bio || "");
+          setTaglineDraft(found?.tagLine || "");
           setLoading(false);
         }
       } catch (err) {
@@ -263,6 +347,54 @@ const Musician = () => {
   const profileImage = useMemo(() => getProfileImage(musician), [musician]);
   const publicProfileUrl = useMemo(() => getPublicProfileUrl(musician), [musician]);
   const fullName = useMemo(() => getFullName(musician), [musician]);
+
+  const token = localStorage.getItem("token") || "";
+  const authHeaders = token ? { Authorization: `Bearer ${token}`, token } : {};
+
+  const saveReviewCopy = async () => {
+    setSavingReview(true);
+    try {
+      const res = await axios.patch(
+        `${BACKEND_URL}/api/musician/moderation/deputy/${musician._id}/save`,
+        { tscApprovedBio: bioDraft, bio: bioDraft, tagLine: taglineDraft },
+        { headers: authHeaders },
+      );
+      setMusician(res.data?.deputy || res.data?.musician || ((current) => ({
+        ...current,
+        tscApprovedBio: bioDraft,
+        bio: bioDraft,
+        tagLine: taglineDraft,
+      })));
+      toast.success("Profile copy saved");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Could not save profile copy");
+    } finally {
+      setSavingReview(false);
+    }
+  };
+
+  const decideProfile = async (action) => {
+    setModerating(true);
+    try {
+      const endpoint = action === "approve" ? "approve-deputy" : "reject-deputy";
+      await axios.post(
+        `${BACKEND_URL}/api/musician/${endpoint}`,
+        { id: musician._id },
+        { headers: authHeaders },
+      );
+      setMusician((current) => ({
+        ...current,
+        status: action === "approve" ? "approved" : "rejected",
+        aiBioReviewRequired: false,
+        aiTaglineReviewRequired: false,
+      }));
+      toast.success(action === "approve" ? "Profile approved" : "Profile rejected");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || `Could not ${action} profile`);
+    } finally {
+      setModerating(false);
+    }
+  };
 
   const instrumentation = Array.isArray(musician?.instrumentation)
     ? musician.instrumentation
@@ -359,6 +491,15 @@ const Musician = () => {
         </button>
 
         <div className="flex items-center gap-3 flex-wrap">
+          {reviewMode ? (
+            <button
+              type="button"
+              onClick={() => navigate(`/moderate-deputy/edit/${musician._id}`)}
+              className="px-4 py-2 rounded-xl bg-blue-700 text-sm font-medium text-white hover:bg-blue-800"
+            >
+              Edit full profile form
+            </button>
+          ) : null}
           {publicProfileUrl ? (
             <a
               href={publicProfileUrl}
@@ -371,6 +512,108 @@ const Musician = () => {
           ) : null}
         </div>
       </div>
+
+      {reviewMode ? (
+        <section className="mb-8 overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-gray-950 px-5 py-4 text-white">
+            <div>
+              <h2 className="text-xl font-semibold">Client-view profile preview</h2>
+              <p className="mt-1 text-sm text-gray-300">This is the live public profile the client sees.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                disabled={moderating}
+                onClick={() => decideProfile("approve")}
+                className="rounded bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                Approve profile
+              </button>
+              <button
+                type="button"
+                disabled={moderating}
+                onClick={() => decideProfile("reject")}
+                className="rounded bg-red-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+          {publicProfileUrl ? (
+            <iframe
+              key={`${publicProfileUrl}-${musician?.profileLastReviewedAt || "draft"}`}
+              src={publicProfileUrl}
+              title={`${fullName} client-view profile`}
+              className="h-[850px] w-full bg-white"
+            />
+          ) : (
+            <p className="p-5 text-gray-500">A public profile URL has not been created yet.</p>
+          )}
+        </section>
+      ) : null}
+
+      {reviewMode ? (
+        <section className="mb-8 rounded-2xl border border-dashed border-gray-400 bg-gray-100 p-5">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Pending content and moderator edits</h2>
+              <p className="mt-1 text-sm text-gray-600">Grey content is private until you save and approve it.</p>
+            </div>
+            <button
+              type="button"
+              onClick={saveReviewCopy}
+              disabled={savingReview}
+              className="rounded bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {savingReview ? "Saving…" : "Save edits"}
+            </button>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <label className="text-sm font-medium text-gray-800">
+              Tagline
+              <input
+                value={taglineDraft}
+                maxLength={120}
+                onChange={(event) => setTaglineDraft(event.target.value)}
+                className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2"
+              />
+              <span className="mt-1 block text-right text-xs text-gray-500">{taglineDraft.length}/120</span>
+            </label>
+            <label className="text-sm font-medium text-gray-800 lg:row-span-2">
+              Biography
+              <textarea
+                value={bioDraft}
+                onChange={(event) => setBioDraft(event.target.value)}
+                rows={9}
+                className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2"
+              />
+            </label>
+          </div>
+        </section>
+      ) : null}
+
+      {reviewMode ? (
+        <section className={`${sectionCardClass} mb-8`}>
+          <h2 className={sectionTitleClass}>Review all supplied videos</h2>
+          <ReviewVideoGrid groups={[
+            { label: "Approved function video", items: musician?.tscApprovedFunctionBandVideoLinks },
+            { label: "Approved original video", items: musician?.tscApprovedOriginalBandVideoLinks },
+            { label: "Pending function video", items: musician?.functionBandVideoLinks },
+            { label: "Pending original video", items: musician?.originalBandVideoLinks },
+          ]} />
+        </section>
+      ) : null}
+
+      {reviewMode ? (
+        <section className={`${sectionCardClass} mb-8`}>
+          <h2 className={sectionTitleClass}>Profile and cover images</h2>
+          <p className="mb-4 text-sm text-gray-600">Open or download the original file for enhancement, then use View/Edit to upload the replacement.</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            <DownloadableImage url={normaliseImage(musician?.profilePhoto)} label="Profile image" />
+            <DownloadableImage url={normaliseImage(musician?.coverHeroImage)} label="Cover image" />
+          </div>
+        </section>
+      ) : null}
 
       <div className="bg-white border border-gray-200 rounded-3xl shadow-sm overflow-hidden mb-8">
         <div className="bg-gradient-to-r from-gray-900 via-gray-800 to-black px-6 py-8 text-white">
