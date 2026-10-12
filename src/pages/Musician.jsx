@@ -212,17 +212,22 @@ const getVideoEmbedUrl = (value = "") => {
   return "";
 };
 
-const ReviewVideoGrid = ({ groups = [] }) => {
-  const videos = groups.flatMap(({ label, items }) =>
+const isDirectVideoUrl = (value = "") => /\.(mp4|mov|m4v|webm)(?:$|[?#])/i.test(value);
+
+const ReviewVideoGrid = ({ groups = [], onApprove, onRequest, busyKey = "" }) => {
+  const videos = groups.flatMap(({ label, category, pending, items }) =>
     (Array.isArray(items) ? items : [])
       .filter((item) => item?.url)
-      .map((item) => ({ ...item, label })),
+      .map((item) => ({ ...item, label, category, pending })),
   );
   if (!videos.length) return <p className="text-sm text-gray-500">No videos supplied.</p>;
   return (
     <div className="grid gap-4 md:grid-cols-2">
       {videos.map((video, index) => {
         const embed = getVideoEmbedUrl(video.url);
+        const directVideo = isDirectVideoUrl(video.url);
+        const playable = Boolean(embed || directVideo);
+        const key = `${video.category}-${index}-${video.url}`;
         return (
           <article key={`${video.url}-${index}`} className="overflow-hidden rounded-xl border bg-white">
             {embed ? (
@@ -233,12 +238,44 @@ const ReviewVideoGrid = ({ groups = [] }) => {
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
               />
-            ) : (
+            ) : directVideo ? (
               <video src={video.url} controls playsInline className="aspect-video w-full bg-black" />
+            ) : (
+              <div className="flex aspect-video items-center justify-center bg-amber-50 p-6 text-center">
+                <div>
+                  <p className="font-semibold text-amber-900">This is a webpage, not a playable video</p>
+                  <a href={video.url} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm text-amber-800 underline">
+                    {video.url}
+                  </a>
+                </div>
+              </div>
             )}
             <div className="p-3 text-sm">
               <p className="font-medium">{video.title || `Video ${index + 1}`}</p>
               <p className="text-xs text-gray-500">{video.label}</p>
+              {video.pending ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {playable ? (
+                    <button
+                      type="button"
+                      disabled={busyKey === key}
+                      onClick={() => onApprove?.(video, key)}
+                      className="rounded bg-green-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                    >
+                      {busyKey === key ? "Approving…" : "Approve video"}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={busyKey === key}
+                      onClick={() => onRequest?.(video, key)}
+                      className="rounded bg-amber-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                    >
+                      {busyKey === key ? "Sending…" : "Request proper video link"}
+                    </button>
+                  )}
+                </div>
+              ) : null}
             </div>
           </article>
         );
@@ -279,6 +316,7 @@ const Musician = () => {
   const [taglineDraft, setTaglineDraft] = useState("");
   const [savingReview, setSavingReview] = useState(false);
   const [moderating, setModerating] = useState(false);
+  const [videoActionKey, setVideoActionKey] = useState("");
   const reviewMode = new URLSearchParams(window.location.search).get("review") === "1";
 
   useEffect(() => {
@@ -359,17 +397,63 @@ const Musician = () => {
         { tscApprovedBio: bioDraft, bio: bioDraft, tagLine: taglineDraft },
         { headers: authHeaders },
       );
-      setMusician(res.data?.deputy || res.data?.musician || ((current) => ({
+      setMusician((current) => ({
         ...current,
+        ...(res.data?.deputy || res.data?.musician || {}),
         tscApprovedBio: bioDraft,
         bio: bioDraft,
         tagLine: taglineDraft,
-      })));
+      }));
       toast.success("Profile copy saved");
     } catch (err) {
       toast.error(err?.response?.data?.message || "Could not save profile copy");
     } finally {
       setSavingReview(false);
+    }
+  };
+
+  const approveVideo = async (video, key) => {
+    const pendingField = video.category === "original" ? "originalBandVideoLinks" : "functionBandVideoLinks";
+    const approvedField = video.category === "original" ? "tscApprovedOriginalBandVideoLinks" : "tscApprovedFunctionBandVideoLinks";
+    const pending = Array.isArray(musician?.[pendingField]) ? musician[pendingField] : [];
+    const approved = Array.isArray(musician?.[approvedField]) ? musician[approvedField] : [];
+    const nextApproved = approved.some((item) => item?.url === video.url) ? approved : [...approved, { title: video.title || "", url: video.url }];
+    const nextPending = pending.filter((item) => item?.url !== video.url);
+
+    setVideoActionKey(key);
+    try {
+      const res = await axios.patch(
+        `${BACKEND_URL}/api/musician/moderation/deputy/${musician._id}/save`,
+        { [pendingField]: nextPending, [approvedField]: nextApproved },
+        { headers: authHeaders },
+      );
+      setMusician((current) => ({
+        ...current,
+        ...(res.data?.deputy || res.data?.musician || {}),
+        [pendingField]: nextPending,
+        [approvedField]: nextApproved,
+      }));
+      toast.success("Video approved");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Could not approve video");
+    } finally {
+      setVideoActionKey("");
+    }
+  };
+
+  const requestVideoResubmission = async (video, key) => {
+    setVideoActionKey(key);
+    try {
+      const res = await axios.post(
+        `${BACKEND_URL}/api/musician/moderation/deputy/${musician._id}/request-video-resubmission`,
+        { category: video.category, url: video.url },
+        { headers: authHeaders },
+      );
+      toast.success(res.data?.message || "Video request sent");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Could not send video request");
+    } finally {
+      setVideoActionKey("");
     }
   };
 
@@ -595,12 +679,17 @@ const Musician = () => {
       {reviewMode ? (
         <section className={`${sectionCardClass} mb-8`}>
           <h2 className={sectionTitleClass}>Review all supplied videos</h2>
-          <ReviewVideoGrid groups={[
-            { label: "Approved function video", items: musician?.tscApprovedFunctionBandVideoLinks },
-            { label: "Approved original video", items: musician?.tscApprovedOriginalBandVideoLinks },
-            { label: "Pending function video", items: musician?.functionBandVideoLinks },
-            { label: "Pending original video", items: musician?.originalBandVideoLinks },
-          ]} />
+          <ReviewVideoGrid
+            groups={[
+              { label: "Approved function video", category: "function", pending: false, items: musician?.tscApprovedFunctionBandVideoLinks },
+              { label: "Approved original video", category: "original", pending: false, items: musician?.tscApprovedOriginalBandVideoLinks },
+              { label: "Pending function video", category: "function", pending: true, items: musician?.functionBandVideoLinks },
+              { label: "Pending original video", category: "original", pending: true, items: musician?.originalBandVideoLinks },
+            ]}
+            onApprove={approveVideo}
+            onRequest={requestVideoResubmission}
+            busyKey={videoActionKey}
+          />
         </section>
       ) : null}
 
