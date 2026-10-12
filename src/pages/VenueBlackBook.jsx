@@ -51,6 +51,18 @@ export default function VenueBlackBook({ token }) {
     finally { setSaving(false); }
   };
 
+  const deleteVenue = async () => {
+    if (!selectedId) return;
+    const venueName = draft.name || "this venue";
+    if (!window.confirm(`Delete ${venueName}? This will remove its rooms, visit history and band feedback from the Venue Little Black Book.`)) return;
+    setSaving(true);
+    try {
+      await axios.delete(`${backendUrl}/api/venues/${selectedId}`, { headers });
+      setSelectedId(""); setDraft(blankVenue); await load(); toast.success(`${venueName} deleted`);
+    } catch (error) { toast.error(error.response?.data?.message || "Could not delete venue"); }
+    finally { setSaving(false); }
+  };
+
   const syncBookings = async () => {
     setSaving(true);
     try { const { data } = await axios.post(`${backendUrl}/api/venues/sync/bookings`, {}, { headers }); await load(); toast.success(`Checked ${data.total} bookings and updated ${data.imported} venue records`); }
@@ -129,7 +141,7 @@ export default function VenueBlackBook({ token }) {
           <div className="space-y-4">{(draft.rooms || []).map((room, index) => <div key={room._id || index} className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="grid gap-3 md:grid-cols-2"><Field label="Room / space name" value={room.name} onChange={(v) => setRoom(index, "name", v)} /><Field label="Capacity / room size" value={room.capacity} onChange={(v) => setRoom(index, "capacity", v)} /><Field label="Performance area" value={room.performanceArea} onChange={(v) => setRoom(index, "performanceArea", v)} multiline /><Field label="Access and loading" value={room.accessAndLoading} onChange={(v) => setRoom(index, "accessAndLoading", v)} multiline /><Field label="Changing / green room" value={room.changingRoom} onChange={(v) => setRoom(index, "changingRoom", v)} multiline /><Field label="Sound limitations" value={room.soundLimitations} onChange={(v) => setRoom(index, "soundLimitations", v)} multiline /><Field label="Sound limiter dB" value={room.soundLimiterDb} onChange={(v) => setRoom(index, "soundLimiterDb", v)} /><Field label="Curfew / close time" value={room.curfewAndCloseTime} onChange={(v) => setRoom(index, "curfewAndCloseTime", v)} /><Field label="PA and lighting" value={room.paAndLighting} onChange={(v) => setRoom(index, "paAndLighting", v)} multiline /><Field label="Power / stage notes" value={room.powerAndStage} onChange={(v) => setRoom(index, "powerAndStage", v)} multiline /></div></div>)}</div>
         </section>
         {selectedId && <section className="grid gap-4 border-t pt-5 md:grid-cols-2"><div><h2 className="font-bold">Bands that have performed here</h2><div className="mt-2 space-y-2">{(draft.visits || []).length ? [...draft.visits].sort((a,b) => new Date(b.eventDate || 0)-new Date(a.eventDate || 0)).map((visit, i) => <div key={`${visit.bookingId}-${i}`} className="rounded-lg bg-slate-50 p-3 text-sm"><b>{visit.actName || "Act not recorded"}</b>{visit.roomName ? ` · ${visit.roomName}` : ""}<div className="text-slate-500">{visit.eventDate ? new Date(visit.eventDate).toLocaleDateString("en-GB") : "Date not recorded"}</div></div>) : <p className="text-sm text-slate-500">No linked gigs yet.</p>}</div></div><div><h2 className="font-bold">Band member feedback</h2><div className="mt-2 grid gap-2 sm:grid-cols-2"><input className="rounded-lg border px-3 py-2 text-sm" placeholder="Band member name" value={feedbackAuthor} onChange={(e) => setFeedbackAuthor(e.target.value)} /><select className="rounded-lg border px-3 py-2 text-sm" value={feedbackRoom} onChange={(e) => setFeedbackRoom(e.target.value)}><option value="">Venue generally</option>{(draft.rooms || []).map((room, i) => <option key={room._id || i} value={room.name}>{room.name}</option>)}</select><textarea className="rounded-lg border px-3 py-2 text-sm sm:col-span-2" rows={3} placeholder="What should the next band know?" value={feedbackNote} onChange={(e) => setFeedbackNote(e.target.value)} /><button onClick={addFeedback} disabled={saving} className="rounded-lg bg-amber-500 px-3 py-2 text-sm font-bold sm:col-span-2">Add feedback note</button></div><div className="mt-3 space-y-2">{(draft.feedback || []).length ? draft.feedback.map((item) => <div key={item._id} className="rounded-lg bg-amber-50 p-3 text-sm"><b>{item.authorName || "Band member"}</b>{item.roomName ? ` · ${item.roomName}` : ""}<p className="mt-1">{item.note}</p></div>) : <p className="text-sm text-slate-500">No feedback recorded yet.</p>}</div></div></section>}
-        <div className="sticky bottom-3 flex justify-end"><button onClick={save} disabled={saving} className="rounded-xl bg-emerald-700 px-6 py-3 font-bold text-white shadow-lg disabled:opacity-50">{saving ? "Saving…" : "Save venue"}</button></div>
+        <div className="sticky bottom-3 flex flex-wrap justify-end gap-3">{selectedId && <button onClick={deleteVenue} disabled={saving} className="rounded-xl border border-red-300 bg-white px-5 py-3 font-bold text-red-700 shadow-lg disabled:opacity-50">Delete venue</button>}<button onClick={save} disabled={saving} className="rounded-xl bg-emerald-700 px-6 py-3 font-bold text-white shadow-lg disabled:opacity-50">{saving ? "Saving…" : "Save venue"}</button></div>
       </main>
     </div>
   </div>;
