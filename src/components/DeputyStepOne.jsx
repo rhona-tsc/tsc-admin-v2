@@ -1037,7 +1037,14 @@ const DeputyStepOne = ({
         </p>
 
         {!userRole?.includes?.("agent") ? (
-          <DirectVideoUploader musicianId={musicianId} category="function" />
+          <div className="space-y-3">
+            <DirectVideoUploader musicianId={musicianId} category="function" />
+            <SortableVideoLinkList
+              links={asVideoLinksArray(formData.functionBandVideoLinks)}
+              setLinks={(updated) => setFormData((prev) => ({ ...prev, functionBandVideoLinks: updated }))}
+              placeholderPrefix="Function"
+            />
+          </div>
         ) : (
           <SortableVideoLinkList
             links={asVideoLinksArray(formData.functionBandVideoLinks)}
@@ -1077,7 +1084,14 @@ const DeputyStepOne = ({
         </p>
 
         {!userRole?.includes?.("agent") ? (
-          <DirectVideoUploader musicianId={musicianId} category="original" />
+          <div className="space-y-3">
+            <DirectVideoUploader musicianId={musicianId} category="original" />
+            <SortableVideoLinkList
+              links={asVideoLinksArray(formData.originalBandVideoLinks)}
+              setLinks={(updated) => setFormData((prev) => ({ ...prev, originalBandVideoLinks: updated }))}
+              placeholderPrefix="Original"
+            />
+          </div>
         ) : (
           <SortableVideoLinkList
             links={asVideoLinksArray(formData.originalBandVideoLinks)}

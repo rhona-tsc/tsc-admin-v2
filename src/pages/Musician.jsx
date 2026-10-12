@@ -317,6 +317,7 @@ const Musician = () => {
   const [savingReview, setSavingReview] = useState(false);
   const [moderating, setModerating] = useState(false);
   const [videoActionKey, setVideoActionKey] = useState("");
+  const [directVideoSubmissions, setDirectVideoSubmissions] = useState([]);
   const reviewMode = new URLSearchParams(window.location.search).get("review") === "1";
 
   useEffect(() => {
@@ -366,6 +367,16 @@ const Musician = () => {
           setBioDraft(found?.tscApprovedBio || found?.bio || "");
           setTaglineDraft(found?.tagLine || "");
           setLoading(false);
+        }
+
+        try {
+          const submissionsRes = await axios.get(
+            `${BACKEND_URL}/api/musician/${found._id}/video-submissions`,
+            { headers: token ? { Authorization: `Bearer ${token}`, token } : {} },
+          );
+          if (!cancelled) setDirectVideoSubmissions(submissionsRes.data?.submissions || []);
+        } catch {
+          if (!cancelled) setDirectVideoSubmissions([]);
         }
       } catch (err) {
         if (!cancelled) {
@@ -452,6 +463,42 @@ const Musician = () => {
       toast.success(res.data?.message || "Video request sent");
     } catch (err) {
       toast.error(err?.response?.data?.message || "Could not send video request");
+    } finally {
+      setVideoActionKey("");
+    }
+  };
+
+  const refreshDirectVideo = async (submission) => {
+    const key = `direct-${submission._id}`;
+    setVideoActionKey(key);
+    try {
+      const res = await axios.post(
+        `${BACKEND_URL}/api/musician/${musician._id}/video-submissions/${submission._id}/refresh`,
+        {},
+        { headers: authHeaders },
+      );
+      setDirectVideoSubmissions((items) => items.map((item) => item._id === submission._id ? res.data?.submission || item : item));
+      toast.success("Video checks refreshed");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Could not refresh video checks");
+    } finally {
+      setVideoActionKey("");
+    }
+  };
+
+  const decideDirectVideo = async (submission, decision) => {
+    const key = `direct-${submission._id}`;
+    setVideoActionKey(key);
+    try {
+      const res = await axios.patch(
+        `${BACKEND_URL}/api/moderation/video-submissions/${submission._id}/review`,
+        { decision, reason: decision === "approve" ? "Final visual check completed" : "Please provide a clean replacement video" },
+        { headers: authHeaders },
+      );
+      setDirectVideoSubmissions((items) => items.map((item) => item._id === submission._id ? res.data?.submission || item : item));
+      toast.success(decision === "approve" ? "Video approved and published" : "Replacement requested");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Could not save video decision");
     } finally {
       setVideoActionKey("");
     }
@@ -679,6 +726,31 @@ const Musician = () => {
       {reviewMode ? (
         <section className={`${sectionCardClass} mb-8`}>
           <h2 className={sectionTitleClass}>Review all supplied videos</h2>
+          {directVideoSubmissions.length ? (
+            <div className="mb-5 grid gap-4 md:grid-cols-2">
+              {directVideoSubmissions.map((submission) => {
+                const key = `direct-${submission._id}`;
+                return (
+                  <article key={submission._id} className="overflow-hidden rounded-xl border border-fuchsia-200 bg-white">
+                    {submission.accessUrl ? <video src={submission.accessUrl} controls playsInline className="aspect-video w-full bg-black" /> : null}
+                    <div className="p-3 text-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div><p className="font-semibold">{submission.suppliedTitle || submission.originalName || "Direct upload"}</p><p className="text-xs text-gray-500">Direct {submission.category || "function"} video upload</p></div>
+                        <span className="rounded-full bg-fuchsia-50 px-2 py-1 text-xs text-fuchsia-900">{String(submission.status || "").replaceAll("_", " ")}</span>
+                      </div>
+                      {submission.moderationReason ? <p className="mt-2 text-xs text-gray-600">{submission.moderationReason}</p> : null}
+                      {submission.youtubeUrl ? <a href={submission.youtubeUrl} target="_blank" rel="noreferrer" className="mt-2 block break-all text-xs text-blue-700 underline">{submission.youtubeUrl}</a> : null}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {submission.status !== "published" ? <button type="button" disabled={videoActionKey === key} onClick={() => refreshDirectVideo(submission)} className="rounded border px-3 py-2 text-xs font-semibold disabled:opacity-50">Refresh checks</button> : null}
+                        {["manual_required", "ready_for_review"].includes(submission.status) ? <button type="button" disabled={videoActionKey === key} onClick={() => decideDirectVideo(submission, "approve")} className="rounded bg-green-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Approve and publish</button> : null}
+                        {submission.status !== "published" && submission.status !== "rejected" ? <button type="button" disabled={videoActionKey === key} onClick={() => decideDirectVideo(submission, "reject")} className="rounded bg-red-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Request clean replacement</button> : null}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : null}
           <ReviewVideoGrid
             groups={[
               { label: "Approved function video", category: "function", pending: false, items: musician?.tscApprovedFunctionBandVideoLinks },
