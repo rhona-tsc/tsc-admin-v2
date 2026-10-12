@@ -1536,9 +1536,15 @@ function RoleAllocationCell({ row }) {
   const outstandingRows = allocationRows.filter(
     ({ assignment }) => !isConfirmedAllocation(assignment),
   );
+  const pendingRows = outstandingRows.filter(
+    ({ assignment }) => String(assignment?.status || "").toLowerCase() === "offered",
+  );
+  const unfilledRows = outstandingRows.filter(
+    ({ assignment }) => String(assignment?.status || "").toLowerCase() !== "offered",
+  );
   const allAllocated = outstandingRows.length === 0;
   const noneAllocated = confirmedCount === 0;
-  const outstandingRoleCounts = outstandingRows.reduce((counts, { slot }) => {
+  const outstandingRoleCounts = unfilledRows.reduce((counts, { slot }) => {
     counts.set(slot.role, (counts.get(slot.role) || 0) + 1);
     return counts;
   }, new Map());
@@ -1564,15 +1570,28 @@ function RoleAllocationCell({ row }) {
                 ? "Full band needs to be allocated"
                 : "Roles to be allocated"}
           </span>
-          {!allAllocated && !noneAllocated ? (
+          {!allAllocated && outstandingRoleCounts.size > 0 ? (
             <span className="mt-1 block whitespace-normal text-[11px] leading-4">
+              <span className="font-medium">Unfilled: </span>
               {Array.from(outstandingRoleCounts.entries())
                 .map(([role, count]) => (count > 1 ? `${role} × ${count}` : role))
                 .join(", ")}
             </span>
           ) : null}
+          {pendingRows.length > 0 ? (
+            <span className="mt-1 block whitespace-normal text-[11px] leading-4">
+              <span className="font-medium">Awaiting replies: </span>
+              {pendingRows
+                .map(({ slot, assignment }) =>
+                  `${assignment?.name || "Musician"} (${slot.role})`,
+                )
+                .join(", ")}
+            </span>
+          ) : null}
           <span className="mt-1 block text-[10px] opacity-75">
-            {confirmedCount} of {slots.length} roles allocated
+            {confirmedCount} confirmed
+            {pendingRows.length ? ` • ${pendingRows.length} awaiting reply` : ""}
+            {unfilledRows.length ? ` • ${unfilledRows.length} unfilled` : ""}
           </span>
         </span>
         <span className="shrink-0 text-sm" aria-hidden="true">
