@@ -22,6 +22,8 @@ export default function VenueBlackBook({ token }) {
   const [feedbackNote, setFeedbackNote] = useState("");
   const [feedbackAuthor, setFeedbackAuthor] = useState("");
   const [feedbackRoom, setFeedbackRoom] = useState("");
+  const [importPreviews, setImportPreviews] = useState([]);
+  const [importing, setImporting] = useState(false);
   const headers = useMemo(() => ({ Authorization: `Bearer ${token || localStorage.getItem("token") || ""}` }), [token]);
 
   const load = async () => {
@@ -66,11 +68,56 @@ export default function VenueBlackBook({ token }) {
     finally { setSaving(false); }
   };
 
+  const previewEventSheets = async (files) => {
+    if (!files?.length) return;
+    setImporting(true);
+    try {
+      const form = new FormData();
+      [...files].forEach((file) => form.append("eventSheets", file));
+      const { data } = await axios.post(`${backendUrl}/api/venues/imports/event-sheets/preview`, form, { headers });
+      setImportPreviews((data.previews || []).map((item) => ({ ...item, selected: true, matchVenueId: item.possibleMatch?._id || "" })));
+      toast.success(`Read ${data.previews?.length || 0} event sheets — please review before importing`);
+    } catch (error) { toast.error(error.response?.data?.message || "Could not read the event sheets"); }
+    finally { setImporting(false); }
+  };
+
+  const updatePreview = (index, path, value) => setImportPreviews((old) => old.map((item, itemIndex) => {
+    if (itemIndex !== index) return item;
+    const next = structuredClone(item);
+    const keys = path.split(".");
+    let target = next;
+    keys.slice(0, -1).forEach((key) => { target = target[key]; });
+    target[keys.at(-1)] = value;
+    return next;
+  }));
+
+  const confirmEventSheetImport = async () => {
+    const imports = importPreviews.filter((item) => item.selected);
+    if (!imports.length) return toast.error("Select at least one event sheet to import");
+    setImporting(true);
+    try {
+      const { data } = await axios.post(`${backendUrl}/api/venues/imports/event-sheets/confirm`, { imports }, { headers });
+      const created = data.results.filter((item) => item.status === "created").length;
+      const merged = data.results.filter((item) => item.status === "merged").length;
+      setImportPreviews([]); await load(); toast.success(`Imported ${created} new venues and merged ${merged} existing venues`);
+    } catch (error) { toast.error(error.response?.data?.message || "Could not import the reviewed event sheets"); }
+    finally { setImporting(false); }
+  };
+
   return <div className="mx-auto max-w-[1500px] p-5 lg:p-8">
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div><p className="text-xs font-bold uppercase tracking-[.24em] text-[#ff6667]">Operations knowledge</p><h1 className="text-3xl font-bold text-slate-900">Venue Little Black Book</h1><p className="mt-1 max-w-3xl text-slate-600">One venue record, separate room details, past bands and practical notes from every event.</p></div>
-      <div className="flex gap-2"><button onClick={syncBookings} disabled={saving} className="rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold">Import website bookings</button><button onClick={() => { setSelectedId(""); setDraft(blankVenue); }} className="rounded-xl bg-black px-4 py-2 font-semibold text-white">+ Add venue</button></div>
+      <div className="flex flex-wrap gap-2"><label className="cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold"><input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple className="hidden" disabled={importing} onChange={(event) => { previewEventSheets(event.target.files); event.target.value = ""; }} />{importing ? "Reading event sheets…" : "Upload event sheets"}</label><button onClick={syncBookings} disabled={saving} className="rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold">Import website bookings</button><button onClick={() => { setSelectedId(""); setDraft(blankVenue); }} className="rounded-xl bg-black px-4 py-2 font-semibold text-white">+ Add venue</button></div>
     </div>
+    {!!importPreviews.length && <section className="mb-6 rounded-2xl border-2 border-sky-300 bg-sky-50 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-bold text-slate-900">Review event-sheet import</h2><p className="text-sm text-slate-600">Check the extracted venue and room details. Untick anything you do not want to import.</p></div><button onClick={() => setImportPreviews([])} className="text-sm font-semibold underline">Cancel import</button></div>
+      <div className="mt-4 space-y-4">{importPreviews.map((item, index) => <article key={`${item.fileName}-${index}`} className="rounded-xl border border-sky-200 bg-white p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><label className="flex items-center gap-2 font-bold"><input type="checkbox" checked={item.selected} onChange={(event) => updatePreview(index, "selected", event.target.checked)} />{item.fileName}</label><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">Review needed</span></div>
+        {item.possibleMatch && <label className="mb-3 block rounded-lg bg-amber-50 p-3 text-sm"><span className="font-bold">Possible existing venue:</span> {item.possibleMatch.name} · {item.possibleMatch.address}<select className="ml-3 rounded-lg border bg-white px-2 py-1" value={item.matchVenueId} onChange={(event) => updatePreview(index, "matchVenueId", event.target.value)}><option value={item.possibleMatch._id}>Merge with this venue</option><option value="">Create as a new venue</option></select></label>}
+        <div className="grid gap-3 md:grid-cols-3"><Field label="Venue name" value={item.venue.name} onChange={(value) => updatePreview(index, "venue.name", value)} /><div className="md:col-span-2"><Field label="Address" value={item.venue.address} onChange={(value) => updatePreview(index, "venue.address", value)} /></div><Field label="Postcode" value={item.venue.postcode} onChange={(value) => updatePreview(index, "venue.postcode", value)} /><Field label="County" value={item.venue.county} onChange={(value) => updatePreview(index, "venue.county", value)} /><Field label="Room / space" value={item.venue.rooms?.[0]?.name} onChange={(value) => updatePreview(index, "venue.rooms.0.name", value)} /><Field label="Parking" value={item.venue.parking} onChange={(value) => updatePreview(index, "venue.parking", value)} multiline /><Field label="Access & special directions" value={item.venue.generalDirections} onChange={(value) => { updatePreview(index, "venue.generalDirections", value); updatePreview(index, "venue.rooms.0.accessAndLoading", value); }} multiline /><Field label="Performance area" value={item.venue.rooms?.[0]?.performanceArea} onChange={(value) => updatePreview(index, "venue.rooms.0.performanceArea", value)} multiline /><Field label="Changing room" value={item.venue.rooms?.[0]?.changingRoom} onChange={(value) => updatePreview(index, "venue.rooms.0.changingRoom", value)} multiline /><Field label="Sound limitations" value={item.venue.rooms?.[0]?.soundLimitations} onChange={(value) => updatePreview(index, "venue.rooms.0.soundLimitations", value)} multiline /><Field label="Limiter level" value={item.venue.rooms?.[0]?.soundLimiterDb} onChange={(value) => updatePreview(index, "venue.rooms.0.soundLimiterDb", value)} /><Field label="Curfew / close time" value={item.venue.rooms?.[0]?.curfewAndCloseTime} onChange={(value) => updatePreview(index, "venue.rooms.0.curfewAndCloseTime", value)} multiline /><Field label="PA & lighting" value={item.venue.rooms?.[0]?.paAndLighting} onChange={(value) => updatePreview(index, "venue.rooms.0.paAndLighting", value)} multiline /><Field label="Capacity / room size" value={item.venue.rooms?.[0]?.capacity} onChange={(value) => updatePreview(index, "venue.rooms.0.capacity", value)} multiline /></div>
+      </article>)}</div>
+      <div className="mt-4 flex justify-end"><button onClick={confirmEventSheetImport} disabled={importing} className="rounded-xl bg-sky-700 px-5 py-3 font-bold text-white disabled:opacity-50">{importing ? "Importing…" : `Import ${importPreviews.filter((item) => item.selected).length} reviewed event sheets`}</button></div>
+    </section>}
     <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
       <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search venue, address or band" className="mb-3 w-full rounded-xl border border-slate-300 px-3 py-2" />
