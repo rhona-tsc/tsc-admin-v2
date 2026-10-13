@@ -1023,7 +1023,7 @@ const DeputyStepOne = ({
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
           <p className="font-semibold">Video link guidance</p>
           <p className="mt-1">To include a video from Instagram, TikTok or Facebook as a playable profile video, cherry-pick it and submit the original video file or a public downloadable link here. Social-account connections create image-only highlights and do not embed the social video or reveal your handle.</p>
-          <p className="mt-1">YouTube and Vimeo links can also be checked manually. For automated checks, use a direct video file or a public Google Drive/Dropbox file.</p>
+          <p className="mt-1">Please do not submit personal YouTube, Vimeo or social-media links because they can reveal your identity or account. Upload the original video file, or provide an individual public Google Drive video file.</p>
           <p className="mt-1">For Google Drive, choose one video file (not a folder), set access to “Anyone with the link – Viewer”, and allow downloads.</p>
         </div>
         <label className="block font-semibold mb-1">
@@ -1042,7 +1042,8 @@ const DeputyStepOne = ({
             <SortableVideoLinkList
               links={asVideoLinksArray(formData.functionBandVideoLinks)}
               setLinks={(updated) => setFormData((prev) => ({ ...prev, functionBandVideoLinks: updated }))}
-              placeholderPrefix="Function"
+              placeholderPrefix="Google Drive function"
+              googleDriveOnly
             />
           </div>
         ) : (
@@ -1089,7 +1090,8 @@ const DeputyStepOne = ({
             <SortableVideoLinkList
               links={asVideoLinksArray(formData.originalBandVideoLinks)}
               setLinks={(updated) => setFormData((prev) => ({ ...prev, originalBandVideoLinks: updated }))}
-              placeholderPrefix="Original"
+              placeholderPrefix="Google Drive original"
+              googleDriveOnly
             />
           </div>
         ) : (
@@ -1452,7 +1454,7 @@ const describeVideoLink = (raw = "") => {
   return { tone: "amber", text: "We can display this link, but it may need manual review unless it points directly to a video file." };
 };
 
-function SortableVideoLinkList({ links, setLinks, placeholderPrefix }) {
+function SortableVideoLinkList({ links, setLinks, placeholderPrefix, googleDriveOnly = false }) {
   const dragItem = useRef();
   const dragOverItem = useRef();
 
@@ -1484,10 +1486,27 @@ function SortableVideoLinkList({ links, setLinks, placeholderPrefix }) {
     setLinks(updated);
   };
 
+  const validateGoogleDriveUrl = (value) => {
+    if (!value || !googleDriveOnly) return "";
+    try {
+      const parsed = new URL(value);
+      if (!parsed.hostname.toLowerCase().includes("drive.google.com")) {
+        return "Only an individual Google Drive video file is accepted here. Upload the file above instead of linking a personal video account.";
+      }
+      if (parsed.pathname.includes("/folders/")) {
+        return "Choose one Google Drive video file, not a folder.";
+      }
+      return "";
+    } catch {
+      return "Enter the complete Google Drive sharing URL.";
+    }
+  };
+
   return (
     <div>
       {(links || []).map((link, idx) => {
-        const hint = describeVideoLink(link.url);
+        const driveError = validateGoogleDriveUrl(link.url);
+        const hint = driveError ? { tone: "red", text: driveError } : describeVideoLink(link.url);
         const toneClass = hint?.tone === "red" ? "text-red-700" : hint?.tone === "green" ? "text-green-700" : hint?.tone === "blue" ? "text-blue-700" : "text-amber-700";
         return <div
           key={idx}
@@ -1533,7 +1552,7 @@ function SortableVideoLinkList({ links, setLinks, placeholderPrefix }) {
         className="text-sm text-blue-600 underline"
         onClick={handleAdd}
       >
-        + Add Link
+        {googleDriveOnly ? "+ Add Google Drive video" : "+ Add Link"}
       </button>
     </div>
   );

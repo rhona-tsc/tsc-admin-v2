@@ -206,6 +206,10 @@ const getVideoEmbedUrl = (value = "") => {
       const id = url.pathname.split("/").filter(Boolean).pop();
       return id ? `https://player.vimeo.com/video/${id}` : "";
     }
+    if (url.hostname.includes("drive.google.com")) {
+      const id = url.pathname.match(/\/file\/d\/([^/]+)/)?.[1] || url.searchParams.get("id");
+      return id ? `https://drive.google.com/file/d/${id}/preview` : "";
+    }
   } catch {
     return "";
   }
