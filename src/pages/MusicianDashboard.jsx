@@ -544,18 +544,18 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
   const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
 
   // ✅ same CTA helper as Sidebar
-  const getDeputyCTA = (status, id) => {
+  const getDeputyCTA = (status, id, profileExists = false) => {
     const st = normalize(status);
 
     const hasExistingProfile =
       id &&
-      [
+      (profileExists || [
         "approved",
         "approved, changes pending",
         "pending",
         "rejected",
         "in_progress",
-      ].includes(st);
+      ].includes(st));
 
     if (hasExistingProfile) {
       return {
@@ -681,10 +681,11 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
     })();
   }, [musicianId, token]);
 
-  const deputyCTA = useMemo(
-    () => getDeputyCTA(myDeputyStatus, musicianId),
-    [myDeputyStatus, musicianId],
-  );
+  const deputyCTA = useMemo(() => {
+    const profileId = getUserId(me) || musicianId;
+    const profileStatus = me?.status || myDeputyStatus;
+    return getDeputyCTA(profileStatus, profileId, Boolean(getUserId(me)));
+  }, [me, myDeputyStatus, musicianId]);
 
   const dashboardCards = useMemo(
     () => [
