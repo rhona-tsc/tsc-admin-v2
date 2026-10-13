@@ -323,6 +323,13 @@ const Musician = () => {
   const [videoActionKey, setVideoActionKey] = useState("");
   const [directVideoSubmissions, setDirectVideoSubmissions] = useState([]);
   const reviewMode = new URLSearchParams(window.location.search).get("review") === "1";
+  const handleBack = () => {
+    if (reviewMode) {
+      navigate("/moderate-deputies");
+      return;
+    }
+    navigate(-1);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -606,7 +613,7 @@ const Musician = () => {
     return (
       <div className="p-6">
         <button
-          onClick={() => navigate(-1)}
+          onClick={handleBack}
           className="text-sm text-gray-600 hover:text-black mb-4"
         >
           ← Back
@@ -621,7 +628,7 @@ const Musician = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
-        <button onClick={() => navigate(-1)} className="text-sm text-gray-600 hover:text-black">
+        <button onClick={handleBack} className="text-sm text-gray-600 hover:text-black">
           ← Back
         </button>
 
