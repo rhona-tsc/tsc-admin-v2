@@ -1318,8 +1318,16 @@ function RoleAllocationCell({ row }) {
   const [error, setError] = useState("");
   const [slotDrafts, setSlotDrafts] = useState({});
   const [newContact, setNewContact] = useState({ name: "", email: "", phone: "" });
+  const [whatsappGroupLink, setWhatsappGroupLink] = useState(
+    row?.whatsappGroupLink || "",
+  );
+  const [sharingWhatsappGroup, setSharingWhatsappGroup] = useState(false);
+  const [whatsappGroupMessage, setWhatsappGroupMessage] = useState("");
 
-  useEffect(() => setAssignments(getBookingMemberTags(row)), [row]);
+  useEffect(() => {
+    setAssignments(getBookingMemberTags(row));
+    setWhatsappGroupLink(row?.whatsappGroupLink || "");
+  }, [row]);
 
   const getSlotDraft = (slot, assignment) =>
     slotDrafts[slot.roleSlotId] || {
@@ -1505,6 +1513,38 @@ function RoleAllocationCell({ row }) {
       setError(confirmError?.message || "Could not confirm musician");
     } finally {
       setSending("");
+    }
+  };
+
+  const shareWhatsappGroup = async () => {
+    const link = whatsappGroupLink.trim();
+    if (!/^https:\/\/chat\.whatsapp\.com\//i.test(link)) {
+      setWhatsappGroupMessage("Paste the WhatsApp group invite link first.");
+      return;
+    }
+    setSharingWhatsappGroup(true);
+    setWhatsappGroupMessage("");
+    try {
+      const response = await fetch(
+        `${API_BASE}/board/bookings/${row?._id}/whatsapp-group`,
+        {
+          method: "POST",
+          headers: { ...buildAuthHeaders(), "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ whatsappGroupLink: link }),
+        },
+      );
+      const json = await response.json().catch(() => null);
+      if (!response.ok || json?.success === false) {
+        throw new Error(json?.message || "Could not share the WhatsApp group");
+      }
+      setWhatsappGroupMessage(json?.message || "WhatsApp group shared with the band.");
+    } catch (shareError) {
+      setWhatsappGroupMessage(
+        shareError?.message || "Could not share the WhatsApp group",
+      );
+    } finally {
+      setSharingWhatsappGroup(false);
     }
   };
 
@@ -1857,6 +1897,43 @@ function RoleAllocationCell({ row }) {
           </div>
         );
       }) : null}
+      {isExpanded && allAllocated ? (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+          <div className="text-xs font-semibold text-emerald-950">
+            WhatsApp band group
+          </div>
+          <p className="mt-1 text-[11px] leading-4 text-emerald-900">
+            Create the group in WhatsApp, then paste its invite link here. We’ll send it and the latest event-sheet PDF to every confirmed band member.
+          </p>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+            <input
+              type="url"
+              value={whatsappGroupLink}
+              onChange={(event) => setWhatsappGroupLink(event.target.value)}
+              placeholder="https://chat.whatsapp.com/…"
+              className="min-w-0 flex-1 rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs"
+            />
+            <button
+              type="button"
+              disabled={sharingWhatsappGroup || !whatsappGroupLink.trim()}
+              onClick={shareWhatsappGroup}
+              className="rounded-lg bg-emerald-800 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+            >
+              {sharingWhatsappGroup ? "Sending…" : "Save link & send to band"}
+            </button>
+          </div>
+          {whatsappGroupMessage ? (
+            <p className="mt-2 text-[11px] text-emerald-950">
+              {whatsappGroupMessage}
+            </p>
+          ) : null}
+          {row?.whatsappGroupInviteSentAt ? (
+            <p className="mt-1 text-[10px] text-emerald-800">
+              Last shared {new Date(row.whatsappGroupInviteSentAt).toLocaleString("en-GB")}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
