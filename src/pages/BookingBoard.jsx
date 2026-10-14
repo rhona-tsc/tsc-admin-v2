@@ -1312,6 +1312,7 @@ function RoleAllocationCell({ row }) {
   const [activeSlot, setActiveSlot] = useState("");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
+  const [offerHistory, setOfferHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState("");
   const [error, setError] = useState("");
@@ -1366,6 +1367,7 @@ function RoleAllocationCell({ row }) {
       const params = new URLSearchParams({
         bookingBoardItemId: String(row?._id || row?.bookingRef || ""),
         role: slot.role,
+        roleSlotId: slot.roleSlotId,
       });
       if (search.trim()) params.set("query", search.trim());
       const response = await fetch(
@@ -1377,8 +1379,10 @@ function RoleAllocationCell({ row }) {
         throw new Error(json?.message || "Could not load musicians");
       }
       setResults(Array.isArray(json?.candidates) ? json.candidates : []);
+      setOfferHistory(Array.isArray(json?.offerHistory) ? json.offerHistory : []);
     } catch (candidateError) {
       setResults([]);
+      setOfferHistory([]);
       setError(candidateError?.message || "Could not load musicians");
     } finally {
       setLoading(false);
@@ -1628,7 +1632,11 @@ function RoleAllocationCell({ row }) {
                       ? "bg-purple-100 text-purple-800"
                       : "bg-gray-100 text-gray-600"
               }`}>
-                {status === "offered" ? "Awaiting reply" : status.replaceAll("_", " ")}
+                {status === "offered"
+                  ? "Awaiting reply"
+                  : status === "accepted"
+                    ? "confirmed"
+                    : status.replaceAll("_", " ")}
               </span>
             </div>
             <div className="mt-3 grid grid-cols-[90px_minmax(0,1fr)] items-center gap-2 border-t pt-3 text-xs">
@@ -1671,10 +1679,10 @@ function RoleAllocationCell({ row }) {
                   );
                 })}
               </div>
-              {assignment?.musicianId ? (
+              {assignment?.musicianId && !isConfirmedAllocation(assignment) ? (
                 <span />
               ) : null}
-              {assignment?.musicianId ? (
+              {assignment?.musicianId && !isConfirmedAllocation(assignment) ? (
                 <button
                   type="button"
                   disabled={sending === slot.roleSlotId}
@@ -1709,6 +1717,22 @@ function RoleAllocationCell({ row }) {
                   <button className="col-span-2 justify-self-end px-1 text-xs text-gray-500 hover:text-black" type="button" onClick={() => setActiveSlot("")}>Close chooser</button>
                 </form>
                 {error ? <div className="mb-2 text-xs text-red-600">{error}</div> : null}
+                {offerHistory.length > 0 ? (
+                  <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-2 text-[10px] text-gray-700">
+                    <div className="mb-1 font-semibold text-gray-900">Request history</div>
+                    <div className="space-y-1">
+                      {offerHistory.map((item) => (
+                        <div key={item.requestId || `${item.musicianId}-${item.sentAt}`} className="flex flex-wrap justify-between gap-x-3">
+                          <span>{item.name}</span>
+                          <span className="font-medium capitalize">
+                            {item.reply === "yes" ? "Confirmed" : item.reply === "unavailable" ? "Already booked / unavailable" : item.reply === "no" ? "Declined" : String(item.status || "sent").replaceAll("_", " ")}
+                            {item.passedOnAt ? " · passed on" : ""}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 <div className="max-h-56 overflow-y-auto divide-y">
                   {loading ? <div className="p-3 text-xs text-gray-500">Checking availability…</div> : null}
                   {!loading && !error && results.length === 0 ? (
