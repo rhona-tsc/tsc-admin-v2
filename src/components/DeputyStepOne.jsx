@@ -1235,6 +1235,7 @@ function DirectVideoUploader({ musicianId, category }) {
   const [title, setTitle] = useState("");
   const [items, setItems] = useState([]);
   const [busy, setBusy] = useState(false);
+  const [preferenceBusyId, setPreferenceBusyId] = useState("");
   const [message, setMessage] = useState("");
 
   const token = getStoredAuthToken();
@@ -1251,7 +1252,12 @@ function DirectVideoUploader({ musicianId, category }) {
     }
   };
 
-  useEffect(() => { load(); }, [musicianId, category]);
+  useEffect(() => {
+    load();
+    const reloadLibrary = () => load();
+    window.addEventListener("musician-video-library-updated", reloadLibrary);
+    return () => window.removeEventListener("musician-video-library-updated", reloadLibrary);
+  }, [musicianId, category]);
 
   const uploadVideo = async () => {
     if (!file || !musicianId) return;
@@ -1267,12 +1273,34 @@ function DirectVideoUploader({ musicianId, category }) {
       if (!response.ok) throw new Error(data.message || "Upload failed");
       setFile(null);
       setTitle("");
-      setMessage("Uploaded. We are checking the full video for identifying text, speech and branding.");
+      setMessage(`✓ ${file.name} uploaded successfully. It is saved in your video library and is now being checked.`);
       await load();
+      window.dispatchEvent(new CustomEvent("musician-video-library-updated"));
     } catch (error) {
       setMessage(error.message || "Video upload failed");
     } finally {
       setBusy(false);
+    }
+  };
+
+  const makePreferred = async (item) => {
+    if (!musicianId || !item?._id || item.isPrimary) return;
+    setPreferenceBusyId(item._id);
+    setMessage("");
+    try {
+      const response = await fetch(
+        `${backendUrl}/api/musician/${musicianId}/video-submissions/${item._id}/preferred`,
+        { method: "PATCH", headers, credentials: "include" },
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Could not update your main video");
+      setMessage("✓ Main video updated. Once approved, this will be the first video clients see.");
+      await load();
+      window.dispatchEvent(new CustomEvent("musician-video-library-updated"));
+    } catch (error) {
+      setMessage(error.message || "Could not update your main video");
+    } finally {
+      setPreferenceBusyId("");
     }
   };
 
@@ -1295,8 +1323,37 @@ function DirectVideoUploader({ musicianId, category }) {
         <input type="file" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" onChange={(event) => setFile(event.target.files?.[0] || null)} className="rounded border bg-white p-2 text-sm" />
         <button type="button" disabled={!file || busy || !musicianId} onClick={uploadVideo} className="rounded bg-[#ff6667] px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{busy ? "Uploading…" : "Upload video"}</button>
       </div>
-      {message ? <p className="mt-2 text-xs text-gray-700">{message}</p> : null}
-      {items.length ? <div className="mt-3 space-y-2">{items.map((item) => <div key={item._id} className="rounded border bg-white px-3 py-2 text-xs"><div className="flex items-center justify-between gap-3"><span className="font-medium">{item.suppliedTitle || item.originalName}</span><span className="rounded-full bg-gray-100 px-2 py-1">{statusLabel(item.status)}</span></div>{item.moderationReason ? <p className="mt-1 text-gray-600">{item.moderationReason}</p> : null}</div>)}</div> : null}
+      {message ? <p className={`mt-2 text-xs font-medium ${message.startsWith("✓") ? "text-green-700" : "text-gray-700"}`}>{message}</p> : null}
+      <div className="mt-4 border-t border-gray-200 pt-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="text-sm font-semibold">Your saved video library</p>
+          <p className="text-[11px] text-gray-500">Your main video appears first after approval.</p>
+        </div>
+        {items.length ? (
+          <div className="mt-2 space-y-2">
+            {items.map((item) => (
+              <div key={item._id} className={`rounded border bg-white px-3 py-3 text-xs ${item.isPrimary ? "border-[#ff6667] ring-1 ring-[#ff6667]/30" : "border-gray-200"}`}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <span className="font-medium">{item.suppliedTitle || item.originalName}</span>
+                    {item.suppliedTitle && item.originalName ? <p className="mt-0.5 text-[11px] text-gray-500">{item.originalName}</p> : null}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {item.isPrimary ? <span className="rounded-full bg-[#ff6667]/15 px-2 py-1 font-semibold text-[#b8383a]">Main video</span> : !["rejected", "failed"].includes(item.status) ? (
+                      <button type="button" disabled={Boolean(preferenceBusyId)} onClick={() => makePreferred(item)} className="rounded border border-gray-300 px-2 py-1 font-medium hover:bg-gray-50 disabled:opacity-50">
+                        {preferenceBusyId === item._id ? "Updating…" : "Make main video"}
+                      </button>
+                    ) : null}
+                    <span className="rounded-full bg-gray-100 px-2 py-1">{statusLabel(item.status)}</span>
+                  </div>
+                </div>
+                {item.moderationReason ? <p className="mt-2 text-gray-600">{item.moderationReason}</p> : null}
+                <p className="mt-1 text-[11px] text-gray-400">Saved {new Date(item.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
+              </div>
+            ))}
+          </div>
+        ) : <p className="mt-2 rounded border border-dashed border-gray-300 bg-white px-3 py-3 text-xs text-gray-500">No saved videos yet. After a successful upload, it will remain listed here when you return.</p>}
+      </div>
     </div>
   );
 }
