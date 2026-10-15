@@ -770,7 +770,8 @@ const BOOKING_BOARD_COLUMNS = [
   "Commission",
   "VAT",
   "Funds held",
-  "Agent",
+  "Booking source / agency",
+  "Contact type",
   "Client email",
   "Billing address",
   "Event type",
@@ -796,7 +797,7 @@ const BOOKING_BOARD_COLUMNS = [
 // editable control in the nested booking rows.
 const BOOKING_BOARD_COLUMN_WIDTHS = [
   180, 150, 110, 100, 150, 150, 150, 180, 150, 150, 160, 110, 160, 150,
-  230, 260, 160, 180, 180, 280, 140, 100, 220, 220, 440, 150, 480, 160,
+  180, 230, 260, 160, 180, 180, 280, 140, 100, 220, 220, 440, 150, 480, 160,
   200, 180, 200, 220, 160,
 ];
 const BOOKING_BOARD_GRID_TEMPLATE = BOOKING_BOARD_COLUMN_WIDTHS.map(
@@ -3638,6 +3639,21 @@ function AgentCell({ value, onSave }) {
   );
 }
 
+function ContactTypeCell({ value, onSave }) {
+  return (
+    <select
+      className="border rounded px-2 py-1 w-44"
+      value={value || "direct_client"}
+      onChange={(event) => onSave(event.target.value)}
+      title="Who receives client-facing booking automations for this row"
+    >
+      <option value="direct_client">Direct client</option>
+      <option value="agent">Agent / planner</option>
+      <option value="end_client_via_agent">End client via agent</option>
+    </select>
+  );
+}
+
 const normaliseBookingMemberTag = (raw = "") => {
   const text = String(raw || "").trim();
   if (!text) return null;
@@ -5969,6 +5985,19 @@ export default function BookingBoard() {
                                         />
                                       </td>
                                       <td className={cellClass}>
+                                        <ContactTypeCell
+                                          value={r.contactRole || "direct_client"}
+                                          onSave={(val) =>
+                                            onInlineEdit(r._id, {
+                                              contactRole: val,
+                                              clientEmails: (r.clientEmails || []).map((entry, index) =>
+                                                index === 0 ? { ...entry, role: val } : entry,
+                                              ),
+                                            })
+                                          }
+                                        />
+                                      </td>
+                                      <td className={cellClass}>
                                         <InlineInput
                                           value={clientEmails[0]?.email || ""}
                                           placeholder="Client email"
@@ -5977,7 +6006,7 @@ export default function BookingBoard() {
                                               clientEmail: val,
                                               userEmail: val,
                                               clientEmails: val
-                                                ? [{ email: val }]
+                                                ? [{ email: val, role: r.contactRole || "direct_client" }]
                                                 : [],
                                             })
                                           }
