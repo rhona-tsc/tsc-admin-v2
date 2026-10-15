@@ -47,23 +47,34 @@ const specialRequestLabel = (row) => {
   return /r\s*&?\s*b knights/i.test(rowAct(row)) || count > 1 ? "Off Repertoire Requests" : "Off Repertoire Request";
 };
 const vocalistNames = (row) => [...new Set([...(row.assignedMusicians || []), ...(row.bookingMusicians || [])].filter((member) => /vocal|singer/i.test(`${member.role || ""} ${member.instrument || ""}`)).map((member) => text(member.name || `${member.firstName || ""} ${member.lastName || ""}`)).filter(Boolean))].join(", ");
-const proposedSendDate = (row, timing = {}) => {
+const proposedSendAt = (row, timing = {}) => {
   const event = parseDate(rowDate(row));
-  if (!event) return "Needs date";
-  if (timing.strategy === "post_event") { event.setDate(event.getDate() + 1); return `${formatDate(event)} at 18:00`; }
+  if (!event) return null;
+  if (timing.strategy === "post_event") {
+    event.setDate(event.getDate() + 1);
+    event.setHours(18, 0, 0, 0);
+    return event;
+  }
   const booked = parseDate(row.bookingDateISO || row.enquiryDateISO);
   if (timing.strategy === "setlist" || timing.strategy === "initial") {
     const leadDays = booked ? Math.round((event - booked) / 86400000) : 999;
     if (leadDays < 35 && booked) {
       const midway = new Date(booked.getTime() + ((event - booked) / 2));
       if (timing.strategy === "setlist") midway.setDate(midway.getDate() - 1);
-      return formatDate(midway);
+      return midway;
     }
     event.setDate(event.getDate() - (timing.strategy === "setlist" ? 31 : 21));
-    return formatDate(event);
+    return event;
   }
   event.setDate(event.getDate() + Number(timing.offsetDays || 0));
-  return formatDate(event);
+  return event;
+};
+const proposedSendDate = (row, timing = {}) => {
+  const date = proposedSendAt(row, timing);
+  if (!date) return "Needs date";
+  return timing.strategy === "post_event"
+    ? `${formatDate(date)} at 18:00`
+    : formatDate(date);
 };
 
 const TEMPLATE_TAGS = [
@@ -226,7 +237,9 @@ export default function Automations() {
   const matchingRows = useMemo(() => {
     if (!selected) return [];
     const f = selected.filters || {};
-    return rows.filter((row) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const eligible = rows.filter((row) => {
       const haystack = `${rowClient(row)} ${rowEmail(row)} ${rowRef(row)}`.toLowerCase();
       if (query && !haystack.includes(query.toLowerCase())) return false;
       if (global.agent && text(row.agent) !== global.agent) return false;
@@ -244,8 +257,18 @@ export default function Automations() {
       if (f.reviewStatus === "not_received" && row.review?.received) return false;
       if (f.reviewPermission === "allowed" && row.review?.doNotRequest) return false;
       if (f.reviewPermission === "suppressed" && !row.review?.doNotRequest) return false;
+      if (selected.timing?.reference !== "fixed") {
+        const sendAt = proposedSendAt(row, selected.timing);
+        if (sendAt && sendAt < today) return false;
+      }
       return true;
     });
+    const uniqueBookings = new Map();
+    eligible.forEach((row) => {
+      const key = rowRef(row).toLowerCase() || String(row._id || "");
+      if (!uniqueBookings.has(key)) uniqueBookings.set(key, row);
+    });
+    return [...uniqueBookings.values()];
   }, [rows, selected, query, global]);
 
   const previewRow = matchingRows.find((row) => String(row._id || rowRef(row)) === previewRowId) || matchingRows[0];
