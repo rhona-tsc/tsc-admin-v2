@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendUrl } from "../App";
 import { automationSeeds } from "../data/automationSeeds";
 
-const STORAGE_KEY = "tscAutomationPreviewRulesV1";
+const STORAGE_KEY = "tscAutomationPreviewRulesV2";
 const boolValue = (value) => (value === true || value === "true" ? "yes" : "no");
 const dateOnly = (value) => {
   if (!value) return "";
@@ -24,6 +24,46 @@ const rowDate = (row) => row.eventDateISO || row.eventDate || row.date;
 const rowDj = (row) => Boolean(row.bookingDetails?.djServicesBooked || row.bookedDj || row.djBooked);
 const rowPlaylist = (row) => Boolean(row.bookingDetails?.mannedPlaylist || row.bookedMannedPlaylist);
 const rowWedding = (row) => /wedding/i.test(text(row.eventType)) ? "Wedding" : "Non-Wedding";
+const rowRole = (row) => text(row.contactRole || "direct_client");
+const rowService = (row) => text(row.bookingDetails?.playlistService || (rowDj(row) ? "pro_dj" : ""));
+const parseDate = (value) => {
+  const date = new Date(`${dateOnly(value)}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+const formatDate = (date) => date?.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) || "";
+const monthBefore = (value) => { const date = parseDate(value); if (!date) return ""; date.setMonth(date.getMonth() - 1); return formatDate(date); };
+const invoiceDueDate = (row) => {
+  if (row.invoiceDueDateISO) return friendlyDate(row.invoiceDueDateISO);
+  const date = parseDate(rowDate(row));
+  if (!date) return "";
+  const monday = new Date(date);
+  monday.setDate(date.getDate() - ((date.getDay() + 6) % 7) - 11);
+  return formatDate(monday);
+};
+const specialRequestLabel = (row) => {
+  if (rowWedding(row) === "Wedding") return "First Dance";
+  const count = Number(row.offRepertoireRequestCount || row.actData?.offRepertoireRequestCount || 1);
+  return /r\s*&?\s*b knights/i.test(rowAct(row)) || count > 1 ? "Off Repertoire Requests" : "Off Repertoire Request";
+};
+const vocalistNames = (row) => [...new Set([...(row.assignedMusicians || []), ...(row.bookingMusicians || [])].filter((member) => /vocal|singer/i.test(`${member.role || ""} ${member.instrument || ""}`)).map((member) => text(member.name || `${member.firstName || ""} ${member.lastName || ""}`)).filter(Boolean))].join(", ");
+const proposedSendDate = (row, timing = {}) => {
+  const event = parseDate(rowDate(row));
+  if (!event) return "Needs date";
+  if (timing.strategy === "post_event") { event.setDate(event.getDate() + 1); return `${formatDate(event)} at 18:00`; }
+  const booked = parseDate(row.bookingDateISO || row.enquiryDateISO);
+  if (timing.strategy === "setlist" || timing.strategy === "initial") {
+    const leadDays = booked ? Math.round((event - booked) / 86400000) : 999;
+    if (leadDays < 35 && booked) {
+      const midway = new Date(booked.getTime() + ((event - booked) / 2));
+      if (timing.strategy === "setlist") midway.setDate(midway.getDate() - 1);
+      return formatDate(midway);
+    }
+    event.setDate(event.getDate() - (timing.strategy === "setlist" ? 31 : 21));
+    return formatDate(event);
+  }
+  event.setDate(event.getDate() + Number(timing.offsetDays || 0));
+  return formatDate(event);
+};
 
 const TEMPLATE_TAGS = [
   { tag: "{{client_first_name}}", label: "Client first name" },
@@ -36,6 +76,12 @@ const TEMPLATE_TAGS = [
   { tag: "{{invoice_link}}", label: "Invoice link" },
   { tag: "{{booking_reference}}", label: "Booking reference" },
   { tag: "{{agent_name}}", label: "Agent" },
+  { tag: "{{special_request_label}}", label: "First dance / off-repertoire label" },
+  { tag: "{{song_request_due_date}}", label: "Song request due date" },
+  { tag: "{{invoice_due_date}}", label: "Invoice / event sheet due date" },
+  { tag: "{{vocalist_names}}", label: "Vocalist names" },
+  { tag: "{{draft_setlist_link}}", label: "Draft setlist link" },
+  { tag: "{{whatsapp_group_link}}", label: "WhatsApp group link" },
 ];
 
 const rowAct = (row) => text(
@@ -46,7 +92,7 @@ const rowVenue = (row) => text(
 );
 const rowEventSheetLink = (row) => text(row.eventSheetLink || row.eventSheet?.url || row.eventSheet?.link);
 const rowInvoiceLink = (row) => text(
-  row.payments?.hosted_invoice_url || row.payments?.invoiceUrl || row.invoiceUrl || row.invoice?.url,
+  row.payments?.boardInvoicePdfUrl || row.invoicePdfUrl || row.payments?.hosted_invoice_url || row.payments?.invoiceUrl || row.invoiceUrl || row.invoice?.url,
 );
 const friendlyDate = (value) => {
   if (!value) return "";
@@ -67,6 +113,12 @@ const templateValues = (row = {}) => ({
   "{{invoice_link}}": rowInvoiceLink(row),
   "{{booking_reference}}": rowRef(row),
   "{{agent_name}}": text(row.agent),
+  "{{special_request_label}}": specialRequestLabel(row),
+  "{{song_request_due_date}}": monthBefore(rowDate(row)),
+  "{{invoice_due_date}}": invoiceDueDate(row),
+  "{{vocalist_names}}": vocalistNames(row),
+  "{{draft_setlist_link}}": text(row.draftSetlistLink),
+  "{{whatsapp_group_link}}": text(row.whatsappGroupLink),
   // Imported Monday.com tags remain supported while templates are migrated.
   "{pulse.text7}": firstName(rowClient(row)),
   "{pulse.dropdown}": rowAct(row),
@@ -76,6 +128,10 @@ const templateValues = (row = {}) => ({
   "{pulse.date}": friendlyDate(rowDate(row)),
   "{pulse.link}": rowEventSheetLink(row),
   "{pulse.link7}": rowInvoiceLink(row),
+  "{pulse.text3}": specialRequestLabel(row),
+  "{pulse.text94}": monthBefore(rowDate(row)),
+  "{pulse.text60}": invoiceDueDate(row),
+  "{pulse.dup__of_vocalist}": vocalistNames(row),
 });
 const renderTemplate = (template, row) => {
   const values = templateValues(row);
@@ -86,15 +142,39 @@ const renderTemplate = (template, row) => {
 };
 
 const matchesChoice = (actual, choice) => choice === "any" || boolValue(actual) === choice;
+const prepareRules = (source) => source
+  .filter((rule) => Number(rule.sourceNumber) !== 7)
+  .map((rule) => {
+    const number = Number(rule.sourceNumber);
+    const filters = { ...rule.filters };
+    const timing = { ...rule.timing };
+    let body = String(rule.body || "")
+      .replace(/Warmest wishes,\s*\nRhona(?:\s*x|\s*✨)?/gi, "Warmest wishes,\nRhona ✨")
+      .replace(/\n?https:\/\/res\.cloudinary\.com\/[^\s]+invoice[^\s]*/gi, "")
+      .replace(/\{pulse\.link7\}/g, "Invoice attached");
+    if ([1, 6, 8, 9].includes(number)) {
+      body = body.replace(/\{pulse\.link\}/g, "EVENT SHEET: {pulse.link}");
+      timing.strategy = "initial";
+    }
+    if (number === 1) filters.agentIncludes = "Entertainment Nation";
+    if ([2, 3].includes(number)) filters.weddingStatus = "Wedding";
+    if (number === 3) timing.strategy = "post_event";
+    if (number === 4) timing.strategy = "setlist";
+    if (number === 5) filters.playlistService = "manned_playlist";
+    if (number === 6) filters.recipientRole = "direct_client";
+    if (number === 8) filters.recipientRole = "end_client_via_agent";
+    if (number === 9) filters.recipientRole = "agent";
+    return { ...rule, body, filters, timing };
+  });
 
 export default function Automations() {
   const [rows, setRows] = useState([]);
   const [rules, setRules] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-      return Array.isArray(saved) && saved.length ? saved : automationSeeds;
+      return Array.isArray(saved) && saved.length ? saved : prepareRules(automationSeeds);
     } catch {
-      return automationSeeds;
+      return prepareRules(automationSeeds);
     }
   });
   const [selectedId, setSelectedId] = useState(rules[0]?.id || "");
@@ -144,7 +224,10 @@ export default function Automations() {
       if (global.eventType && text(row.eventType) !== global.eventType) return false;
       if (!matchesChoice(rowDj(row), global.bookedDj)) return false;
       if (f.agent && text(row.agent) !== f.agent) return false;
+      if (f.agentIncludes && !text(row.agent).toLowerCase().includes(f.agentIncludes.toLowerCase())) return false;
       if (f.eventType && text(row.eventType) !== f.eventType) return false;
+      if (f.recipientRole && rowRole(row) !== f.recipientRole) return false;
+      if (f.playlistService && rowService(row) !== f.playlistService) return false;
       if (f.weddingStatus && rowWedding(row) !== f.weddingStatus) return false;
       if (!matchesChoice(rowDj(row), f.bookedDj || "any")) return false;
       if (!matchesChoice(rowPlaylist(row), f.bookedPlaylist || "any")) return false;
@@ -209,6 +292,8 @@ export default function Automations() {
             <label className="text-xs font-medium text-slate-600">DJ<select className={`${inputClass} mt-1`} value={selected.filters.bookedDj} onChange={(e) => updateFilters({ bookedDj: e.target.value })}><option value="any">Either</option><option value="yes">Booked</option><option value="no">Not booked</option></select></label>
             <label className="text-xs font-medium text-slate-600">Manned playlist<select className={`${inputClass} mt-1`} value={selected.filters.bookedPlaylist} onChange={(e) => updateFilters({ bookedPlaylist: e.target.value })}><option value="any">Either</option><option value="yes">Booked</option><option value="no">Not booked</option></select></label>
             <label className="text-xs font-medium text-slate-600">Review<select className={`${inputClass} mt-1`} value={selected.filters.reviewStatus} onChange={(e) => updateFilters({ reviewStatus: e.target.value })}><option value="any">Either</option><option value="received">Received</option><option value="not_received">Not received</option></select></label>
+            <label className="text-xs font-medium text-slate-600">Recipient<select className={`${inputClass} mt-1`} value={selected.filters.recipientRole || ""} onChange={(e) => updateFilters({ recipientRole: e.target.value })}><option value="">Any contact</option><option value="direct_client">Direct client</option><option value="agent">Agent / planner</option><option value="end_client_via_agent">End client via agent</option></select></label>
+            <label className="text-xs font-medium text-slate-600">Music service<select className={`${inputClass} mt-1`} value={selected.filters.playlistService || ""} onChange={(e) => updateFilters({ playlistService: e.target.value })}><option value="">Any service</option><option value="spotify_playlist">Spotify Playlist</option><option value="manned_playlist">Manned Playlist</option><option value="pro_dj">Pro DJ Service</option></select></label>
           </div>
           <div className="grid grid-cols-[1fr_120px] gap-3"><label className="text-xs font-medium text-slate-600">Date basis<select className={`${inputClass} mt-1`} value={selected.timing.reference} onChange={(e) => updateRule({ timing: { ...selected.timing, reference: e.target.value } })}><option value="eventDate">Event date</option><option value="fixed">Manual/fixed date</option></select></label><label className="text-xs font-medium text-slate-600">Days offset<input type="number" className={`${inputClass} mt-1`} value={selected.timing.offsetDays} onChange={(e) => updateRule({ timing: { ...selected.timing, offsetDays: Number(e.target.value) } })} /></label></div>
           <button type="button" onClick={() => updateRule({ status: "reviewed" })} className="w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Mark conditions reviewed</button>
@@ -241,11 +326,11 @@ export default function Automations() {
               <div><h2 className="font-semibold text-slate-900">Personalised email preview</h2><p className="text-xs text-slate-500">Tags are replaced using the selected matching client.</p></div>
               {matchingRows.length > 0 && <select className={selectClass} value={String(previewRow?._id || rowRef(previewRow))} onChange={(e) => setPreviewRowId(e.target.value)}>{matchingRows.slice(0, 100).map((row) => <option key={row._id || rowRef(row)} value={String(row._id || rowRef(row))}>{rowClient(row)} · {rowRef(row)}</option>)}</select>}
             </div>
-            {previewRow ? <div className="mt-3 rounded-lg border bg-white p-3"><p className="text-xs font-semibold text-slate-500">Subject</p><p className="mt-1 text-sm font-semibold text-slate-900">{renderTemplate(selected.subject, previewRow)}</p><p className="mt-3 text-xs font-semibold text-slate-500">Body</p><div className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap text-sm leading-5 text-slate-700">{renderTemplate(selected.body, previewRow)}</div></div> : <div className="mt-3 rounded-lg border border-dashed bg-white p-4 text-sm text-slate-500">No matching client is available for a personalised preview.</div>}
+            {previewRow ? <div className="mt-3 rounded-lg border bg-white p-3"><p className="text-xs font-semibold text-slate-500">Subject</p><p className="mt-1 text-sm font-semibold text-slate-900">{renderTemplate(selected.subject, previewRow)}</p><p className="mt-3 text-xs font-semibold text-slate-500">Body</p><div className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap text-sm leading-5 text-slate-700">{renderTemplate(selected.body, previewRow)}</div><div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-800">{rowInvoiceLink(previewRow) ? "Invoice PDF will be attached — no long invoice URL in the email." : "No invoice PDF is currently recorded for this booking."} The standard TSC signature and footer will be appended.</div></div> : <div className="mt-3 rounded-lg border border-dashed bg-white p-4 text-sm text-slate-500">No matching client is available for a personalised preview.</div>}
           </div>
           <div className="flex items-center justify-between border-b px-4 py-3"><div><h2 className="font-semibold text-slate-900">Matching clients</h2><p className="text-xs text-slate-500">Who would receive this email under the current filters</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">{matchingRows.length}</span></div>
           {loadError && <div className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{loadError}</div>}
-          <div className="max-h-[760px] overflow-auto"><table className="min-w-full text-left text-xs"><thead className="sticky top-0 bg-slate-50 text-slate-600"><tr><th className="px-3 py-2">Client</th><th className="px-3 py-2">Event</th><th className="px-3 py-2">Agent</th><th className="px-3 py-2">DJ</th><th className="px-3 py-2">Proposed send</th></tr></thead><tbody>{loading ? <tr><td colSpan={5} className="p-6 text-center">Loading bookings…</td></tr> : matchingRows.map((row) => <tr key={row._id || rowRef(row)} className="border-b-2 border-slate-100 align-top"><td className="px-3 py-3"><div className="font-medium text-slate-900">{rowClient(row)}</div><div className="text-slate-500">{rowEmail(row) || "No email"}</div><div className="text-slate-400">{rowRef(row)}</div></td><td className="px-3 py-3"><div>{text(row.eventType) || "No event type"}</div><div className="text-slate-500">{dateOnly(rowDate(row)) || "No date"}</div></td><td className="px-3 py-3">{text(row.agent) || "—"}</td><td className="px-3 py-3">{rowDj(row) ? "Yes" : "No"}</td><td className="px-3 py-3 font-medium text-slate-800">{selected.timing.reference === "fixed" ? "Manual date" : addDays(rowDate(row), selected.timing.offsetDays)}</td></tr>)}</tbody></table></div>
+          <div className="max-h-[760px] overflow-auto"><table className="min-w-full text-left text-xs"><thead className="sticky top-0 bg-slate-50 text-slate-600"><tr><th className="px-3 py-2">Client</th><th className="px-3 py-2">Event</th><th className="px-3 py-2">Agent</th><th className="px-3 py-2">Service</th><th className="px-3 py-2">Proposed send</th></tr></thead><tbody>{loading ? <tr><td colSpan={5} className="p-6 text-center">Loading bookings…</td></tr> : matchingRows.map((row) => <tr key={row._id || rowRef(row)} className="border-b-2 border-slate-100 align-top"><td className="px-3 py-3"><div className="font-medium text-slate-900">{rowClient(row)}</div><div className="text-slate-500">{rowEmail(row) || "No email"}</div><div className="text-slate-400">{rowRef(row)}</div><div className="text-slate-400">{rowRole(row).replaceAll("_", " ")}</div></td><td className="px-3 py-3"><div>{text(row.eventType) || "No event type"}</div><div className="text-slate-500">{dateOnly(rowDate(row)) || "No date"}</div></td><td className="px-3 py-3">{text(row.agent) || "—"}</td><td className="px-3 py-3 capitalize">{rowService(row).replaceAll("_", " ") || "Not recorded"}</td><td className="px-3 py-3 font-medium text-slate-800">{selected.timing.reference === "fixed" ? "Manual date" : proposedSendDate(row, selected.timing)}</td></tr>)}</tbody></table></div>
         </section>
       </div>
     </div>

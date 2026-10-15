@@ -765,7 +765,7 @@ const BOOKING_BOARD_COLUMNS = [
   "Booking date",
   "Event date",
   "Gross",
-  "Deposit",
+  "Deposit / part paid",
   "Balance",
   "Commission",
   "VAT",
@@ -1204,6 +1204,13 @@ const buildEditStateFromRow = (row) => {
     _id: row?._id,
     bookingRef: getDisplayBookingRef(row),
     clientFirstNames: getClientFirstNames(row),
+    contactRole: row?.contactRole || "direct_client",
+    playlistService:
+      row?.bookingDetails?.playlistService ||
+      (row?.bookingDetails?.djServicesBooked ? "pro_dj" : ""),
+    eventSheetLink: row?.eventSheetLink || "",
+    draftSetlistLink: row?.draftSetlistLink || "",
+    whatsappGroupLink: row?.whatsappGroupLink || "",
     clientAddress: row?.clientAddress || "",
     extrasBillingName: row?.extrasBillingName || "",
     extrasBillingEmail: row?.extrasBillingEmail || "",
@@ -2460,6 +2467,28 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
               readOnly
             />
           </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Contact type</label>
+            <select className="border rounded px-3 py-2 w-full" value={value.contactRole || "direct_client"} onChange={(e) => onChange({ ...value, contactRole: e.target.value })}>
+              <option value="direct_client">Direct client</option>
+              <option value="agent">Agent / planner (main contact)</option>
+              <option value="end_client_via_agent">End client booked via agent</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 mb-1">Music service</label>
+            <select className="border rounded px-3 py-2 w-full" value={value.playlistService || ""} onChange={(e) => onChange({ ...value, playlistService: e.target.value })}>
+              <option value="">Not recorded</option>
+              <option value="spotify_playlist">Spotify Playlist</option>
+              <option value="manned_playlist">Manned Playlist</option>
+              <option value="pro_dj">Pro DJ Service</option>
+            </select>
+          </div>
+          <div className="md:col-span-2 grid gap-3 md:grid-cols-3">
+            <label className="text-xs text-gray-600">Event sheet link<input className="mt-1 border rounded px-3 py-2 w-full" value={value.eventSheetLink || ""} onChange={(e) => onChange({ ...value, eventSheetLink: e.target.value })} /></label>
+            <label className="text-xs text-gray-600">Draft setlist link<input className="mt-1 border rounded px-3 py-2 w-full" value={value.draftSetlistLink || ""} onChange={(e) => onChange({ ...value, draftSetlistLink: e.target.value })} /></label>
+            <label className="text-xs text-gray-600">WhatsApp group link<input className="mt-1 border rounded px-3 py-2 w-full" value={value.whatsappGroupLink || ""} onChange={(e) => onChange({ ...value, whatsappGroupLink: e.target.value })} /></label>
+          </div>
           <div className="md:col-span-2">
             <label className="block text-xs text-gray-600 mb-1">
               Main invoice billing address
@@ -3485,7 +3514,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                 </strong>
               </div>
               <div className="flex items-center justify-between">
-                <span>Deposit already paid</span>
+                <span>Deposit / part payment received</span>
                 <strong>
                   £
                   {Number(value.depositAmount || 0).toLocaleString("en-GB", {
@@ -4339,6 +4368,10 @@ export default function BookingBoard() {
       bookingDateISO,
       invoiceDateISO: bookingDateISO,
       invoiceDueDateISO: editForm.invoiceDueDateISO || "",
+      contactRole: editForm.contactRole || "direct_client",
+      eventSheetLink: String(editForm.eventSheetLink || "").trim(),
+      draftSetlistLink: String(editForm.draftSetlistLink || "").trim(),
+      whatsappGroupLink: String(editForm.whatsappGroupLink || "").trim(),
       clientAddress: String(editForm.clientAddress || "").trim(),
       extrasBillingName: String(editForm.extrasBillingName || "").trim(),
       extrasBillingEmail: String(editForm.extrasBillingEmail || "")
@@ -4371,6 +4404,8 @@ export default function BookingBoard() {
       performanceTimes: nextPerformance,
       bookingDetails: {
         ...(editingRow?.bookingDetails || {}),
+        playlistService: editForm.playlistService || "",
+        djServicesBooked: editForm.playlistService === "pro_dj",
         extras: cleanedExtras,
         lateStayAppliesTo: editForm.lateStayAppliesTo || "whole_band",
         selectedLateStayMembers: Array.isArray(editForm.selectedLateStayMembers)
@@ -5815,6 +5850,11 @@ export default function BookingBoard() {
                                                   onInlineEdit(r._id, {
                                                     depositAmount: nextDeposit,
                                                     totals: { ...(r.totals || {}), depositAmount: nextDeposit },
+                                                    payments: {
+                                                      ...(r.payments || {}),
+                                                      depositAmount: nextDeposit,
+                                                      depositChargedAmount: nextDeposit,
+                                                    },
                                                   });
                                                 }}
                                               />
