@@ -34,6 +34,18 @@ const parseDate = (value) => {
 };
 const formatDate = (date) => date?.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) || "";
 const monthBefore = (value) => { const date = parseDate(value); if (!date) return ""; date.setMonth(date.getMonth() - 1); return formatDate(date); };
+const songRequestDueDate = (row) => {
+  const event = parseDate(rowDate(row));
+  if (!event) return "";
+  const booked = parseDate(row.bookingDateISO || row.enquiryDateISO);
+  if (booked) {
+    const leadDays = Math.round((event - booked) / 86400000);
+    if (leadDays < 35) {
+      return formatDate(new Date(booked.getTime() + ((event - booked) / 2)));
+    }
+  }
+  return monthBefore(rowDate(row));
+};
 const invoiceDueDate = (row) => {
   if (row.invoiceDueDateISO) return friendlyDate(row.invoiceDueDateISO);
   const date = parseDate(rowDate(row));
@@ -137,7 +149,7 @@ const templateValues = (row = {}) => ({
   "{{booking_reference}}": rowRef(row),
   "{{agent_name}}": normalizeAgent(row.agent),
   "{{special_request_label}}": specialRequestLabel(row),
-  "{{song_request_due_date}}": monthBefore(rowDate(row)),
+  "{{song_request_due_date}}": songRequestDueDate(row),
   "{{invoice_due_date}}": invoiceDueDate(row),
   "{{vocalist_names}}": vocalistNames(row),
   "{{draft_setlist_link}}": text(row.draftSetlistLink),
@@ -152,7 +164,7 @@ const templateValues = (row = {}) => ({
   "{pulse.link}": rowEventSheetLink(row),
   "{pulse.link7}": rowInvoiceLink(row),
   "{pulse.text3}": specialRequestLabel(row),
-  "{pulse.text94}": monthBefore(rowDate(row)),
+  "{pulse.text94}": songRequestDueDate(row),
   "{pulse.text60}": invoiceDueDate(row),
   "{pulse.dup__of_vocalist}": vocalistNames(row),
 });
