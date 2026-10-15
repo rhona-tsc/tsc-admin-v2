@@ -181,6 +181,10 @@ const prepareRules = (source) => source
     }
     if (filters.agent && !filters.agents?.length) filters.agents = [normalizeAgent(filters.agent)];
     delete filters.agent;
+    if (filters.eventType && !filters.eventTypes?.length) {
+      filters.eventTypes = [normalizeEventType(filters.eventType)];
+    }
+    delete filters.eventType;
     if (number === 1) filters.agents = ["Entertainment Nation"];
     delete filters.agentIncludes;
     if ([2, 3].includes(number)) filters.weddingStatus = "Wedding";
@@ -261,7 +265,7 @@ export default function Automations() {
       if (global.eventType && normalizeEventType(row.eventType) !== global.eventType) return false;
       if (!matchesChoice(rowDj(row), global.bookedDj)) return false;
       if (Array.isArray(f.agents) && f.agents.length && !f.agents.includes(normalizeAgent(row.agent))) return false;
-      if (f.eventType && normalizeEventType(row.eventType) !== f.eventType) return false;
+      if (Array.isArray(f.eventTypes) && f.eventTypes.length && !f.eventTypes.includes(normalizeEventType(row.eventType))) return false;
       if (f.recipientRole && rowRole(row) !== f.recipientRole) return false;
       if (f.playlistService && rowService(row) !== f.playlistService) return false;
       if (f.weddingStatus && rowWedding(row) !== f.weddingStatus) return false;
@@ -355,7 +359,27 @@ export default function Automations() {
               </div>
               <p className="mt-1 font-normal text-slate-500">Leave “Any agent” selected, or tick every agent this email applies to.</p>
             </fieldset>
-            <label className="text-xs font-medium text-slate-600">Event type<select className={`${inputClass} mt-1`} value={selected.filters.eventType} onChange={(e) => updateFilters({ eventType: e.target.value })}><option value="">Any event type</option>{eventTypes.map((v) => <option key={v}>{v}</option>)}</select></label>
+            <fieldset className="text-xs font-medium text-slate-600 sm:col-span-2">
+              <legend>Event types</legend>
+              <div className="mt-1 max-h-44 overflow-y-auto rounded-lg border border-slate-300 bg-white p-2">
+                <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-slate-50">
+                  <input type="checkbox" checked={!selected.filters.eventTypes?.length} onChange={() => updateFilters({ eventTypes: [] })} />
+                  <span>Any event type</span>
+                </label>
+                <div className="grid gap-x-3 sm:grid-cols-2">
+                  {eventTypes.map((eventType) => {
+                    const checked = selected.filters.eventTypes?.includes(eventType) || false;
+                    return (
+                      <label key={eventType} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-slate-50">
+                        <input type="checkbox" checked={checked} onChange={() => updateFilters({ eventTypes: checked ? selected.filters.eventTypes.filter((item) => item !== eventType) : [...(selected.filters.eventTypes || []), eventType] })} />
+                        <span>{eventType}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+              <p className="mt-1 font-normal text-slate-500">Leave “Any event type” selected, or tick every event type this email applies to.</p>
+            </fieldset>
             <label className="text-xs font-medium text-slate-600">Wedding status<select className={`${inputClass} mt-1`} value={selected.filters.weddingStatus} onChange={(e) => updateFilters({ weddingStatus: e.target.value })}><option value="">Either</option><option>Wedding</option><option>Non-Wedding</option></select></label>
             <label className="text-xs font-medium text-slate-600">DJ<select className={`${inputClass} mt-1`} value={selected.filters.bookedDj} onChange={(e) => updateFilters({ bookedDj: e.target.value })}><option value="any">Either</option><option value="yes">Booked</option><option value="no">Not booked</option></select></label>
             <label className="text-xs font-medium text-slate-600">Manned playlist<select className={`${inputClass} mt-1`} value={selected.filters.bookedPlaylist} onChange={(e) => updateFilters({ bookedPlaylist: e.target.value })}><option value="any">Either</option><option value="yes">Booked</option><option value="no">Not booked</option></select></label>
