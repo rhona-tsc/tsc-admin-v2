@@ -1460,6 +1460,8 @@ function RoleAllocationCell({ row }) {
           candidateSource: candidate.source,
           fee: Number(draft.fee || 0) || 0,
           duties: draft.duties || [],
+          arrivalTime: getDisplayArrivalTime(row),
+          finishTime: getDisplayFinishTime(row),
         }),
       });
       const json = await response.json().catch(() => null);
@@ -1671,6 +1673,13 @@ function RoleAllocationCell({ row }) {
             {pendingRows.length ? ` • ${pendingRows.length} awaiting reply` : ""}
             {unfilledRows.length ? ` • ${unfilledRows.length} unfilled` : ""}
           </span>
+          {(getDisplayArrivalTime(row) || getDisplayFinishTime(row)) ? (
+            <span className="mt-1 block text-[10px] font-medium opacity-90">
+              Offer includes
+              {getDisplayArrivalTime(row) ? ` • arrival ${getDisplayArrivalTime(row)}` : ""}
+              {getDisplayFinishTime(row) ? ` • finish ${getDisplayFinishTime(row)}` : ""}
+            </span>
+          ) : null}
         </span>
         <span className="shrink-0 text-sm" aria-hidden="true">
           {isExpanded ? "▴" : "▾"}
