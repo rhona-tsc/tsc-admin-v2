@@ -5,6 +5,9 @@ import { EVENT_TYPE_OPTIONS, normalizeEventType } from "../constants/eventTypes"
 import { AGENT_OPTIONS, normalizeAgent } from "../constants/agents";
 
 const STORAGE_KEY = "tscAutomationPreviewRulesV2";
+const PUBLIC_SITE_BASE = (
+  import.meta?.env?.VITE_PUBLIC_SITE_URL || "https://thesupremecollective.co.uk"
+).replace(/\/$/, "");
 const boolValue = (value) => (value === true || value === "true" ? "yes" : "no");
 const dateOnly = (value) => {
   if (!value) return "";
@@ -107,7 +110,8 @@ const TEMPLATE_TAGS = [
   { tag: "{{event_type}}", label: "Event type" },
   { tag: "{{event_date}}", label: "Event date" },
   { tag: "{{venue_name}}", label: "Venue" },
-  { tag: "{{event_sheet_link}}", label: "Event sheet link" },
+  { tag: "{{client_event_sheet_link}}", label: "Client editable event sheet" },
+  { tag: "{{event_sheet_link}}", label: "Band / internal event sheet" },
   { tag: "{{invoice_link}}", label: "Invoice link" },
   { tag: "{{booking_reference}}", label: "Booking reference" },
   { tag: "{{agent_name}}", label: "Agent" },
@@ -126,6 +130,12 @@ const rowVenue = (row) => text(
   row.venue || row.venueName || row.eventSheet?.answers?.venue_name || row.bookingDetails?.venue,
 );
 const rowEventSheetLink = (row) => text(row.eventSheetLink || row.eventSheet?.url || row.eventSheet?.link);
+const rowClientEventSheetLink = (row) => {
+  const bookingReference = rowRef(row);
+  return bookingReference
+    ? `${PUBLIC_SITE_BASE}/event-sheet/${encodeURIComponent(bookingReference)}`
+    : "";
+};
 const rowInvoiceLink = (row) => text(
   row.payments?.boardInvoicePdfUrl || row.invoicePdfUrl || row.payments?.hosted_invoice_url || row.payments?.invoiceUrl || row.invoiceUrl || row.invoice?.url,
 );
@@ -144,6 +154,7 @@ const templateValues = (row = {}) => ({
   "{{event_type}}": normalizeEventType(row.eventType),
   "{{event_date}}": friendlyDate(rowDate(row)),
   "{{venue_name}}": rowVenue(row),
+  "{{client_event_sheet_link}}": rowClientEventSheetLink(row),
   "{{event_sheet_link}}": rowEventSheetLink(row),
   "{{invoice_link}}": rowInvoiceLink(row),
   "{{booking_reference}}": rowRef(row),
@@ -190,6 +201,9 @@ const prepareRules = (source) => source
     if ([1, 6, 8, 9].includes(number)) {
       body = body.replace(/\{pulse\.link\}/g, "EVENT SHEET: {pulse.link}");
       timing.strategy = "initial";
+    }
+    if (number === 9) {
+      body = body.replace(/\{\{event_sheet_link\}\}/g, "{{client_event_sheet_link}}");
     }
     if (filters.agent && !filters.agents?.length) filters.agents = [normalizeAgent(filters.agent)];
     delete filters.agent;
