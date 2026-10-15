@@ -1,6 +1,7 @@
 // admin/src/pages/BookingBoard.jsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { EVENT_TYPE_OPTIONS, normalizeEventType } from "../constants/eventTypes";
+import { AGENT_OPTIONS, normalizeAgent } from "../constants/agents";
 
 const API_BASE = (
   import.meta?.env?.VITE_ADMIN_API_BASE ||
@@ -3606,73 +3607,14 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
   );
 }
 
-// --- Agent selector (dropdown + "Other...")
-const AGENTS = [
-  "Alive Network",
-  "Direct",
-  "The Supreme Collective",
-  "Encore",
-  "Entertainment Nation",
-  "Freak Music",
-  "Function Central",
-  "LMM",
-  "Poptop",
-  "Scarlettte",
-  "Silk Street",
-  "Staar Productions",
-  "Warble",
-  "Wedding Jam",
-  "Other",
-].sort((a, b) => a.localeCompare(b));
+// --- Agent selector (managed list shared with automation rules)
+const AGENTS = AGENT_OPTIONS;
 
 function AgentCell({ value, onSave }) {
-  const [mode, setMode] = useState(() =>
-    value && !AGENTS.includes(value) ? "Other" : value || "",
-  );
-  const [text, setText] = useState(() =>
-    value && !AGENTS.includes(value) ? value : "",
-  );
-
-  useEffect(() => {
-    const isOther = value && !AGENTS.includes(value);
-    setMode(isOther ? "Other" : value || "");
-    setText(isOther ? value : "");
-  }, [value]);
-
-  const commit = (nextVal) => {
-    if (!nextVal) return;
-    onSave(nextVal);
-  };
-
   return (
-    <div className="flex items-center gap-2">
-      <select
-        className="border rounded px-2 py-1 w-44"
-        value={mode}
-        onChange={(e) => {
-          const v = e.target.value;
-          setMode(v);
-          if (v !== "Other") commit(v);
-        }}
-      >
-        <option value="">—</option>
-        {AGENTS.map((a) => (
-          <option key={a} value={a}>
-            {a}
-          </option>
-        ))}
-      </select>
-
-      {mode === "Other" && (
-        <input
-          className="border rounded px-2 py-1 w-48"
-          placeholder="Type agent name…"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={() => text && commit(text.trim())}
-        />
-      )}
-    </div>
+    <select className="border rounded px-2 py-1 w-44" value={normalizeAgent(value)} onChange={(e) => onSave(e.target.value)}>
+      {AGENTS.map((agent) => <option key={agent} value={agent}>{agent}</option>)}
+    </select>
   );
 }
 

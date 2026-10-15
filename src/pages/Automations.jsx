@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendUrl } from "../App";
 import { automationSeeds } from "../data/automationSeeds";
 import { EVENT_TYPE_OPTIONS, normalizeEventType } from "../constants/eventTypes";
+import { AGENT_OPTIONS, normalizeAgent } from "../constants/agents";
 
 const STORAGE_KEY = "tscAutomationPreviewRulesV2";
 const boolValue = (value) => (value === true || value === "true" ? "yes" : "no");
@@ -124,7 +125,7 @@ const templateValues = (row = {}) => ({
   "{{event_sheet_link}}": rowEventSheetLink(row),
   "{{invoice_link}}": rowInvoiceLink(row),
   "{{booking_reference}}": rowRef(row),
-  "{{agent_name}}": text(row.agent),
+  "{{agent_name}}": normalizeAgent(row.agent),
   "{{special_request_label}}": specialRequestLabel(row),
   "{{song_request_due_date}}": monthBefore(rowDate(row)),
   "{{invoice_due_date}}": invoiceDueDate(row),
@@ -168,7 +169,10 @@ const prepareRules = (source) => source
       body = body.replace(/\{pulse\.link\}/g, "EVENT SHEET: {pulse.link}");
       timing.strategy = "initial";
     }
-    if (number === 1) filters.agentIncludes = "Entertainment Nation";
+    if (filters.agent && !filters.agents?.length) filters.agents = [normalizeAgent(filters.agent)];
+    delete filters.agent;
+    if (number === 1) filters.agents = ["Entertainment Nation"];
+    delete filters.agentIncludes;
     if ([2, 3].includes(number)) filters.weddingStatus = "Wedding";
     if (number === 3) timing.strategy = "post_event";
     if (number === 4) timing.strategy = "setlist";
@@ -230,7 +234,7 @@ export default function Automations() {
   const selected = rules.find((rule) => rule.id === selectedId) || rules[0];
   const updateRule = (patch) => setRules((current) => current.map((rule) => rule.id === selected.id ? { ...rule, ...patch } : rule));
   const updateFilters = (patch) => updateRule({ filters: { ...selected.filters, ...patch } });
-  const agents = useMemo(() => [...new Set(rows.map((row) => text(row.agent)).filter(Boolean))].sort(), [rows]);
+  const agents = AGENT_OPTIONS;
   const eventTypes = EVENT_TYPE_OPTIONS;
   const reviewedCount = rules.filter((rule) => rule.status === "reviewed").length;
 
@@ -242,11 +246,10 @@ export default function Automations() {
     const eligible = rows.filter((row) => {
       const haystack = `${rowClient(row)} ${rowEmail(row)} ${rowRef(row)}`.toLowerCase();
       if (query && !haystack.includes(query.toLowerCase())) return false;
-      if (global.agent && text(row.agent) !== global.agent) return false;
+      if (global.agent && normalizeAgent(row.agent) !== global.agent) return false;
       if (global.eventType && normalizeEventType(row.eventType) !== global.eventType) return false;
       if (!matchesChoice(rowDj(row), global.bookedDj)) return false;
-      if (f.agent && text(row.agent) !== f.agent) return false;
-      if (f.agentIncludes && !text(row.agent).toLowerCase().includes(f.agentIncludes.toLowerCase())) return false;
+      if (Array.isArray(f.agents) && f.agents.length && !f.agents.includes(normalizeAgent(row.agent))) return false;
       if (f.eventType && normalizeEventType(row.eventType) !== f.eventType) return false;
       if (f.recipientRole && rowRole(row) !== f.recipientRole) return false;
       if (f.playlistService && rowService(row) !== f.playlistService) return false;
@@ -320,7 +323,27 @@ export default function Automations() {
           <div><h2 className="text-lg font-semibold text-slate-900">Rule conditions</h2><p className="text-xs text-slate-500">These start blank where Monday’s screenshots still need reconciling.</p></div>
           <label className="block text-xs font-medium text-slate-600">Rule name<input className={`${inputClass} mt-1`} value={selected.name} onChange={(e) => updateRule({ name: e.target.value })} /></label>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-xs font-medium text-slate-600">Agent<select className={`${inputClass} mt-1`} value={selected.filters.agent} onChange={(e) => updateFilters({ agent: e.target.value })}><option value="">Any agent</option>{agents.map((v) => <option key={v}>{v}</option>)}</select></label>
+            <fieldset className="text-xs font-medium text-slate-600 sm:col-span-2">
+              <legend>Agents</legend>
+              <div className="mt-1 max-h-44 overflow-y-auto rounded-lg border border-slate-300 bg-white p-2">
+                <label className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-slate-50">
+                  <input type="checkbox" checked={!selected.filters.agents?.length} onChange={() => updateFilters({ agents: [] })} />
+                  <span>Any agent</span>
+                </label>
+                <div className="grid gap-x-3 sm:grid-cols-2">
+                  {agents.map((agent) => {
+                    const checked = selected.filters.agents?.includes(agent) || false;
+                    return (
+                      <label key={agent} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-slate-50">
+                        <input type="checkbox" checked={checked} onChange={() => updateFilters({ agents: checked ? selected.filters.agents.filter((item) => item !== agent) : [...(selected.filters.agents || []), agent] })} />
+                        <span>{agent}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+              <p className="mt-1 font-normal text-slate-500">Leave “Any agent” selected, or tick every agent this email applies to.</p>
+            </fieldset>
             <label className="text-xs font-medium text-slate-600">Event type<select className={`${inputClass} mt-1`} value={selected.filters.eventType} onChange={(e) => updateFilters({ eventType: e.target.value })}><option value="">Any event type</option>{eventTypes.map((v) => <option key={v}>{v}</option>)}</select></label>
             <label className="text-xs font-medium text-slate-600">Wedding status<select className={`${inputClass} mt-1`} value={selected.filters.weddingStatus} onChange={(e) => updateFilters({ weddingStatus: e.target.value })}><option value="">Either</option><option>Wedding</option><option>Non-Wedding</option></select></label>
             <label className="text-xs font-medium text-slate-600">DJ<select className={`${inputClass} mt-1`} value={selected.filters.bookedDj} onChange={(e) => updateFilters({ bookedDj: e.target.value })}><option value="any">Either</option><option value="yes">Booked</option><option value="no">Not booked</option></select></label>
