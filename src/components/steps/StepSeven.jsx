@@ -1,5 +1,6 @@
 import React from "react";
 import Discount from "../Discount";
+import { EVENT_TYPE_OPTIONS, normalizeEventType } from "../../constants/eventTypes";
 
 const StepSeven = ({
   discountToClient,
@@ -114,7 +115,7 @@ const StepSeven = ({
   ) : (
     <select
       className="w-full border px-3 py-2 text-sm"
-      value={review.eventType || ""}
+      value={normalizeEventType(review.eventType)}
       onChange={(e) => {
         const updated = [...reviews];
         updated[index].eventType = e.target.value;
@@ -122,16 +123,9 @@ const StepSeven = ({
       }}
     >
       <option value="">Select Event Type</option>
-      {[
-        "anniversary", "awards ceremony", "bar & batmitzvah", "birthday party", "ceremony",
-        "club night", "corporate event", "drinks reception", "evening reception", "festival",
-        "Isreali wedding", "memorial", "NYE celebration", "party", "product launch",
-        "retirement party", "sporting event", "summer ball", "wedding", "winter staff party", "other"
-      ]
-        .sort((a, b) => a.localeCompare(b))
-        .map((type) => (
+      {EVENT_TYPE_OPTIONS.map((type) => (
           <option key={type} value={type}>
-            {type.charAt(0).toUpperCase() + type.slice(1)}
+            {type}
           </option>
         ))}
     </select>

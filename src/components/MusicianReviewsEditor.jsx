@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+import { EVENT_TYPE_OPTIONS, normalizeEventType } from "../constants/eventTypes";
 
 const blankReview = () => ({
   clientFirstName: "",
@@ -47,7 +48,10 @@ const MusicianReviewsEditor = ({ reviews = [], setReviews }) => {
                 <input className="rounded border px-3 py-2" placeholder="Client last name" value={review?.clientLastName || ""} disabled={linkedToBooking} onChange={(e) => updateReview(index, "clientLastName", e.target.value)} />
                 <input className="rounded border px-3 py-2" type="email" placeholder="Client email (kept private)" value={review?.clientEmail || ""} disabled={linkedToBooking} onChange={(e) => updateReview(index, "clientEmail", e.target.value)} />
                 <input className="rounded border px-3 py-2" type="date" value={review?.eventDate ? String(review.eventDate).slice(0, 10) : ""} disabled={linkedToBooking} onChange={(e) => updateReview(index, "eventDate", e.target.value)} />
-                <input className="rounded border px-3 py-2" placeholder="Event type" value={review?.eventType || ""} disabled={linkedToBooking} onChange={(e) => updateReview(index, "eventType", e.target.value)} />
+                <select className="rounded border px-3 py-2" value={normalizeEventType(review?.eventType)} disabled={linkedToBooking} onChange={(e) => updateReview(index, "eventType", e.target.value)}>
+                  <option value="">Select event type</option>
+                  {EVENT_TYPE_OPTIONS.map((eventType) => <option key={eventType} value={eventType}>{eventType}</option>)}
+                </select>
                 <input className="rounded border px-3 py-2" placeholder="Event location" value={review?.eventLocation || ""} disabled={linkedToBooking} onChange={(e) => updateReview(index, "eventLocation", e.target.value)} />
                 <select className="rounded border px-3 py-2" value={review?.rating || ""} disabled={linkedToBooking} onChange={(e) => updateReview(index, "rating", e.target.value ? Number(e.target.value) : "")}>
                   <option value="">No star rating supplied</option>

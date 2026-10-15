@@ -1,5 +1,6 @@
 // admin/src/pages/BookingBoard.jsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
+import { EVENT_TYPE_OPTIONS, normalizeEventType } from "../constants/eventTypes";
 
 const API_BASE = (
   import.meta?.env?.VITE_ADMIN_API_BASE ||
@@ -810,17 +811,6 @@ const BOOKING_BOARD_WIDTH = BOOKING_BOARD_COLUMN_WIDTHS.reduce(
 
 const inputClass =
   "w-full min-w-[105px] rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs whitespace-nowrap focus:border-sky-400 focus:ring-1 focus:ring-sky-100";
-
-const EVENT_TYPE_OPTIONS = [
-  "Wedding",
-  "Birthday Party",
-  "Corporate Event",
-  "Anniversary",
-  "Christmas Party",
-  "Private Party",
-  "Charity Event",
-  "Other",
-];
 
 const stickyCol1 = "sticky left-0 z-20 bg-white";
 const stickyCol2 = "sticky left-[140px] z-20 bg-white";
@@ -6073,7 +6063,7 @@ export default function BookingBoard() {
                                       <td className={cellClass}>
                                         <select
                                           className={inputClass}
-                                          value={r.eventType || ""}
+                                          value={normalizeEventType(r.eventType)}
                                           onChange={(event) =>
                                             onInlineEdit(r._id, {
                                               eventType: event.target.value,

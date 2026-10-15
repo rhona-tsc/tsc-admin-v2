@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendUrl } from "../App";
 import { automationSeeds } from "../data/automationSeeds";
+import { EVENT_TYPE_OPTIONS, normalizeEventType } from "../constants/eventTypes";
 
 const STORAGE_KEY = "tscAutomationPreviewRulesV2";
 const boolValue = (value) => (value === true || value === "true" ? "yes" : "no");
@@ -23,7 +24,7 @@ const rowRef = (row) => text(row.bookingRef || row.bookingId);
 const rowDate = (row) => row.eventDateISO || row.eventDate || row.date;
 const rowDj = (row) => Boolean(row.bookingDetails?.djServicesBooked || row.bookedDj || row.djBooked);
 const rowPlaylist = (row) => Boolean(row.bookingDetails?.mannedPlaylist || row.bookedMannedPlaylist);
-const rowWedding = (row) => /wedding/i.test(text(row.eventType)) ? "Wedding" : "Non-Wedding";
+const rowWedding = (row) => normalizeEventType(row.eventType) === "Wedding" ? "Wedding" : "Non-Wedding";
 const rowRole = (row) => text(row.contactRole || "direct_client");
 const rowService = (row) => text(row.bookingDetails?.playlistService || (rowDj(row) ? "pro_dj" : ""));
 const parseDate = (value) => {
@@ -106,7 +107,7 @@ const templateValues = (row = {}) => ({
   "{{client_first_name}}": firstName(rowClient(row)),
   "{{client_names}}": rowClient(row),
   "{{act_name}}": rowAct(row),
-  "{{event_type}}": text(row.eventType),
+  "{{event_type}}": normalizeEventType(row.eventType),
   "{{event_date}}": friendlyDate(rowDate(row)),
   "{{venue_name}}": rowVenue(row),
   "{{event_sheet_link}}": rowEventSheetLink(row),
@@ -122,8 +123,8 @@ const templateValues = (row = {}) => ({
   // Imported Monday.com tags remain supported while templates are migrated.
   "{pulse.text7}": firstName(rowClient(row)),
   "{pulse.dropdown}": rowAct(row),
-  "{pulse.event_type}": text(row.eventType),
-  "{pulse.dup__of_event_type}": text(row.eventType),
+  "{pulse.event_type}": normalizeEventType(row.eventType),
+  "{pulse.dup__of_event_type}": normalizeEventType(row.eventType),
   "{pulse.text04}": friendlyDate(rowDate(row)),
   "{pulse.date}": friendlyDate(rowDate(row)),
   "{pulse.link}": rowEventSheetLink(row),
@@ -211,7 +212,7 @@ export default function Automations() {
   const updateRule = (patch) => setRules((current) => current.map((rule) => rule.id === selected.id ? { ...rule, ...patch } : rule));
   const updateFilters = (patch) => updateRule({ filters: { ...selected.filters, ...patch } });
   const agents = useMemo(() => [...new Set(rows.map((row) => text(row.agent)).filter(Boolean))].sort(), [rows]);
-  const eventTypes = useMemo(() => [...new Set(rows.map((row) => text(row.eventType)).filter(Boolean))].sort(), [rows]);
+  const eventTypes = EVENT_TYPE_OPTIONS;
   const reviewedCount = rules.filter((rule) => rule.status === "reviewed").length;
 
   const matchingRows = useMemo(() => {
@@ -221,11 +222,11 @@ export default function Automations() {
       const haystack = `${rowClient(row)} ${rowEmail(row)} ${rowRef(row)}`.toLowerCase();
       if (query && !haystack.includes(query.toLowerCase())) return false;
       if (global.agent && text(row.agent) !== global.agent) return false;
-      if (global.eventType && text(row.eventType) !== global.eventType) return false;
+      if (global.eventType && normalizeEventType(row.eventType) !== global.eventType) return false;
       if (!matchesChoice(rowDj(row), global.bookedDj)) return false;
       if (f.agent && text(row.agent) !== f.agent) return false;
       if (f.agentIncludes && !text(row.agent).toLowerCase().includes(f.agentIncludes.toLowerCase())) return false;
-      if (f.eventType && text(row.eventType) !== f.eventType) return false;
+      if (f.eventType && normalizeEventType(row.eventType) !== f.eventType) return false;
       if (f.recipientRole && rowRole(row) !== f.recipientRole) return false;
       if (f.playlistService && rowService(row) !== f.playlistService) return false;
       if (f.weddingStatus && rowWedding(row) !== f.weddingStatus) return false;
