@@ -162,6 +162,14 @@ const prepareRules = (source) => source
     if (number === 3) timing.strategy = "post_event";
     if (number === 4) timing.strategy = "setlist";
     if (number === 5) filters.playlistService = "manned_playlist";
+    if (
+      [2, 3].includes(number) ||
+      /review request|leave .*review|google review/i.test(
+        `${rule.name || ""} ${rule.subject || ""} ${rule.body || ""}`,
+      )
+    ) {
+      filters.reviewPermission = "allowed";
+    }
     if (number === 6) filters.recipientRole = "direct_client";
     if (number === 8) filters.recipientRole = "end_client_via_agent";
     if (number === 9) filters.recipientRole = "agent";
@@ -173,7 +181,7 @@ export default function Automations() {
   const [rules, setRules] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-      return Array.isArray(saved) && saved.length ? saved : prepareRules(automationSeeds);
+      return prepareRules(Array.isArray(saved) && saved.length ? saved : automationSeeds);
     } catch {
       return prepareRules(automationSeeds);
     }
@@ -234,6 +242,8 @@ export default function Automations() {
       if (!matchesChoice(rowPlaylist(row), f.bookedPlaylist || "any")) return false;
       if (f.reviewStatus === "received" && !row.review?.received) return false;
       if (f.reviewStatus === "not_received" && row.review?.received) return false;
+      if (f.reviewPermission === "allowed" && row.review?.doNotRequest) return false;
+      if (f.reviewPermission === "suppressed" && !row.review?.doNotRequest) return false;
       return true;
     });
   }, [rows, selected, query, global]);
@@ -293,6 +303,7 @@ export default function Automations() {
             <label className="text-xs font-medium text-slate-600">DJ<select className={`${inputClass} mt-1`} value={selected.filters.bookedDj} onChange={(e) => updateFilters({ bookedDj: e.target.value })}><option value="any">Either</option><option value="yes">Booked</option><option value="no">Not booked</option></select></label>
             <label className="text-xs font-medium text-slate-600">Manned playlist<select className={`${inputClass} mt-1`} value={selected.filters.bookedPlaylist} onChange={(e) => updateFilters({ bookedPlaylist: e.target.value })}><option value="any">Either</option><option value="yes">Booked</option><option value="no">Not booked</option></select></label>
             <label className="text-xs font-medium text-slate-600">Review<select className={`${inputClass} mt-1`} value={selected.filters.reviewStatus} onChange={(e) => updateFilters({ reviewStatus: e.target.value })}><option value="any">Either</option><option value="received">Received</option><option value="not_received">Not received</option></select></label>
+            <label className="text-xs font-medium text-slate-600">Review requests<select className={`${inputClass} mt-1`} value={selected.filters.reviewPermission || "any"} onChange={(e) => updateFilters({ reviewPermission: e.target.value })}><option value="any">Either</option><option value="allowed">Allowed only</option><option value="suppressed">Do not request</option></select></label>
             <label className="text-xs font-medium text-slate-600">Recipient<select className={`${inputClass} mt-1`} value={selected.filters.recipientRole || ""} onChange={(e) => updateFilters({ recipientRole: e.target.value })}><option value="">Any contact</option><option value="direct_client">Direct client</option><option value="agent">Agent / planner</option><option value="end_client_via_agent">End client via agent</option></select></label>
             <label className="text-xs font-medium text-slate-600">Music service<select className={`${inputClass} mt-1`} value={selected.filters.playlistService || ""} onChange={(e) => updateFilters({ playlistService: e.target.value })}><option value="">Any service</option><option value="spotify_playlist">Spotify Playlist</option><option value="manned_playlist">Manned Playlist</option><option value="pro_dj">Pro DJ Service</option></select></label>
           </div>

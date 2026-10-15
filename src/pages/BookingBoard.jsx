@@ -6234,7 +6234,10 @@ export default function BookingBoard() {
                                           {r.review?.received && (
                                             <Tag>⭐ Received</Tag>
                                           )}
-                                          {!r.review?.received && (
+                                          {r.review?.doNotRequest && (
+                                            <Tag>Review request blocked</Tag>
+                                          )}
+                                          {!r.review?.received && !r.review?.doNotRequest && (
                                           <button
                                             className="text-xs underline"
                                             onClick={() =>
@@ -6253,6 +6256,34 @@ export default function BookingBoard() {
                                             Send request
                                           </button>
                                         )}
+                                          <select
+                                            className="w-full rounded border border-gray-200 bg-white px-2 py-1 text-[11px]"
+                                            value={r.review?.doNotRequest ? "blocked" : "allowed"}
+                                            onChange={(event) => {
+                                              const blocked = event.target.value === "blocked";
+                                              const reason = blocked
+                                                ? window.prompt(
+                                                    "Optional note explaining why a review should not be requested:",
+                                                    r.review?.doNotRequestReason || "",
+                                                  ) ?? r.review?.doNotRequestReason ?? ""
+                                                : "";
+                                              onInlineEdit(r._id, {
+                                                review: {
+                                                  ...(r.review || {}),
+                                                  doNotRequest: blocked,
+                                                  doNotRequestReason: reason,
+                                                },
+                                              });
+                                            }}
+                                          >
+                                            <option value="allowed">Review request allowed</option>
+                                            <option value="blocked">Do not request review</option>
+                                          </select>
+                                          {r.review?.doNotRequestReason && (
+                                            <span className="max-w-[150px] whitespace-normal text-[10px] text-amber-700">
+                                              {r.review.doNotRequestReason}
+                                            </span>
+                                          )}
                                           <button
                                             className="text-xs font-medium text-blue-700 underline"
                                             onClick={() => recordBookingReview(r)}
