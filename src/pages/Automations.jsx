@@ -246,6 +246,7 @@ export default function Automations() {
     const eligible = rows.filter((row) => {
       const haystack = `${rowClient(row)} ${rowEmail(row)} ${rowRef(row)}`.toLowerCase();
       if (query && !haystack.includes(query.toLowerCase())) return false;
+      if (!parseDate(rowDate(row))) return false;
       if (global.agent && normalizeAgent(row.agent) !== global.agent) return false;
       if (global.eventType && normalizeEventType(row.eventType) !== global.eventType) return false;
       if (!matchesChoice(rowDj(row), global.bookedDj)) return false;
