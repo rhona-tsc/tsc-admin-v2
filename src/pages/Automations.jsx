@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendUrl } from "../App";
 import { automationSeeds } from "../data/automationSeeds";
 
@@ -25,6 +25,66 @@ const rowDj = (row) => Boolean(row.bookingDetails?.djServicesBooked || row.booke
 const rowPlaylist = (row) => Boolean(row.bookingDetails?.mannedPlaylist || row.bookedMannedPlaylist);
 const rowWedding = (row) => /wedding/i.test(text(row.eventType)) ? "Wedding" : "Non-Wedding";
 
+const TEMPLATE_TAGS = [
+  { tag: "{{client_first_name}}", label: "Client first name" },
+  { tag: "{{client_names}}", label: "Client name(s)" },
+  { tag: "{{act_name}}", label: "Band / act name" },
+  { tag: "{{event_type}}", label: "Event type" },
+  { tag: "{{event_date}}", label: "Event date" },
+  { tag: "{{venue_name}}", label: "Venue" },
+  { tag: "{{event_sheet_link}}", label: "Event sheet link" },
+  { tag: "{{invoice_link}}", label: "Invoice link" },
+  { tag: "{{booking_reference}}", label: "Booking reference" },
+  { tag: "{{agent_name}}", label: "Agent" },
+];
+
+const rowAct = (row) => text(
+  row.actName || row.bandName || row.act?.name || row.bookingDetails?.actName || row.bookingDetails?.bandName,
+);
+const rowVenue = (row) => text(
+  row.venue || row.venueName || row.eventSheet?.answers?.venue_name || row.bookingDetails?.venue,
+);
+const rowEventSheetLink = (row) => text(row.eventSheetLink || row.eventSheet?.url || row.eventSheet?.link);
+const rowInvoiceLink = (row) => text(
+  row.payments?.hosted_invoice_url || row.payments?.invoiceUrl || row.invoiceUrl || row.invoice?.url,
+);
+const friendlyDate = (value) => {
+  if (!value) return "";
+  const date = new Date(`${dateOnly(value)}T12:00:00`);
+  return Number.isNaN(date.getTime())
+    ? text(value)
+    : date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+};
+const firstName = (value) => text(value).split(/\s+|&/)[0] || "";
+const templateValues = (row = {}) => ({
+  "{{client_first_name}}": firstName(rowClient(row)),
+  "{{client_names}}": rowClient(row),
+  "{{act_name}}": rowAct(row),
+  "{{event_type}}": text(row.eventType),
+  "{{event_date}}": friendlyDate(rowDate(row)),
+  "{{venue_name}}": rowVenue(row),
+  "{{event_sheet_link}}": rowEventSheetLink(row),
+  "{{invoice_link}}": rowInvoiceLink(row),
+  "{{booking_reference}}": rowRef(row),
+  "{{agent_name}}": text(row.agent),
+  // Imported Monday.com tags remain supported while templates are migrated.
+  "{pulse.text7}": firstName(rowClient(row)),
+  "{pulse.dropdown}": rowAct(row),
+  "{pulse.event_type}": text(row.eventType),
+  "{pulse.dup__of_event_type}": text(row.eventType),
+  "{pulse.text04}": friendlyDate(rowDate(row)),
+  "{pulse.date}": friendlyDate(rowDate(row)),
+  "{pulse.link}": rowEventSheetLink(row),
+  "{pulse.link7}": rowInvoiceLink(row),
+});
+const renderTemplate = (template, row) => {
+  const values = templateValues(row);
+  return Object.entries(values).reduce(
+    (rendered, [tag, value]) => rendered.split(tag).join(value || `[${tag.replace(/[{}]/g, "")}]`),
+    String(template || ""),
+  );
+};
+
 const matchesChoice = (actual, choice) => choice === "any" || boolValue(actual) === choice;
 
 export default function Automations() {
@@ -42,6 +102,10 @@ export default function Automations() {
   const [global, setGlobal] = useState({ agent: "", eventType: "", bookedDj: "any" });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [activeTemplateField, setActiveTemplateField] = useState("body");
+  const [previewRowId, setPreviewRowId] = useState("");
+  const subjectRef = useRef(null);
+  const bodyRef = useRef(null);
 
   useEffect(() => {
     const token = localStorage.getItem("token") || "";
@@ -90,6 +154,20 @@ export default function Automations() {
     });
   }, [rows, selected, query, global]);
 
+  const previewRow = matchingRows.find((row) => String(row._id || rowRef(row)) === previewRowId) || matchingRows[0];
+  const insertTag = (tag) => {
+    const field = activeTemplateField === "subject" ? "subject" : "body";
+    const target = field === "subject" ? subjectRef.current : bodyRef.current;
+    const currentValue = selected[field] || "";
+    const start = target?.selectionStart ?? currentValue.length;
+    const end = target?.selectionEnd ?? start;
+    updateRule({ [field]: `${currentValue.slice(0, start)}${tag}${currentValue.slice(end)}` });
+    requestAnimationFrame(() => {
+      target?.focus();
+      target?.setSelectionRange(start + tag.length, start + tag.length);
+    });
+  };
+
   if (!selected) return <div className="p-6">No automation templates were imported.</div>;
 
   const selectClass = "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700";
@@ -135,10 +213,36 @@ export default function Automations() {
           <div className="grid grid-cols-[1fr_120px] gap-3"><label className="text-xs font-medium text-slate-600">Date basis<select className={`${inputClass} mt-1`} value={selected.timing.reference} onChange={(e) => updateRule({ timing: { ...selected.timing, reference: e.target.value } })}><option value="eventDate">Event date</option><option value="fixed">Manual/fixed date</option></select></label><label className="text-xs font-medium text-slate-600">Days offset<input type="number" className={`${inputClass} mt-1`} value={selected.timing.offsetDays} onChange={(e) => updateRule({ timing: { ...selected.timing, offsetDays: Number(e.target.value) } })} /></label></div>
           <button type="button" onClick={() => updateRule({ status: "reviewed" })} className="w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Mark conditions reviewed</button>
 
-          <div className="border-t pt-4"><h2 className="mb-3 text-lg font-semibold text-slate-900">Email template</h2><label className="block text-xs font-medium text-slate-600">Subject<input className={`${inputClass} mt-1`} value={selected.subject} onChange={(e) => updateRule({ subject: e.target.value })} /></label><label className="mt-3 block text-xs font-medium text-slate-600">Body<textarea className={`${inputClass} mt-1 min-h-[310px] font-mono text-xs leading-5`} value={selected.body} onChange={(e) => updateRule({ body: e.target.value })} /></label><p className="mt-2 text-xs text-slate-500">Changes are saved in this browser while the rule import is reviewed.</p></div>
+          <div className="border-t pt-4">
+            <h2 className="mb-1 text-lg font-semibold text-slate-900">Email template</h2>
+            <p className="mb-3 text-xs text-slate-500">Click in the subject or body, then choose a tag. It will be replaced with each booking’s details when the email is prepared.</p>
+            <label className="block text-xs font-medium text-slate-600">Subject<input ref={subjectRef} onFocus={() => setActiveTemplateField("subject")} className={`${inputClass} mt-1`} value={selected.subject} onChange={(e) => updateRule({ subject: e.target.value })} /></label>
+            <label className="mt-3 block text-xs font-medium text-slate-600">Body<textarea ref={bodyRef} onFocus={() => setActiveTemplateField("body")} className={`${inputClass} mt-1 min-h-[310px] font-mono text-xs leading-5`} value={selected.body} onChange={(e) => updateRule({ body: e.target.value })} /></label>
+            <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs font-semibold text-sky-900">Insert a tag into the {activeTemplateField}</p>
+                <span className="text-[10px] text-sky-700">Place your cursor first</span>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {TEMPLATE_TAGS.map(({ tag, label }) => (
+                  <button key={tag} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => insertTag(tag)} title={tag} className="rounded-full border border-sky-300 bg-white px-2.5 py-1 text-[11px] font-medium text-sky-800 hover:bg-sky-100">
+                    + {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-slate-500">Changes are saved in this browser while the rule import is reviewed. Existing imported Monday.com tags are also supported.</p>
+          </div>
         </section>
 
         <section className="overflow-hidden rounded-xl border bg-white">
+          <div className="border-b bg-slate-50 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div><h2 className="font-semibold text-slate-900">Personalised email preview</h2><p className="text-xs text-slate-500">Tags are replaced using the selected matching client.</p></div>
+              {matchingRows.length > 0 && <select className={selectClass} value={String(previewRow?._id || rowRef(previewRow))} onChange={(e) => setPreviewRowId(e.target.value)}>{matchingRows.slice(0, 100).map((row) => <option key={row._id || rowRef(row)} value={String(row._id || rowRef(row))}>{rowClient(row)} · {rowRef(row)}</option>)}</select>}
+            </div>
+            {previewRow ? <div className="mt-3 rounded-lg border bg-white p-3"><p className="text-xs font-semibold text-slate-500">Subject</p><p className="mt-1 text-sm font-semibold text-slate-900">{renderTemplate(selected.subject, previewRow)}</p><p className="mt-3 text-xs font-semibold text-slate-500">Body</p><div className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap text-sm leading-5 text-slate-700">{renderTemplate(selected.body, previewRow)}</div></div> : <div className="mt-3 rounded-lg border border-dashed bg-white p-4 text-sm text-slate-500">No matching client is available for a personalised preview.</div>}
+          </div>
           <div className="flex items-center justify-between border-b px-4 py-3"><div><h2 className="font-semibold text-slate-900">Matching clients</h2><p className="text-xs text-slate-500">Who would receive this email under the current filters</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">{matchingRows.length}</span></div>
           {loadError && <div className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{loadError}</div>}
           <div className="max-h-[760px] overflow-auto"><table className="min-w-full text-left text-xs"><thead className="sticky top-0 bg-slate-50 text-slate-600"><tr><th className="px-3 py-2">Client</th><th className="px-3 py-2">Event</th><th className="px-3 py-2">Agent</th><th className="px-3 py-2">DJ</th><th className="px-3 py-2">Proposed send</th></tr></thead><tbody>{loading ? <tr><td colSpan={5} className="p-6 text-center">Loading bookings…</td></tr> : matchingRows.map((row) => <tr key={row._id || rowRef(row)} className="border-b-2 border-slate-100 align-top"><td className="px-3 py-3"><div className="font-medium text-slate-900">{rowClient(row)}</div><div className="text-slate-500">{rowEmail(row) || "No email"}</div><div className="text-slate-400">{rowRef(row)}</div></td><td className="px-3 py-3"><div>{text(row.eventType) || "No event type"}</div><div className="text-slate-500">{dateOnly(rowDate(row)) || "No date"}</div></td><td className="px-3 py-3">{text(row.agent) || "—"}</td><td className="px-3 py-3">{rowDj(row) ? "Yes" : "No"}</td><td className="px-3 py-3 font-medium text-slate-800">{selected.timing.reference === "fixed" ? "Manual date" : addDays(rowDate(row), selected.timing.offsetDays)}</td></tr>)}</tbody></table></div>
