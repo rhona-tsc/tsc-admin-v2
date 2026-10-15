@@ -47,7 +47,17 @@ const specialRequestLabel = (row) => {
   const count = Number(row.offRepertoireRequestCount || row.actData?.offRepertoireRequestCount || 1);
   return /r\s*&?\s*b knights/i.test(rowAct(row)) || count > 1 ? "Off Repertoire Requests" : "Off Repertoire Request";
 };
-const vocalistNames = (row) => [...new Set([...(row.assignedMusicians || []), ...(row.bookingMusicians || [])].filter((member) => /vocal|singer/i.test(`${member.role || ""} ${member.instrument || ""}`)).map((member) => text(member.name || `${member.firstName || ""} ${member.lastName || ""}`)).filter(Boolean))].join(", ");
+const joinNames = (names) => {
+  if (names.length < 2) return names[0] || "";
+  if (names.length === 2) return `${names[0]} & ${names[1]}`;
+  return `${names.slice(0, -1).join(", ")} & ${names.at(-1)}`;
+};
+const vocalistNames = (row) => joinNames([...new Set(
+  [...(row.assignedMusicians || []), ...(row.bookingMusicians || [])]
+    .filter((member) => /vocal|singer/i.test(`${member.role || ""} ${member.instrument || ""}`))
+    .map((member) => firstName(member.name || `${member.firstName || ""} ${member.lastName || ""}`))
+    .filter(Boolean),
+)]);
 const proposedSendAt = (row, timing = {}) => {
   const event = parseDate(rowDate(row));
   if (!event) return null;
