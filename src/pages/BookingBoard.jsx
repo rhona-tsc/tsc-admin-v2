@@ -3960,6 +3960,9 @@ export default function BookingBoard() {
   });
   const [expandedRows, setExpandedRows] = useState({});
   const [rowSaveState, setRowSaveState] = useState({});
+  const [introEmailPreview, setIntroEmailPreview] = useState(null);
+  const [introEmailLoading, setIntroEmailLoading] = useState(false);
+  const [introEmailSending, setIntroEmailSending] = useState(false);
 
   const toggleExpandedRow = (rowId) => {
     setExpandedRows((prev) => ({
@@ -3992,6 +3995,55 @@ export default function BookingBoard() {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}`, token } : {}),
     };
+  };
+
+  const openIntroEmailPreview = async (row) => {
+    setIntroEmailLoading(true);
+    try {
+      const response = await fetch(
+        `${API_BASE}/board/bookings/${row._id}/intro-email/preview`,
+        { headers: buildHeaders(), credentials: "include" },
+      );
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.message || "Could not prepare the intro email.");
+      }
+      setIntroEmailPreview({ row, ...payload.preview });
+    } catch (error) {
+      window.alert(error.message);
+    } finally {
+      setIntroEmailLoading(false);
+    }
+  };
+
+  const sendIntroEmail = async () => {
+    if (!introEmailPreview?.row?._id || introEmailPreview.sentAt) return;
+    setIntroEmailSending(true);
+    try {
+      const response = await fetch(
+        `${API_BASE}/board/bookings/${introEmailPreview.row._id}/intro-email/send`,
+        {
+          method: "POST",
+          headers: buildHeaders(),
+          credentials: "include",
+          body: JSON.stringify({}),
+        },
+      );
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.message || "Could not send the intro email.");
+      }
+      setIntroEmailPreview((current) => ({
+        ...current,
+        sentAt: payload.sentAt,
+        sentTo: payload.sentTo,
+      }));
+      await fetchRows();
+    } catch (error) {
+      window.alert(error.message);
+    } finally {
+      setIntroEmailSending(false);
+    }
   };
 
   const fetchRows = async (overrides = {}) => {
@@ -6588,6 +6640,19 @@ export default function BookingBoard() {
                                           </button>
 
                                           <button
+                                            type="button"
+                                            className="px-3 py-1.5 rounded bg-sky-700 text-white hover:bg-sky-800 disabled:opacity-50"
+                                            disabled={introEmailLoading}
+                                            onClick={() => openIntroEmailPreview(r)}
+                                          >
+                                            {r.introEmailSentAt
+                                              ? "View sent intro email"
+                                              : introEmailLoading
+                                                ? "Preparing…"
+                                                : "Preview & send intro email"}
+                                          </button>
+
+                                          <button
                                             className="px-3 py-1.5 border rounded hover:bg-gray-100 disabled:opacity-50"
                                             disabled={
                                               syncingFinanceId ===
@@ -7070,6 +7135,77 @@ export default function BookingBoard() {
             )
           }
         />
+      )}
+      {introEmailPreview && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
+          <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b px-6 py-4">
+              <div>
+                <h2 className="text-xl font-semibold">Intro email preview</h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  To: {introEmailPreview.to || "No client email recorded"}
+                </p>
+                <p className="text-sm text-gray-600">
+                  Subject: {introEmailPreview.subject}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="rounded border px-3 py-1.5"
+                onClick={() => setIntroEmailPreview(null)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="overflow-y-auto p-5">
+              {introEmailPreview.missing?.length > 0 && (
+                <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                  Complete these booking-board fields before sending: {introEmailPreview.missing.join(", ")}.
+                </div>
+              )}
+              {introEmailPreview.sentAt && (
+                <div className="mb-4 rounded-lg border border-green-300 bg-green-50 p-3 text-sm text-green-900">
+                  Sent to {introEmailPreview.sentTo || introEmailPreview.to} on {new Date(introEmailPreview.sentAt).toLocaleString("en-GB")}.
+                </div>
+              )}
+              <div className="mb-3 text-sm text-gray-600">
+                {introEmailPreview.invoiceAttached
+                  ? "The booking invoice PDF will be attached."
+                  : "No invoice PDF is currently recorded, so no invoice will be attached."}
+              </div>
+              <iframe
+                title="Intro email preview"
+                className="h-[560px] w-full rounded-lg border bg-white"
+                srcDoc={introEmailPreview.html}
+              />
+            </div>
+            <div className="flex items-center justify-end gap-3 border-t px-6 py-4">
+              <button
+                type="button"
+                className="rounded border px-4 py-2"
+                onClick={() => setIntroEmailPreview(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded bg-green-700 px-5 py-2 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={
+                  introEmailSending ||
+                  introEmailPreview.sentAt ||
+                  introEmailPreview.missing?.length > 0
+                }
+                onClick={sendIntroEmail}
+              >
+                {introEmailPreview.sentAt
+                  ? "Already sent"
+                  : introEmailSending
+                    ? "Sending…"
+                    : "Send intro email now"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
