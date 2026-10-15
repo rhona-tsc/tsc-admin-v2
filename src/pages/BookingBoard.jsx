@@ -1248,6 +1248,28 @@ const buildEditStateFromRow = (row) => {
 };
 
 const normaliseAllocationRole = (value = "") => String(value || "").trim();
+const getRolesFromLineupLabel = (value = "") => {
+  const label = String(value || "").trim();
+  if (!label) return [];
+
+  const composition = label.match(/\(([^)]+)\)/)?.[1] || "";
+  if (!composition) return [];
+
+  const roleAliases = new Map([
+    ["female vocal/rapper", "Lead Female Vocal / Rapper"],
+    ["male vocal/rapper", "Lead Male Vocal / Rapper"],
+    ["bass", "Bass Guitar"],
+    ["guitar", "Electric Guitar"],
+    ["keys", "Keyboard"],
+    ["drums", "Drums"],
+  ]);
+
+  return composition
+    .split(",")
+    .map((role) => role.trim())
+    .filter(Boolean)
+    .map((role) => roleAliases.get(role.toLowerCase()) || role);
+};
 const ALLOCATION_DUTY_OPTIONS = [
   "DJ with mixing console/decks",
   "Sound engineering",
@@ -1266,11 +1288,16 @@ const getBookingRoleSlots = (row = {}) => {
   const assignedRoles = getBookingMemberTags(row).map(
     (member) => member?.role || member?.instrument || "",
   );
+  const labelRoles = getRolesFromLineupLabel(
+    row?.lineupSelected || row?.actsSummary?.[0]?.lineupLabel || "",
+  );
   const roles = explicit.length
     ? explicit
     : lineupMembers.length
       ? lineupMembers.map((member) => member?.instrument || member?.role || "")
-      : assignedRoles;
+      : assignedRoles.length
+        ? assignedRoles
+        : labelRoles;
   const counts = new Map();
   return roles
     .map(normaliseAllocationRole)
