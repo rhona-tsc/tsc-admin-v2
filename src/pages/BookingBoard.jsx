@@ -5552,7 +5552,7 @@ export default function BookingBoard() {
                       key={label}
                       className={
                         index === 0
-                          ? "sticky left-0 z-[60] bg-slate-50 px-3 py-2 border-b-2 border-r-2 border-slate-200 shadow-[4px_0_8px_-6px_rgba(15,23,42,0.45)]"
+                          ? "sticky left-0 top-0 z-[70] bg-slate-50 px-3 py-2 border-b-2 border-r-2 border-slate-200 shadow-[4px_0_8px_-6px_rgba(15,23,42,0.45)]"
                           : "px-3 py-2 border-b-2 border-slate-200 whitespace-nowrap"
                       }
                     >
@@ -5746,7 +5746,7 @@ export default function BookingBoard() {
                                   </thead>
                                   <tbody>
                                     <tr className="align-top">
-                                      <td className="sticky left-0 top-[33px] z-40 w-[180px] min-w-[180px] max-w-[180px] bg-white px-3 py-2 border-r-2 border-slate-200 shadow-[6px_0_10px_-7px_rgba(15,23,42,0.65)]">
+                                      <td className="sticky left-0 z-40 w-[180px] min-w-[180px] max-w-[180px] bg-white px-3 py-2 border-r-2 border-slate-200 shadow-[6px_0_10px_-7px_rgba(15,23,42,0.65)]">
                                         <InlineInput
                                           value={clientFirstNames}
                                           placeholder="Client name"
