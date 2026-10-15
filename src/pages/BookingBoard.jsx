@@ -1324,18 +1324,10 @@ const getBookingRoleSlots = (row = {}) => {
         roleSlotId: `${role.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${count}`,
         originalBandMemberId: sourceMember?._id || "",
         fee: Number(sourceMember?.fee || sourceMember?.gigFee || 0) || 0,
-        duties: Array.from(new Set(
-          (sourceMember?.additionalRoles || [])
-            .map((item) => String(item?.role || item || "").trim())
-            .map((duty) => {
-              if (/\bdj|mixing console|decks/i.test(duty)) return "DJ with mixing console/decks";
-              if (/sound engineer/i.test(duty)) return "Sound engineering";
-              if (/\bpa\b/i.test(duty)) return "PA provision";
-              if (/light/i.test(duty)) return "Lighting provision";
-              return duty;
-            })
-            .filter(Boolean),
-        )),
+        // additionalRoles describes what the musician is capable of providing,
+        // not what this booking has purchased. Booking duties must be selected
+        // explicitly and then persisted on the assignment.
+        duties: [],
       };
     });
 };
@@ -1348,6 +1340,7 @@ function RoleAllocationCell({ row }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [offerHistory, setOfferHistory] = useState([]);
+  const [originalSuggestions, setOriginalSuggestions] = useState({});
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState("");
   const [error, setError] = useState("");
@@ -1364,13 +1357,47 @@ function RoleAllocationCell({ row }) {
     setWhatsappGroupLink(row?.whatsappGroupLink || "");
   }, [row]);
 
+  useEffect(() => {
+    if (!isExpanded || !row?._id || !slots.length) return;
+    let cancelled = false;
+
+    Promise.all(
+      slots.map(async (slot) => {
+        const params = new URLSearchParams({
+          bookingBoardItemId: String(row._id),
+          role: slot.role,
+          roleSlotId: slot.roleSlotId,
+        });
+        const response = await fetch(
+          `${API_BASE}/allocations/role-candidates?${params.toString()}`,
+          { headers: buildAuthHeaders(), credentials: "include" },
+        );
+        const json = await response.json().catch(() => null);
+        const candidates = response.ok && Array.isArray(json?.candidates)
+          ? json.candidates
+          : [];
+        return [
+          slot.roleSlotId,
+          candidates.find((candidate) => candidate.source === "primary") || null,
+        ];
+      }),
+    ).then((entries) => {
+      if (!cancelled) setOriginalSuggestions(Object.fromEntries(entries));
+    }).catch(() => {
+      if (!cancelled) setOriginalSuggestions({});
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isExpanded, row?._id, slots]);
+
   const getSlotDraft = (slot, assignment) =>
     slotDrafts[slot.roleSlotId] || {
       fee: Number(assignment?.fee ?? slot.fee ?? 0) || 0,
-      duties: Array.from(new Set([
-        ...(assignment?.duties || []),
-        ...(slot.duties || []),
-      ])),
+      duties: Array.from(new Set(
+        assignment ? (assignment?.duties || []) : (slot.duties || []),
+      )),
     };
 
   const updateSlotDraft = (slot, assignment, changes) => {
@@ -1694,6 +1721,7 @@ function RoleAllocationCell({ row }) {
         const status = assignment?.status || "unfilled";
         const isOpen = activeSlot === slot.roleSlotId;
         const draft = getSlotDraft(slot, assignment);
+        const originalSuggestion = originalSuggestions[slot.roleSlotId];
         return (
           <div key={slot.roleSlotId} className="relative rounded-lg border border-gray-300 bg-white p-3">
             <div className="mb-2 text-sm font-semibold leading-tight text-gray-800">
@@ -1723,6 +1751,25 @@ function RoleAllocationCell({ row }) {
                     : status.replaceAll("_", " ")}
               </span>
             </div>
+            {!assignment && originalSuggestion ? (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-950">
+                <span>
+                  <span className="font-semibold">Original musician: </span>
+                  {originalSuggestion.name}
+                  {!originalSuggestion.available && originalSuggestion.unavailableReason
+                    ? ` • ${originalSuggestion.unavailableReason}`
+                    : ""}
+                </span>
+                <button
+                  type="button"
+                  disabled={!originalSuggestion.available || sending === slot.roleSlotId}
+                  onClick={() => sendOffer(slot, originalSuggestion)}
+                  className="rounded bg-blue-700 px-3 py-1.5 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {sending === slot.roleSlotId ? "Sending…" : "Offer to original musician"}
+                </button>
+              </div>
+            ) : null}
             <div className="mt-3 grid grid-cols-[90px_minmax(0,1fr)] items-center gap-2 border-t pt-3 text-xs">
               <label className="font-medium text-gray-600">Fee</label>
               <div className="flex items-center gap-1">
