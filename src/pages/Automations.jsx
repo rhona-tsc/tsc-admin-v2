@@ -330,8 +330,13 @@ const renderTemplate = (template, row) => {
 };
 
 const matchesChoice = (actual, choice) => choice === "any" || boolValue(actual) === choice;
-const ruleMatchesRow = (rule, row, { excludePast = true, includeDisabled = false } = {}) => {
+const ruleAlreadySent = (rule, row) => {
+  const number = Number(rule?.sourceNumber);
+  return [6, 8, 9].includes(number) && Boolean(row?.introEmailSentAt || row?.introEmailMessageId);
+};
+const ruleMatchesRow = (rule, row, { excludePast = true, includeDisabled = false, includeSent = false } = {}) => {
   if (!includeDisabled && rule?.enabled === false) return false;
+  if (!includeSent && ruleAlreadySent(rule, row)) return false;
   const f = rule?.filters || {};
   if (!parseDate(rowDate(row))) return false;
   if (Array.isArray(f.agents) && f.agents.length && !f.agents.includes(normalizeAgent(row.agent))) return false;
@@ -492,10 +497,11 @@ export default function Automations() {
     const bookings = rows.filter((row) => rowEmails(row).some((email) => email.includes(wanted)));
     const uniqueBookings = [...new Map(bookings.map((row) => [rowRef(row).toLowerCase() || String(row._id), row])).values()];
     const items = uniqueBookings.flatMap((row) => rules
-      .filter((rule) => ruleMatchesRow(rule, row, { includeDisabled: true }))
+      .filter((rule) => ruleMatchesRow(rule, row, { includeDisabled: true, includeSent: true }))
       .map((rule) => ({
         rule,
         row,
+        alreadySent: ruleAlreadySent(rule, row),
         sendAt: rule.timing?.reference === "fixed" ? null : proposedSendAt(row, rule.timing),
         sendLabel: rule.timing?.reference === "fixed" ? "Manual date" : proposedSendDate(row, rule.timing),
         subject: renderTemplate(rule.subject, row),
@@ -508,7 +514,7 @@ export default function Automations() {
       });
     const exactSubjectCounts = new Map();
     const dayCounts = new Map();
-    items.filter((item) => item.rule.enabled !== false).forEach((item) => {
+    items.filter((item) => item.rule.enabled !== false && !item.alreadySent).forEach((item) => {
       const bookingKey = rowRef(item.row).toLowerCase();
       const subjectKey = `${bookingKey}|${item.subject.toLowerCase().replace(/\s+/g, " ").trim()}`;
       exactSubjectCounts.set(subjectKey, (exactSubjectCounts.get(subjectKey) || 0) + 1);
@@ -525,8 +531,8 @@ export default function Automations() {
         const dayKey = item.sendAt ? `${bookingKey}|${dateOnly(item.sendAt)}` : "";
         return {
           ...item,
-          duplicateSubject: (exactSubjectCounts.get(subjectKey) || 0) > 1,
-          sameDayCount: dayKey ? dayCounts.get(dayKey) || 0 : 0,
+          duplicateSubject: !item.alreadySent && (exactSubjectCounts.get(subjectKey) || 0) > 1,
+          sameDayCount: !item.alreadySent && dayKey ? dayCounts.get(dayKey) || 0 : 0,
         };
       }),
     };
@@ -534,7 +540,7 @@ export default function Automations() {
   const visibleEmailAuditItems = auditOnlyEnabled
     ? emailAudit.items.filter((item) => item.rule.enabled !== false)
     : emailAudit.items;
-  const enabledEmailAuditCount = emailAudit.items.filter((item) => item.rule.enabled !== false).length;
+  const enabledEmailAuditCount = emailAudit.items.filter((item) => item.rule.enabled !== false && !item.alreadySent).length;
 
   const previewRow = matchingRows.find((row) => String(row._id || rowRef(row)) === previewRowId) || matchingRows[0];
   const sendTestPreview = async () => {
@@ -653,7 +659,7 @@ export default function Automations() {
                       <thead className="bg-slate-50 text-slate-600"><tr><th className="px-3 py-2">On/off</th><th className="px-3 py-2">Planned date</th><th className="px-3 py-2">Automation</th><th className="px-3 py-2">Subject</th><th className="px-3 py-2">Checks</th><th className="px-3 py-2"></th></tr></thead>
                       <tbody>
                         {visibleEmailAuditItems.map((item) => (
-                          <tr key={`${rowRef(item.row)}-${item.rule.id}`} className={`border-t align-top ${item.rule.enabled === false ? "bg-slate-50 opacity-70" : item.duplicateSubject ? "bg-red-50" : ""}`}>
+                          <tr key={`${rowRef(item.row)}-${item.rule.id}`} className={`border-t align-top ${item.alreadySent ? "bg-sky-50" : item.rule.enabled === false ? "bg-slate-50 opacity-70" : item.duplicateSubject ? "bg-red-50" : ""}`}>
                             <td className="px-3 py-3">
                               <button
                                 type="button"
@@ -667,12 +673,16 @@ export default function Automations() {
                               </button>
                               <div className={`mt-1 text-[10px] font-semibold uppercase ${item.rule.enabled !== false ? "text-emerald-700" : "text-slate-400"}`}>{item.rule.enabled !== false ? "On" : "Off"}</div>
                             </td>
-                            <td className="whitespace-nowrap px-3 py-3 font-semibold text-slate-900">{item.sendLabel}</td>
+                            <td className="whitespace-nowrap px-3 py-3 font-semibold text-slate-900">
+                              {item.alreadySent ? (
+                                <><div>Already sent</div><div className="mt-1 text-[11px] font-normal text-slate-500">{item.row.introEmailSentAt ? new Date(item.row.introEmailSentAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "Previously sent"}</div></>
+                              ) : item.sendLabel}
+                            </td>
                             <td className="px-3 py-3"><div className="font-medium text-slate-900">Automation {item.rule.sourceNumber}</div><div className="text-slate-500">{item.rule.status === "reviewed" ? "Reviewed" : "Needs review"}</div></td>
                             <td className="max-w-xl px-3 py-3 text-slate-700">{item.subject}</td>
                             <td className="px-3 py-3">
                               <div className="flex flex-wrap gap-1">
-                                {item.rule.enabled === false ? <span className="rounded bg-slate-200 px-2 py-1 font-semibold text-slate-600">Switched off — will not send</span> : (
+                                {item.alreadySent ? <span className="rounded bg-sky-100 px-2 py-1 font-semibold text-sky-800">Sent — excluded from future schedule</span> : item.rule.enabled === false ? <span className="rounded bg-slate-200 px-2 py-1 font-semibold text-slate-600">Switched off — will not send</span> : (
                                   <>
                                     {item.duplicateSubject && <span className="rounded bg-red-100 px-2 py-1 font-semibold text-red-800">Same subject appears more than once</span>}
                                     {item.sameDayCount > 1 && <span className="rounded bg-amber-100 px-2 py-1 font-semibold text-amber-800">{item.sameDayCount} emails on this day</span>}
