@@ -580,6 +580,26 @@ const renderTemplate = (template, row) => {
     String(template || ""),
   );
 };
+const renderTemplatePreview = (template, row) => {
+  const rendered = renderTemplate(template, row);
+  const parts = [];
+  const labelledLink = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g;
+  let cursor = 0;
+  let match;
+  let key = 0;
+  while ((match = labelledLink.exec(rendered))) {
+    if (match.index > cursor) parts.push(rendered.slice(cursor, match.index));
+    parts.push(
+      <a key={`template-link-${key}`} href={match[2]} target="_blank" rel="noreferrer" className="font-semibold text-sky-700 underline">
+        {match[1]}
+      </a>,
+    );
+    key += 1;
+    cursor = match.index + match[0].length;
+  }
+  if (cursor < rendered.length) parts.push(rendered.slice(cursor));
+  return parts;
+};
 const ruleDisplayName = (rule) => {
   const name = text(rule?.name);
   return name && !/^automation\s+\d+$/i.test(name)
@@ -1194,7 +1214,7 @@ export default function Automations() {
                 ))}
               </div>
             </div>
-            <p className="mt-2 text-xs text-slate-500">Changes are saved in this browser while the rule import is reviewed. Existing imported Monday.com tags are also supported.</p>
+            <p className="mt-2 text-xs text-slate-500">Changes are saved in this browser while the rule import is reviewed. For a labelled link, use {"[Link text]({{client_event_sheet_link}})"}. Existing imported Monday.com tags are also supported.</p>
           </div>
         </section>
 
@@ -1209,7 +1229,7 @@ export default function Automations() {
             </div>
             {testPreviewState.message && <div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs font-medium text-emerald-800">{testPreviewState.message}</div>}
             {testPreviewState.error && <div className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-medium text-red-700">{testPreviewState.error}</div>}
-            {previewRow ? <div className="mt-3 rounded-lg border bg-white p-3"><p className="text-xs font-semibold text-slate-500">Subject</p><p className="mt-1 text-sm font-semibold text-slate-900">{renderTemplate(selected.subject, previewRow)}</p><p className="mt-3 text-xs font-semibold text-slate-500">Body</p><div className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap text-sm leading-5 text-slate-700">{renderTemplate(selected.body, previewRow)}</div><div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-800">{selected.attachInvoice === true ? (rowInvoiceLink(previewRow) ? "Invoice PDF will be attached — no long invoice URL in the email." : "Invoice attachment is enabled, but no issued invoice PDF is currently recorded for this booking.") : "No invoice attachment is enabled for this automation."} The standard TSC signature and footer will be appended.</div></div> : <div className="mt-3 rounded-lg border border-dashed bg-white p-4 text-sm text-slate-500">No matching client is available for a personalised preview.</div>}
+            {previewRow ? <div className="mt-3 rounded-lg border bg-white p-3"><p className="text-xs font-semibold text-slate-500">Subject</p><p className="mt-1 text-sm font-semibold text-slate-900">{renderTemplate(selected.subject, previewRow)}</p><p className="mt-3 text-xs font-semibold text-slate-500">Body</p><div className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap text-sm leading-5 text-slate-700">{renderTemplatePreview(selected.body, previewRow)}</div><div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-800">{selected.attachInvoice === true ? (rowInvoiceLink(previewRow) ? "Invoice PDF will be attached — no long invoice URL in the email." : "Invoice attachment is enabled, but no issued invoice PDF is currently recorded for this booking.") : "No invoice attachment is enabled for this automation."} The standard TSC signature and footer will be appended.</div></div> : <div className="mt-3 rounded-lg border border-dashed bg-white p-4 text-sm text-slate-500">No matching client is available for a personalised preview.</div>}
           </div>
           <div className="flex items-center justify-between border-b px-4 py-3"><div><h2 className="font-semibold text-slate-900">Matching clients</h2><p className="text-xs text-slate-500">Who would receive this email under the current filters</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">{matchingRows.length}</span></div>
           {loadError && <div className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{loadError}</div>}
