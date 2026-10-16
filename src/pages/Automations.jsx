@@ -859,7 +859,6 @@ export default function Automations() {
 
     const actHeaders = token ? { Authorization: `Bearer ${token}`, token } : {};
     const v2ActParams = new URLSearchParams({
-      fields: "_id,name,tscName,countyFees,countyTravelSettings,extras",
       limit: "500",
       legacy: "include",
     });
