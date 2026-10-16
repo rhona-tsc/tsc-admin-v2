@@ -201,6 +201,7 @@ export const automationSeeds = [
     "id": "monday-10",
     "sourceNumber": 10,
     "name": "Automation 10",
+    "attachInvoice": true,
     "subject": "Reminder: Playlist(s), Event Sheet & Balance Due",
     "body": "Hi {pulse.text7},\n\nI hope you are doing well. \n\nJust a gentle reminder that the Spotify Playlist(s) is(/are) due next week on {pulse.date3}. \n\nIf you have booked a band member DJing, please note that the Advanced DJ requests are also due on this date too. \n\nThe Event Sheet should also be complete by this date too, to ensure the band has everything they need to carry out a successful performance. \n\n{pulse.link} \n\nAnd finally, the balance should also be settled by this date.\n\n{pulse.link7}\n\nIf you have already submitted your playlist link(s), completed the Event Sheet, and paid the balance, please disregard this email. \n\nIf you would like to run through your Event Sheet with me over the phone, please feel free to book a slot to do that directly in my calendar: https://calendly.com/thesupremecollective/call\n\nWarmest wishes, \nRhona :)\n\n—",
     "status": "needs_review",

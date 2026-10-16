@@ -379,6 +379,19 @@ const vocalistNames = (row) => joinNames([...new Set(
     .filter(Boolean),
 )]);
 const proposedSendAt = (row, timing = {}) => {
+  if (timing.strategy === "balance_reminder_advance") {
+    const event = parseDate(rowDate(row));
+    if (!event) return null;
+    const planned = new Date(event);
+    planned.setDate(event.getDate() + Number(timing.offsetDays || 0));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (planned >= today) return planned;
+
+    const nextRun = nextAutomationRunAt();
+    const invoiceDeadline = parseDate(row?.invoiceDueDateISO);
+    return invoiceDeadline && nextRun < invoiceDeadline ? nextRun : planned;
+  }
   if (timing.strategy === "invoice_due") {
     return parseDate(row?.invoiceDueDateISO);
   }
@@ -447,6 +460,9 @@ const describeSendRule = (timing = {}) => {
   if (timing.reference === "fixed" && !timing.strategy) return "Send on the manually selected date.";
   if (timing.strategy === "invoice_due") {
     return "Send on the Invoice due date recorded on the Booking Board. If that date is blank, do not schedule this email.";
+  }
+  if (timing.strategy === "balance_reminder_advance") {
+    return "Send on the planned reminder date. If that date was missed, move it to the next automation run only when that run is strictly before the recorded invoice due date; otherwise leave it flagged for attention.";
   }
   if (timing.strategy === "song_suggestions_due") {
     return "Send one calendar month before the event. If the booking is made less than five weeks before the event, send one week after the booking enters the system. If that would fall on or after the event, send halfway between the booking and event dates.";
@@ -650,6 +666,10 @@ const prepareRules = (source) => source
       timing.label = "One day after the Booking Board song-suggestions due date";
     }
     if (number === 5) filters.playlistService = "manned_playlist";
+    if (number === 10) {
+      timing.strategy = "balance_reminder_advance";
+      timing.label = "Catch up on the next run when it remains before the invoice due date";
+    }
     if (number === 11) {
       timing.strategy = "invoice_due";
       timing.label = "Booking Board invoice due date";
@@ -685,7 +705,14 @@ const prepareRules = (source) => source
     if (number === 6) filters.recipientRole = "direct_client";
     if (number === 8) filters.recipientRole = "end_client_via_agent";
     if (number === 9) filters.recipientRole = "agent";
-    return { ...rule, enabled: rule.enabled !== false, body, filters, timing };
+    return {
+      ...rule,
+      enabled: rule.enabled !== false,
+      attachInvoice: rule.attachInvoice ?? (number === 10),
+      body,
+      filters,
+      timing,
+    };
   });
 
 export default function Automations() {
@@ -869,6 +896,8 @@ export default function Automations() {
           subject: renderTemplate(selected.subject, previewRow),
           body: renderTemplate(selected.body, previewRow),
           audience: Number(selected.sourceNumber) === 4 ? "musician" : "client",
+          bookingId: previewRow?._id || "",
+          attachInvoice: selected.attachInvoice === true,
         }),
       });
       const payload = await response.json();
@@ -1148,6 +1177,10 @@ export default function Automations() {
             <p className="mb-3 text-xs text-slate-500">Click in the subject or body, then choose a tag. It will be replaced with each booking’s details when the email is prepared.</p>
             <label className="block text-xs font-medium text-slate-600">Subject<input ref={subjectRef} onFocus={() => setActiveTemplateField("subject")} className={`${inputClass} mt-1`} value={selected.subject} onChange={(e) => updateRule({ subject: e.target.value })} /></label>
             <label className="mt-3 block text-xs font-medium text-slate-600">Body<textarea ref={bodyRef} onFocus={() => setActiveTemplateField("body")} className={`${inputClass} mt-1 min-h-[310px] font-mono text-xs leading-5`} value={selected.body} onChange={(e) => updateRule({ body: e.target.value })} /></label>
+            <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+              <input type="checkbox" className="mt-0.5" checked={selected.attachInvoice === true} onChange={(e) => updateRule({ attachInvoice: e.target.checked })} />
+              <span><span className="block font-semibold text-slate-900">Attach issued invoice PDF</span><span className="mt-0.5 block text-xs text-slate-500">Uses the invoice recorded against each matching booking. If no issued invoice is recorded, no attachment is added.</span></span>
+            </label>
             <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 p-3">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-semibold text-sky-900">Insert a tag into the {activeTemplateField}</p>
@@ -1176,7 +1209,7 @@ export default function Automations() {
             </div>
             {testPreviewState.message && <div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs font-medium text-emerald-800">{testPreviewState.message}</div>}
             {testPreviewState.error && <div className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-medium text-red-700">{testPreviewState.error}</div>}
-            {previewRow ? <div className="mt-3 rounded-lg border bg-white p-3"><p className="text-xs font-semibold text-slate-500">Subject</p><p className="mt-1 text-sm font-semibold text-slate-900">{renderTemplate(selected.subject, previewRow)}</p><p className="mt-3 text-xs font-semibold text-slate-500">Body</p><div className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap text-sm leading-5 text-slate-700">{renderTemplate(selected.body, previewRow)}</div><div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-800">{rowInvoiceLink(previewRow) ? "Invoice PDF will be attached — no long invoice URL in the email." : "No invoice PDF is currently recorded for this booking."} The standard TSC signature and footer will be appended.</div></div> : <div className="mt-3 rounded-lg border border-dashed bg-white p-4 text-sm text-slate-500">No matching client is available for a personalised preview.</div>}
+            {previewRow ? <div className="mt-3 rounded-lg border bg-white p-3"><p className="text-xs font-semibold text-slate-500">Subject</p><p className="mt-1 text-sm font-semibold text-slate-900">{renderTemplate(selected.subject, previewRow)}</p><p className="mt-3 text-xs font-semibold text-slate-500">Body</p><div className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap text-sm leading-5 text-slate-700">{renderTemplate(selected.body, previewRow)}</div><div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-800">{selected.attachInvoice === true ? (rowInvoiceLink(previewRow) ? "Invoice PDF will be attached — no long invoice URL in the email." : "Invoice attachment is enabled, but no issued invoice PDF is currently recorded for this booking.") : "No invoice attachment is enabled for this automation."} The standard TSC signature and footer will be appended.</div></div> : <div className="mt-3 rounded-lg border border-dashed bg-white p-4 text-sm text-slate-500">No matching client is available for a personalised preview.</div>}
           </div>
           <div className="flex items-center justify-between border-b px-4 py-3"><div><h2 className="font-semibold text-slate-900">Matching clients</h2><p className="text-xs text-slate-500">Who would receive this email under the current filters</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">{matchingRows.length}</span></div>
           {loadError && <div className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{loadError}</div>}
