@@ -36,19 +36,25 @@ const parseDate = (value) => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 const formatDate = (date) => date?.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) || "";
-const monthBefore = (value) => { const date = parseDate(value); if (!date) return ""; date.setMonth(date.getMonth() - 1); return formatDate(date); };
-const songRequestDueDate = (row) => {
+const songRequestDueAt = (row) => {
   const event = parseDate(rowDate(row));
-  if (!event) return "";
-  const booked = parseDate(row.bookingDateISO || row.enquiryDateISO);
+  if (!event) return null;
+  const booked = parseDate(row.bookingDateISO || row.enquiryDateISO || row.createdAt);
   if (booked) {
-    const leadDays = Math.round((event - booked) / 86400000);
+    const leadDays = Math.round((event.getTime() - booked.getTime()) / 86400000);
     if (leadDays < 35) {
-      return formatDate(new Date(booked.getTime() + ((event - booked) / 2)));
+      const oneWeekAfterBooking = new Date(booked);
+      oneWeekAfterBooking.setDate(booked.getDate() + 7);
+      return oneWeekAfterBooking >= event
+        ? new Date(booked.getTime() + ((event.getTime() - booked.getTime()) / 2))
+        : oneWeekAfterBooking;
     }
   }
-  return monthBefore(rowDate(row));
+  const oneMonthBefore = new Date(event);
+  oneMonthBefore.setMonth(event.getMonth() - 1);
+  return oneMonthBefore;
 };
+const songRequestDueDate = (row) => formatDate(songRequestDueAt(row));
 const invoiceDueDate = (row) => {
   if (row.invoiceDueDateISO) return friendlyDate(row.invoiceDueDateISO);
   const date = parseDate(rowDate(row));
@@ -77,22 +83,15 @@ const proposedSendAt = (row, timing = {}) => {
   const event = parseDate(rowDate(row));
   if (!event) return null;
   if (timing.strategy === "song_suggestions_due") {
+    return songRequestDueAt(row);
+  }
+  if (timing.strategy === "song_suggestions_advance") {
+    const dueDate = songRequestDueAt(row);
+    if (!dueDate) return null;
+    const reminderDate = new Date(dueDate);
+    reminderDate.setDate(dueDate.getDate() - 7);
     const booked = parseDate(row.bookingDateISO || row.enquiryDateISO || row.createdAt);
-    if (booked) {
-      const leadDays = Math.round((event.getTime() - booked.getTime()) / 86400000);
-      if (leadDays < 35) {
-        const oneWeekAfterBooking = new Date(booked);
-        oneWeekAfterBooking.setDate(booked.getDate() + 7);
-        if (oneWeekAfterBooking >= event) {
-          return new Date(booked.getTime() + ((event.getTime() - booked.getTime()) / 2));
-        }
-        return oneWeekAfterBooking;
-      }
-    }
-
-    const oneMonthBefore = new Date(event);
-    oneMonthBefore.setMonth(event.getMonth() - 1);
-    return oneMonthBefore;
+    return booked && reminderDate < booked ? booked : reminderDate;
   }
   if (timing.strategy === "final_details_due") {
     const eventWeekMonday = new Date(event);
@@ -136,6 +135,9 @@ const describeSendRule = (timing = {}) => {
   if (timing.reference === "fixed") return "Send on the manually selected date.";
   if (timing.strategy === "song_suggestions_due") {
     return "Send one calendar month before the event. If the booking is made less than five weeks before the event, send one week after the booking enters the system. If that would fall on or after the event, send halfway between the booking and event dates.";
+  }
+  if (timing.strategy === "song_suggestions_advance") {
+    return "Send seven days before the calculated song-suggestions due date. If a short-notice booking arrives after that reminder date, send when the booking enters the system.";
   }
   if (timing.strategy === "final_details_due") {
     return "Send on the Thursday in the calendar week before the event. If the booking enters the system after that Thursday, send halfway between the booking and event dates.";
@@ -277,6 +279,11 @@ const prepareRules = (source) => source
       timing.strategy = "song_suggestions_due";
       timing.offsetDays = -30;
       timing.label = "One month before; one week after booking when booked under five weeks out";
+    }
+    if (number === 16) {
+      timing.strategy = "song_suggestions_advance";
+      timing.offsetDays = -7;
+      timing.label = "Seven days before the calculated song-request due date";
     }
     if (number === 38) {
       timing.strategy = "final_details_due";
