@@ -31,6 +31,84 @@ const rowPlaylist = (row) => Boolean(row.bookingDetails?.mannedPlaylist || row.b
 const rowWedding = (row) => normalizeEventType(row.eventType) === "Wedding" ? "Wedding" : "Non-Wedding";
 const rowRole = (row) => text(row.contactRole || "direct_client");
 const rowService = (row) => text(row.bookingDetails?.playlistService || (rowDj(row) ? "pro_dj" : ""));
+const CLIENT_PRICE_MULTIPLIER = 1.33;
+const normalizeExtraKey = (value) => text(value).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+const formatPounds = (value) => `£${Math.round(Number(value || 0)).toLocaleString("en-GB")}`;
+const bookedPerformerCount = (row) => {
+  const lineupCount = Array.isArray(row.lineupComposition)
+    ? row.lineupComposition.filter(Boolean).length
+    : 0;
+  if (lineupCount) return lineupCount;
+  const selectedCount = Number(text(row.lineupSelected).match(/\d+/)?.[0] || 0);
+  if (selectedCount) return selectedCount;
+  return [...(row.assignedMusicians || []), ...(row.bookingMusicians || [])]
+    .filter((member, index, members) => {
+      const id = text(member?.musicianId || member?._id || member?.email || member?.name);
+      return id && members.findIndex((candidate) => text(
+        candidate?.musicianId || candidate?._id || candidate?.email || candidate?.name,
+      ) === id) === index;
+    }).length;
+};
+const actAddOnOptions = (row) => {
+  const rawExtras = row?.actData?.extras || {};
+  const entries = rawExtras instanceof Map ? [...rawExtras.entries()] : Object.entries(rawExtras);
+  const extras = new Map(entries.map(([key, value]) => [normalizeExtraKey(key), {
+    key: normalizeExtraKey(key),
+    price: Number(value?.price || 0),
+    complimentary: value?.complimentary === true,
+    originalKey: key,
+  }]));
+  const find = (...keys) => keys.map(normalizeExtraKey).map((key) => extras.get(key)).find(Boolean);
+  const lines = [];
+  const used = new Set(["max_dj_hours", "background_music_playlist"]);
+  const addSimple = (label, ...keys) => {
+    const extra = find(...keys);
+    keys.forEach((key) => used.add(normalizeExtraKey(key)));
+    if (!extra || extra.complimentary || extra.price <= 0) return;
+    lines.push(`- ${label}: ${formatPounds(extra.price * CLIENT_PRICE_MULTIPLIER)}`);
+  };
+  const addLineupTotal = (label, ...keys) => {
+    const extra = find(...keys);
+    keys.forEach((key) => used.add(normalizeExtraKey(key)));
+    const performers = bookedPerformerCount(row);
+    if (!extra || extra.complimentary || extra.price <= 0 || !performers) return;
+    lines.push(`- ${label} (${performers}-piece): ${formatPounds(extra.price * performers * CLIENT_PRICE_MULTIPLIER)}`);
+  };
+  const addPerMember = (label, unit, ...keys) => {
+    const extra = find(...keys);
+    keys.forEach((key) => used.add(normalizeExtraKey(key)));
+    if (!extra || extra.complimentary || extra.price <= 0) return;
+    lines.push(`- ${label}: ${formatPounds(extra.price * CLIENT_PRICE_MULTIPLIER)} per band member${unit ? ` ${unit}` : ""}`);
+  };
+
+  addLineupTotal("Additional 30-minute performance", "extra_30min_performance_per_band_member");
+  addLineupTotal("Additional 40-minute performance", "extra_40min_performance_per_band_member");
+  addLineupTotal("Additional 45-minute performance", "extra_45min_performance_per_band_member");
+  addLineupTotal("Additional 60-minute performance", "extra_60min_performance_per_band_member");
+  addPerMember("Early arrival", "per hour", "early_arrival_60min_per_band_member");
+  addPerMember("Late stay", "per hour", "late_stay_60min_per_band_member");
+  addPerMember("Additional song request", "", "extra_song_request_per_band_member");
+  addPerMember("Israeli dancing (20 minutes)", "", "israeli_dancing_20mins_per_band_member");
+  addSimple("Up to 3 hours of manned playlist service", "up_to_3_hours_manned_playlist");
+  addSimple("Up to 3 hours of band-member DJing", "up_to_3_hours_band_member_dj");
+  addSimple("Additional DJing per 30 minutes", "extra_djing_per_30_mins", "extra_djing_per_30_min");
+  addSimple("DJ with live sax (3 x 30 minutes)", "dj_live_sax_3x30mins");
+  addSimple("PA and sound engineering for another act", "sound_engineering_for_another_act_with_your_acts_pa");
+  addSimple("Speedy 60-minute setup and soundcheck", "speedy_setup_60mins_roadie_and_engineer_duties_only_travel_added_on_top_later_for_additional_team_member");
+  addSimple("Wired microphone hire for speeches", "wired_mic_for_speeches");
+  addSimple("Wireless microphone hire for speeches", "wireless_mic_for_speeches");
+
+  entries.forEach(([originalKey, value]) => {
+    const key = normalizeExtraKey(originalKey);
+    if (used.has(key) || value?.complimentary === true || Number(value?.price || 0) <= 0) return;
+    const label = text(originalKey).replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+    lines.push(`- ${label}: ${formatPounds(Number(value.price) * CLIENT_PRICE_MULTIPLIER)}`);
+  });
+
+  return lines.length
+    ? `Add-ons available for ${rowAct(row)}:\n${lines.join("\n")}`
+    : `Please ask me if you would like a tailored add-on quote for ${rowAct(row)}.`;
+};
 const parseDate = (value) => {
   const date = new Date(`${dateOnly(value)}T12:00:00`);
   return Number.isNaN(date.getTime()) ? null : date;
@@ -174,6 +252,7 @@ const TEMPLATE_TAGS = [
   { tag: "{{vocalist_names}}", label: "Vocalist names" },
   { tag: "{{draft_setlist_link}}", label: "Draft setlist link" },
   { tag: "{{whatsapp_group_link}}", label: "WhatsApp group link" },
+  { tag: "{{act_add_on_options}}", label: "Act-specific add-ons with client prices" },
 ];
 
 const rowAct = (row) => text(
@@ -223,6 +302,7 @@ const templateValues = (row = {}) => ({
   "{{vocalist_names}}": vocalistNames(row),
   "{{draft_setlist_link}}": text(row.draftSetlistLink),
   "{{whatsapp_group_link}}": text(row.whatsappGroupLink),
+  "{{act_add_on_options}}": actAddOnOptions(row),
   // Imported Monday.com tags remain supported while templates are migrated.
   "{pulse.text7}": firstName(rowClient(row)),
   "{pulse.dropdown}": rowAct(row),
@@ -275,6 +355,12 @@ const prepareRules = (source) => source
     if (number === 3) timing.strategy = "post_event";
     if (number === 4) timing.strategy = "setlist";
     if (number === 5) filters.playlistService = "manned_playlist";
+    if (number === 21) {
+      body = body.replace(
+        /Performance Add-Ons:[\s\S]*?(?=These options are designed)/i,
+        "{{act_add_on_options}}\n\n",
+      );
+    }
     if (number === 14) {
       timing.strategy = "song_suggestions_due";
       timing.offsetDays = -30;
