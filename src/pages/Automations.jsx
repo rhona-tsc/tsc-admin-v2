@@ -35,6 +35,215 @@ const rowPlaylist = (row) => Boolean(row.bookingDetails?.mannedPlaylist || row.b
 const rowWedding = (row) => normalizeEventType(row.eventType) === "Wedding" ? "Wedding" : "Non-Wedding";
 const rowRole = (row) => text(row.contactRole || "direct_client");
 const rowService = (row) => text(row.bookingDetails?.playlistService || (rowDj(row) ? "pro_dj" : ""));
+
+const isPlainAutomationObject = (value) =>
+  Boolean(value) &&
+  typeof value === "object" &&
+  !Array.isArray(value) &&
+  !(value instanceof Date);
+
+const isBlankAutomationValue = (value) =>
+  value == null ||
+  value === "" ||
+  (Array.isArray(value) && value.length === 0) ||
+  (isPlainAutomationObject(value) && Object.keys(value).length === 0);
+
+const mergeAutomationRowData = (preferred, fallback) => {
+  const result = { ...(fallback || {}), ...(preferred || {}) };
+  const keys = new Set([
+    ...Object.keys(fallback || {}),
+    ...Object.keys(preferred || {}),
+  ]);
+
+  keys.forEach((key) => {
+    const preferredValue = preferred?.[key];
+    const fallbackValue = fallback?.[key];
+
+    if (
+      isPlainAutomationObject(preferredValue) &&
+      isPlainAutomationObject(fallbackValue)
+    ) {
+      result[key] = mergeAutomationRowData(preferredValue, fallbackValue);
+      return;
+    }
+
+    if (Array.isArray(preferredValue) && Array.isArray(fallbackValue)) {
+      result[key] =
+        preferredValue.length >= fallbackValue.length
+          ? preferredValue
+          : fallbackValue;
+      return;
+    }
+
+    if (
+      isBlankAutomationValue(preferredValue) &&
+      !isBlankAutomationValue(fallbackValue)
+    ) {
+      result[key] = fallbackValue;
+    }
+  });
+
+  return result;
+};
+
+const automationRowRichness = (row) => {
+  const weightedValues = [
+    [rowRef(row), 8],
+    [rowDate(row), 8],
+    [rowEmail(row), 7],
+    [rowClient(row), 5],
+    [row?.contactRole, 5],
+    [row?.eventType, 4],
+    [row?.agent, 4],
+    [row?.actTscName || row?.actName, 4],
+    [row?.invoiceDueDateISO, 3],
+    [row?.songSuggestionsDueDateISO, 3],
+    [row?.eventSheetLink, 3],
+    [row?.bookingDetails, 3],
+    [row?.eventSheet, 3],
+    [row?.actData, 2],
+  ];
+
+  const valueScore = weightedValues.reduce(
+    (score, [value, weight]) =>
+      score + (isBlankAutomationValue(value) ? 0 : weight),
+    0,
+  );
+  const arrayScore = [
+    row?.clientEmails,
+    row?.assignedMusicians,
+    row?.bookingMusicians,
+    row?.actsSummary,
+    row?.lineupComposition,
+  ].reduce(
+    (score, value) => score + Math.min(Array.isArray(value) ? value.length : 0, 8),
+    0,
+  );
+
+  return valueScore + arrayScore;
+};
+
+const contactSelectionScore = (row) => {
+  const clientEmails = Array.isArray(row?.clientEmails) ? row.clientEmails : [];
+  const contactRole = text(row?.contactRole).toLowerCase();
+  const hasRoleTaggedEmail = clientEmails.some(
+    (entry) => isPlainAutomationObject(entry) && text(entry?.email) && text(entry?.role),
+  );
+  const timestamp = new Date(row?.updatedAt || row?.createdAt || 0).getTime() || 0;
+
+  return [
+    contactRole === "agent" ? 1 : 0,
+    contactRole && rowEmail(row) ? 1 : 0,
+    hasRoleTaggedEmail ? 1 : 0,
+    rowEmails(row).length,
+    text(row?.clientFirstNames || row?.clientName || row?.bookerName) ? 1 : 0,
+    timestamp,
+  ];
+};
+
+const compareScoreTuples = (left, right) => {
+  const length = Math.max(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    const difference = Number(right[index] || 0) - Number(left[index] || 0);
+    if (difference) return difference;
+  }
+  return 0;
+};
+
+const normalizeAutomationKeyPart = (value) =>
+  text(value).toLowerCase().replace(/\s+/g, " ");
+
+const automationBookingKey = (row) => {
+  const bookingRef = normalizeAutomationKeyPart(row?.bookingRef);
+  if (bookingRef) return `booking:${bookingRef}`;
+
+  const sessionId = normalizeAutomationKeyPart(row?.sessionId);
+  if (sessionId) return `session:${sessionId}`;
+
+  const bookingId = normalizeAutomationKeyPart(row?.bookingId);
+  if (bookingId) return `booking:${bookingId}`;
+
+  const fallbackId = normalizeAutomationKeyPart(
+    row?.sourceBookingId || row?._id,
+  );
+  return fallbackId ? `id:${fallbackId}` : "";
+};
+
+const consolidateAutomationRows = (sourceRows = []) => {
+  const groups = new Map();
+
+  sourceRows.forEach((row, index) => {
+    const key = automationBookingKey(row) || `unidentified-${index}`;
+    groups.set(key, [...(groups.get(key) || []), row]);
+  });
+
+  return [...groups.values()].map((group) => {
+    const byRichness = [...group].sort((left, right) => {
+      const scoreDifference =
+        automationRowRichness(right) - automationRowRichness(left);
+      if (scoreDifference) return scoreDifference;
+      return (
+        (new Date(right?.updatedAt || right?.createdAt || 0).getTime() || 0) -
+        (new Date(left?.updatedAt || left?.createdAt || 0).getTime() || 0)
+      );
+    });
+    const contactSource = [...group].sort((left, right) =>
+      compareScoreTuples(contactSelectionScore(left), contactSelectionScore(right)),
+    )[0];
+    const merged = byRichness
+      .slice(1)
+      .reduce(
+        (current, fallback) => mergeAutomationRowData(current, fallback),
+        byRichness[0] || {},
+      );
+
+    const preferredEmail = rowEmail(contactSource);
+    const mergedContactEmails = [];
+    const seenEmails = new Set();
+    [
+      ...(Array.isArray(contactSource?.clientEmails)
+        ? contactSource.clientEmails
+        : []),
+      ...group.flatMap((row) =>
+        Array.isArray(row?.clientEmails) ? row.clientEmails : [],
+      ),
+    ].forEach((entry) => {
+      const email = text(entry?.email || entry).toLowerCase();
+      if (!email || seenEmails.has(email)) return;
+      seenEmails.add(email);
+      mergedContactEmails.push(
+        isPlainAutomationObject(entry) ? entry : { email },
+      );
+    });
+
+    return {
+      ...merged,
+      ...(contactSource?.contactRole
+        ? { contactRole: contactSource.contactRole }
+        : {}),
+      ...(contactSource?.clientFirstNames
+        ? { clientFirstNames: contactSource.clientFirstNames }
+        : {}),
+      ...(contactSource?.clientName
+        ? { clientName: contactSource.clientName }
+        : {}),
+      ...(contactSource?.bookerName
+        ? { bookerName: contactSource.bookerName }
+        : {}),
+      ...(preferredEmail
+        ? { clientEmail: preferredEmail, userEmail: preferredEmail }
+        : {}),
+      ...(mergedContactEmails.length
+        ? { clientEmails: mergedContactEmails }
+        : {}),
+      // Fail closed: one disabled copy suppresses every duplicate for the booking.
+      siteAutomationsEnabled: !group.some(
+        (row) => row?.siteAutomationsEnabled === false,
+      ),
+    };
+  });
+};
+
 const CLIENT_PRICE_MULTIPLIER = 1.33;
 const normalizeExtraKey = (value) => text(value).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 const formatPounds = (value) => `£${Math.round(Number(value || 0)).toLocaleString("en-GB")}`;
@@ -367,8 +576,18 @@ const ruleAlreadySent = (rule, row) => {
   const number = Number(rule?.sourceNumber);
   return [6, 8, 9].includes(number) && Boolean(row?.introEmailSentAt || row?.introEmailMessageId);
 };
-const ruleMatchesRow = (rule, row, { excludePast = true, includeDisabled = false, includeSent = false } = {}) => {
+const ruleMatchesRow = (
+  rule,
+  row,
+  {
+    excludePast = true,
+    includeDisabled = false,
+    includeSent = false,
+    includeSiteSuppressed = false,
+  } = {},
+) => {
   if (!includeDisabled && rule?.enabled === false) return false;
+  if (!includeSiteSuppressed && row?.siteAutomationsEnabled === false) return false;
   if (!includeSent && ruleAlreadySent(rule, row)) return false;
   if (rule?.timing?.strategy === "invoice_due" && !parseDate(row?.invoiceDueDateISO)) {
     return false;
@@ -525,11 +744,15 @@ export default function Automations() {
     if (!wanted) return true;
     return `${ruleDisplayName(rule)} ${rule.name || ""} ${rule.subject || ""} ${rule.sourceNumber || ""}`.toLowerCase().includes(wanted);
   });
+  const consolidatedRows = useMemo(
+    () => consolidateAutomationRows(rows),
+    [rows],
+  );
 
   const matchingRows = useMemo(() => {
     if (!selected) return [];
     const f = selected.filters || {};
-    const eligible = rows.filter((row) => {
+    const eligible = consolidatedRows.filter((row) => {
       const haystack = `${rowClient(row)} ${rowEmail(row)} ${rowRef(row)}`.toLowerCase();
       if (query && !haystack.includes(query.toLowerCase())) return false;
       if (global.agent && normalizeAgent(row.agent) !== global.agent) return false;
@@ -543,15 +766,22 @@ export default function Automations() {
       if (!uniqueBookings.has(key)) uniqueBookings.set(key, row);
     });
     return [...uniqueBookings.values()];
-  }, [rows, selected, query, global]);
+  }, [consolidatedRows, selected, query, global]);
 
   const emailAudit = useMemo(() => {
     const wanted = emailAuditQuery.trim().toLowerCase();
     if (!wanted || !wanted.includes("@")) return { bookings: [], items: [] };
-    const bookings = rows.filter((row) => rowEmails(row).some((email) => email.includes(wanted)));
+    const bookings = consolidatedRows.filter((row) =>
+      rowEmails(row).some((email) => email.includes(wanted)),
+    );
     const uniqueBookings = [...new Map(bookings.map((row) => [rowRef(row).toLowerCase() || String(row._id), row])).values()];
     const items = uniqueBookings.flatMap((row) => rules
-      .filter((rule) => ruleMatchesRow(rule, row, { excludePast: false, includeDisabled: true, includeSent: true }))
+      .filter((rule) => ruleMatchesRow(rule, row, {
+        excludePast: false,
+        includeDisabled: true,
+        includeSent: true,
+        includeSiteSuppressed: true,
+      }))
       .map((rule) => {
         const usesManualDate = rule.timing?.reference === "fixed" && !rule.timing?.strategy;
         const sendAt = usesManualDate ? null : proposedSendAt(row, rule.timing);
@@ -561,6 +791,7 @@ export default function Automations() {
         return {
           rule,
           row,
+          siteSuppressed: row?.siteAutomationsEnabled === false,
           alreadySent,
           overdue: Boolean(sendAt && sendAt < today && !alreadySent),
           sendAt,
@@ -576,7 +807,14 @@ export default function Automations() {
       });
     const exactSubjectCounts = new Map();
     const dayCounts = new Map();
-    items.filter((item) => item.rule.enabled !== false && !item.alreadySent).forEach((item) => {
+    items
+      .filter(
+        (item) =>
+          item.rule.enabled !== false &&
+          !item.siteSuppressed &&
+          !item.alreadySent,
+      )
+      .forEach((item) => {
       const bookingKey = rowRef(item.row).toLowerCase();
       const subjectKey = `${bookingKey}|${item.subject.toLowerCase().replace(/\s+/g, " ").trim()}`;
       exactSubjectCounts.set(subjectKey, (exactSubjectCounts.get(subjectKey) || 0) + 1);
@@ -598,11 +836,21 @@ export default function Automations() {
         };
       }),
     };
-  }, [emailAuditQuery, rows, rules]);
+  }, [emailAuditQuery, consolidatedRows, rules]);
   const visibleEmailAuditItems = auditOnlyEnabled
-    ? emailAudit.items.filter((item) => item.rule.enabled !== false)
+    ? emailAudit.items.filter(
+        (item) => item.rule.enabled !== false && !item.siteSuppressed,
+      )
     : emailAudit.items;
-  const enabledEmailAuditCount = emailAudit.items.filter((item) => item.rule.enabled !== false && !item.alreadySent).length;
+  const enabledEmailAuditCount = emailAudit.items.filter(
+    (item) =>
+      item.rule.enabled !== false &&
+      !item.siteSuppressed &&
+      !item.alreadySent,
+  ).length;
+  const siteSuppressedAuditBookings = emailAudit.bookings.filter(
+    (row) => row?.siteAutomationsEnabled === false,
+  );
 
   const previewRow = matchingRows.find((row) => String(row._id || rowRef(row)) === previewRowId) || matchingRows[0];
   const sendTestPreview = async () => {
@@ -711,17 +959,31 @@ export default function Automations() {
                     )}
                   </div>
                 </div>
+                {siteSuppressedAuditBookings.length > 0 && (
+                  <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                    <div className="font-semibold">
+                      Website automations are off for {siteSuppressedAuditBookings.map((row) => `${rowClient(row)} · ${rowRef(row)}`).join(" | ")}.
+                    </div>
+                    <p className="mt-1 text-xs">
+                      Monday.com is managing this booking, so its matching emails remain visible below for checking but are not included in the expected-email count.
+                    </p>
+                  </div>
+                )}
                 {!emailAudit.items.length ? (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">A booking was found, but no future automation currently matches it. This may indicate a missing rule or that all planned messages are already in the past.</div>
                 ) : !visibleEmailAuditItems.length ? (
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">All matching emails for this client are switched off. Untick “Show only switched-on emails” to view and re-enable them.</div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                    {siteSuppressedAuditBookings.length > 0
+                      ? "All matching website emails are suppressed because Monday.com is managing this booking. Untick “Show only switched-on emails” to inspect them."
+                      : "All matching emails for this client are switched off. Untick “Show only switched-on emails” to view and re-enable them."}
+                  </div>
                 ) : (
                   <div className="overflow-x-auto rounded-lg border">
                     <table className="min-w-full text-left text-xs">
                       <thead className="bg-slate-50 text-slate-600"><tr><th className="px-3 py-2">On/off</th><th className="px-3 py-2">Planned date</th><th className="px-3 py-2">Automation</th><th className="px-3 py-2">Subject</th><th className="px-3 py-2">Checks</th><th className="px-3 py-2"></th></tr></thead>
                       <tbody>
                         {visibleEmailAuditItems.map((item) => (
-                          <tr key={`${rowRef(item.row)}-${item.rule.id}`} className={`border-t align-top ${item.alreadySent ? "bg-sky-50" : item.rule.enabled === false ? "bg-slate-50 opacity-70" : item.duplicateSubject ? "bg-red-50" : item.overdue ? "bg-amber-50" : ""}`}>
+                          <tr key={`${rowRef(item.row)}-${item.rule.id}`} className={`border-t align-top ${item.siteSuppressed ? "bg-amber-50" : item.alreadySent ? "bg-sky-50" : item.rule.enabled === false ? "bg-slate-50 opacity-70" : item.duplicateSubject ? "bg-red-50" : item.overdue ? "bg-amber-50" : ""}`}>
                             <td className="px-3 py-3">
                               <button
                                 type="button"
@@ -734,9 +996,12 @@ export default function Automations() {
                                 <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${item.rule.enabled !== false ? "left-[22px]" : "left-0.5"}`} />
                               </button>
                               <div className={`mt-1 text-[10px] font-semibold uppercase ${item.rule.enabled !== false ? "text-emerald-700" : "text-slate-400"}`}>{item.rule.enabled !== false ? "On" : "Off"}</div>
+                              {item.siteSuppressed && <div className="mt-1 text-[10px] font-semibold text-amber-700">Booking suppressed</div>}
                             </td>
                             <td className="whitespace-nowrap px-3 py-3 font-semibold text-slate-900">
-                              {item.alreadySent ? (
+                              {item.siteSuppressed ? (
+                                <><div>Not scheduled</div><div className="mt-1 text-[11px] font-normal text-amber-700">Would otherwise send {item.sendLabel}</div></>
+                              ) : item.alreadySent ? (
                                 <><div>Already sent</div><div className="mt-1 text-[11px] font-normal text-slate-500">{item.row.introEmailSentAt ? new Date(item.row.introEmailSentAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "Previously sent"}</div></>
                               ) : <><div>{item.sendLabel}</div>{item.overdue && <div className="mt-1 text-[11px] font-semibold text-amber-700">Overdue — not recorded as sent</div>}</>}
                             </td>
@@ -744,7 +1009,7 @@ export default function Automations() {
                             <td className="max-w-xl px-3 py-3 text-slate-700">{item.subject}</td>
                             <td className="px-3 py-3">
                               <div className="flex flex-wrap gap-1">
-                                {item.alreadySent ? <span className="rounded bg-sky-100 px-2 py-1 font-semibold text-sky-800">Sent — excluded from future schedule</span> : item.rule.enabled === false ? <span className="rounded bg-slate-200 px-2 py-1 font-semibold text-slate-600">Switched off — will not send</span> : item.overdue ? <span className="rounded bg-amber-100 px-2 py-1 font-semibold text-amber-800">Needs attention</span> : (
+                                {item.siteSuppressed ? <span className="rounded bg-amber-200 px-2 py-1 font-semibold text-amber-900">Website automations off — managed in Monday.com</span> : item.alreadySent ? <span className="rounded bg-sky-100 px-2 py-1 font-semibold text-sky-800">Sent — excluded from future schedule</span> : item.rule.enabled === false ? <span className="rounded bg-slate-200 px-2 py-1 font-semibold text-slate-600">Switched off — will not send</span> : item.overdue ? <span className="rounded bg-amber-100 px-2 py-1 font-semibold text-amber-800">Needs attention</span> : (
                                   <>
                                     {item.duplicateSubject && <span className="rounded bg-red-100 px-2 py-1 font-semibold text-red-800">Same subject appears more than once</span>}
                                     {item.sameDayCount > 1 && <span className="rounded bg-amber-100 px-2 py-1 font-semibold text-amber-800">{item.sameDayCount} emails on this day</span>}

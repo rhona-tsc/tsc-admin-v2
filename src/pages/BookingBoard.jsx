@@ -775,6 +775,7 @@ const BOOKING_BOARD_COLUMNS = [
   "Funds held",
   "Booking source / agency",
   "Contact type",
+  "Website automations",
   "Client email",
   "Billing address",
   "Event type",
@@ -800,8 +801,8 @@ const BOOKING_BOARD_COLUMNS = [
 // editable control in the nested booking rows.
 const BOOKING_BOARD_COLUMN_WIDTHS = [
   180, 150, 110, 100, 150, 150, 150, 170, 180, 150, 150, 160, 110, 160, 150,
-  180, 230, 260, 160, 180, 180, 280, 140, 100, 220, 220, 440, 150, 480, 160,
-  200, 180, 200, 220, 160,
+  180, 180, 230, 260, 160, 180, 180, 280, 140, 100, 220, 220, 440, 150, 480,
+  160, 200, 180, 200, 220, 160,
 ];
 const BOOKING_BOARD_GRID_TEMPLATE = BOOKING_BOARD_COLUMN_WIDTHS.map(
   (width) => `${width}px`,
@@ -1198,6 +1199,7 @@ const buildEditStateFromRow = (row) => {
     bookingRef: getDisplayBookingRef(row),
     clientFirstNames: getClientFirstNames(row),
     contactRole: row?.contactRole || "direct_client",
+    siteAutomationsEnabled: row?.siteAutomationsEnabled !== false,
     playlistService:
       row?.bookingDetails?.playlistService ||
       (row?.bookingDetails?.djServicesBooked ? "pro_dj" : ""),
@@ -2525,6 +2527,26 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
               <option value="end_client_via_agent">End client booked via agent</option>
             </select>
           </div>
+          <div className="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-sm font-semibold text-slate-900">
+                  Website automations
+                </div>
+                <p className="mt-1 text-xs text-slate-600">
+                  {value.siteAutomationsEnabled !== false
+                    ? "On — this website can send the scheduled client emails for this booking."
+                    : "Off — keep this booking managed in Monday.com during the transition."}
+                </p>
+              </div>
+              <SiteAutomationsToggle
+                value={value.siteAutomationsEnabled}
+                onChange={(enabled) =>
+                  onChange({ ...value, siteAutomationsEnabled: enabled })
+                }
+              />
+            </div>
+          </div>
           <div>
             <label className="block text-xs text-gray-600 mb-1">Music service</label>
             <select className="border rounded px-3 py-2 w-full" value={value.playlistService || ""} onChange={(e) => onChange({ ...value, playlistService: e.target.value })}>
@@ -3652,6 +3674,44 @@ function ContactTypeCell({ value, onSave }) {
   );
 }
 
+function SiteAutomationsToggle({ value, onChange, compact = false }) {
+  const enabled = value !== false;
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={enabled}
+      aria-label={`${enabled ? "Turn off" : "Turn on"} website automations for this booking`}
+      title={
+        enabled
+          ? "Website automations are on"
+          : "Website automations are off — Monday.com is managing this booking"
+      }
+      onClick={() => onChange(!enabled)}
+      className={`flex items-center gap-2 rounded-full border px-2.5 py-1.5 text-left text-xs font-semibold transition ${
+        enabled
+          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+          : "border-amber-300 bg-amber-50 text-amber-900"
+      } ${compact ? "w-full justify-start whitespace-normal" : "shrink-0"}`}
+    >
+      <span
+        aria-hidden="true"
+        className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+          enabled ? "bg-emerald-500" : "bg-slate-300"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
+            enabled ? "left-[18px]" : "left-0.5"
+          }`}
+        />
+      </span>
+      <span>{enabled ? "Website on" : "Monday.com"}</span>
+    </button>
+  );
+}
+
 const normaliseBookingMemberTag = (raw = "") => {
   const text = String(raw || "").trim();
   if (!text) return null;
@@ -3884,6 +3944,7 @@ export default function BookingBoard() {
     enquiryDateISO: "",
     bookingDateISO: "",
     agent: "Direct",
+    siteAutomationsEnabled: true,
     clientEmail: "",
     actName: "",
     actTscName: "",
@@ -4446,6 +4507,7 @@ export default function BookingBoard() {
       invoiceDueDateISO: editForm.invoiceDueDateISO || "",
       songSuggestionsDueDateISO: editForm.songSuggestionsDueDateISO || "",
       contactRole: editForm.contactRole || "direct_client",
+      siteAutomationsEnabled: editForm.siteAutomationsEnabled !== false,
       eventSheetLink: String(editForm.eventSheetLink || "").trim(),
       draftSetlistLink: String(editForm.draftSetlistLink || "").trim(),
       whatsappGroupLink: String(editForm.whatsappGroupLink || "").trim(),
@@ -5252,6 +5314,7 @@ export default function BookingBoard() {
         allocation: { status: "in_progress" },
         review: { requestedCount: 0, received: false },
         source: "manual",
+        siteAutomationsEnabled: newRow.siteAutomationsEnabled !== false,
         invoiceDueDateISO: newRow.invoiceDueDateISO || "",
         songSuggestionsDueDateISO: newRow.songSuggestionsDueDateISO || "",
         enquiryDateISO: newRow.enquiryDateISO || "", // optional
@@ -5311,6 +5374,7 @@ export default function BookingBoard() {
           songSuggestionsDueDateISO: "",
           eventType: "",
           agent: "Direct",
+          siteAutomationsEnabled: true,
           clientEmail: "",
           clientAddress: "",
           actName: "",
@@ -6066,6 +6130,28 @@ export default function BookingBoard() {
                                         />
                                       </td>
                                       <td className={cellClass}>
+                                        <SiteAutomationsToggle
+                                          compact
+                                          value={r.siteAutomationsEnabled}
+                                          onChange={(enabled) =>
+                                            onInlineEdit(r._id, {
+                                              siteAutomationsEnabled: enabled,
+                                            })
+                                          }
+                                        />
+                                        <div
+                                          className={`mt-1 max-w-[160px] whitespace-normal text-[10px] leading-4 ${
+                                            r.siteAutomationsEnabled !== false
+                                              ? "text-emerald-700"
+                                              : "text-amber-700"
+                                          }`}
+                                        >
+                                          {r.siteAutomationsEnabled !== false
+                                            ? "Scheduled emails use this site"
+                                            : "Emails remain in Monday.com"}
+                                        </div>
+                                      </td>
+                                      <td className={cellClass}>
                                         <InlineInput
                                           value={clientEmails[0]?.email || ""}
                                           placeholder="Client email"
@@ -6802,6 +6888,21 @@ export default function BookingBoard() {
                                 </option>
                               ))}
                             </select>
+
+                            <div className="flex flex-col gap-1">
+                              <label className="text-xs text-gray-600">
+                                Website automations
+                              </label>
+                              <SiteAutomationsToggle
+                                value={newRow.siteAutomationsEnabled}
+                                onChange={(enabled) =>
+                                  setNewRow((current) => ({
+                                    ...current,
+                                    siteAutomationsEnabled: enabled,
+                                  }))
+                                }
+                              />
+                            </div>
 
                             <select
                               className="border rounded px-2 py-1 w-48"
