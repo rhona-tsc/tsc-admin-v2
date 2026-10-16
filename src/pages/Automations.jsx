@@ -335,6 +335,12 @@ const actAddOnOptions = (row) => {
     const baseAndTravel = extra.price + actCountyTravelFee(row);
     lines.push(`- ${label}: ${formatPounds(baseAndTravel * CLIENT_PRICE_MULTIPLIER)}`);
   };
+  const addSimpleWithBasePrice = (label, basePrice, ...keys) => {
+    const extra = find(...keys);
+    keys.forEach((key) => used.add(normalizeExtraKey(key)));
+    if (!extra || extra.complimentary) return;
+    lines.push(`- ${label}: ${formatPounds(basePrice * CLIENT_PRICE_MULTIPLIER)}`);
+  };
   const addLineupTotal = (label, ...keys) => {
     const extra = find(...keys);
     keys.forEach((key) => used.add(normalizeExtraKey(key)));
@@ -364,7 +370,7 @@ const actAddOnOptions = (row) => {
   addSimple("PA and sound engineering for another act", "sound_engineering_for_another_act_with_your_acts_pa");
   addSimpleWithCountyTravel("Speedy 60-minute setup and soundcheck", "speedy_setup_60mins_roadie_and_engineer_duties_only_travel_added_on_top_later_for_additional_team_member");
   addSimple("Wired microphone hire for speeches", "wired_mic_for_speeches");
-  addSimple("Wireless microphone hire for speeches", "wireless_mic_for_speeches");
+  addSimpleWithBasePrice("Wireless microphone hire for speeches", 100, "wireless_mic_for_speeches");
 
   entries.forEach(([originalKey, value]) => {
     const key = normalizeExtraKey(originalKey);
