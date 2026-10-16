@@ -820,6 +820,7 @@ const prepareRules = (source) => source
 export default function Automations() {
   const [rows, setRows] = useState([]);
   const [actProfiles, setActProfiles] = useState([]);
+  const [fullActProfiles, setFullActProfiles] = useState([]);
   const [rules, setRules] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
@@ -889,6 +890,37 @@ export default function Automations() {
   }, []);
 
   useEffect(() => {
+    if (!rows.length || !actProfiles.length) return;
+    const token = localStorage.getItem("token") || "";
+    const headers = token ? { Authorization: `Bearer ${token}`, token } : {};
+    const bookingActNames = new Set(rows.flatMap((row) => [
+      row?.actTscName,
+      row?.actName,
+      row?.bandName,
+    ]).map(normalizedActIdentity).filter(Boolean));
+    const matchingProfiles = actProfiles.filter((act) => (
+      [act?.tscName, act?.name]
+        .map(normalizedActIdentity)
+        .some((name) => name && bookingActNames.has(name))
+    ));
+
+    Promise.allSettled(matchingProfiles.map(async (act) => {
+      const response = await fetch(`${backendUrl}/api/musician/act-v2/${act._id}`, {
+        headers,
+        credentials: "include",
+      });
+      if (!response.ok) return null;
+      const payload = await response.json();
+      return payload?.act || payload;
+    })).then((results) => {
+      const fullProfiles = results
+        .filter((result) => result.status === "fulfilled" && result.value?._id)
+        .map((result) => result.value);
+      if (fullProfiles.length) setFullActProfiles(fullProfiles);
+    });
+  }, [rows, actProfiles]);
+
+  useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rules));
   }, [rules]);
 
@@ -923,7 +955,7 @@ export default function Automations() {
       row?.actsSummary?.[0]?.tscName,
       row?.actsSummary?.[0]?.name,
     ].map(normalizedActIdentity).filter(Boolean);
-    const profile = actProfiles.find((act) => {
+    const profile = [...fullActProfiles, ...actProfiles].find((act) => {
       if (rowActIds.includes(text(act?._id))) return true;
       return [act?.tscName, act?.name]
         .map(normalizedActIdentity)
@@ -934,7 +966,7 @@ export default function Automations() {
       ...row,
       actData: mergeAutomationRowData(row?.actData || {}, profile),
     };
-  }), [rows, actProfiles]);
+  }), [rows, actProfiles, fullActProfiles]);
   const consolidatedRows = useMemo(
     () => consolidateAutomationRows(rowsWithActProfiles),
     [rowsWithActProfiles],
