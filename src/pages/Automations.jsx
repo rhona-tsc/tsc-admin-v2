@@ -139,12 +139,17 @@ const rowClientEventSheetLink = (row) => {
 const rowInvoiceLink = (row) => text(
   row.payments?.boardInvoicePdfUrl || row.invoicePdfUrl || row.payments?.hosted_invoice_url || row.payments?.invoiceUrl || row.invoiceUrl || row.invoice?.url,
 );
+const ordinalDay = (day) => {
+  const lastTwoDigits = day % 100;
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 13) return `${day}th`;
+  return `${day}${({ 1: "st", 2: "nd", 3: "rd" }[day % 10] || "th")}`;
+};
 const friendlyDate = (value) => {
   if (!value) return "";
   const date = new Date(`${dateOnly(value)}T12:00:00`);
   return Number.isNaN(date.getTime())
     ? text(value)
-    : date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+    : `${ordinalDay(date.getDate())} of ${date.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}`;
 };
 const firstName = (value) => text(value).split(/\s+|&/)[0] || "";
 const templateValues = (row = {}) => ({
