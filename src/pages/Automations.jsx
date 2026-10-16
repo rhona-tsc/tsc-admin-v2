@@ -76,6 +76,24 @@ const vocalistNames = (row) => joinNames([...new Set(
 const proposedSendAt = (row, timing = {}) => {
   const event = parseDate(rowDate(row));
   if (!event) return null;
+  if (timing.strategy === "song_suggestions_due") {
+    const booked = parseDate(row.bookingDateISO || row.enquiryDateISO || row.createdAt);
+    if (booked) {
+      const leadDays = Math.round((event.getTime() - booked.getTime()) / 86400000);
+      if (leadDays < 35) {
+        const oneWeekAfterBooking = new Date(booked);
+        oneWeekAfterBooking.setDate(booked.getDate() + 7);
+        if (oneWeekAfterBooking >= event) {
+          return new Date(booked.getTime() + ((event.getTime() - booked.getTime()) / 2));
+        }
+        return oneWeekAfterBooking;
+      }
+    }
+
+    const oneMonthBefore = new Date(event);
+    oneMonthBefore.setMonth(event.getMonth() - 1);
+    return oneMonthBefore;
+  }
   if (timing.strategy === "final_details_due") {
     const eventWeekMonday = new Date(event);
     eventWeekMonday.setDate(event.getDate() - ((event.getDay() + 6) % 7));
@@ -234,6 +252,11 @@ const prepareRules = (source) => source
     if (number === 3) timing.strategy = "post_event";
     if (number === 4) timing.strategy = "setlist";
     if (number === 5) filters.playlistService = "manned_playlist";
+    if (number === 14) {
+      timing.strategy = "song_suggestions_due";
+      timing.offsetDays = -30;
+      timing.label = "One month before; one week after booking when booked under five weeks out";
+    }
     if (number === 38) {
       timing.strategy = "final_details_due";
       timing.label = "Thursday in the week before the event; halfway for late bookings";
