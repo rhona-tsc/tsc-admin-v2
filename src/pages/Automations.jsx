@@ -254,8 +254,13 @@ const bookingCounty = (row) => text(
   row?.eventSheet?.answers?.venue_county ||
   row?.bookingDetails?.county,
 );
+const canonicalCountyKey = (value) => {
+  const county = normalizeExtraKey(value);
+  if (["london", "central_london"].includes(county)) return "greater_london";
+  return county;
+};
 const actCountyTravelFee = (row) => {
-  const county = normalizeExtraKey(bookingCounty(row));
+  const county = canonicalCountyKey(bookingCounty(row));
   if (!county) return 0;
 
   const actSources = [
@@ -270,7 +275,7 @@ const actCountyTravelFee = (row) => {
     const settings = act?.countyTravelSettings;
     if (settings && typeof settings === "object") {
       const match = Object.entries(settings).find(
-        ([key]) => normalizeExtraKey(key) === county,
+        ([key]) => canonicalCountyKey(key) === county,
       )?.[1];
       if (match && typeof match === "object" && match.available !== false) {
         const fee = Number(match.fee || 0);
@@ -281,7 +286,7 @@ const actCountyTravelFee = (row) => {
     const countyFees = act?.countyFees;
     if (countyFees && typeof countyFees === "object") {
       const match = Object.entries(countyFees).find(
-        ([key]) => normalizeExtraKey(key) === county,
+        ([key]) => canonicalCountyKey(key) === county,
       )?.[1];
       const fee = Number(match || 0);
       if (fee > 0) return fee;
