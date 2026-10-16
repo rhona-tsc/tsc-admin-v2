@@ -24,6 +24,10 @@ const addDays = (value, days) => {
 const text = (value) => String(value || "").trim();
 const rowClient = (row) => text(row.clientFirstNames || row.clientName || row.bookerName || "Unnamed client");
 const rowEmail = (row) => text(row.clientEmail || row.userEmail || row.clientEmails?.[0]?.email);
+const rowEmails = (row) => [...new Set([
+  rowEmail(row),
+  ...(Array.isArray(row.clientEmails) ? row.clientEmails.map((item) => text(item?.email || item)) : []),
+].map((email) => email.toLowerCase()).filter(Boolean))];
 const rowRef = (row) => text(row.bookingRef || row.bookingId);
 const rowDate = (row) => row.eventDateISO || row.eventDate || row.date;
 const rowDj = (row) => Boolean(row.bookingDetails?.djServicesBooked || row.bookedDj || row.djBooked);
@@ -326,6 +330,28 @@ const renderTemplate = (template, row) => {
 };
 
 const matchesChoice = (actual, choice) => choice === "any" || boolValue(actual) === choice;
+const ruleMatchesRow = (rule, row, { excludePast = true } = {}) => {
+  const f = rule?.filters || {};
+  if (!parseDate(rowDate(row))) return false;
+  if (Array.isArray(f.agents) && f.agents.length && !f.agents.includes(normalizeAgent(row.agent))) return false;
+  if (Array.isArray(f.eventTypes) && f.eventTypes.length && !f.eventTypes.includes(normalizeEventType(row.eventType))) return false;
+  if (f.recipientRole && rowRole(row) !== f.recipientRole) return false;
+  if (f.playlistService && rowService(row) !== f.playlistService) return false;
+  if (f.weddingStatus && rowWedding(row) !== f.weddingStatus) return false;
+  if (!matchesChoice(rowDj(row), f.bookedDj || "any")) return false;
+  if (!matchesChoice(rowPlaylist(row), f.bookedPlaylist || "any")) return false;
+  if (f.reviewStatus === "received" && !row.review?.received) return false;
+  if (f.reviewStatus === "not_received" && row.review?.received) return false;
+  if (f.reviewPermission === "allowed" && row.review?.doNotRequest) return false;
+  if (f.reviewPermission === "suppressed" && !row.review?.doNotRequest) return false;
+  if (excludePast && rule?.timing?.reference !== "fixed") {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const sendAt = proposedSendAt(row, rule?.timing || {});
+    if (sendAt && sendAt < today) return false;
+  }
+  return true;
+};
 const prepareRules = (source) => source
   .filter((rule) => Number(rule.sourceNumber) !== 7)
   .map((rule) => {
@@ -401,6 +427,7 @@ export default function Automations() {
   });
   const [selectedId, setSelectedId] = useState(rules[0]?.id || "");
   const [query, setQuery] = useState("");
+  const [emailAuditQuery, setEmailAuditQuery] = useState("");
   const [global, setGlobal] = useState({ agent: "", eventType: "", bookedDj: "any" });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -440,31 +467,13 @@ export default function Automations() {
   const matchingRows = useMemo(() => {
     if (!selected) return [];
     const f = selected.filters || {};
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const eligible = rows.filter((row) => {
       const haystack = `${rowClient(row)} ${rowEmail(row)} ${rowRef(row)}`.toLowerCase();
       if (query && !haystack.includes(query.toLowerCase())) return false;
-      if (!parseDate(rowDate(row))) return false;
       if (global.agent && normalizeAgent(row.agent) !== global.agent) return false;
       if (global.eventType && normalizeEventType(row.eventType) !== global.eventType) return false;
       if (!matchesChoice(rowDj(row), global.bookedDj)) return false;
-      if (Array.isArray(f.agents) && f.agents.length && !f.agents.includes(normalizeAgent(row.agent))) return false;
-      if (Array.isArray(f.eventTypes) && f.eventTypes.length && !f.eventTypes.includes(normalizeEventType(row.eventType))) return false;
-      if (f.recipientRole && rowRole(row) !== f.recipientRole) return false;
-      if (f.playlistService && rowService(row) !== f.playlistService) return false;
-      if (f.weddingStatus && rowWedding(row) !== f.weddingStatus) return false;
-      if (!matchesChoice(rowDj(row), f.bookedDj || "any")) return false;
-      if (!matchesChoice(rowPlaylist(row), f.bookedPlaylist || "any")) return false;
-      if (f.reviewStatus === "received" && !row.review?.received) return false;
-      if (f.reviewStatus === "not_received" && row.review?.received) return false;
-      if (f.reviewPermission === "allowed" && row.review?.doNotRequest) return false;
-      if (f.reviewPermission === "suppressed" && !row.review?.doNotRequest) return false;
-      if (selected.timing?.reference !== "fixed") {
-        const sendAt = proposedSendAt(row, selected.timing);
-        if (sendAt && sendAt < today) return false;
-      }
-      return true;
+      return ruleMatchesRow({ ...selected, filters: f }, row);
     });
     const uniqueBookings = new Map();
     eligible.forEach((row) => {
@@ -473,6 +482,52 @@ export default function Automations() {
     });
     return [...uniqueBookings.values()];
   }, [rows, selected, query, global]);
+
+  const emailAudit = useMemo(() => {
+    const wanted = emailAuditQuery.trim().toLowerCase();
+    if (!wanted || !wanted.includes("@")) return { bookings: [], items: [] };
+    const bookings = rows.filter((row) => rowEmails(row).some((email) => email.includes(wanted)));
+    const uniqueBookings = [...new Map(bookings.map((row) => [rowRef(row).toLowerCase() || String(row._id), row])).values()];
+    const items = uniqueBookings.flatMap((row) => rules
+      .filter((rule) => ruleMatchesRow(rule, row))
+      .map((rule) => ({
+        rule,
+        row,
+        sendAt: rule.timing?.reference === "fixed" ? null : proposedSendAt(row, rule.timing),
+        sendLabel: rule.timing?.reference === "fixed" ? "Manual date" : proposedSendDate(row, rule.timing),
+        subject: renderTemplate(rule.subject, row),
+      })))
+      .sort((a, b) => {
+        if (!a.sendAt && !b.sendAt) return Number(a.rule.sourceNumber) - Number(b.rule.sourceNumber);
+        if (!a.sendAt) return 1;
+        if (!b.sendAt) return -1;
+        return a.sendAt - b.sendAt || Number(a.rule.sourceNumber) - Number(b.rule.sourceNumber);
+      });
+    const exactSubjectCounts = new Map();
+    const dayCounts = new Map();
+    items.forEach((item) => {
+      const bookingKey = rowRef(item.row).toLowerCase();
+      const subjectKey = `${bookingKey}|${item.subject.toLowerCase().replace(/\s+/g, " ").trim()}`;
+      exactSubjectCounts.set(subjectKey, (exactSubjectCounts.get(subjectKey) || 0) + 1);
+      if (item.sendAt) {
+        const dayKey = `${bookingKey}|${dateOnly(item.sendAt)}`;
+        dayCounts.set(dayKey, (dayCounts.get(dayKey) || 0) + 1);
+      }
+    });
+    return {
+      bookings: uniqueBookings,
+      items: items.map((item) => {
+        const bookingKey = rowRef(item.row).toLowerCase();
+        const subjectKey = `${bookingKey}|${item.subject.toLowerCase().replace(/\s+/g, " ").trim()}`;
+        const dayKey = item.sendAt ? `${bookingKey}|${dateOnly(item.sendAt)}` : "";
+        return {
+          ...item,
+          duplicateSubject: (exactSubjectCounts.get(subjectKey) || 0) > 1,
+          sameDayCount: dayKey ? dayCounts.get(dayKey) || 0 : 0,
+        };
+      }),
+    };
+  }, [emailAuditQuery, rows, rules]);
 
   const previewRow = matchingRows.find((row) => String(row._id || rowRef(row)) === previewRowId) || matchingRows[0];
   const sendTestPreview = async () => {
@@ -535,6 +590,76 @@ export default function Automations() {
         <select className={selectClass} value={global.eventType} onChange={(e) => setGlobal((v) => ({ ...v, eventType: e.target.value }))}><option value="">All event types</option>{eventTypes.map((v) => <option key={v}>{v}</option>)}</select>
         <select className={selectClass} value={global.bookedDj} onChange={(e) => setGlobal((v) => ({ ...v, bookedDj: e.target.value }))}><option value="any">DJ: either</option><option value="yes">DJ booked</option><option value="no">No DJ</option></select>
       </div>
+
+      <section className="overflow-hidden rounded-xl border border-indigo-200 bg-white">
+        <div className="border-b border-indigo-100 bg-indigo-50 p-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <label className="min-w-[280px] flex-1 text-xs font-semibold text-indigo-950">
+              Check a client’s complete email schedule
+              <input
+                type="email"
+                className={`${inputClass} mt-1 border-indigo-200`}
+                value={emailAuditQuery}
+                onChange={(event) => setEmailAuditQuery(event.target.value)}
+                placeholder="Type the client’s email address"
+              />
+            </label>
+            {emailAuditQuery.trim() && (
+              <button type="button" onClick={() => setEmailAuditQuery("")} className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm font-medium text-indigo-800">
+                Clear
+              </button>
+            )}
+          </div>
+          <p className="mt-2 text-xs text-indigo-800">This ignores the page filters above and checks every future automation against the client’s booking details.</p>
+        </div>
+        {emailAuditQuery.trim().includes("@") && (
+          <div className="p-4">
+            {!emailAudit.bookings.length ? (
+              <div className="rounded-lg border border-dashed p-4 text-sm text-slate-500">No booking was found for that email address.</div>
+            ) : (
+              <>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h2 className="font-semibold text-slate-900">Expected emails: {emailAudit.items.length}</h2>
+                    <p className="text-xs text-slate-500">
+                      {emailAudit.bookings.map((row) => `${rowClient(row)} · ${rowRef(row)} · ${friendlyDate(rowDate(row))}`).join(" | ")}
+                    </p>
+                  </div>
+                  {emailAudit.items.some((item) => item.duplicateSubject) && (
+                    <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-800">Possible duplicates found</span>
+                  )}
+                </div>
+                {!emailAudit.items.length ? (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">A booking was found, but no future automation currently matches it. This may indicate a missing rule or that all planned messages are already in the past.</div>
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border">
+                    <table className="min-w-full text-left text-xs">
+                      <thead className="bg-slate-50 text-slate-600"><tr><th className="px-3 py-2">Planned date</th><th className="px-3 py-2">Automation</th><th className="px-3 py-2">Subject</th><th className="px-3 py-2">Checks</th><th className="px-3 py-2"></th></tr></thead>
+                      <tbody>
+                        {emailAudit.items.map((item) => (
+                          <tr key={`${rowRef(item.row)}-${item.rule.id}`} className={`border-t align-top ${item.duplicateSubject ? "bg-red-50" : ""}`}>
+                            <td className="whitespace-nowrap px-3 py-3 font-semibold text-slate-900">{item.sendLabel}</td>
+                            <td className="px-3 py-3"><div className="font-medium text-slate-900">Automation {item.rule.sourceNumber}</div><div className="text-slate-500">{item.rule.status === "reviewed" ? "Reviewed" : "Needs review"}</div></td>
+                            <td className="max-w-xl px-3 py-3 text-slate-700">{item.subject}</td>
+                            <td className="px-3 py-3">
+                              <div className="flex flex-wrap gap-1">
+                                {item.duplicateSubject && <span className="rounded bg-red-100 px-2 py-1 font-semibold text-red-800">Same subject appears more than once</span>}
+                                {item.sameDayCount > 1 && <span className="rounded bg-amber-100 px-2 py-1 font-semibold text-amber-800">{item.sameDayCount} emails on this day</span>}
+                                {!item.duplicateSubject && item.sameDayCount <= 1 && <span className="rounded bg-emerald-100 px-2 py-1 font-semibold text-emerald-800">No collision detected</span>}
+                              </div>
+                            </td>
+                            <td className="px-3 py-3"><button type="button" onClick={() => { setSelectedId(item.rule.id); setPreviewRowId(String(item.row._id || rowRef(item.row))); setQuery(rowEmail(item.row)); setGlobal({ agent: "", eventType: "", bookedDj: "any" }); }} className="whitespace-nowrap rounded border border-slate-300 bg-white px-2.5 py-1.5 font-semibold text-slate-700 hover:bg-slate-50">Open rule</button></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </section>
 
       <div className="grid min-h-[680px] gap-4 xl:grid-cols-[280px_minmax(420px,0.9fr)_minmax(520px,1.35fr)]">
         <aside className="overflow-hidden rounded-xl border bg-white">
