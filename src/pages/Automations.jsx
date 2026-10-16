@@ -329,6 +329,12 @@ const renderTemplate = (template, row) => {
     String(template || ""),
   );
 };
+const ruleDisplayName = (rule) => {
+  const name = text(rule?.name);
+  return name && !/^automation\s+\d+$/i.test(name)
+    ? name
+    : text(rule?.subject) || `Automation ${rule?.sourceNumber || ""}`;
+};
 
 const matchesChoice = (actual, choice) => choice === "any" || boolValue(actual) === choice;
 const ruleAlreadySent = (rule, row) => {
@@ -434,6 +440,7 @@ export default function Automations() {
   });
   const [selectedId, setSelectedId] = useState(rules[0]?.id || "");
   const [query, setQuery] = useState("");
+  const [ruleQuery, setRuleQuery] = useState("");
   const [emailAuditQuery, setEmailAuditQuery] = useState("");
   const [auditOnlyEnabled, setAuditOnlyEnabled] = useState(false);
   const [global, setGlobal] = useState({ agent: "", eventType: "", bookedDj: "any" });
@@ -472,6 +479,11 @@ export default function Automations() {
   const eventTypes = EVENT_TYPE_OPTIONS;
   const reviewedCount = rules.filter((rule) => rule.status === "reviewed").length;
   const enabledCount = rules.filter((rule) => rule.enabled !== false).length;
+  const visibleRules = rules.filter((rule) => {
+    const wanted = ruleQuery.trim().toLowerCase();
+    if (!wanted) return true;
+    return `${ruleDisplayName(rule)} ${rule.name || ""} ${rule.subject || ""} ${rule.sourceNumber || ""}`.toLowerCase().includes(wanted);
+  });
 
   const matchingRows = useMemo(() => {
     if (!selected) return [];
@@ -715,14 +727,19 @@ export default function Automations() {
 
       <div className="grid min-h-[680px] gap-4 xl:grid-cols-[280px_minmax(420px,0.9fr)_minmax(520px,1.35fr)]">
         <aside className="overflow-hidden rounded-xl border bg-white">
-          <div className="border-b px-4 py-3 text-sm font-semibold text-slate-800">Imported templates ({rules.length})</div>
+          <div className="border-b p-3">
+            <div className="flex items-center justify-between gap-2 text-sm font-semibold text-slate-800"><span>Imported templates</span><span className="text-xs font-medium text-slate-500">{visibleRules.length} of {rules.length}</span></div>
+            <input className={`${inputClass} mt-2`} value={ruleQuery} onChange={(event) => setRuleQuery(event.target.value)} placeholder="Search rule name or subject" />
+          </div>
           <div className="max-h-[760px] overflow-y-auto">
-            {rules.map((rule) => (
+            {!visibleRules.length && <div className="p-4 text-sm text-slate-500">No rules match that search.</div>}
+            {visibleRules.map((rule) => (
               <div key={rule.id} className={`border-b px-3 py-3 ${rule.id === selected.id ? "bg-sky-50" : "hover:bg-slate-50"}`}>
                 <div className="flex items-start gap-2">
                   <button type="button" onClick={() => setSelectedId(rule.id)} className="min-w-0 flex-1 text-left">
-                    <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium text-slate-900">Automation {rule.sourceNumber}</span><span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${rule.status === "reviewed" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{rule.status === "reviewed" ? "Reviewed" : "Needs review"}</span></div>
-                    <div className="mt-1 line-clamp-2 text-xs text-slate-500">{rule.subject}</div>
+                    <div className="flex items-start justify-between gap-2"><span className="text-sm font-semibold leading-5 text-slate-900">{ruleDisplayName(rule)}</span><span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${rule.status === "reviewed" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{rule.status === "reviewed" ? "Reviewed" : "Needs review"}</span></div>
+                    {ruleDisplayName(rule) !== rule.subject && <div className="mt-1 line-clamp-2 text-xs text-slate-500">{rule.subject}</div>}
+                    <div className="mt-1 text-[10px] font-medium text-slate-400">Reference #{rule.sourceNumber}</div>
                   </button>
                   <button
                     type="button"
