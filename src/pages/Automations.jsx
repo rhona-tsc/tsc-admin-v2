@@ -247,6 +247,48 @@ const consolidateAutomationRows = (sourceRows = []) => {
 const CLIENT_PRICE_MULTIPLIER = 1.33;
 const normalizeExtraKey = (value) => text(value).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 const formatPounds = (value) => `£${Math.round(Number(value || 0)).toLocaleString("en-GB")}`;
+const bookingCounty = (row) => text(
+  row?.county ||
+  row?.userAddress?.county ||
+  row?.eventSheet?.answers?.venue_county ||
+  row?.bookingDetails?.county,
+);
+const actCountyTravelFee = (row) => {
+  const county = normalizeExtraKey(bookingCounty(row));
+  if (!county) return 0;
+
+  const actSources = [
+    row?.actData,
+    row?.act,
+    row?.selectedAct,
+    row?.actsSummary?.[0]?.actData,
+    row?.actsSummary?.[0]?.act,
+  ].filter(Boolean);
+
+  for (const act of actSources) {
+    const settings = act?.countyTravelSettings;
+    if (settings && typeof settings === "object") {
+      const match = Object.entries(settings).find(
+        ([key]) => normalizeExtraKey(key) === county,
+      )?.[1];
+      if (match && typeof match === "object" && match.available !== false) {
+        const fee = Number(match.fee || 0);
+        if (fee > 0) return fee;
+      }
+    }
+
+    const countyFees = act?.countyFees;
+    if (countyFees && typeof countyFees === "object") {
+      const match = Object.entries(countyFees).find(
+        ([key]) => normalizeExtraKey(key) === county,
+      )?.[1];
+      const fee = Number(match || 0);
+      if (fee > 0) return fee;
+    }
+  }
+
+  return 0;
+};
 const bookedPerformerCount = (row) => {
   const lineupCount = Array.isArray(row.lineupComposition)
     ? row.lineupComposition.filter(Boolean).length
@@ -280,6 +322,13 @@ const actAddOnOptions = (row) => {
     if (!extra || extra.complimentary || extra.price <= 0) return;
     lines.push(`- ${label}: ${formatPounds(extra.price * CLIENT_PRICE_MULTIPLIER)}`);
   };
+  const addSimpleWithCountyTravel = (label, ...keys) => {
+    const extra = find(...keys);
+    keys.forEach((key) => used.add(normalizeExtraKey(key)));
+    if (!extra || extra.complimentary || extra.price <= 0) return;
+    const baseAndTravel = extra.price + actCountyTravelFee(row);
+    lines.push(`- ${label}: ${formatPounds(baseAndTravel * CLIENT_PRICE_MULTIPLIER)}`);
+  };
   const addLineupTotal = (label, ...keys) => {
     const extra = find(...keys);
     keys.forEach((key) => used.add(normalizeExtraKey(key)));
@@ -307,7 +356,7 @@ const actAddOnOptions = (row) => {
   addSimple("Additional DJing per 30 minutes", "extra_djing_per_30_mins", "extra_djing_per_30_min");
   addSimple("DJ with live sax (3 x 30 minutes)", "dj_live_sax_3x30mins");
   addSimple("PA and sound engineering for another act", "sound_engineering_for_another_act_with_your_acts_pa");
-  addSimple("Speedy 60-minute setup and soundcheck", "speedy_setup_60mins_roadie_and_engineer_duties_only_travel_added_on_top_later_for_additional_team_member");
+  addSimpleWithCountyTravel("Speedy 60-minute setup and soundcheck", "speedy_setup_60mins_roadie_and_engineer_duties_only_travel_added_on_top_later_for_additional_team_member");
   addSimple("Wired microphone hire for speeches", "wired_mic_for_speeches");
   addSimple("Wireless microphone hire for speeches", "wireless_mic_for_speeches");
 
