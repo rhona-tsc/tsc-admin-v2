@@ -118,6 +118,12 @@ const parseDate = (value) => {
   return Number.isNaN(date.getTime()) ? null : date;
 };
 const formatDate = (date) => date?.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) || "";
+const nextAutomationRunAt = () => {
+  const nextRun = new Date();
+  nextRun.setHours(12, 0, 0, 0);
+  nextRun.setDate(nextRun.getDate() + 1);
+  return nextRun;
+};
 const songRequestDueAt = (row) => {
   const explicitDueDate = parseDate(row?.songSuggestionsDueDateISO);
   if (explicitDueDate) return explicitDueDate;
@@ -176,7 +182,7 @@ const proposedSendAt = (row, timing = {}) => {
     reminderDate.setDate(dueDate.getDate() - 7);
     const today = new Date();
     today.setHours(12, 0, 0, 0);
-    if (reminderDate < today && dueDate >= today) return today;
+    if (reminderDate < today && dueDate >= today) return nextAutomationRunAt();
     return reminderDate;
   }
   if (timing.strategy === "final_details_due") {
@@ -224,7 +230,7 @@ const describeSendRule = (timing = {}) => {
     return "Send one calendar month before the event. If the booking is made less than five weeks before the event, send one week after the booking enters the system. If that would fall on or after the event, send halfway between the booking and event dates.";
   }
   if (timing.strategy === "song_suggestions_advance") {
-    return "Send seven days before the calculated song-suggestions due date. If that reminder date has passed but the song-suggestions due date has not, send as soon as possible.";
+    return "Send seven days before the Booking Board song-suggestions due date. If that reminder date has passed but the due date has not, send on the next automation run. Skip the email if the due date will have passed by then.";
   }
   if (timing.strategy === "final_details_due") {
     return "Send on the Thursday in the calendar week before the event. If the booking enters the system after that Thursday, send halfway between the booking and event dates.";
@@ -350,9 +356,8 @@ const ruleMatchesRow = (rule, row, { excludePast = true, includeDisabled = false
   if (!includeSent && ruleAlreadySent(rule, row)) return false;
   if (rule?.timing?.strategy === "song_suggestions_advance") {
     const dueDate = songRequestDueAt(row);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (!dueDate || dueDate < today) return false;
+    const sendAt = proposedSendAt(row, rule.timing);
+    if (!dueDate || !sendAt || sendAt > dueDate) return false;
   }
   const f = rule?.filters || {};
   if (!parseDate(rowDate(row))) return false;
