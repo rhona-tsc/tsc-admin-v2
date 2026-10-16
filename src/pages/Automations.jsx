@@ -1217,7 +1217,25 @@ export default function Automations() {
             <div className={`mt-3 grid grid-cols-[1fr_120px] gap-3 ${selected.timing.strategy ? "opacity-45" : ""}`}><label className="text-xs font-medium text-slate-600">Date basis<select className={`${inputClass} mt-1 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400`} value={selected.timing.reference} disabled={Boolean(selected.timing.strategy)} onChange={(e) => updateRule({ timing: { ...selected.timing, reference: e.target.value } })}><option value="eventDate">Event date</option><option value="fixed">Manual/fixed date</option></select></label><label className="text-xs font-medium text-slate-600">Days offset<input type="number" className={`${inputClass} mt-1 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400`} value={selected.timing.offsetDays} disabled={Boolean(selected.timing.strategy)} onChange={(e) => updateRule({ timing: { ...selected.timing, offsetDays: Number(e.target.value) } })} /></label></div>
             {selected.timing.strategy && <p className="mt-2 text-[11px] font-medium text-slate-500">Not in use — the planned send rule above calculates the date automatically.</p>}
           </details>
-          <button type="button" onClick={() => updateRule({ status: "reviewed" })} className="w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Mark conditions reviewed</button>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => updateRule({ status: "reviewed" })}
+              disabled={selected.status === "reviewed"}
+              className="w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 disabled:cursor-default disabled:opacity-50"
+            >
+              {selected.status === "reviewed" ? "Conditions reviewed" : "Mark conditions reviewed"}
+            </button>
+            <button
+              type="button"
+              onClick={() => updateRule({ status: "needs_review" })}
+              disabled={selected.status !== "reviewed"}
+              className="w-full rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800 disabled:cursor-default disabled:opacity-50"
+            >
+              {selected.status === "reviewed" ? "Mark as needs review" : "Needs review"}
+            </button>
+          </div>
+          <p className="-mt-1 text-xs text-slate-500">Review status is a flag for you only. It does not switch the automation on or off.</p>
 
           <div className="border-t pt-4">
             <h2 className="mb-1 text-lg font-semibold text-slate-900">Email template</h2>
