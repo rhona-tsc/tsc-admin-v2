@@ -188,6 +188,13 @@ const proposedSendAt = (row, timing = {}) => {
     if (reminderDate < today && dueDate >= today) return nextAutomationRunAt();
     return reminderDate;
   }
+  if (timing.strategy === "song_suggestions_followup") {
+    const dueDate = songRequestDueAt(row);
+    if (!dueDate) return null;
+    const followupDate = new Date(dueDate);
+    followupDate.setDate(dueDate.getDate() + 1);
+    return followupDate;
+  }
   if (timing.strategy === "final_details_due") {
     const eventWeekMonday = new Date(event);
     eventWeekMonday.setDate(event.getDate() - ((event.getDay() + 6) % 7));
@@ -237,6 +244,9 @@ const describeSendRule = (timing = {}) => {
   }
   if (timing.strategy === "song_suggestions_advance") {
     return "Send seven days before the Booking Board song-suggestions due date. If that reminder date has passed but the due date has not, send on the next automation run. Skip the email if the due date will have passed by then.";
+  }
+  if (timing.strategy === "song_suggestions_followup") {
+    return "Send one day after the Song suggestions due date recorded on the Booking Board.";
   }
   if (timing.strategy === "final_details_due") {
     return "Send on the Thursday in the calendar week before the event. If the booking enters the system after that Thursday, send halfway between the booking and event dates.";
@@ -416,7 +426,10 @@ const prepareRules = (source) => source
     delete filters.agentIncludes;
     if ([2, 3].includes(number)) filters.weddingStatus = "Wedding";
     if (number === 3) timing.strategy = "post_event";
-    if (number === 4) timing.strategy = "setlist";
+    if (number === 4) {
+      timing.strategy = "song_suggestions_followup";
+      timing.label = "One day after the Booking Board song-suggestions due date";
+    }
     if (number === 5) filters.playlistService = "manned_playlist";
     if (number === 11) {
       timing.strategy = "invoice_due";
