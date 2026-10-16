@@ -132,6 +132,27 @@ const proposedSendDate = (row, timing = {}) => {
     ? `${formatDate(date)} at 18:00`
     : formatDate(date);
 };
+const describeSendRule = (timing = {}) => {
+  if (timing.reference === "fixed") return "Send on the manually selected date.";
+  if (timing.strategy === "song_suggestions_due") {
+    return "Send one calendar month before the event. If the booking is made less than five weeks before the event, send one week after the booking enters the system. If that would fall on or after the event, send halfway between the booking and event dates.";
+  }
+  if (timing.strategy === "final_details_due") {
+    return "Send on the Thursday in the calendar week before the event. If the booking enters the system after that Thursday, send halfway between the booking and event dates.";
+  }
+  if (timing.strategy === "post_event") return "Send one day after the event at 6:00pm.";
+  if (timing.strategy === "setlist") {
+    return "Send 31 days before the event. For bookings made less than five weeks ahead, send one day before the halfway point between the booking and event dates.";
+  }
+  if (timing.strategy === "initial") {
+    return "Send 21 days before the event. For bookings made less than five weeks ahead, send halfway between the booking and event dates.";
+  }
+
+  const offset = Number(timing.offsetDays || 0);
+  if (offset === 0) return "Send on the event date.";
+  const unit = Math.abs(offset) === 1 ? "day" : "days";
+  return `Send ${Math.abs(offset)} ${unit} ${offset < 0 ? "before" : "after"} the event.`;
+};
 
 const TEMPLATE_TAGS = [
   { tag: "{{client_first_name}}", label: "Client first name" },
@@ -484,7 +505,16 @@ export default function Automations() {
             <label className="text-xs font-medium text-slate-600">Recipient<select className={`${inputClass} mt-1`} value={selected.filters.recipientRole || ""} onChange={(e) => updateFilters({ recipientRole: e.target.value })}><option value="">Any contact</option><option value="direct_client">Direct client</option><option value="agent">Agent / planner</option><option value="end_client_via_agent">End client via agent</option></select></label>
             <label className="text-xs font-medium text-slate-600">Music service<select className={`${inputClass} mt-1`} value={selected.filters.playlistService || ""} onChange={(e) => updateFilters({ playlistService: e.target.value })}><option value="">Any service</option><option value="spotify_playlist">Spotify Playlist</option><option value="manned_playlist">Manned Playlist</option><option value="pro_dj">Pro DJ Service</option></select></label>
           </div>
-          <div className="grid grid-cols-[1fr_120px] gap-3"><label className="text-xs font-medium text-slate-600">Date basis<select className={`${inputClass} mt-1`} value={selected.timing.reference} onChange={(e) => updateRule({ timing: { ...selected.timing, reference: e.target.value } })}><option value="eventDate">Event date</option><option value="fixed">Manual/fixed date</option></select></label><label className="text-xs font-medium text-slate-600">Days offset<input type="number" className={`${inputClass} mt-1`} value={selected.timing.offsetDays} onChange={(e) => updateRule({ timing: { ...selected.timing, offsetDays: Number(e.target.value) } })} /></label></div>
+          <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Planned send rule</p>
+            <p className="mt-1 text-sm leading-6 text-sky-950">{describeSendRule(selected.timing)}</p>
+            {previewRow && <p className="mt-2 text-xs font-medium text-sky-800">Example for {rowClient(previewRow)}: {proposedSendDate(previewRow, selected.timing)}</p>}
+          </div>
+          <details className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <summary className="cursor-pointer text-xs font-semibold text-slate-600">Advanced scheduling settings</summary>
+            <div className="mt-3 grid grid-cols-[1fr_120px] gap-3"><label className="text-xs font-medium text-slate-600">Date basis<select className={`${inputClass} mt-1`} value={selected.timing.reference} onChange={(e) => updateRule({ timing: { ...selected.timing, reference: e.target.value } })}><option value="eventDate">Event date</option><option value="fixed">Manual/fixed date</option></select></label><label className="text-xs font-medium text-slate-600">Days offset<input type="number" className={`${inputClass} mt-1`} value={selected.timing.offsetDays} disabled={Boolean(selected.timing.strategy)} onChange={(e) => updateRule({ timing: { ...selected.timing, offsetDays: Number(e.target.value) } })} /></label></div>
+            {selected.timing.strategy && <p className="mt-2 text-[11px] text-slate-500">This automation uses the planned rule above, so its simple offset is managed automatically.</p>}
+          </details>
           <button type="button" onClick={() => updateRule({ status: "reviewed" })} className="w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Mark conditions reviewed</button>
 
           <div className="border-t pt-4">
