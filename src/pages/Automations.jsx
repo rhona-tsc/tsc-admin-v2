@@ -379,6 +379,21 @@ const vocalistNames = (row) => joinNames([...new Set(
     .filter(Boolean),
 )]);
 const proposedSendAt = (row, timing = {}) => {
+  if (timing.strategy === "add_ons_midpoint") {
+    const introSent = parseDate(row?.introEmailSentAt);
+    const eventSheetDue = parseDate(row?.invoiceDueDateISO);
+    if (!introSent || !eventSheetDue || introSent >= eventSheetDue) return null;
+
+    const planned = new Date(
+      introSent.getTime() + ((eventSheetDue.getTime() - introSent.getTime()) / 2),
+    );
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (planned >= today) return planned;
+
+    const nextRun = nextAutomationRunAt();
+    return nextRun < eventSheetDue ? nextRun : null;
+  }
   if (timing.strategy === "balance_reminder_advance") {
     const event = parseDate(rowDate(row));
     if (!event) return null;
@@ -458,6 +473,9 @@ const proposedSendDate = (row, timing = {}) => {
 };
 const describeSendRule = (timing = {}) => {
   if (timing.reference === "fixed" && !timing.strategy) return "Send on the manually selected date.";
+  if (timing.strategy === "add_ons_midpoint") {
+    return "Send halfway between the intro email being sent and the Booking Board Event Sheet/invoice due date. If that midpoint has passed but the due date has not, send on the next automation run.";
+  }
   if (timing.strategy === "invoice_due") {
     return "Send on the Invoice due date recorded on the Booking Board. If that date is blank, do not schedule this email.";
   }
@@ -628,6 +646,11 @@ const ruleMatchesRow = (
   if (rule?.timing?.strategy === "invoice_due" && !parseDate(row?.invoiceDueDateISO)) {
     return false;
   }
+  if (rule?.timing?.strategy === "add_ons_midpoint") {
+    const introSent = parseDate(row?.introEmailSentAt);
+    const eventSheetDue = parseDate(row?.invoiceDueDateISO);
+    if (!introSent || !eventSheetDue || introSent >= eventSheetDue) return false;
+  }
   if (rule?.timing?.strategy === "song_suggestions_advance") {
     const dueDate = songRequestDueAt(row);
     const sendAt = proposedSendAt(row, rule.timing);
@@ -686,6 +709,10 @@ const prepareRules = (source) => source
       timing.label = "One day after the Booking Board song-suggestions due date";
     }
     if (number === 5) filters.playlistService = "manned_playlist";
+    if ([5, 21, 22].includes(number)) {
+      timing.strategy = "add_ons_midpoint";
+      timing.label = "Halfway between the intro email and Event Sheet due date";
+    }
     if (number === 10) {
       timing.strategy = "balance_reminder_advance";
       timing.label = "Catch up on the next run when it remains before the invoice due date";
