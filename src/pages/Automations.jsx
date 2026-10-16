@@ -170,6 +170,9 @@ const vocalistNames = (row) => joinNames([...new Set(
     .filter(Boolean),
 )]);
 const proposedSendAt = (row, timing = {}) => {
+  if (timing.strategy === "invoice_due") {
+    return parseDate(row?.invoiceDueDateISO);
+  }
   const event = parseDate(rowDate(row));
   if (!event) return null;
   if (timing.strategy === "song_suggestions_due") {
@@ -226,6 +229,9 @@ const proposedSendDate = (row, timing = {}) => {
 };
 const describeSendRule = (timing = {}) => {
   if (timing.reference === "fixed" && !timing.strategy) return "Send on the manually selected date.";
+  if (timing.strategy === "invoice_due") {
+    return "Send on the Invoice due date recorded on the Booking Board. If that date is blank, do not schedule this email.";
+  }
   if (timing.strategy === "song_suggestions_due") {
     return "Send one calendar month before the event. If the booking is made less than five weeks before the event, send one week after the booking enters the system. If that would fall on or after the event, send halfway between the booking and event dates.";
   }
@@ -354,6 +360,9 @@ const ruleAlreadySent = (rule, row) => {
 const ruleMatchesRow = (rule, row, { excludePast = true, includeDisabled = false, includeSent = false } = {}) => {
   if (!includeDisabled && rule?.enabled === false) return false;
   if (!includeSent && ruleAlreadySent(rule, row)) return false;
+  if (rule?.timing?.strategy === "invoice_due" && !parseDate(row?.invoiceDueDateISO)) {
+    return false;
+  }
   if (rule?.timing?.strategy === "song_suggestions_advance") {
     const dueDate = songRequestDueAt(row);
     const sendAt = proposedSendAt(row, rule.timing);
@@ -409,6 +418,10 @@ const prepareRules = (source) => source
     if (number === 3) timing.strategy = "post_event";
     if (number === 4) timing.strategy = "setlist";
     if (number === 5) filters.playlistService = "manned_playlist";
+    if (number === 11) {
+      timing.strategy = "invoice_due";
+      timing.label = "Booking Board invoice due date";
+    }
     if (number === 21) {
       body = body.replace(
         /Performance Add-Ons:[\s\S]*?(?=These options are designed)/i,
