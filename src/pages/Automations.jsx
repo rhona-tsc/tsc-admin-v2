@@ -119,6 +119,8 @@ const parseDate = (value) => {
 };
 const formatDate = (date) => date?.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) || "";
 const songRequestDueAt = (row) => {
+  const explicitDueDate = parseDate(row?.songSuggestionsDueDateISO);
+  if (explicitDueDate) return explicitDueDate;
   const event = parseDate(rowDate(row));
   if (!event) return null;
   const booked = parseDate(row.bookingDateISO || row.enquiryDateISO || row.createdAt);

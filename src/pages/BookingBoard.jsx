@@ -766,6 +766,7 @@ const BOOKING_BOARD_COLUMNS = [
   "Enquiry date",
   "Booking date",
   "Event date",
+  "Song suggestions due",
   "Gross",
   "Deposit / part paid",
   "Balance",
@@ -798,7 +799,7 @@ const BOOKING_BOARD_COLUMNS = [
 // One shared width map keeps the sticky heading strip aligned with every
 // editable control in the nested booking rows.
 const BOOKING_BOARD_COLUMN_WIDTHS = [
-  180, 150, 110, 100, 150, 150, 150, 180, 150, 150, 160, 110, 160, 150,
+  180, 150, 110, 100, 150, 150, 150, 170, 180, 150, 150, 160, 110, 160, 150,
   180, 230, 260, 160, 180, 180, 280, 140, 100, 220, 220, 440, 150, 480, 160,
   200, 180, 200, 220, 160,
 ];
@@ -1220,6 +1221,7 @@ const buildEditStateFromRow = (row) => {
         row?.dueDate ||
         "",
     ).slice(0, 10),
+    songSuggestionsDueDateISO: String(row?.songSuggestionsDueDateISO || "").slice(0, 10),
     baseGross: Number(coreGross || 0),
     depositAmount: Number(deposit || 0),
     eventType: row?.eventType || "",
@@ -2681,6 +2683,23 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
           </div>
 
           <div>
+            <label className="block text-xs text-gray-600 mb-1">
+              Song suggestions due
+            </label>
+            <input
+              type="date"
+              className="border rounded px-3 py-2 w-full"
+              value={value.songSuggestionsDueDateISO || ""}
+              onChange={(e) =>
+                onChange({ ...value, songSuggestionsDueDateISO: e.target.value })
+              }
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Source of truth for song-request reminder automations.
+            </p>
+          </div>
+
+          <div>
             <label className="block text-xs text-gray-600 mb-1">Arrival</label>
             <input
               type="time"
@@ -3859,6 +3878,7 @@ export default function BookingBoard() {
     bookingRef: "",
     eventDateISO: "",
     invoiceDueDateISO: "",
+    songSuggestionsDueDateISO: "",
     eventType: "",
 
     enquiryDateISO: "",
@@ -4424,6 +4444,7 @@ export default function BookingBoard() {
       bookingDateISO,
       invoiceDateISO: bookingDateISO,
       invoiceDueDateISO: editForm.invoiceDueDateISO || "",
+      songSuggestionsDueDateISO: editForm.songSuggestionsDueDateISO || "",
       contactRole: editForm.contactRole || "direct_client",
       eventSheetLink: String(editForm.eventSheetLink || "").trim(),
       draftSetlistLink: String(editForm.draftSetlistLink || "").trim(),
@@ -5232,6 +5253,7 @@ export default function BookingBoard() {
         review: { requestedCount: 0, received: false },
         source: "manual",
         invoiceDueDateISO: newRow.invoiceDueDateISO || "",
+        songSuggestionsDueDateISO: newRow.songSuggestionsDueDateISO || "",
         enquiryDateISO: newRow.enquiryDateISO || "", // optional
         bookingDateISO: newRow.bookingDateISO || "", // optional
         arrivalTime: newRow.arrivalTime || "",
@@ -5286,6 +5308,7 @@ export default function BookingBoard() {
           bookingRef: "",
           eventDateISO: "",
           invoiceDueDateISO: "",
+          songSuggestionsDueDateISO: "",
           eventType: "",
           agent: "Direct",
           clientEmail: "",
@@ -5840,6 +5863,20 @@ export default function BookingBoard() {
                                               eventDateISO: val,
                                               eventDate: val,
                                               date: val,
+                                            })
+                                          }
+                                        />
+                                      </td>
+                                      <td className={cellClass}>
+                                        <InlineInput
+                                          type="date"
+                                          value={String(
+                                            r.songSuggestionsDueDateISO || "",
+                                          ).slice(0, 10)}
+                                          placeholder="Song due date"
+                                          onCommit={(val) =>
+                                            onInlineEdit(r._id, {
+                                              songSuggestionsDueDateISO: val,
                                             })
                                           }
                                         />
@@ -6725,6 +6762,22 @@ export default function BookingBoard() {
                                   setNewRow((v) => ({
                                     ...v,
                                     invoiceDueDateISO: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div className="flex flex-col">
+                              <label className="text-xs text-gray-600">
+                                Song suggestions due
+                              </label>
+                              <input
+                                type="date"
+                                className="border rounded px-2 py-1 w-44"
+                                value={newRow.songSuggestionsDueDateISO}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    songSuggestionsDueDateISO: e.target.value,
                                   }))
                                 }
                               />
