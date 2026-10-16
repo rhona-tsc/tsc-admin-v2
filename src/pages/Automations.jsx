@@ -331,6 +331,7 @@ const renderTemplate = (template, row) => {
 
 const matchesChoice = (actual, choice) => choice === "any" || boolValue(actual) === choice;
 const ruleMatchesRow = (rule, row, { excludePast = true } = {}) => {
+  if (rule?.enabled === false) return false;
   const f = rule?.filters || {};
   if (!parseDate(rowDate(row))) return false;
   if (Array.isArray(f.agents) && f.agents.length && !f.agents.includes(normalizeAgent(row.agent))) return false;
@@ -412,7 +413,7 @@ const prepareRules = (source) => source
     if (number === 6) filters.recipientRole = "direct_client";
     if (number === 8) filters.recipientRole = "end_client_via_agent";
     if (number === 9) filters.recipientRole = "agent";
-    return { ...rule, body, filters, timing };
+    return { ...rule, enabled: rule.enabled !== false, body, filters, timing };
   });
 
 export default function Automations() {
@@ -463,6 +464,7 @@ export default function Automations() {
   const agents = AGENT_OPTIONS;
   const eventTypes = EVENT_TYPE_OPTIONS;
   const reviewedCount = rules.filter((rule) => rule.status === "reviewed").length;
+  const enabledCount = rules.filter((rule) => rule.enabled !== false).length;
 
   const matchingRows = useMemo(() => {
     if (!selected) return [];
@@ -579,7 +581,7 @@ export default function Automations() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Automations</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-600">Preview and reconcile the Monday email rules. Sending is locked while the imported conditions are reviewed.</p>
-          <p className="mt-2 text-xs font-medium text-slate-500">Review progress: {reviewedCount} of {rules.length}</p>
+          <p className="mt-2 text-xs font-medium text-slate-500">Review progress: {reviewedCount} of {rules.length} · {enabledCount} switched on</p>
         </div>
         <div className="rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800">Preview only · sending disabled</div>
       </div>
@@ -665,12 +667,45 @@ export default function Automations() {
         <aside className="overflow-hidden rounded-xl border bg-white">
           <div className="border-b px-4 py-3 text-sm font-semibold text-slate-800">Imported templates ({rules.length})</div>
           <div className="max-h-[760px] overflow-y-auto">
-            {rules.map((rule) => <button key={rule.id} type="button" onClick={() => setSelectedId(rule.id)} className={`w-full border-b px-4 py-3 text-left ${rule.id === selected.id ? "bg-sky-50" : "hover:bg-slate-50"}`}><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium text-slate-900">Automation {rule.sourceNumber}</span><span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${rule.status === "reviewed" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{rule.status === "reviewed" ? "Reviewed" : "Needs review"}</span></div><div className="mt-1 line-clamp-2 text-xs text-slate-500">{rule.subject}</div></button>)}
+            {rules.map((rule) => (
+              <div key={rule.id} className={`border-b px-3 py-3 ${rule.id === selected.id ? "bg-sky-50" : "hover:bg-slate-50"}`}>
+                <div className="flex items-start gap-2">
+                  <button type="button" onClick={() => setSelectedId(rule.id)} className="min-w-0 flex-1 text-left">
+                    <div className="flex items-center justify-between gap-2"><span className="text-sm font-medium text-slate-900">Automation {rule.sourceNumber}</span><span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${rule.status === "reviewed" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{rule.status === "reviewed" ? "Reviewed" : "Needs review"}</span></div>
+                    <div className="mt-1 line-clamp-2 text-xs text-slate-500">{rule.subject}</div>
+                  </button>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={rule.enabled !== false}
+                    aria-label={`${rule.enabled !== false ? "Turn off" : "Turn on"} automation ${rule.sourceNumber}`}
+                    onClick={() => setRules((current) => current.map((item) => item.id === rule.id ? { ...item, enabled: item.enabled === false } : item))}
+                    className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition ${rule.enabled !== false ? "bg-emerald-500" : "bg-slate-300"}`}
+                  >
+                    <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${rule.enabled !== false ? "left-[22px]" : "left-0.5"}`} />
+                  </button>
+                </div>
+                <div className={`mt-2 text-[10px] font-semibold uppercase tracking-wide ${rule.enabled !== false ? "text-emerald-700" : "text-slate-400"}`}>{rule.enabled !== false ? "On" : "Off"}</div>
+              </div>
+            ))}
           </div>
         </aside>
 
         <section className="space-y-4 rounded-xl border bg-white p-4">
-          <div><h2 className="text-lg font-semibold text-slate-900">Rule conditions</h2><p className="text-xs text-slate-500">These start blank where Monday’s screenshots still need reconciling.</p></div>
+          <div className="flex items-start justify-between gap-3">
+            <div><h2 className="text-lg font-semibold text-slate-900">Rule conditions</h2><p className="text-xs text-slate-500">These start blank where Monday’s screenshots still need reconciling.</p></div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={selected.enabled !== false}
+              onClick={() => updateRule({ enabled: selected.enabled === false })}
+              className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${selected.enabled !== false ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600"}`}
+            >
+              <span className={`h-2.5 w-2.5 rounded-full ${selected.enabled !== false ? "bg-emerald-500" : "bg-slate-400"}`} />
+              {selected.enabled !== false ? "Automation on" : "Automation off"}
+            </button>
+          </div>
+          {selected.enabled === false && <div className="rounded-lg border border-slate-300 bg-slate-50 p-3 text-sm text-slate-600">This automation is switched off. It will stay editable here, but it is excluded from matching clients and client email schedule checks.</div>}
           <label className="block text-xs font-medium text-slate-600">Rule name<input className={`${inputClass} mt-1`} value={selected.name} onChange={(e) => updateRule({ name: e.target.value })} /></label>
           <div className="grid gap-3 sm:grid-cols-2">
             <fieldset className="text-xs font-medium text-slate-600 sm:col-span-2">
