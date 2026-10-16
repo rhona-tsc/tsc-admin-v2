@@ -76,6 +76,18 @@ const vocalistNames = (row) => joinNames([...new Set(
 const proposedSendAt = (row, timing = {}) => {
   const event = parseDate(rowDate(row));
   if (!event) return null;
+  if (timing.strategy === "final_details_due") {
+    const eventWeekMonday = new Date(event);
+    eventWeekMonday.setDate(event.getDate() - ((event.getDay() + 6) % 7));
+    const thursdayInPreviousWeek = new Date(eventWeekMonday);
+    thursdayInPreviousWeek.setDate(eventWeekMonday.getDate() - 4);
+
+    const booked = parseDate(row.bookingDateISO || row.enquiryDateISO || row.createdAt);
+    if (booked && booked > thursdayInPreviousWeek) {
+      return new Date(booked.getTime() + ((event.getTime() - booked.getTime()) / 2));
+    }
+    return thursdayInPreviousWeek;
+  }
   if (timing.strategy === "post_event") {
     event.setDate(event.getDate() + 1);
     event.setHours(18, 0, 0, 0);
@@ -222,6 +234,10 @@ const prepareRules = (source) => source
     if (number === 3) timing.strategy = "post_event";
     if (number === 4) timing.strategy = "setlist";
     if (number === 5) filters.playlistService = "manned_playlist";
+    if (number === 38) {
+      timing.strategy = "final_details_due";
+      timing.label = "Thursday in the week before the event; halfway for late bookings";
+    }
     if (
       [2, 3].includes(number) ||
       /review request|leave .*review|google review/i.test(
