@@ -903,9 +903,21 @@ export default function Automations() {
         .map(normalizedActIdentity)
         .some((name) => name && bookingActNames.has(name))
     ));
+    const matchingActIds = [...new Set([
+      ...matchingProfiles.map((act) => text(act?._id)),
+      ...rows.flatMap((row) => [
+        row?.actId,
+        row?.act?._id,
+        row?.selectedAct?._id,
+        row?.actData?._id,
+        row?.actsSummary?.[0]?.actId,
+        row?.actsSummary?.[0]?.act?._id,
+        row?.actsSummary?.[0]?.actData?._id,
+      ]).map(text),
+    ].filter(Boolean))];
 
-    Promise.allSettled(matchingProfiles.map(async (act) => {
-      const response = await fetch(`${backendUrl}/api/musician/act-v2/${act._id}`, {
+    Promise.allSettled(matchingActIds.map(async (actId) => {
+      const response = await fetch(`${backendUrl}/api/musician/act-v2/${actId}`, {
         headers,
         credentials: "include",
       });
