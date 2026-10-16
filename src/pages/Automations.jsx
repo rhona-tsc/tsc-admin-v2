@@ -253,6 +253,7 @@ export default function Automations() {
   const [loadError, setLoadError] = useState("");
   const [activeTemplateField, setActiveTemplateField] = useState("body");
   const [previewRowId, setPreviewRowId] = useState("");
+  const [testPreviewState, setTestPreviewState] = useState({ sending: false, message: "", error: "" });
   const subjectRef = useRef(null);
   const bodyRef = useRef(null);
 
@@ -321,6 +322,31 @@ export default function Automations() {
   }, [rows, selected, query, global]);
 
   const previewRow = matchingRows.find((row) => String(row._id || rowRef(row)) === previewRowId) || matchingRows[0];
+  const sendTestPreview = async () => {
+    if (!previewRow || testPreviewState.sending) return;
+    setTestPreviewState({ sending: true, message: "", error: "" });
+    try {
+      const token = localStorage.getItem("token") || "";
+      const response = await fetch(`${backendUrl}/api/board/bookings/automation-email/test`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}`, token } : {}),
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          subject: renderTemplate(selected.subject, previewRow),
+          body: renderTemplate(selected.body, previewRow),
+          audience: Number(selected.sourceNumber) === 4 ? "musician" : "client",
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) throw new Error(payload?.message || "The preview could not be sent.");
+      setTestPreviewState({ sending: false, message: payload.message, error: "" });
+    } catch (error) {
+      setTestPreviewState({ sending: false, message: "", error: error.message });
+    }
+  };
   const insertTag = (tag) => {
     const field = activeTemplateField === "subject" ? "subject" : "body";
     const target = field === "subject" ? subjectRef.current : bodyRef.current;
@@ -448,8 +474,13 @@ export default function Automations() {
           <div className="border-b bg-slate-50 px-4 py-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div><h2 className="font-semibold text-slate-900">Personalised email preview</h2><p className="text-xs text-slate-500">Tags are replaced using the selected matching client.</p></div>
-              {matchingRows.length > 0 && <select className={selectClass} value={String(previewRow?._id || rowRef(previewRow))} onChange={(e) => setPreviewRowId(e.target.value)}>{matchingRows.map((row) => <option key={row._id || rowRef(row)} value={String(row._id || rowRef(row))}>{rowClient(row)} · {rowRef(row)}</option>)}</select>}
+              <div className="flex flex-wrap items-center gap-2">
+                {matchingRows.length > 0 && <select className={selectClass} value={String(previewRow?._id || rowRef(previewRow))} onChange={(e) => setPreviewRowId(e.target.value)}>{matchingRows.map((row) => <option key={row._id || rowRef(row)} value={String(row._id || rowRef(row))}>{rowClient(row)} · {rowRef(row)}</option>)}</select>}
+                {previewRow && <button type="button" onClick={sendTestPreview} disabled={testPreviewState.sending} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{testPreviewState.sending ? "Sending…" : "Email test to Rhona"}</button>}
+              </div>
             </div>
+            {testPreviewState.message && <div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs font-medium text-emerald-800">{testPreviewState.message}</div>}
+            {testPreviewState.error && <div className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-medium text-red-700">{testPreviewState.error}</div>}
             {previewRow ? <div className="mt-3 rounded-lg border bg-white p-3"><p className="text-xs font-semibold text-slate-500">Subject</p><p className="mt-1 text-sm font-semibold text-slate-900">{renderTemplate(selected.subject, previewRow)}</p><p className="mt-3 text-xs font-semibold text-slate-500">Body</p><div className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap text-sm leading-5 text-slate-700">{renderTemplate(selected.body, previewRow)}</div><div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-800">{rowInvoiceLink(previewRow) ? "Invoice PDF will be attached — no long invoice URL in the email." : "No invoice PDF is currently recorded for this booking."} The standard TSC signature and footer will be appended.</div></div> : <div className="mt-3 rounded-lg border border-dashed bg-white p-4 text-sm text-slate-500">No matching client is available for a personalised preview.</div>}
           </div>
           <div className="flex items-center justify-between border-b px-4 py-3"><div><h2 className="font-semibold text-slate-900">Matching clients</h2><p className="text-xs text-slate-500">Who would receive this email under the current filters</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">{matchingRows.length}</span></div>
