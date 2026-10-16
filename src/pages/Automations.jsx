@@ -35,6 +35,7 @@ const rowPlaylist = (row) => Boolean(row.bookingDetails?.mannedPlaylist || row.b
 const rowWedding = (row) => normalizeEventType(row.eventType) === "Wedding" ? "Wedding" : "Non-Wedding";
 const rowRole = (row) => text(row.contactRole || "direct_client");
 const rowService = (row) => text(row.bookingDetails?.playlistService || (rowDj(row) ? "pro_dj" : ""));
+const normalizedActIdentity = (value) => text(value).toLowerCase().replace(/[^a-z0-9]+/g, "");
 
 const isPlainAutomationObject = (value) =>
   Boolean(value) &&
@@ -813,6 +814,7 @@ const prepareRules = (source) => source
 
 export default function Automations() {
   const [rows, setRows] = useState([]);
+  const [actProfiles, setActProfiles] = useState([]);
   const [rules, setRules] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
@@ -849,6 +851,20 @@ export default function Automations() {
       })
       .catch((error) => setLoadError(error.message))
       .finally(() => setLoading(false));
+
+    fetch(`${backendUrl}/api/act/list`, {
+      headers: token ? { Authorization: `Bearer ${token}`, token } : {},
+      credentials: "include",
+    })
+      .then(async (response) => {
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) return;
+        setActProfiles(Array.isArray(payload.acts) ? payload.acts : []);
+      })
+      .catch(() => {
+        // The booking preview still works without the profile catalogue; only
+        // county-dependent add-on pricing falls back to the stored base price.
+      });
   }, []);
 
   useEffect(() => {
@@ -867,9 +883,40 @@ export default function Automations() {
     if (!wanted) return true;
     return `${ruleDisplayName(rule)} ${rule.name || ""} ${rule.subject || ""} ${rule.sourceNumber || ""}`.toLowerCase().includes(wanted);
   });
+  const rowsWithActProfiles = useMemo(() => rows.map((row) => {
+    const rowActIds = [
+      row?.actId,
+      row?.act?._id,
+      row?.selectedAct?._id,
+      row?.actData?._id,
+      row?.actsSummary?.[0]?.actId,
+      row?.actsSummary?.[0]?.act?._id,
+      row?.actsSummary?.[0]?.actData?._id,
+    ].map(text).filter(Boolean);
+    const rowActNames = [
+      row?.actTscName,
+      row?.actName,
+      row?.bandName,
+      row?.actData?.tscName,
+      row?.actData?.name,
+      row?.actsSummary?.[0]?.tscName,
+      row?.actsSummary?.[0]?.name,
+    ].map(normalizedActIdentity).filter(Boolean);
+    const profile = actProfiles.find((act) => {
+      if (rowActIds.includes(text(act?._id))) return true;
+      return [act?.tscName, act?.name]
+        .map(normalizedActIdentity)
+        .some((name) => name && rowActNames.includes(name));
+    });
+    if (!profile) return row;
+    return {
+      ...row,
+      actData: mergeAutomationRowData(row?.actData || {}, profile),
+    };
+  }), [rows, actProfiles]);
   const consolidatedRows = useMemo(
-    () => consolidateAutomationRows(rows),
-    [rows],
+    () => consolidateAutomationRows(rowsWithActProfiles),
+    [rowsWithActProfiles],
   );
 
   const matchingRows = useMemo(() => {
