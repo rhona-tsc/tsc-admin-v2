@@ -762,6 +762,8 @@ const BOOKING_BOARD_COLUMNS = [
   "Client",
   "Booking ref",
   "Event sheet",
+  "Draft setlist link",
+  "WhatsApp group link",
   "Contract",
   "Enquiry date",
   "Booking date",
@@ -800,7 +802,7 @@ const BOOKING_BOARD_COLUMNS = [
 // One shared width map keeps the sticky heading strip aligned with every
 // editable control in the nested booking rows.
 const BOOKING_BOARD_COLUMN_WIDTHS = [
-  180, 150, 110, 100, 150, 150, 150, 170, 180, 150, 150, 160, 110, 160, 150,
+  180, 150, 110, 260, 260, 100, 150, 150, 150, 170, 180, 150, 150, 160, 110, 160, 150,
   180, 180, 230, 260, 160, 180, 180, 280, 140, 100, 220, 220, 440, 150, 480,
   160, 200, 180, 200, 220, 160,
 ];
@@ -2556,10 +2558,8 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
               <option value="pro_dj">Pro DJ Service</option>
             </select>
           </div>
-          <div className="md:col-span-2 grid gap-3 md:grid-cols-3">
+          <div className="md:col-span-2">
             <label className="text-xs text-gray-600">Event sheet link<input className="mt-1 border rounded px-3 py-2 w-full" value={value.eventSheetLink || ""} onChange={(e) => onChange({ ...value, eventSheetLink: e.target.value })} /></label>
-            <label className="text-xs text-gray-600">Draft setlist link<input className="mt-1 border rounded px-3 py-2 w-full" value={value.draftSetlistLink || ""} onChange={(e) => onChange({ ...value, draftSetlistLink: e.target.value })} /></label>
-            <label className="text-xs text-gray-600">WhatsApp group link<input className="mt-1 border rounded px-3 py-2 w-full" value={value.whatsappGroupLink || ""} onChange={(e) => onChange({ ...value, whatsappGroupLink: e.target.value })} /></label>
           </div>
           <div className="md:col-span-2">
             <label className="block text-xs text-gray-600 mb-1">
@@ -5885,6 +5885,44 @@ export default function BookingBoard() {
                                             Open
                                           </button>
                                         )}
+                                      </td>
+                                      <td className={cellClass}>
+                                        <div className="flex items-center gap-2">
+                                          <InlineInput
+                                            value={r.draftSetlistLink || ""}
+                                            placeholder="Paste draft setlist URL"
+                                            onCommit={(val) => onInlineEdit(r._id, { draftSetlistLink: val })}
+                                          />
+                                          {r.draftSetlistLink ? (
+                                            <a
+                                              className="text-blue-600 underline"
+                                              href={normalizeUrl(r.draftSetlistLink)}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                            >
+                                              Open
+                                            </a>
+                                          ) : null}
+                                        </div>
+                                      </td>
+                                      <td className={cellClass}>
+                                        <div className="flex items-center gap-2">
+                                          <InlineInput
+                                            value={r.whatsappGroupLink || ""}
+                                            placeholder="Paste WhatsApp group URL"
+                                            onCommit={(val) => onInlineEdit(r._id, { whatsappGroupLink: val })}
+                                          />
+                                          {r.whatsappGroupLink ? (
+                                            <a
+                                              className="text-blue-600 underline"
+                                              href={normalizeUrl(r.whatsappGroupLink)}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                            >
+                                              Open
+                                            </a>
+                                          ) : null}
+                                        </div>
                                       </td>
                                       {/* Contract */}
                                       <td className={cellClass}>
