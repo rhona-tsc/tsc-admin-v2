@@ -209,12 +209,13 @@ const proposedSendAt = (row, timing = {}) => {
 const proposedSendDate = (row, timing = {}) => {
   const date = proposedSendAt(row, timing);
   if (!date) return "Needs date";
+  if (timing.reference === "fixed" && !timing.strategy) return "Manual date";
   return timing.strategy === "post_event"
     ? `${formatDate(date)} at 18:00`
     : formatDate(date);
 };
 const describeSendRule = (timing = {}) => {
-  if (timing.reference === "fixed") return "Send on the manually selected date.";
+  if (timing.reference === "fixed" && !timing.strategy) return "Send on the manually selected date.";
   if (timing.strategy === "song_suggestions_due") {
     return "Send one calendar month before the event. If the booking is made less than five weeks before the event, send one week after the booking enters the system. If that would fall on or after the event, send halfway between the booking and event dates.";
   }
@@ -497,15 +498,23 @@ export default function Automations() {
     const bookings = rows.filter((row) => rowEmails(row).some((email) => email.includes(wanted)));
     const uniqueBookings = [...new Map(bookings.map((row) => [rowRef(row).toLowerCase() || String(row._id), row])).values()];
     const items = uniqueBookings.flatMap((row) => rules
-      .filter((rule) => ruleMatchesRow(rule, row, { includeDisabled: true, includeSent: true }))
-      .map((rule) => ({
-        rule,
-        row,
-        alreadySent: ruleAlreadySent(rule, row),
-        sendAt: rule.timing?.reference === "fixed" ? null : proposedSendAt(row, rule.timing),
-        sendLabel: rule.timing?.reference === "fixed" ? "Manual date" : proposedSendDate(row, rule.timing),
-        subject: renderTemplate(rule.subject, row),
-      })))
+      .filter((rule) => ruleMatchesRow(rule, row, { excludePast: false, includeDisabled: true, includeSent: true }))
+      .map((rule) => {
+        const usesManualDate = rule.timing?.reference === "fixed" && !rule.timing?.strategy;
+        const sendAt = usesManualDate ? null : proposedSendAt(row, rule.timing);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const alreadySent = ruleAlreadySent(rule, row);
+        return {
+          rule,
+          row,
+          alreadySent,
+          overdue: Boolean(sendAt && sendAt < today && !alreadySent),
+          sendAt,
+          sendLabel: usesManualDate ? "Manual date" : proposedSendDate(row, rule.timing),
+          subject: renderTemplate(rule.subject, row),
+        };
+      }))
       .sort((a, b) => {
         if (!a.sendAt && !b.sendAt) return Number(a.rule.sourceNumber) - Number(b.rule.sourceNumber);
         if (!a.sendAt) return 1;
@@ -659,7 +668,7 @@ export default function Automations() {
                       <thead className="bg-slate-50 text-slate-600"><tr><th className="px-3 py-2">On/off</th><th className="px-3 py-2">Planned date</th><th className="px-3 py-2">Automation</th><th className="px-3 py-2">Subject</th><th className="px-3 py-2">Checks</th><th className="px-3 py-2"></th></tr></thead>
                       <tbody>
                         {visibleEmailAuditItems.map((item) => (
-                          <tr key={`${rowRef(item.row)}-${item.rule.id}`} className={`border-t align-top ${item.alreadySent ? "bg-sky-50" : item.rule.enabled === false ? "bg-slate-50 opacity-70" : item.duplicateSubject ? "bg-red-50" : ""}`}>
+                          <tr key={`${rowRef(item.row)}-${item.rule.id}`} className={`border-t align-top ${item.alreadySent ? "bg-sky-50" : item.rule.enabled === false ? "bg-slate-50 opacity-70" : item.duplicateSubject ? "bg-red-50" : item.overdue ? "bg-amber-50" : ""}`}>
                             <td className="px-3 py-3">
                               <button
                                 type="button"
@@ -676,13 +685,13 @@ export default function Automations() {
                             <td className="whitespace-nowrap px-3 py-3 font-semibold text-slate-900">
                               {item.alreadySent ? (
                                 <><div>Already sent</div><div className="mt-1 text-[11px] font-normal text-slate-500">{item.row.introEmailSentAt ? new Date(item.row.introEmailSentAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "Previously sent"}</div></>
-                              ) : item.sendLabel}
+                              ) : <><div>{item.sendLabel}</div>{item.overdue && <div className="mt-1 text-[11px] font-semibold text-amber-700">Overdue — not recorded as sent</div>}</>}
                             </td>
                             <td className="px-3 py-3"><div className="font-medium text-slate-900">Automation {item.rule.sourceNumber}</div><div className="text-slate-500">{item.rule.status === "reviewed" ? "Reviewed" : "Needs review"}</div></td>
                             <td className="max-w-xl px-3 py-3 text-slate-700">{item.subject}</td>
                             <td className="px-3 py-3">
                               <div className="flex flex-wrap gap-1">
-                                {item.alreadySent ? <span className="rounded bg-sky-100 px-2 py-1 font-semibold text-sky-800">Sent — excluded from future schedule</span> : item.rule.enabled === false ? <span className="rounded bg-slate-200 px-2 py-1 font-semibold text-slate-600">Switched off — will not send</span> : (
+                                {item.alreadySent ? <span className="rounded bg-sky-100 px-2 py-1 font-semibold text-sky-800">Sent — excluded from future schedule</span> : item.rule.enabled === false ? <span className="rounded bg-slate-200 px-2 py-1 font-semibold text-slate-600">Switched off — will not send</span> : item.overdue ? <span className="rounded bg-amber-100 px-2 py-1 font-semibold text-amber-800">Needs attention</span> : (
                                   <>
                                     {item.duplicateSubject && <span className="rounded bg-red-100 px-2 py-1 font-semibold text-red-800">Same subject appears more than once</span>}
                                     {item.sameDayCount > 1 && <span className="rounded bg-amber-100 px-2 py-1 font-semibold text-amber-800">{item.sameDayCount} emails on this day</span>}
@@ -804,10 +813,10 @@ export default function Automations() {
             <p className="mt-1 text-sm leading-6 text-sky-950">{describeSendRule(selected.timing)}</p>
             {previewRow && <p className="mt-2 text-xs font-medium text-sky-800">Example for {rowClient(previewRow)}: {proposedSendDate(previewRow, selected.timing)}</p>}
           </div>
-          <details className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <details className={`rounded-lg border border-slate-200 bg-slate-50 p-3 ${selected.timing.strategy ? "text-slate-400" : ""}`}>
             <summary className="cursor-pointer text-xs font-semibold text-slate-600">Advanced scheduling settings</summary>
-            <div className="mt-3 grid grid-cols-[1fr_120px] gap-3"><label className="text-xs font-medium text-slate-600">Date basis<select className={`${inputClass} mt-1`} value={selected.timing.reference} onChange={(e) => updateRule({ timing: { ...selected.timing, reference: e.target.value } })}><option value="eventDate">Event date</option><option value="fixed">Manual/fixed date</option></select></label><label className="text-xs font-medium text-slate-600">Days offset<input type="number" className={`${inputClass} mt-1`} value={selected.timing.offsetDays} disabled={Boolean(selected.timing.strategy)} onChange={(e) => updateRule({ timing: { ...selected.timing, offsetDays: Number(e.target.value) } })} /></label></div>
-            {selected.timing.strategy && <p className="mt-2 text-[11px] text-slate-500">This automation uses the planned rule above, so its simple offset is managed automatically.</p>}
+            <div className={`mt-3 grid grid-cols-[1fr_120px] gap-3 ${selected.timing.strategy ? "opacity-45" : ""}`}><label className="text-xs font-medium text-slate-600">Date basis<select className={`${inputClass} mt-1 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400`} value={selected.timing.reference} disabled={Boolean(selected.timing.strategy)} onChange={(e) => updateRule({ timing: { ...selected.timing, reference: e.target.value } })}><option value="eventDate">Event date</option><option value="fixed">Manual/fixed date</option></select></label><label className="text-xs font-medium text-slate-600">Days offset<input type="number" className={`${inputClass} mt-1 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400`} value={selected.timing.offsetDays} disabled={Boolean(selected.timing.strategy)} onChange={(e) => updateRule({ timing: { ...selected.timing, offsetDays: Number(e.target.value) } })} /></label></div>
+            {selected.timing.strategy && <p className="mt-2 text-[11px] font-medium text-slate-500">Not in use — the planned send rule above calculates the date automatically.</p>}
           </details>
           <button type="button" onClick={() => updateRule({ status: "reviewed" })} className="w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">Mark conditions reviewed</button>
 
