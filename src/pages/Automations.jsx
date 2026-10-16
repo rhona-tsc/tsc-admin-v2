@@ -857,14 +857,31 @@ export default function Automations() {
       .catch((error) => setLoadError(error.message))
       .finally(() => setLoading(false));
 
-    fetch(`${backendUrl}/api/act/list`, {
-      headers: token ? { Authorization: `Bearer ${token}`, token } : {},
-      credentials: "include",
-    })
-      .then(async (response) => {
-        const payload = await response.json();
-        if (!response.ok || !payload?.success) return;
-        setActProfiles(Array.isArray(payload.acts) ? payload.acts : []);
+    const actHeaders = token ? { Authorization: `Bearer ${token}`, token } : {};
+    const v2ActParams = new URLSearchParams({
+      fields: "_id,name,tscName,countyFees,countyTravelSettings,extras",
+      limit: "500",
+      legacy: "include",
+    });
+    Promise.allSettled([
+      fetch(`${backendUrl}/api/musician/act-v2/list?${v2ActParams}`, {
+        headers: actHeaders,
+        credentials: "include",
+      }),
+      fetch(`${backendUrl}/api/act/list`, {
+        headers: actHeaders,
+        credentials: "include",
+      }),
+    ])
+      .then(async (results) => {
+        const payloads = await Promise.all(results.map(async (result) => {
+          if (result.status !== "fulfilled" || !result.value.ok) return null;
+          return result.value.json().catch(() => null);
+        }));
+        const acts = payloads.flatMap((payload) => (
+          payload?.success && Array.isArray(payload.acts) ? payload.acts : []
+        ));
+        setActProfiles(acts);
       })
       .catch(() => {
         // The booking preview still works without the profile catalogue; only
