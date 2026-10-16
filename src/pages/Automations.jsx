@@ -172,8 +172,10 @@ const proposedSendAt = (row, timing = {}) => {
     if (!dueDate) return null;
     const reminderDate = new Date(dueDate);
     reminderDate.setDate(dueDate.getDate() - 7);
-    const booked = parseDate(row.bookingDateISO || row.enquiryDateISO || row.createdAt);
-    return booked && reminderDate < booked ? booked : reminderDate;
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    if (reminderDate < today && dueDate >= today) return today;
+    return reminderDate;
   }
   if (timing.strategy === "final_details_due") {
     const eventWeekMonday = new Date(event);
@@ -220,7 +222,7 @@ const describeSendRule = (timing = {}) => {
     return "Send one calendar month before the event. If the booking is made less than five weeks before the event, send one week after the booking enters the system. If that would fall on or after the event, send halfway between the booking and event dates.";
   }
   if (timing.strategy === "song_suggestions_advance") {
-    return "Send seven days before the calculated song-suggestions due date. If a short-notice booking arrives after that reminder date, send when the booking enters the system.";
+    return "Send seven days before the calculated song-suggestions due date. If that reminder date has passed but the song-suggestions due date has not, send as soon as possible.";
   }
   if (timing.strategy === "final_details_due") {
     return "Send on the Thursday in the calendar week before the event. If the booking enters the system after that Thursday, send halfway between the booking and event dates.";
@@ -344,6 +346,12 @@ const ruleAlreadySent = (rule, row) => {
 const ruleMatchesRow = (rule, row, { excludePast = true, includeDisabled = false, includeSent = false } = {}) => {
   if (!includeDisabled && rule?.enabled === false) return false;
   if (!includeSent && ruleAlreadySent(rule, row)) return false;
+  if (rule?.timing?.strategy === "song_suggestions_advance") {
+    const dueDate = songRequestDueAt(row);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (!dueDate || dueDate < today) return false;
+  }
   const f = rule?.filters || {};
   if (!parseDate(rowDate(row))) return false;
   if (Array.isArray(f.agents) && f.agents.length && !f.agents.includes(normalizeAgent(row.agent))) return false;
