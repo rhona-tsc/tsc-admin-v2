@@ -330,8 +330,8 @@ const renderTemplate = (template, row) => {
 };
 
 const matchesChoice = (actual, choice) => choice === "any" || boolValue(actual) === choice;
-const ruleMatchesRow = (rule, row, { excludePast = true } = {}) => {
-  if (rule?.enabled === false) return false;
+const ruleMatchesRow = (rule, row, { excludePast = true, includeDisabled = false } = {}) => {
+  if (!includeDisabled && rule?.enabled === false) return false;
   const f = rule?.filters || {};
   if (!parseDate(rowDate(row))) return false;
   if (Array.isArray(f.agents) && f.agents.length && !f.agents.includes(normalizeAgent(row.agent))) return false;
@@ -429,6 +429,7 @@ export default function Automations() {
   const [selectedId, setSelectedId] = useState(rules[0]?.id || "");
   const [query, setQuery] = useState("");
   const [emailAuditQuery, setEmailAuditQuery] = useState("");
+  const [auditOnlyEnabled, setAuditOnlyEnabled] = useState(false);
   const [global, setGlobal] = useState({ agent: "", eventType: "", bookedDj: "any" });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -491,7 +492,7 @@ export default function Automations() {
     const bookings = rows.filter((row) => rowEmails(row).some((email) => email.includes(wanted)));
     const uniqueBookings = [...new Map(bookings.map((row) => [rowRef(row).toLowerCase() || String(row._id), row])).values()];
     const items = uniqueBookings.flatMap((row) => rules
-      .filter((rule) => ruleMatchesRow(rule, row))
+      .filter((rule) => ruleMatchesRow(rule, row, { includeDisabled: true }))
       .map((rule) => ({
         rule,
         row,
@@ -507,7 +508,7 @@ export default function Automations() {
       });
     const exactSubjectCounts = new Map();
     const dayCounts = new Map();
-    items.forEach((item) => {
+    items.filter((item) => item.rule.enabled !== false).forEach((item) => {
       const bookingKey = rowRef(item.row).toLowerCase();
       const subjectKey = `${bookingKey}|${item.subject.toLowerCase().replace(/\s+/g, " ").trim()}`;
       exactSubjectCounts.set(subjectKey, (exactSubjectCounts.get(subjectKey) || 0) + 1);
@@ -530,6 +531,10 @@ export default function Automations() {
       }),
     };
   }, [emailAuditQuery, rows, rules]);
+  const visibleEmailAuditItems = auditOnlyEnabled
+    ? emailAudit.items.filter((item) => item.rule.enabled !== false)
+    : emailAudit.items;
+  const enabledEmailAuditCount = emailAudit.items.filter((item) => item.rule.enabled !== false).length;
 
   const previewRow = matchingRows.find((row) => String(row._id || rowRef(row)) === previewRowId) || matchingRows[0];
   const sendTestPreview = async () => {
@@ -622,32 +627,58 @@ export default function Automations() {
               <>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h2 className="font-semibold text-slate-900">Expected emails: {emailAudit.items.length}</h2>
+                    <h2 className="font-semibold text-slate-900">Expected emails: {enabledEmailAuditCount}</h2>
                     <p className="text-xs text-slate-500">
                       {emailAudit.bookings.map((row) => `${rowClient(row)} · ${rowRef(row)} · ${friendlyDate(rowDate(row))}`).join(" | ")}
                     </p>
+                    <p className="mt-1 text-[11px] text-slate-400">The switches here control each automation for all clients; this list shows whether it applies to this booking.</p>
                   </div>
-                  {emailAudit.items.some((item) => item.duplicateSubject) && (
-                    <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-800">Possible duplicates found</span>
-                  )}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-900">
+                      <input type="checkbox" checked={auditOnlyEnabled} onChange={(event) => setAuditOnlyEnabled(event.target.checked)} />
+                      Show only switched-on emails
+                    </label>
+                    {emailAudit.items.some((item) => item.duplicateSubject) && (
+                      <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-800">Possible duplicates found</span>
+                    )}
+                  </div>
                 </div>
                 {!emailAudit.items.length ? (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">A booking was found, but no future automation currently matches it. This may indicate a missing rule or that all planned messages are already in the past.</div>
+                ) : !visibleEmailAuditItems.length ? (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">All matching emails for this client are switched off. Untick “Show only switched-on emails” to view and re-enable them.</div>
                 ) : (
                   <div className="overflow-x-auto rounded-lg border">
                     <table className="min-w-full text-left text-xs">
-                      <thead className="bg-slate-50 text-slate-600"><tr><th className="px-3 py-2">Planned date</th><th className="px-3 py-2">Automation</th><th className="px-3 py-2">Subject</th><th className="px-3 py-2">Checks</th><th className="px-3 py-2"></th></tr></thead>
+                      <thead className="bg-slate-50 text-slate-600"><tr><th className="px-3 py-2">On/off</th><th className="px-3 py-2">Planned date</th><th className="px-3 py-2">Automation</th><th className="px-3 py-2">Subject</th><th className="px-3 py-2">Checks</th><th className="px-3 py-2"></th></tr></thead>
                       <tbody>
-                        {emailAudit.items.map((item) => (
-                          <tr key={`${rowRef(item.row)}-${item.rule.id}`} className={`border-t align-top ${item.duplicateSubject ? "bg-red-50" : ""}`}>
+                        {visibleEmailAuditItems.map((item) => (
+                          <tr key={`${rowRef(item.row)}-${item.rule.id}`} className={`border-t align-top ${item.rule.enabled === false ? "bg-slate-50 opacity-70" : item.duplicateSubject ? "bg-red-50" : ""}`}>
+                            <td className="px-3 py-3">
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={item.rule.enabled !== false}
+                                aria-label={`${item.rule.enabled !== false ? "Turn off" : "Turn on"} automation ${item.rule.sourceNumber}`}
+                                onClick={() => setRules((current) => current.map((rule) => rule.id === item.rule.id ? { ...rule, enabled: rule.enabled === false } : rule))}
+                                className={`relative h-6 w-11 rounded-full transition ${item.rule.enabled !== false ? "bg-emerald-500" : "bg-slate-300"}`}
+                              >
+                                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${item.rule.enabled !== false ? "left-[22px]" : "left-0.5"}`} />
+                              </button>
+                              <div className={`mt-1 text-[10px] font-semibold uppercase ${item.rule.enabled !== false ? "text-emerald-700" : "text-slate-400"}`}>{item.rule.enabled !== false ? "On" : "Off"}</div>
+                            </td>
                             <td className="whitespace-nowrap px-3 py-3 font-semibold text-slate-900">{item.sendLabel}</td>
                             <td className="px-3 py-3"><div className="font-medium text-slate-900">Automation {item.rule.sourceNumber}</div><div className="text-slate-500">{item.rule.status === "reviewed" ? "Reviewed" : "Needs review"}</div></td>
                             <td className="max-w-xl px-3 py-3 text-slate-700">{item.subject}</td>
                             <td className="px-3 py-3">
                               <div className="flex flex-wrap gap-1">
-                                {item.duplicateSubject && <span className="rounded bg-red-100 px-2 py-1 font-semibold text-red-800">Same subject appears more than once</span>}
-                                {item.sameDayCount > 1 && <span className="rounded bg-amber-100 px-2 py-1 font-semibold text-amber-800">{item.sameDayCount} emails on this day</span>}
-                                {!item.duplicateSubject && item.sameDayCount <= 1 && <span className="rounded bg-emerald-100 px-2 py-1 font-semibold text-emerald-800">No collision detected</span>}
+                                {item.rule.enabled === false ? <span className="rounded bg-slate-200 px-2 py-1 font-semibold text-slate-600">Switched off — will not send</span> : (
+                                  <>
+                                    {item.duplicateSubject && <span className="rounded bg-red-100 px-2 py-1 font-semibold text-red-800">Same subject appears more than once</span>}
+                                    {item.sameDayCount > 1 && <span className="rounded bg-amber-100 px-2 py-1 font-semibold text-amber-800">{item.sameDayCount} emails on this day</span>}
+                                    {!item.duplicateSubject && item.sameDayCount <= 1 && <span className="rounded bg-emerald-100 px-2 py-1 font-semibold text-emerald-800">No collision detected</span>}
+                                  </>
+                                )}
                               </div>
                             </td>
                             <td className="px-3 py-3"><button type="button" onClick={() => { setSelectedId(item.rule.id); setPreviewRowId(String(item.row._id || rowRef(item.row))); setQuery(rowEmail(item.row)); setGlobal({ agent: "", eventType: "", bookedDj: "any" }); }} className="whitespace-nowrap rounded border border-slate-300 bg-white px-2.5 py-1.5 font-semibold text-slate-700 hover:bg-slate-50">Open rule</button></td>
