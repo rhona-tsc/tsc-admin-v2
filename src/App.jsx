@@ -119,6 +119,32 @@ const RequireAuth = ({ children }) => {
   return children;
 };
 
+const RequireOriginalsAccess = ({ children, allowed }) => {
+  const location = useLocation();
+  const token = localStorage.getItem("token") || "";
+
+  // Originals links are commonly opened from email. Keep the requested
+  // project URL through login instead of allowing the catch-all route to
+  // send a logged-out musician to the public Deputy Jobs page.
+  if (!token) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{
+          from: `${location.pathname}${location.search}${location.hash}`,
+        }}
+      />
+    );
+  }
+
+  if (!allowed) {
+    return <Navigate to="/deputy-jobs" replace />;
+  }
+
+  return children;
+};
+
 const PublicOnlyRoute = ({ children }) => {
   const token = localStorage.getItem("token") || "";
 
@@ -468,24 +494,25 @@ const App = () => {
               }
             />
 
+            <Route
+              path="/originals"
+              element={<RequireOriginalsAccess allowed={originalsAvailable && isOriginalsAdmin}><OriginalProjects token={token} /></RequireOriginalsAccess>}
+            />
+            <Route
+              path="/originals/new"
+              element={<RequireOriginalsAccess allowed={originalsAvailable && isOriginalsAdmin}><ListOriginalProject token={token} /></RequireOriginalsAccess>}
+            />
+            <Route
+              path="/originals/mine"
+              element={<RequireOriginalsAccess allowed={originalsAvailable && isOriginalsAdmin}><MyOriginalProjects token={token} /></RequireOriginalsAccess>}
+            />
+            <Route
+              path="/originals/:id"
+              element={<RequireOriginalsAccess allowed={originalsAvailable && isOriginalsAdmin}><OriginalProjectWorkspace token={token} canModerate={isAdminAgent} /></RequireOriginalsAccess>}
+            />
+
             {originalsAvailable && isOriginalsAdmin && (
               <>
-                <Route
-                  path="/originals"
-                  element={<RequireAuth><OriginalProjects token={token} /></RequireAuth>}
-                />
-                <Route
-                  path="/originals/new"
-                  element={<RequireAuth><ListOriginalProject token={token} /></RequireAuth>}
-                />
-                <Route
-                  path="/originals/mine"
-                  element={<RequireAuth><MyOriginalProjects token={token} /></RequireAuth>}
-                />
-                <Route
-                  path="/originals/:id"
-                  element={<RequireAuth><OriginalProjectWorkspace token={token} canModerate={isAdminAgent} /></RequireAuth>}
-                />
                 <Route
                   path="/originals/moderation"
                   element={<RequireAuth><ModerateOriginals token={token} /></RequireAuth>}
