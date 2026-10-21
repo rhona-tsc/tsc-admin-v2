@@ -3948,6 +3948,9 @@ export default function BookingBoard() {
     clientEmail: "",
     actName: "",
     actTscName: "",
+    actId: "",
+    lineupId: "",
+    bandSize: "",
     address: "",
     county: "",
     grossValue: "",
@@ -3962,6 +3965,10 @@ export default function BookingBoard() {
     currency: "GBP",
   });
   const [adding, setAdding] = useState(false);
+  const [manualActSearch, setManualActSearch] = useState("");
+  const [manualActResults, setManualActResults] = useState([]);
+  const [manualActLoading, setManualActLoading] = useState(false);
+  const [selectedManualAct, setSelectedManualAct] = useState(null);
   const [contractFile, setContractFile] = useState(null);
   const [supportingInvoiceFile, setSupportingInvoiceFile] = useState(null);
   const [importingContract, setImportingContract] = useState(false);
@@ -4019,6 +4026,94 @@ export default function BookingBoard() {
       ...(token ? { Authorization: `Bearer ${token}`, token } : {}),
     };
   };
+
+  const manualLineupOptions = useMemo(() => {
+    const lineups = Array.isArray(selectedManualAct?.lineups)
+      ? selectedManualAct.lineups
+      : [];
+    return lineups
+      .map((lineup, index) => {
+        const id = String(
+          lineup?.lineupId || lineup?._id || lineup?.id || lineup?.uuid || "",
+        );
+        const label = String(
+          lineup?.actSize
+          || lineup?.act_size
+          || lineup?.name
+          || lineup?.lineupName
+          || `Lineup ${index + 1}`,
+        );
+        const bandSize =
+          Number(label.match(/\d+/)?.[0])
+          || lineup?.bandMembers?.filter?.((member) => member?.instrument)?.length
+          || 0;
+        return id ? { id, label, bandSize } : null;
+      })
+      .filter(Boolean);
+  }, [selectedManualAct]);
+
+  const selectManualAct = (act) => {
+    const displayName = String(act?.tscName || act?.name || "");
+    setSelectedManualAct(act);
+    setManualActSearch(displayName);
+    setManualActResults([]);
+    setNewRow((current) => ({
+      ...current,
+      actId: String(act?._id || ""),
+      actName: current.actName || act?.name || displayName,
+      actTscName: displayName,
+      lineupId: "",
+      lineupSelected: "",
+      bandSize: "",
+    }));
+  };
+
+  useEffect(() => {
+    if (!adding) return undefined;
+
+    const term = manualActSearch.trim();
+    const selectedName = String(
+      selectedManualAct?.tscName || selectedManualAct?.name || "",
+    );
+    if (
+      term.length < 2
+      || (newRow.actId && selectedName.toLowerCase() === term.toLowerCase())
+    ) {
+      setManualActResults([]);
+      return undefined;
+    }
+
+    const timer = window.setTimeout(async () => {
+      setManualActLoading(true);
+      try {
+        const query = new URLSearchParams({
+          q: term,
+          limit: "25",
+          page: "1",
+          fields: "_id,name,tscName,lineups",
+          _cb: String(Date.now()),
+        });
+        const response = await fetch(`${API_BASE}/act/list?${query.toString()}`, {
+          headers: buildHeaders(),
+          credentials: "include",
+        });
+        const payload = await response.json();
+        const acts =
+          (Array.isArray(payload?.acts) && payload.acts)
+          || (Array.isArray(payload?.items) && payload.items)
+          || (Array.isArray(payload?.data) && payload.data)
+          || [];
+        setManualActResults(acts);
+      } catch (error) {
+        console.error("Manual booking act search failed", error);
+        setManualActResults([]);
+      } finally {
+        setManualActLoading(false);
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timer);
+  }, [adding, manualActSearch, newRow.actId, selectedManualAct]);
 
   const openIntroEmailPreview = async (row) => {
     setIntroEmailLoading(true);
@@ -5271,6 +5366,15 @@ export default function BookingBoard() {
 
   const postManualRow = async () => {
     try {
+      if (!newRow.actId) {
+        window.alert("Please choose the linked TSC act from the act search.");
+        return;
+      }
+      if (!newRow.lineupId) {
+        window.alert("Please choose the booked lineup for this act.");
+        return;
+      }
+
       // --- accounting split for manual rows ---
       const grossValue = Number(newRow.grossValue || 0) || 0;
       const vatRateRaw = Number(newRow.vatRate);
@@ -5379,6 +5483,9 @@ export default function BookingBoard() {
           clientAddress: "",
           actName: "",
           actTscName: "",
+          actId: "",
+          lineupId: "",
+          bandSize: "",
           address: "",
           county: "",
           grossValue: "",
@@ -5395,6 +5502,9 @@ export default function BookingBoard() {
           invoiceUrl: "",
           currency: "GBP",
         });
+        setSelectedManualAct(null);
+        setManualActSearch("");
+        setManualActResults([]);
       }
     } catch (e) {
       console.error("manual add failed", e);
@@ -5426,6 +5536,10 @@ export default function BookingBoard() {
       }
 
       setNewRow((current) => ({ ...current, ...json.draft }));
+      setSelectedManualAct(null);
+      setManualActSearch(
+        String(json.draft?.actTscName || json.draft?.actName || ""),
+      );
       const importedRef = String(json.draft?.bookingRef || "")
         .trim()
         .toLowerCase();
@@ -7097,19 +7211,36 @@ export default function BookingBoard() {
                           <div className="flex flex-wrap gap-4 items-end">
                             <div className="flex flex-col">
                               <label className="text-xs text-gray-600">
-                                Lineup label
+                                Booked lineup
                               </label>
-                              <input
-                                className="border rounded px-2 py-1 w-56"
-                                placeholder="e.g., 4-Piece"
-                                value={newRow.lineupSelected}
-                                onChange={(e) =>
-                                  setNewRow((v) => ({
-                                    ...v,
-                                    lineupSelected: e.target.value,
-                                  }))
-                                }
-                              />
+                              <select
+                                className="border rounded px-2 py-1 w-72 bg-white disabled:bg-gray-100"
+                                value={newRow.lineupId || ""}
+                                disabled={!newRow.actId}
+                                onChange={(event) => {
+                                  const lineupId = event.target.value;
+                                  const lineup = manualLineupOptions.find(
+                                    (option) => option.id === lineupId,
+                                  );
+                                  setNewRow((current) => ({
+                                    ...current,
+                                    lineupId,
+                                    lineupSelected: lineup?.label || "",
+                                    bandSize: lineup?.bandSize || "",
+                                  }));
+                                }}
+                              >
+                                <option value="">
+                                  {newRow.actId
+                                    ? "Choose the booked lineup…"
+                                    : "Choose an act first"}
+                                </option>
+                                {manualLineupOptions.map((option) => (
+                                  <option key={option.id} value={option.id}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                             <div className="flex flex-col">
                               <label className="text-xs text-gray-600">
@@ -7147,30 +7278,86 @@ export default function BookingBoard() {
                             </div>
                           </div>
 
-                          {/* Row 4: act names */}
-                          <div className="flex flex-wrap gap-2 items-end">
-                            <input
-                              className="border rounded px-2 py-1 w-48"
-                              placeholder="Act"
-                              value={newRow.actName}
-                              onChange={(e) =>
-                                setNewRow((v) => ({
-                                  ...v,
-                                  actName: e.target.value,
-                                }))
-                              }
-                            />
-                            <input
-                              className="border rounded px-2 py-1 w-48"
-                              placeholder="Act tscName"
-                              value={newRow.actTscName}
-                              onChange={(e) =>
-                                setNewRow((v) => ({
-                                  ...v,
-                                  actTscName: e.target.value,
-                                }))
-                              }
-                            />
+                          {/* Row 4: linked act */}
+                          <div className="flex flex-wrap gap-3 items-start">
+                            <div className="relative flex w-full max-w-md flex-col">
+                              <label className="text-xs text-gray-600">
+                                Linked TSC act
+                              </label>
+                              <input
+                                className="border rounded px-2 py-1 w-full"
+                                placeholder="Search and choose an act…"
+                                value={manualActSearch}
+                                onChange={(event) => {
+                                  const value = event.target.value;
+                                  setManualActSearch(value);
+                                  const selectedName = String(
+                                    selectedManualAct?.tscName
+                                    || selectedManualAct?.name
+                                    || "",
+                                  );
+                                  if (value.trim() !== selectedName) {
+                                    setSelectedManualAct(null);
+                                    setNewRow((current) => ({
+                                      ...current,
+                                      actId: "",
+                                      actTscName: "",
+                                      lineupId: "",
+                                      lineupSelected: "",
+                                      bandSize: "",
+                                    }));
+                                  }
+                                }}
+                              />
+                              {manualActLoading ? (
+                                <span className="mt-1 text-xs text-gray-500">
+                                  Searching…
+                                </span>
+                              ) : null}
+                              {!manualActLoading && manualActResults.length > 0 ? (
+                                <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-60 overflow-auto rounded border bg-white shadow-lg">
+                                  {manualActResults.map((act) => (
+                                    <button
+                                      key={act._id}
+                                      type="button"
+                                      className="block w-full border-b px-3 py-2 text-left last:border-b-0 hover:bg-gray-50"
+                                      onClick={() => selectManualAct(act)}
+                                    >
+                                      <span className="block text-sm font-medium">
+                                        {act.tscName || act.name || "Unnamed act"}
+                                      </span>
+                                      {act.name && act.name !== act.tscName ? (
+                                        <span className="block text-xs text-gray-500">
+                                          Profile name: {act.name}
+                                        </span>
+                                      ) : null}
+                                    </button>
+                                  ))}
+                                </div>
+                              ) : null}
+                              {newRow.actId ? (
+                                <span className="mt-1 text-xs text-emerald-700">
+                                  Linked to {newRow.actTscName}
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <div className="flex flex-col">
+                              <label className="text-xs text-gray-600">
+                                Contract / agent act name
+                              </label>
+                              <input
+                                className="border rounded px-2 py-1 w-64"
+                                placeholder="Optional external name"
+                                value={newRow.actName}
+                                onChange={(event) =>
+                                  setNewRow((current) => ({
+                                    ...current,
+                                    actName: event.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
                           </div>
 
                           {/* Row 5: address */}
