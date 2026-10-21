@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { backendUrl } from "../App";
 
 const normalize = (s) => (s || "").toLowerCase().trim();
-const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
 
 const getRoleFromStorage = () => {
   return (
@@ -61,7 +60,7 @@ const quickReplyConfig = [
   },
 ];
 
-const Messages = ({ userRole, userId, firstName }) => {
+const Messages = ({ userRole, firstName }) => {
   const [threads, setThreads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeThreadId, setActiveThreadId] = useState(null);
@@ -71,20 +70,18 @@ const [filter, setFilter] = useState("all");
 const [debugError, setDebugError] = useState("");
 const [messageSearch, setMessageSearch] = useState("");
 const [replyingMessageId, setReplyingMessageId] = useState("");
-
-  const musicianId = useMemo(() => {
-    const fromProps = userId;
-    const fromLS =
-      localStorage.getItem("musicianId") || localStorage.getItem("userId");
-    if (isObjectId(fromProps)) return fromProps;
-    if (isObjectId(fromLS)) return fromLS;
-    return null;
-  }, [userId]);
+const [replyBody, setReplyBody] = useState("");
+const [recipients, setRecipients] = useState([]);
+const [showNewMessage, setShowNewMessage] = useState(false);
+const [newRecipientId, setNewRecipientId] = useState("");
+const [newMessageBody, setNewMessageBody] = useState("");
+const [recipientSearch, setRecipientSearch] = useState("");
+const [sendError, setSendError] = useState("");
 
   const resolvedUserRole = normalize(userRole || getRoleFromStorage());
   const isAgent = resolvedUserRole === "agent" || resolvedUserRole === "admin";
 
-  const fetchThreads = async () => {
+  const fetchThreads = useCallback(async () => {
     try {
       setLoading(true);
       setDebugError("");
@@ -94,24 +91,15 @@ const [replyingMessageId, setReplyingMessageId] = useState("");
         ? `${backendUrl}/api/messages`
         : `${backendUrl}/api/messages/mine`;
 
-      console.log("[Messages] backendUrl:", backendUrl);
-      console.log("[Messages] userRole prop:", userRole);
-      console.log("[Messages] resolvedUserRole:", resolvedUserRole);
-      console.log("[Messages] isAgent:", isAgent);
-      console.log("[Messages] fetching url:", url);
-
       const res = await axios.get(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         withCredentials: true,
       });
 
       const items = Array.isArray(res.data?.threads) ? res.data.threads : [];
-      console.log("[Messages] fetched thread count:", items.length, items);
       setThreads(items);
 
-      if (!activeThreadId && items.length > 0) {
-        setActiveThreadId(items[0]._id);
-      }
+      setActiveThreadId((current) => current || items[0]?._id || null);
     } catch (err) {
       console.error("Failed to fetch messages:", err);
       setDebugError(
@@ -123,11 +111,28 @@ const [replyingMessageId, setReplyingMessageId] = useState("");
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAgent]);
 
   useEffect(() => {
     fetchThreads();
-  }, [userRole, userId]);
+  }, [fetchThreads]);
+
+  useEffect(() => {
+    if (!isAgent) return;
+    const fetchRecipients = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await axios.get(`${backendUrl}/api/messages/recipients`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          withCredentials: true,
+        });
+        setRecipients(Array.isArray(res.data?.recipients) ? res.data.recipients : []);
+      } catch (error) {
+        console.error("Failed to load message recipients:", error);
+      }
+    };
+    fetchRecipients();
+  }, [isAgent]);
 
   const filteredThreads = useMemo(() => {
     const q = normalize(search);
@@ -154,7 +159,6 @@ const [replyingMessageId, setReplyingMessageId] = useState("");
     });
   }, [threads, search, filter]);
 
-  console.log("[Messages] filteredThreads:", filteredThreads);
   const activeThread =
     filteredThreads.find((t) => t._id === activeThreadId) ||
     filteredThreads[0] ||
@@ -165,6 +169,31 @@ const [replyingMessageId, setReplyingMessageId] = useState("");
       setActiveThreadId(filteredThreads[0]._id);
     }
   }, [filteredThreads, activeThreadId]);
+
+  useEffect(() => {
+    if (!activeThread?._id || Number(activeThread.unreadReplies || 0) === 0) return;
+    const markRead = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        await axios.post(
+          `${backendUrl}/api/messages/${encodeURIComponent(activeThread._id)}/mark-read`,
+          {},
+          {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            withCredentials: true,
+          }
+        );
+        setThreads((current) =>
+          current.map((thread) =>
+            thread._id === activeThread._id ? { ...thread, unreadReplies: 0 } : thread
+          )
+        );
+      } catch (error) {
+        console.error("Failed to mark message thread as read:", error);
+      }
+    };
+    markRead();
+  }, [activeThread?._id, activeThread?.unreadReplies]);
 
 const handleQuickReply = async (message, replyKey) => {
   if (!message?.rowId || !replyKey) return;
@@ -221,6 +250,64 @@ const visibleMessages = (activeThread?.messages || []).filter((message) => {
   return haystack.includes(q);
 });
 
+const handleThreadReply = async (event) => {
+  event.preventDefault();
+  if (!activeThread?._id || !replyBody.trim()) return;
+  try {
+    setSendingReply(true);
+    setSendError("");
+    const token = localStorage.getItem("token");
+    await axios.post(
+      `${backendUrl}/api/messages/${encodeURIComponent(activeThread._id)}/reply`,
+      { body: replyBody.trim(), senderName: firstName || (isAgent ? "The Supreme Collective" : "Musician") },
+      {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        withCredentials: true,
+      }
+    );
+    setReplyBody("");
+    await fetchThreads();
+  } catch (error) {
+    setSendError(error?.response?.data?.message || "The message could not be sent.");
+  } finally {
+    setSendingReply(false);
+  }
+};
+
+const handleStartConversation = async (event) => {
+  event.preventDefault();
+  if (!newRecipientId || !newMessageBody.trim()) return;
+  try {
+    setSendingReply(true);
+    setSendError("");
+    const token = localStorage.getItem("token");
+    await axios.post(
+      `${backendUrl}/api/messages/start`,
+      { musicianId: newRecipientId, body: newMessageBody.trim() },
+      {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        withCredentials: true,
+      }
+    );
+    setShowNewMessage(false);
+    setNewMessageBody("");
+    setRecipientSearch("");
+    const startedThreadId = `person__${newRecipientId}`;
+    setNewRecipientId("");
+    await fetchThreads();
+    setActiveThreadId(startedThreadId);
+  } catch (error) {
+    setSendError(error?.response?.data?.message || "The conversation could not be started.");
+  } finally {
+    setSendingReply(false);
+  }
+};
+
+const filteredRecipients = recipients.filter((recipient) => {
+  const q = normalize(recipientSearch);
+  return !q || normalize(`${recipient.name} ${recipient.email}`).includes(q);
+});
+
 
   return (
     <div className="w-full p-6">
@@ -232,12 +319,22 @@ const visibleMessages = (activeThread?.messages || []).filter((message) => {
               ? "Monitor outbound messages and incoming replies across all vocalists."
               : "View and reply to messages sent to you."}
           </p>
-          <p className="text-xs text-gray-400 mt-1">
-            Role: {resolvedUserRole || "unknown"} • API: {backendUrl}
-          </p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row">
+          {isAgent && (
+            <button
+              type="button"
+              onClick={() => {
+                setSendError("");
+                setNewRecipientId((current) => current || recipients[0]?._id || "");
+                setShowNewMessage(true);
+              }}
+              className="rounded-lg bg-black px-4 py-2 font-medium text-white hover:bg-gray-800"
+            >
+              New message
+            </button>
+          )}
           <input
             type="text"
             placeholder="Search by musician, act, or message…"
@@ -462,17 +559,107 @@ const visibleMessages = (activeThread?.messages || []).filter((message) => {
                 })}
               </div>
 
-           <div className="border-t border-gray-200 p-4 bg-white">
-  <p className="text-xs text-gray-500">
-    {!isAgent
-      ? "Use the quick reply buttons on each enquiry message so replies stay linked to the correct request."
-      : "Admin view shows the full history for this person. Quick reply buttons are available for musicians on each enquiry message."}
-  </p>
-</div>
+           <form onSubmit={handleThreadReply} className="border-t border-gray-200 p-4 bg-white">
+             <div className="flex gap-3">
+               <textarea
+                 value={replyBody}
+                 onChange={(event) => setReplyBody(event.target.value)}
+                 placeholder={isAgent ? "Write a message to this musician…" : "Write your reply…"}
+                 rows={2}
+                 className="min-h-[72px] flex-1 resize-y rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-black"
+               />
+               <button
+                 type="submit"
+                 disabled={sendingReply || !replyBody.trim()}
+                 className="self-end rounded-lg bg-black px-5 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+               >
+                 {sendingReply ? "Sending…" : "Send"}
+               </button>
+             </div>
+             {sendError && <p className="mt-2 text-sm text-red-600">{sendError}</p>}
+             <p className="mt-2 text-xs text-gray-500">
+               Replies stay in this person’s thread in the Messages tab.
+             </p>
+           </form>
             </>
           )}
         </div>
       </div>
+
+      {showNewMessage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <form
+            onSubmit={handleStartConversation}
+            className="w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">New message</h2>
+                <p className="mt-1 text-sm text-gray-500">Choose a musician and start a private portal conversation.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowNewMessage(false)}
+                className="rounded-full px-3 py-1 text-2xl text-gray-500 hover:bg-gray-100"
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <label className="mt-5 block text-sm font-medium">Musician</label>
+            <input
+              value={recipientSearch}
+              onChange={(event) => setRecipientSearch(event.target.value)}
+              placeholder="Search by name or email…"
+              className="mt-2 w-full rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-black"
+            />
+            <select
+              value={newRecipientId}
+              onChange={(event) => setNewRecipientId(event.target.value)}
+              size={Math.min(Math.max(filteredRecipients.length, 3), 7)}
+              className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-black"
+            >
+              {!filteredRecipients.length && <option value="">No matching musicians</option>}
+              {filteredRecipients.map((recipient) => (
+                <option key={recipient._id} value={recipient._id}>
+                  {recipient.name}{recipient.email ? ` — ${recipient.email}` : ""}
+                </option>
+              ))}
+            </select>
+
+            <label className="mt-5 block text-sm font-medium">Message</label>
+            <textarea
+              value={newMessageBody}
+              onChange={(event) => setNewMessageBody(event.target.value)}
+              rows={6}
+              placeholder="Write your message…"
+              className="mt-2 w-full resize-y rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+            />
+            <p className="mt-2 text-xs text-gray-500">
+              The musician will receive an email notification and can reply from their Messages tab.
+            </p>
+            {sendError && <p className="mt-2 text-sm text-red-600">{sendError}</p>}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowNewMessage(false)}
+                className="rounded-lg border border-gray-300 px-4 py-2"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={sendingReply || !newRecipientId || !newMessageBody.trim()}
+                className="rounded-lg bg-black px-5 py-2 font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {sendingReply ? "Sending…" : "Send message"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 };
