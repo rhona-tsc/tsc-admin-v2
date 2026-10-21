@@ -66,8 +66,11 @@ if (!import.meta.env.VITE_BACKEND_URL) {
 }
 
 export const currency = "£";
+const originalsFlag = import.meta.env.VITE_ORIGINALS_ENABLED;
 const originalsEnabled =
-  String(import.meta.env.VITE_ORIGINALS_ENABLED || "").toLowerCase() === "true";
+  originalsFlag === undefined || String(originalsFlag).trim() === ""
+    ? true
+    : String(originalsFlag).toLowerCase() === "true";
 
 function parseToken(t) {
   if (!t) return {};

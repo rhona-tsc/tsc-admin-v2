@@ -1,8 +1,11 @@
 import axios from "axios";
 import { backendUrl } from "../App";
 
+const originalsFlag = import.meta.env.VITE_ORIGINALS_ENABLED;
 export const originalsEnabled =
-  String(import.meta.env.VITE_ORIGINALS_ENABLED || "").toLowerCase() === "true";
+  originalsFlag === undefined || String(originalsFlag).trim() === ""
+    ? true
+    : String(originalsFlag).toLowerCase() === "true";
 
 export const originalsRequest = (token, config) =>
   axios({

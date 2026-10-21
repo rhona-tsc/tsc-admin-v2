@@ -7,8 +7,11 @@ import GatekeeperModal from "./GatekeeperModal";
 
 const normalize = (s) => (s || "").toLowerCase().trim();
 const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
+const originalsFlag = import.meta.env.VITE_ORIGINALS_ENABLED;
 const originalsEnabled =
-  String(import.meta.env.VITE_ORIGINALS_ENABLED || "").toLowerCase() === "true";
+  originalsFlag === undefined || String(originalsFlag).trim() === ""
+    ? true
+    : String(originalsFlag).toLowerCase() === "true";
 
 const Sidebar = ({ userRole, firstName, userId, email, collapsed = false, onToggle }) => {
   const navigate = useNavigate();
