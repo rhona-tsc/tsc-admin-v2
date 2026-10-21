@@ -78,6 +78,9 @@ const [newRecipientId, setNewRecipientId] = useState("");
 const [newMessageBody, setNewMessageBody] = useState("");
 const [recipientSearch, setRecipientSearch] = useState("");
 const [sendError, setSendError] = useState("");
+const [twilioHistoryByThread, setTwilioHistoryByThread] = useState({});
+const [twilioHistoryLoading, setTwilioHistoryLoading] = useState(false);
+const [twilioHistoryError, setTwilioHistoryError] = useState("");
 
   const resolvedUserRole = normalize(userRole || getRoleFromStorage());
   const isAgent = resolvedUserRole === "agent" || resolvedUserRole === "admin";
@@ -222,6 +225,51 @@ const [sendError, setSendError] = useState("");
     markRead();
   }, [activeThread?._id, activeThread?.unreadReplies]);
 
+  useEffect(() => {
+    if (!isAgent || !activeThread?._id) return;
+    if (Object.prototype.hasOwnProperty.call(twilioHistoryByThread, activeThread._id)) {
+      setTwilioHistoryLoading(false);
+      setTwilioHistoryError("");
+      return;
+    }
+
+    let cancelled = false;
+    const fetchTwilioHistory = async () => {
+      try {
+        setTwilioHistoryLoading(true);
+        setTwilioHistoryError("");
+        const token = localStorage.getItem("token");
+        const res = await axios.get(
+          `${backendUrl}/api/messages/${encodeURIComponent(activeThread._id)}/twilio-history`,
+          {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            withCredentials: true,
+          }
+        );
+        if (!cancelled) {
+          setTwilioHistoryByThread((current) => ({
+            ...current,
+            [activeThread._id]: Array.isArray(res.data?.messages) ? res.data.messages : [],
+          }));
+        }
+      } catch (error) {
+        console.error("Failed to load Twilio history:", error);
+        if (!cancelled) {
+          setTwilioHistoryError(
+            error?.response?.data?.message || "Twilio history could not be loaded."
+          );
+        }
+      } finally {
+        if (!cancelled) setTwilioHistoryLoading(false);
+      }
+    };
+
+    fetchTwilioHistory();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAgent, activeThread?._id, twilioHistoryByThread]);
+
 const handleQuickReply = async (message, replyKey) => {
   if (!message?.rowId || !replyKey) return;
 
@@ -259,7 +307,29 @@ const handleQuickReply = async (message, replyKey) => {
   }
 };
 
-const visibleMessages = (activeThread?.messages || []).filter((message) => {
+const combinedMessages = useMemo(() => {
+  const localMessages = activeThread?.messages || [];
+  const twilioMessages = twilioHistoryByThread[activeThread?._id] || [];
+  const seenSids = new Set(localMessages.map((message) => message.sid).filter(Boolean));
+  const merged = [...localMessages];
+
+  for (const message of twilioMessages) {
+    if (message.sid && seenSids.has(message.sid)) continue;
+    merged.push({
+      ...message,
+      senderName:
+        message.senderRole === "musician"
+          ? activeThread?.recipientName || message.senderName
+          : message.senderName,
+    });
+  }
+
+  return merged.sort(
+    (a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+  );
+}, [activeThread, twilioHistoryByThread]);
+
+const visibleMessages = combinedMessages.filter((message) => {
   const q = normalize(messageSearch);
   if (!q) return true;
 
@@ -533,6 +603,12 @@ const filteredRecipients = recipients.filter((recipient) => {
 </div>
 
 <div className="max-h-[52vh] overflow-y-auto px-5 py-5 space-y-4 bg-gray-50">
+  {twilioHistoryLoading && (
+    <p className="text-center text-xs text-gray-500">Loading Twilio message history…</p>
+  )}
+  {twilioHistoryError && (
+    <p className="text-center text-xs text-amber-700">{twilioHistoryError}</p>
+  )}
   {visibleMessages.map((message) => {
                   const mine =
                     (isAgent && message.senderRole === "agent") ||
