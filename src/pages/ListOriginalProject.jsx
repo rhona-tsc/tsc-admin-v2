@@ -6,6 +6,10 @@ import { originalsRequest } from "../utils/originalsApi";
 
 const emptyRole = () => ({ name: "", foundationEligible: false });
 
+const ROLE_COLORS = ["#2563eb", "#7c3aed", "#db2777", "#ea580c", "#16a34a", "#0891b2", "#4f46e5", "#be123c"];
+
+const formatPercent = (value) => Number(value.toFixed(2)).toString();
+
 const ListOriginalProject = ({ token }) => {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
@@ -33,6 +37,8 @@ const ListOriginalProject = ({ token }) => {
     () => form.requestedRoles.filter((role) => role.name.trim()),
     [form.requestedRoles],
   );
+
+  const projectedRolePercent = validRoles.length ? 40 / validRoles.length : 0;
 
   const setField = (name, value) => setForm((current) => ({ ...current, [name]: value }));
   const setRole = (index, changes) =>
@@ -123,7 +129,9 @@ const ListOriginalProject = ({ token }) => {
             <h2 className="font-semibold text-gray-900">Requested instruments and roles</h2>
             <button type="button" onClick={() => setField("requestedRoles", [...form.requestedRoles, emptyRole()])} className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50">+ Add role</button>
           </div>
-          <p className="mt-1 text-xs text-gray-500">Their order is the preferred sequential round order.</p>
+          <p className="mt-1 text-xs text-gray-500">
+            Their order is the preferred sequential round order. Mixing and mastering are already included as separate final stages below.
+          </p>
           <div className="mt-3 space-y-2">
             {form.requestedRoles.map((role, index) => (
               <div key={index} className="flex flex-col gap-2 rounded border p-3 sm:flex-row sm:items-center">
@@ -141,6 +149,54 @@ const ListOriginalProject = ({ token }) => {
               </div>
             ))}
           </div>
+
+          <section aria-live="polite" className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+            <div className="border-b border-slate-200 bg-white px-4 py-3">
+              <h3 className="font-semibold text-gray-900">Projected master royalty split</h3>
+              <p className="mt-1 text-xs text-gray-500">
+                This preview updates as roles are added. The final split is calculated from accepted contributions, the selected mix and the selected master.
+              </p>
+            </div>
+
+            <div className="p-4">
+              <div className="flex h-12 w-full overflow-hidden rounded-lg bg-gray-200 text-[10px] font-bold text-white sm:text-xs" aria-label="Projected master royalty split chart">
+                <div className="flex items-center justify-center bg-slate-800 text-center" style={{ width: "20%" }}>TSC<br />20%</div>
+                <div className="flex items-center justify-center bg-[#ff6667] text-center" style={{ width: "20%" }}>Owner<br />20%</div>
+                <div className="flex overflow-hidden" style={{ width: "40%" }}>
+                  {validRoles.length ? validRoles.map((role, index) => (
+                    <div
+                      key={`${role.name}-${index}`}
+                      className="flex min-w-0 items-center justify-center border-l border-white/40 px-1 text-center"
+                      style={{ width: `${100 / validRoles.length}%`, backgroundColor: ROLE_COLORS[index % ROLE_COLORS.length] }}
+                      title={`${role.name}: ${formatPercent(projectedRolePercent)}%`}
+                    >
+                      <span className="truncate">{formatPercent(projectedRolePercent)}%</span>
+                    </div>
+                  )) : <div className="flex w-full items-center justify-center bg-gray-400 text-center">Roles<br />40%</div>}
+                </div>
+                <div className="flex items-center justify-center bg-teal-600 text-center" style={{ width: "10%" }}>Mix<br />10%</div>
+                <div className="flex items-center justify-center bg-amber-600 text-center" style={{ width: "10%" }}>Master<br />10%</div>
+              </div>
+
+              <div className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+                <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2"><span>TSC</span><b>20%</b></div>
+                <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2"><span>Project owner</span><b>20%</b></div>
+                {validRoles.map((role, index) => (
+                  <div key={`${role.name}-share-${index}`} className="flex items-center justify-between rounded-lg bg-white px-3 py-2">
+                    <span className="flex min-w-0 items-center gap-2"><span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: ROLE_COLORS[index % ROLE_COLORS.length] }} /><span className="truncate">{role.name}</span></span>
+                    <b>{formatPercent(projectedRolePercent)}%</b>
+                  </div>
+                ))}
+                {!validRoles.length ? <div className="rounded-lg border border-dashed bg-white px-3 py-2 text-gray-500 sm:col-span-2">Add a role to see how the 40% contributor pool will be divided.</div> : null}
+                <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2"><span>Mixing Engineer</span><b>10%</b></div>
+                <div className="flex items-center justify-between rounded-lg bg-white px-3 py-2"><span>Mastering Engineer</span><b>10%</b></div>
+              </div>
+
+              <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-900">
+                Songwriting royalties are separate. They are confirmed later from the accepted creative contributions and each contributor’s songwriting claim.
+              </div>
+            </div>
+          </section>
         </section>
 
         <label className="block text-sm font-medium text-gray-700">Starting material
