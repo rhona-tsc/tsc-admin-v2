@@ -7,7 +7,7 @@ import { originalsRequest } from "../utils/originalsApi";
 
 const dateTime = (value) => value ? new Date(value).toLocaleString("en-GB") : "—";
 
-const OriginalProjectWorkspace = ({ token }) => {
+const OriginalProjectWorkspace = ({ token, canModerate = false }) => {
   const { id } = useParams();
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -107,6 +107,22 @@ const OriginalProjectWorkspace = ({ token }) => {
     const replacement = replacements[item._id] || {};
     return act({ method: "post", url: `/submissions/${item._id}/replace`, data: { takes: [{ label: "Updated take", stemAssetId: replacement.stemAssetId, mixdownAssetId: replacement.mixdownAssetId }], notes: replacement.notes || "" } }, "Submission replaced with a new revision");
   };
+  const resendLaunchNotifications = async () => {
+    try {
+      setBusy(true);
+      const response = await originalsRequest(token, { method: "post", url: `/projects/${id}/notify-launch` });
+      const notification = response.data.notification;
+      if (notification?.failed) {
+        toast.warning(`${notification.sent || 0} notification emails sent; ${notification.failed} failed.`);
+      } else {
+        toast.success(`${notification?.sent || 0} notification emails sent`);
+      }
+    } catch (requestError) {
+      toast.error(requestError?.response?.data?.message || "Could not send launch notifications");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   if (error) return <div className="p-8 text-red-700">{error}</div>;
   if (!data) return <div className="p-8">Loading workspace…</div>;
@@ -114,7 +130,7 @@ const OriginalProjectWorkspace = ({ token }) => {
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <Title text1="ORIGINALS" text2="WORKSPACE" />
-      <div className="mt-4 rounded-xl border bg-white p-5"><h1 className="text-xl font-semibold">{data.project.title}</h1><p className="mt-2 text-sm text-gray-600">{data.project.description}</p><p className="mt-3 text-xs uppercase text-gray-500">{String(data.project.state).replaceAll("_", " ")}</p></div>
+      <div className="mt-4 rounded-xl border bg-white p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-xl font-semibold">{data.project.title}</h1><p className="mt-2 text-sm text-gray-600">{data.project.description}</p><p className="mt-3 text-xs uppercase text-gray-500">{String(data.project.state).replaceAll("_", " ")}</p></div>{canModerate && data.project.moderation?.status === "approved" ? <button disabled={busy} onClick={resendLaunchNotifications} className="rounded border px-4 py-2 text-sm font-semibold disabled:opacity-40">Email preview group</button> : null}</div></div>
 
       {currentRound ? <section className="mt-6 rounded-xl border bg-white p-5">
         <h2 className="font-semibold">Current {currentRound.type} round</h2>

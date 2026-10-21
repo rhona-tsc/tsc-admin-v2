@@ -484,7 +484,7 @@ const App = () => {
                 />
                 <Route
                   path="/originals/:id"
-                  element={<RequireAuth><OriginalProjectWorkspace token={token} /></RequireAuth>}
+                  element={<RequireAuth><OriginalProjectWorkspace token={token} canModerate={isAdminAgent} /></RequireAuth>}
                 />
                 <Route
                   path="/originals/moderation"

@@ -24,8 +24,17 @@ const ModerateOriginals = ({ token }) => {
       if (!reason.trim()) return;
     }
     try {
-      await originalsRequest(token, { method: "post", url: `/projects/${project._id}/moderate`, data: { decision, reason } });
-      toast.success(decision === "approve" ? "Originals project approved" : "Decision sent to owner");
+      const response = await originalsRequest(token, { method: "post", url: `/projects/${project._id}/moderate`, data: { decision, reason } });
+      if (decision === "approve") {
+        const notification = response.data.notification;
+        if (notification?.failed) {
+          toast.warning(`Project approved. ${notification.sent || 0} notification emails sent; ${notification.failed} failed.`);
+        } else {
+          toast.success(`Project approved and ${notification?.sent || 0} notification emails sent`);
+        }
+      } else {
+        toast.success("Decision sent to owner");
+      }
       load();
     } catch (error) {
       toast.error(error?.response?.data?.message || "Could not moderate project");
