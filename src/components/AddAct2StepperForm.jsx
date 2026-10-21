@@ -3,6 +3,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { backendUrl } from "../App";
 import StepOne from "./steps/StepOne";
+import { sanitizeActMedia } from '../utils/sanitizeActMedia.js';
 import StepTwo from "./steps/StepTwo";
 import StepThree from "./steps/StepThree";
 import StepFour from "./steps/StepFour";
@@ -221,19 +222,7 @@ const normalizeCountyTravelSettings = (settings = {}, fallbackCountyFees = {}) =
   return next;
 };
 
-  const sanitizeMediaArray = (media) => {
-    return (media || [])
-      .map((item) => {
-        if (typeof item === "string") return { title: "", url: item };
-        if (typeof item === "object" && item.url)
-          return {
-            title: item.title || "",
-            url: item.url,
-          };
-        return null;
-      })
-      .filter(Boolean);
-  };
+  const sanitizeMediaArray = sanitizeActMedia;
 
   const sanitizeLineups = (lineups) => {
     return lineups.map(lineup => {

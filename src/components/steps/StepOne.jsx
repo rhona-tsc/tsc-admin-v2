@@ -11,6 +11,7 @@ import TscVideos from '../TscVideos';
 import TscActDescription from '../TscActDescription'; // ← make sure this exists
 import CoverImageUpload from '../CoverImageUpload';
 import ProfileImageUpload from '../ProfileImageUpload'; // ← make sure this exists
+import LocationCardCrop from '../LocationCardCrop';
 
 const StepOne = ({
   name,
@@ -88,6 +89,7 @@ userRole,
         highlight={isChanged('images')}
       />
 
+      <LocationCardCrop images={images} setImages={value => { setImages(value); markChanged('images'); }} />
        <div className="flex flex-1 gap-6">  {/* Images */}
            <ProfileImageUpload
         profileImage={profileImage}
