@@ -33,6 +33,7 @@ const Sidebar = ({ userRole, firstName, userId, email, collapsed = false, onTogg
   const isOriginalsAdmin =
     userId === "693ac400ef2c3100595c0ed8" ||
     normalize(email) === "hello@thesupremecollective.co.uk";
+  const originalsAvailable = originalsEnabled || isOriginalsAdmin;
 
 // 🔔 Tech issue modal
 const [showTechModal, setShowTechModal] = useState(false);
@@ -279,7 +280,7 @@ useEffect(() => {
           <p className="hidden md:block text-white">Security</p>
         </NavLink>
 
-        {originalsEnabled && isOriginalsAdmin ? (
+        {originalsAvailable && isOriginalsAdmin ? (
           <>
             <NavLink className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l" to="/originals/new">
               <span className="grid h-5 w-5 place-items-center rounded bg-white text-xs font-bold text-black">O+</span>
@@ -423,7 +424,7 @@ useEffect(() => {
               )}
             </NavLink>
 
-            {originalsEnabled && isOriginalsAdmin ? (
+            {originalsAvailable && isOriginalsAdmin ? (
               <>
               <NavLink
                 className="relative flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l"

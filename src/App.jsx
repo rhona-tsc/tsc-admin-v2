@@ -149,6 +149,7 @@ const App = () => {
   const isOriginalsAdmin =
     userId === "693ac400ef2c3100595c0ed8" ||
     email.toLowerCase() === "hello@thesupremecollective.co.uk";
+  const originalsAvailable = originalsEnabled || isOriginalsAdmin;
 
   const isLoggedIn = Boolean(token) && hydrated;
 
@@ -468,7 +469,7 @@ const App = () => {
               }
             />
 
-            {originalsEnabled && isOriginalsAdmin && (
+            {originalsAvailable && isOriginalsAdmin && (
               <>
                 <Route
                   path="/originals"
