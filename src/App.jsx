@@ -57,6 +57,7 @@ import RegularDeputies from "./pages/RegularDeputies";
 import RegularDeputyDetails from "./pages/RegularDeputyDetails";
 import MyDeputyApplications from "./pages/MyDeputyApplications";
 import VenueBlackBook from "./pages/VenueBlackBook";
+import { canAccessOriginalsPreview } from "./utils/originalsAccess";
 
 export const backendUrl =
   import.meta.env.VITE_BACKEND_URL || "https://tsc-backend-v2.onrender.com";
@@ -146,9 +147,7 @@ const App = () => {
 
   const isAdminAgent =
     userRole === "agent" || email === "hello@thesupremecollective.co.uk";
-  const isOriginalsAdmin =
-    userId === "693ac400ef2c3100595c0ed8" ||
-    email.toLowerCase() === "hello@thesupremecollective.co.uk";
+  const isOriginalsAdmin = canAccessOriginalsPreview({ userId, email });
   const originalsAvailable = originalsEnabled || isOriginalsAdmin;
 
   const isLoggedIn = Boolean(token) && hydrated;

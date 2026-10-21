@@ -4,6 +4,7 @@ import axios from "axios";
 import { assets } from "../assets/assets";
 import { backendUrl } from "../App";
 import GatekeeperModal from "./GatekeeperModal";
+import { canAccessOriginalsPreview } from "../utils/originalsAccess";
 
 const normalize = (s) => (s || "").toLowerCase().trim();
 const isObjectId = (s) => /^[0-9a-fA-F]{24}$/.test(s || "");
@@ -30,9 +31,7 @@ const Sidebar = ({ userRole, firstName, userId, email, collapsed = false, onTogg
   const [pendingSongCount, setPendingSongCount] = useState(0);
   const [pendingActCount, setPendingActCount] = useState(0);
   const [actPreSubmissions, setActPreSubmissions] = useState(0);
-  const isOriginalsAdmin =
-    userId === "693ac400ef2c3100595c0ed8" ||
-    normalize(email) === "hello@thesupremecollective.co.uk";
+  const isOriginalsAdmin = canAccessOriginalsPreview({ userId, email });
   const originalsAvailable = originalsEnabled || isOriginalsAdmin;
 
 // 🔔 Tech issue modal
