@@ -67,6 +67,7 @@ const Messages = ({ userRole, firstName }) => {
  const [sendingReply, setSendingReply] = useState(false);
 const [search, setSearch] = useState("");
 const [filter, setFilter] = useState("all");
+const [sortOrder, setSortOrder] = useState("recent");
 const [debugError, setDebugError] = useState("");
 const [messageSearch, setMessageSearch] = useState("");
 const [replyingMessageId, setReplyingMessageId] = useState("");
@@ -137,7 +138,7 @@ const [sendError, setSendError] = useState("");
   const filteredThreads = useMemo(() => {
     const q = normalize(search);
 
-    return threads.filter((thread) => {
+    const matchingThreads = threads.filter((thread) => {
       const recipientName = normalize(thread?.recipientName);
       const actName = normalize(thread?.actName);
       const latestMessage = normalize(thread?.latestMessage?.body);
@@ -157,7 +158,33 @@ const [sendError, setSendError] = useState("");
 
       return matchesSearch && matchesFilter;
     });
-  }, [threads, search, filter]);
+
+    const latestTime = (thread) => {
+      const value =
+        thread?.latestMessage?.createdAt ||
+        thread?.updatedAt ||
+        thread?.outboundSentAt;
+      const timestamp = new Date(value || 0).getTime();
+      return Number.isNaN(timestamp) ? 0 : timestamp;
+    };
+
+    return [...matchingThreads].sort((a, b) => {
+      if (sortOrder === "oldest") return latestTime(a) - latestTime(b);
+      if (sortOrder === "unread") {
+        const unreadDifference =
+          Number(b?.unreadReplies || 0) - Number(a?.unreadReplies || 0);
+        return unreadDifference || latestTime(b) - latestTime(a);
+      }
+      if (sortOrder === "name") {
+        return String(a?.recipientName || a?.recipientPhone || "").localeCompare(
+          String(b?.recipientName || b?.recipientPhone || ""),
+          "en-GB",
+          { sensitivity: "base" }
+        );
+      }
+      return latestTime(b) - latestTime(a);
+    });
+  }, [threads, search, filter, sortOrder]);
 
   const activeThread =
     filteredThreads.find((t) => t._id === activeThreadId) ||
@@ -316,7 +343,7 @@ const filteredRecipients = recipients.filter((recipient) => {
           <h1 className="text-2xl font-semibold">Messages</h1>
           <p className="text-sm text-gray-500 mt-1">
             {isAgent
-              ? "Monitor outbound messages and incoming replies across all vocalists."
+              ? "Monitor Twilio and portal messages, and incoming replies across all musicians."
               : "View and reply to messages sent to you."}
           </p>
         </div>
@@ -355,6 +382,18 @@ const filteredRecipients = recipients.filter((recipient) => {
             <option value="sent">Sent</option>
             <option value="replied">Replied</option>
             <option value="failed">Failed</option>
+          </select>
+
+          <select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+            aria-label="Sort message threads"
+            className="rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-black"
+          >
+            <option value="recent">Most recent</option>
+            <option value="unread">Unread first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="name">Name A–Z</option>
           </select>
         </div>
       </div>
