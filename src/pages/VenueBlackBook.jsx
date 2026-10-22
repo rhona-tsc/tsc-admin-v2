@@ -3,7 +3,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { backendUrl } from "../App";
 
-const blankVenue = { name: "", address: "", postcode: "", googleMapsUrl: "", what3wordsUrl: "", parking: "", generalDirections: "", supplierRequirements: "", generalNotes: "", rooms: [] };
+const blankVenue = { name: "", address: "", postcode: "", website: "", photoUrl: "", photoPublicId: "", photoAlt: "", photoSourceUrl: "", googleMapsUrl: "", what3wordsUrl: "", parking: "", generalDirections: "", supplierRequirements: "", generalNotes: "", rooms: [] };
 const blankRoom = { name: "", performanceArea: "", accessAndLoading: "", changingRoom: "", soundLimitations: "", soundLimiterDb: "", curfewAndCloseTime: "", paAndLighting: "", powerAndStage: "", capacity: "", notes: "" };
 const Field = ({ label, value, onChange, multiline = false, placeholder = "", attention = false }) => (
   <label className="block text-sm font-semibold text-slate-700">
@@ -24,6 +24,7 @@ export default function VenueBlackBook({ token }) {
   const [feedbackRoom, setFeedbackRoom] = useState("");
   const [importPreviews, setImportPreviews] = useState([]);
   const [importing, setImporting] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const headers = useMemo(() => ({ Authorization: `Bearer ${token || localStorage.getItem("token") || ""}` }), [token]);
 
   const load = async () => {
@@ -61,6 +62,36 @@ export default function VenueBlackBook({ token }) {
       setSelectedId(""); setDraft(blankVenue); await load(); toast.success(`${venueName} deleted`);
     } catch (error) { toast.error(error.response?.data?.message || "Could not delete venue"); }
     finally { setSaving(false); }
+  };
+
+  const uploadPhoto = async (files) => {
+    const file = files?.[0];
+    if (!file) return;
+    if (!selectedId) return toast.error("Save the venue before adding its photo");
+    setUploadingPhoto(true);
+    try {
+      const form = new FormData();
+      form.append("photo", file);
+      form.append("photoAlt", draft.photoAlt || `${draft.name} wedding venue`);
+      form.append("photoSourceUrl", draft.photoSourceUrl || draft.website || "");
+      const { data } = await axios.post(`${backendUrl}/api/venues/${selectedId}/photo`, form, { headers });
+      setDraft((old) => ({ ...old, photoUrl: data.venue.photoUrl, photoPublicId: data.venue.photoPublicId, photoAlt: data.venue.photoAlt, photoSourceUrl: data.venue.photoSourceUrl }));
+      await load();
+      toast.success("Venue photo saved");
+    } catch (error) { toast.error(error.response?.data?.message || "Could not upload the venue photo"); }
+    finally { setUploadingPhoto(false); }
+  };
+
+  const removePhoto = async () => {
+    if (!selectedId || !draft.photoUrl || !window.confirm("Remove this venue photo?")) return;
+    setUploadingPhoto(true);
+    try {
+      await axios.delete(`${backendUrl}/api/venues/${selectedId}/photo`, { headers });
+      setDraft((old) => ({ ...old, photoUrl: "", photoPublicId: "", photoAlt: "", photoSourceUrl: "" }));
+      await load();
+      toast.success("Venue photo removed");
+    } catch (error) { toast.error(error.response?.data?.message || "Could not remove the venue photo"); }
+    finally { setUploadingPhoto(false); }
   };
 
   const syncBookings = async () => {
@@ -145,10 +176,20 @@ export default function VenueBlackBook({ token }) {
     <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
       <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search venue, address or band" className="mb-3 w-full rounded-xl border border-slate-300 px-3 py-2" />
-        <div className="max-h-[72vh] space-y-2 overflow-auto">{loading ? <p className="p-3 text-slate-500">Loading venues…</p> : shown.map((venue) => <button key={venue._id} onClick={() => choose(venue)} className={`w-full rounded-xl border p-3 text-left ${selectedId === venue._id ? "border-[#ff6667] bg-[#fff5f5]" : "border-slate-200 hover:bg-slate-50"}`}><div className="font-bold text-slate-900">{venue.name}</div><div className="mt-1 text-xs text-slate-500">{venue.address || "Address to review"}</div><div className="mt-2 flex gap-2 text-xs"><span className="rounded-full bg-slate-100 px-2 py-1">{venue.rooms?.length || 0} rooms</span><span className="rounded-full bg-slate-100 px-2 py-1">{venue.visits?.length || 0} gigs</span></div></button>)}</div>
+        <div className="max-h-[72vh] space-y-2 overflow-auto">{loading ? <p className="p-3 text-slate-500">Loading venues…</p> : shown.map((venue) => <button key={venue._id} onClick={() => choose(venue)} className={`w-full rounded-xl border p-3 text-left ${selectedId === venue._id ? "border-[#ff6667] bg-[#fff5f5]" : "border-slate-200 hover:bg-slate-50"}`}><div className="flex gap-3">{venue.photoUrl && <img src={venue.photoUrl} alt="" className="h-16 w-20 shrink-0 rounded-lg object-cover" />}<div className="min-w-0"><div className="font-bold text-slate-900">{venue.name}</div><div className="mt-1 text-xs text-slate-500">{venue.address || "Address to review"}</div><div className="mt-2 flex gap-2 text-xs"><span className="rounded-full bg-slate-100 px-2 py-1">{venue.rooms?.length || 0} rooms</span><span className="rounded-full bg-slate-100 px-2 py-1">{venue.visits?.length || 0} gigs</span></div></div></div></button>)}</div>
       </aside>
       <main className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="grid gap-4 md:grid-cols-2"><Field label="Venue name" value={draft.name} onChange={(v) => set("name", v)} /><Field label="Postcode" value={draft.postcode} onChange={(v) => set("postcode", v)} /><div className="md:col-span-2"><Field label="Address" value={draft.address} onChange={(v) => set("address", v)} /></div><Field label="Google Maps pin" value={draft.googleMapsUrl} onChange={(v) => set("googleMapsUrl", v)} /><Field label="what3words pin" value={draft.what3wordsUrl} onChange={(v) => set("what3wordsUrl", v)} /><Field label="Parking" value={draft.parking} onChange={(v) => set("parking", v)} multiline /><Field label="General arrival / loading directions" value={draft.generalDirections} onChange={(v) => set("generalDirections", v)} multiline /><Field label="Supplier forms and requirements" value={draft.supplierRequirements} onChange={(v) => set("supplierRequirements", v)} multiline /><Field label="General venue notes" value={draft.generalNotes} onChange={(v) => set("generalNotes", v)} multiline /></div>
+        <section>
+          <div className="mb-3"><h2 className="text-xl font-bold">Venue promotional photo</h2><p className="text-sm text-slate-500">Use the main landscape promotional image from the venue's official website. It appears on the public venue profile and wedding-location cards; event-sheet images are not used.</p></div>
+          {draft.photoUrl && <img src={draft.photoUrl} alt={draft.photoAlt || `${draft.name} wedding venue`} className="mb-4 aspect-[8/5] max-h-[430px] w-full rounded-2xl object-cover" />}
+          <div className="flex flex-wrap items-end gap-3">
+            <label className={`rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold ${!selectedId || uploadingPhoto ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}><input type="file" accept="image/jpeg,image/png,image/webp,image/avif" className="hidden" disabled={!selectedId || uploadingPhoto} onChange={(event) => { uploadPhoto(event.target.files); event.target.value = ""; }} />{uploadingPhoto ? "Uploading…" : draft.photoUrl ? "Replace photo" : "Add venue photo"}</label>
+            {draft.photoUrl && <button type="button" onClick={removePhoto} disabled={uploadingPhoto} className="rounded-xl border border-red-300 bg-white px-4 py-2 font-semibold text-red-700 disabled:opacity-50">Remove photo</button>}
+            {!selectedId && <span className="text-sm text-slate-500">Save this venue first, then add its photo.</span>}
+          </div>
+          <div className="mt-3 grid max-w-4xl gap-3 md:grid-cols-2"><Field label="Photo description (for accessibility)" value={draft.photoAlt} placeholder={draft.name ? `${draft.name} wedding venue` : "Describe the venue shown in the photo"} onChange={(v) => set("photoAlt", v)} /><Field label="Photo source page" value={draft.photoSourceUrl} placeholder={draft.website || "Official venue webpage containing the photo"} onChange={(v) => set("photoSourceUrl", v)} /></div>
+        </section>
+        <div className="grid gap-4 md:grid-cols-2"><Field label="Venue name" value={draft.name} onChange={(v) => set("name", v)} /><Field label="Postcode" value={draft.postcode} onChange={(v) => set("postcode", v)} /><div className="md:col-span-2"><Field label="Address" value={draft.address} onChange={(v) => set("address", v)} /></div><Field label="Venue website" value={draft.website} onChange={(v) => set("website", v)} /><Field label="Google Maps pin" value={draft.googleMapsUrl} onChange={(v) => set("googleMapsUrl", v)} /><Field label="what3words pin" value={draft.what3wordsUrl} onChange={(v) => set("what3wordsUrl", v)} /><Field label="Parking" value={draft.parking} onChange={(v) => set("parking", v)} multiline /><Field label="General arrival / loading directions" value={draft.generalDirections} onChange={(v) => set("generalDirections", v)} multiline /><Field label="Supplier forms and requirements" value={draft.supplierRequirements} onChange={(v) => set("supplierRequirements", v)} multiline /><Field label="General venue notes" value={draft.generalNotes} onChange={(v) => set("generalNotes", v)} multiline /></div>
         <section className="border-t pt-5"><div className="mb-3 flex items-center justify-between"><div><h2 className="text-xl font-bold">Rooms and performance spaces</h2><p className="text-sm text-slate-500">Keep restrictions and access notes against the correct room.</p></div><button onClick={() => set("rooms", [...(draft.rooms || []), { ...blankRoom }])} className="rounded-lg border px-3 py-2 font-semibold">+ Add room</button></div>
           <div className="space-y-4">{(draft.rooms || []).map((room, index) => <div key={room._id || index} className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="grid gap-3 md:grid-cols-2"><Field label="Room / space name" value={room.name} onChange={(v) => setRoom(index, "name", v)} /><Field label="Capacity / room size" value={room.capacity} onChange={(v) => setRoom(index, "capacity", v)} /><Field label="Performance area" value={room.performanceArea} onChange={(v) => setRoom(index, "performanceArea", v)} multiline /><Field label="Access and loading" value={room.accessAndLoading} onChange={(v) => setRoom(index, "accessAndLoading", v)} multiline /><Field label="Changing / green room" value={room.changingRoom} onChange={(v) => setRoom(index, "changingRoom", v)} multiline /><Field label="Sound limitations" value={room.soundLimitations} onChange={(v) => setRoom(index, "soundLimitations", v)} multiline /><Field label="Sound limiter dB" value={room.soundLimiterDb} onChange={(v) => setRoom(index, "soundLimiterDb", v)} /><Field label="Curfew / close time" value={room.curfewAndCloseTime} onChange={(v) => setRoom(index, "curfewAndCloseTime", v)} /><Field label="PA and lighting" value={room.paAndLighting} onChange={(v) => setRoom(index, "paAndLighting", v)} multiline /><Field label="Power / stage notes" value={room.powerAndStage} onChange={(v) => setRoom(index, "powerAndStage", v)} multiline /></div></div>)}</div>
         </section>
