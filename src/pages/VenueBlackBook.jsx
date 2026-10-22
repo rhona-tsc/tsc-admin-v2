@@ -3,7 +3,7 @@ import axios from "axios";
 import { toast } from "react-toastify";
 import { backendUrl } from "../App";
 
-const blankVenue = { name: "", address: "", postcode: "", website: "", photoUrl: "", photoPublicId: "", photoAlt: "", photoSourceUrl: "", googleMapsUrl: "", what3wordsUrl: "", parking: "", generalDirections: "", supplierRequirements: "", generalNotes: "", rooms: [] };
+const blankVenue = { name: "", address: "", postcode: "", county: "", website: "", publicDescription: "", publicEmail: "", publicPhone: "", enquiryUrl: "", photoUrl: "", photoPublicId: "", photoAlt: "", photoSourceUrl: "", googleMapsUrl: "", what3wordsUrl: "", parking: "", generalDirections: "", supplierRequirements: "", generalNotes: "", partnershipStatus: "not_contacted", partnershipNotes: "", rooms: [] };
 const blankRoom = { name: "", performanceArea: "", accessAndLoading: "", changingRoom: "", soundLimitations: "", soundLimiterDb: "", curfewAndCloseTime: "", paAndLighting: "", powerAndStage: "", capacity: "", notes: "" };
 const Field = ({ label, value, onChange, multiline = false, placeholder = "", attention = false }) => (
   <label className="block text-sm font-semibold text-slate-700">
@@ -25,20 +25,57 @@ export default function VenueBlackBook({ token }) {
   const [importPreviews, setImportPreviews] = useState([]);
   const [importing, setImporting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [claims, setClaims] = useState([]);
+  const [inviteName, setInviteName] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [claimWorking, setClaimWorking] = useState(false);
   const headers = useMemo(() => ({ Authorization: `Bearer ${token || localStorage.getItem("token") || ""}` }), [token]);
 
   const load = async () => {
     setLoading(true);
-    try { const { data } = await axios.get(`${backendUrl}/api/venues`, { headers }); setVenues(data.venues || []); }
+    try {
+      const [{ data }, claimsResponse] = await Promise.all([
+        axios.get(`${backendUrl}/api/venues`, { headers }),
+        axios.get(`${backendUrl}/api/venues/claims`, { headers }),
+      ]);
+      setVenues(data.venues || []);
+      setClaims(claimsResponse.data.claims || []);
+    }
     catch (error) { toast.error(error.response?.data?.message || "Could not load venues"); }
     finally { setLoading(false); }
   };
   useEffect(() => { load(); }, []);
 
   const shown = venues.filter((v) => [v.name, v.address, v.postcode, ...(v.aliases || []), ...(v.visits || []).map((x) => x.actName)].join(" ").toLowerCase().includes(query.toLowerCase()));
-  const choose = (venue) => { setSelectedId(venue._id); setDraft(JSON.parse(JSON.stringify(venue))); };
+  const choose = (venue) => { setSelectedId(venue._id); setDraft(JSON.parse(JSON.stringify(venue))); setInviteName(""); setInviteEmail(venue.publicEmail || ""); };
   const set = (key, value) => setDraft((old) => ({ ...old, [key]: value }));
   const setRoom = (index, key, value) => setDraft((old) => ({ ...old, rooms: old.rooms.map((room, i) => i === index ? { ...room, [key]: value } : room) }));
+
+  const inviteVenue = async ({ claimId = "", contactName = inviteName, contactEmail = inviteEmail, venueId = selectedId } = {}) => {
+    if (!venueId || !contactEmail.trim()) return toast.error("Choose a venue and enter its work email address");
+    setClaimWorking(true);
+    try {
+      const { data } = await axios.post(`${backendUrl}/api/venues/${venueId}/claim-invite`, { claimId, contactName, contactEmail }, { headers });
+      await load();
+      if (data.emailSent) toast.success("Secure venue editing link emailed");
+      else {
+        await navigator.clipboard?.writeText(data.claimLink);
+        toast.warning("Email could not be sent, so the secure link was copied instead");
+      }
+    } catch (error) { toast.error(error.response?.data?.message || "Could not create the venue editing link"); }
+    finally { setClaimWorking(false); }
+  };
+
+  const reviewClaim = async (claimId, decision) => {
+    if (decision === "reject" && !window.confirm("Reject these venue changes?")) return;
+    setClaimWorking(true);
+    try {
+      await axios.post(`${backendUrl}/api/venues/claims/${claimId}/${decision}`, {}, { headers });
+      await load();
+      toast.success(decision === "approve" ? "Venue updates approved and published" : "Venue updates rejected");
+    } catch (error) { toast.error(error.response?.data?.message || "Could not review these venue changes"); }
+    finally { setClaimWorking(false); }
+  };
 
   const save = async () => {
     if (!draft.name.trim()) return toast.error("Please add a venue name");
@@ -163,6 +200,15 @@ export default function VenueBlackBook({ token }) {
       <div><p className="text-xs font-bold uppercase tracking-[.24em] text-[#ff6667]">Operations knowledge</p><h1 className="text-3xl font-bold text-slate-900">Venue Little Black Book</h1><p className="mt-1 max-w-3xl text-slate-600">One venue record, separate room details, past bands and practical notes from every event.</p></div>
       <div className="flex flex-wrap gap-2"><label className="cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold"><input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple className="hidden" disabled={importing} onChange={(event) => { previewEventSheets(event.target.files); event.target.value = ""; }} />{importing ? "Reading event sheets…" : "Upload event sheets"}</label><button onClick={syncBookings} disabled={saving} className="rounded-xl border border-slate-300 bg-white px-4 py-2 font-semibold">Import website bookings</button><button onClick={() => { setSelectedId(""); setDraft(blankVenue); }} className="rounded-xl bg-black px-4 py-2 font-semibold text-white">+ Add venue</button></div>
     </div>
+    {!!claims.filter((claim) => ["requested", "submitted"].includes(claim.status)).length && <section className="mb-6 rounded-2xl border-2 border-violet-300 bg-violet-50 p-5">
+      <div><h2 className="text-xl font-bold text-slate-900">Venue updates awaiting you</h2><p className="text-sm text-slate-600">Claim requests must be verified before an editing link is sent. Submitted changes stay private until you approve them.</p></div>
+      <div className="mt-4 grid gap-4 xl:grid-cols-2">{claims.filter((claim) => ["requested", "submitted"].includes(claim.status)).map((claim) => <article key={claim._id} className="rounded-xl border border-violet-200 bg-white p-4">
+        <div className="flex items-start justify-between gap-3"><div><h3 className="font-bold">{claim.venueId?.name || "Venue"}</h3><p className="text-sm text-slate-600">{claim.contactName || "Venue contact"} · {claim.contactEmail}</p></div><span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold capitalize text-violet-900">{claim.status}</span></div>
+        {claim.requestMessage && <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm">{claim.requestMessage}</p>}{claim.status === "requested" && claim.partnershipInterest && <p className="mt-2 text-sm font-bold text-emerald-800">Also interested in discussing a recommended-supplier partnership</p>}
+        {claim.status === "requested" && <div className="mt-3"><p className="mb-2 text-xs font-semibold text-slate-500">Check the requester represents the venue before sending access.</p><button type="button" disabled={claimWorking} onClick={() => inviteVenue({ claimId: claim._id, contactName: claim.contactName, contactEmail: claim.contactEmail, venueId: claim.venueId?._id })} className="rounded-lg bg-black px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Verify & email secure link</button></div>}
+        {claim.status === "submitted" && <div className="mt-3 space-y-3"><div className="max-h-72 overflow-auto rounded-lg bg-slate-50 p-3 text-sm"><p><b>Public description:</b> {claim.proposed?.publicDescription || "—"}</p><p className="mt-2"><b>Website:</b> {claim.proposed?.website || "—"}</p><p className="mt-2"><b>Public contact:</b> {[claim.proposed?.publicEmail, claim.proposed?.publicPhone].filter(Boolean).join(" · ") || "—"}</p><p className="mt-2"><b>Rooms:</b> {(claim.proposed?.rooms || []).map((room) => room.name).filter(Boolean).join(", ") || "—"}</p>{claim.partnershipInterest && <p className="mt-2 font-bold text-emerald-800">Interested in a recommended-supplier conversation</p>}{claim.partnershipMessage && <p className="mt-1">{claim.partnershipMessage}</p>}{claim.proposedPhotoUrl && <img src={claim.proposedPhotoUrl} alt="Proposed venue" className="mt-3 aspect-[8/5] w-full rounded-lg object-cover" />}</div><div className="flex gap-2"><button type="button" disabled={claimWorking} onClick={() => reviewClaim(claim._id, "approve")} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Approve & publish</button><button type="button" disabled={claimWorking} onClick={() => reviewClaim(claim._id, "reject")} className="rounded-lg border border-red-300 px-4 py-2 text-sm font-bold text-red-700 disabled:opacity-50">Reject</button></div></div>}
+      </article>)}</div>
+    </section>}
     {!!importPreviews.length && <section className="mb-6 rounded-2xl border-2 border-sky-300 bg-sky-50 p-5">
       <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-xl font-bold text-slate-900">Review event-sheet import</h2><p className="text-sm text-slate-600">Check the extracted venue and room details. Untick anything you do not want to import.</p></div><button onClick={() => setImportPreviews([])} className="text-sm font-semibold underline">Cancel import</button></div>
       <div className="mt-4 space-y-4">{importPreviews.map((item, index) => <article key={`${item.fileName}-${index}`} className="rounded-xl border border-sky-200 bg-white p-4">
@@ -189,7 +235,9 @@ export default function VenueBlackBook({ token }) {
           </div>
           <div className="mt-3 grid max-w-4xl gap-3 md:grid-cols-2"><Field label="Photo description (for accessibility)" value={draft.photoAlt} placeholder={draft.name ? `${draft.name} wedding venue` : "Describe the venue shown in the photo"} onChange={(v) => set("photoAlt", v)} /><Field label="Photo source page" value={draft.photoSourceUrl} placeholder={draft.website || "Official venue webpage containing the photo"} onChange={(v) => set("photoSourceUrl", v)} /></div>
         </section>
-        <div className="grid gap-4 md:grid-cols-2"><Field label="Venue name" value={draft.name} onChange={(v) => set("name", v)} /><Field label="Postcode" value={draft.postcode} onChange={(v) => set("postcode", v)} /><div className="md:col-span-2"><Field label="Address" value={draft.address} onChange={(v) => set("address", v)} /></div><Field label="Venue website" value={draft.website} onChange={(v) => set("website", v)} /><Field label="Google Maps pin" value={draft.googleMapsUrl} onChange={(v) => set("googleMapsUrl", v)} /><Field label="what3words pin" value={draft.what3wordsUrl} onChange={(v) => set("what3wordsUrl", v)} /><Field label="Parking" value={draft.parking} onChange={(v) => set("parking", v)} multiline /><Field label="General arrival / loading directions" value={draft.generalDirections} onChange={(v) => set("generalDirections", v)} multiline /><Field label="Supplier forms and requirements" value={draft.supplierRequirements} onChange={(v) => set("supplierRequirements", v)} multiline /><Field label="General venue notes" value={draft.generalNotes} onChange={(v) => set("generalNotes", v)} multiline /></div>
+        <section className="rounded-2xl border border-sky-200 bg-sky-50 p-4"><div className="mb-3"><h2 className="text-xl font-bold">Public venue profile</h2><p className="text-sm text-slate-600">These details can appear to couples. Internal loading notes, supplier requirements, contacts and band feedback remain private.</p></div><div className="grid gap-4 md:grid-cols-2"><Field label="Venue name" value={draft.name} onChange={(v) => set("name", v)} /><Field label="Postcode" value={draft.postcode} onChange={(v) => set("postcode", v)} /><div className="md:col-span-2"><Field label="Address" value={draft.address} onChange={(v) => set("address", v)} /></div><Field label="County" value={draft.county} onChange={(v) => set("county", v)} /><div className="md:col-span-2"><Field label="Public description" value={draft.publicDescription} onChange={(v) => set("publicDescription", v)} multiline /></div><Field label="Venue website" value={draft.website} onChange={(v) => set("website", v)} /><Field label="Direct enquiry page" value={draft.enquiryUrl} onChange={(v) => set("enquiryUrl", v)} /><Field label="Public email" value={draft.publicEmail} onChange={(v) => set("publicEmail", v)} /><Field label="Public phone" value={draft.publicPhone} onChange={(v) => set("publicPhone", v)} /><Field label="Google Maps pin" value={draft.googleMapsUrl} onChange={(v) => set("googleMapsUrl", v)} /><Field label="what3words pin" value={draft.what3wordsUrl} onChange={(v) => set("what3wordsUrl", v)} /></div></section>
+        <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4"><div className="mb-3"><h2 className="text-xl font-bold">Venue relationship & secure access</h2><p className="text-sm text-slate-600">Track partnership progress and invite a verified venue contact to suggest updates. Their edits always return here for approval.</p></div><div className="grid gap-4 md:grid-cols-2"><label className="block text-sm font-semibold text-slate-700">Partnership status<select className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-normal" value={draft.partnershipStatus || "not_contacted"} onChange={(e) => set("partnershipStatus", e.target.value)}><option value="not_contacted">Not contacted</option><option value="invited">Invited to claim</option><option value="claimed">Listing claimed</option><option value="conversation">Partnership conversation</option><option value="recommended">Recommended supplier</option><option value="preferred">Preferred supplier</option><option value="declined">Not interested</option></select></label><Field label="Private partnership notes" value={draft.partnershipNotes} onChange={(v) => set("partnershipNotes", v)} multiline /></div>{selectedId ? <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_1fr_auto]"><Field label="Venue contact name" value={inviteName} onChange={setInviteName} /><Field label="Venue work email" value={inviteEmail} onChange={setInviteEmail} /><button type="button" disabled={claimWorking} onClick={() => inviteVenue()} className="self-end rounded-xl bg-black px-4 py-2 font-bold text-white disabled:opacity-50">Email secure edit link</button></div> : <p className="mt-3 text-sm text-slate-500">Save the venue before inviting a contact.</p>}</section>
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><div className="mb-3"><h2 className="text-xl font-bold">Private operational details</h2><p className="text-sm text-slate-600">For your team and musicians. These fields are not included in venue claim forms.</p></div><div className="grid gap-4 md:grid-cols-2"><Field label="Parking" value={draft.parking} onChange={(v) => set("parking", v)} multiline /><Field label="General arrival / loading directions" value={draft.generalDirections} onChange={(v) => set("generalDirections", v)} multiline /><Field label="Supplier forms and requirements" value={draft.supplierRequirements} onChange={(v) => set("supplierRequirements", v)} multiline /><Field label="General venue notes" value={draft.generalNotes} onChange={(v) => set("generalNotes", v)} multiline /></div></section>
         <section className="border-t pt-5"><div className="mb-3 flex items-center justify-between"><div><h2 className="text-xl font-bold">Rooms and performance spaces</h2><p className="text-sm text-slate-500">Keep restrictions and access notes against the correct room.</p></div><button onClick={() => set("rooms", [...(draft.rooms || []), { ...blankRoom }])} className="rounded-lg border px-3 py-2 font-semibold">+ Add room</button></div>
           <div className="space-y-4">{(draft.rooms || []).map((room, index) => <div key={room._id || index} className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="grid gap-3 md:grid-cols-2"><Field label="Room / space name" value={room.name} onChange={(v) => setRoom(index, "name", v)} /><Field label="Capacity / room size" value={room.capacity} onChange={(v) => setRoom(index, "capacity", v)} /><Field label="Performance area" value={room.performanceArea} onChange={(v) => setRoom(index, "performanceArea", v)} multiline /><Field label="Access and loading" value={room.accessAndLoading} onChange={(v) => setRoom(index, "accessAndLoading", v)} multiline /><Field label="Changing / green room" value={room.changingRoom} onChange={(v) => setRoom(index, "changingRoom", v)} multiline /><Field label="Sound limitations" value={room.soundLimitations} onChange={(v) => setRoom(index, "soundLimitations", v)} multiline /><Field label="Sound limiter dB" value={room.soundLimiterDb} onChange={(v) => setRoom(index, "soundLimiterDb", v)} /><Field label="Curfew / close time" value={room.curfewAndCloseTime} onChange={(v) => setRoom(index, "curfewAndCloseTime", v)} /><Field label="PA and lighting" value={room.paAndLighting} onChange={(v) => setRoom(index, "paAndLighting", v)} multiline /><Field label="Power / stage notes" value={room.powerAndStage} onChange={(v) => setRoom(index, "powerAndStage", v)} multiline /></div></div>)}</div>
         </section>
