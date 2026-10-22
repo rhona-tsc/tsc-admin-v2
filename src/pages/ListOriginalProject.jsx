@@ -242,7 +242,18 @@ const ListOriginalProject = ({ token }) => {
           </label>
           <label className="flex items-start gap-2">
             <input required className="mt-1" type="checkbox" checked={form.ownerAgreementAccepted} onChange={(e) => setField("ownerAgreementAccepted", e.target.checked)} />
-            I accept the provisional Originals owner agreement, including the royalty framework, response deadlines, confidentiality, contributor protections and TSC intervention after seven days.
+            <span>
+              I accept the provisional{" "}
+              <a
+                href="/originals/owner-agreement"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-900"
+              >
+                Originals owner agreement (read in a new tab)
+              </a>
+              , including the royalty framework, response deadlines, confidentiality, contributor protections and TSC intervention after seven days.
+            </span>
           </label>
           <input required value={form.ownerAgreementDisplayName} onChange={(e) => setField("ownerAgreementDisplayName", e.target.value)} placeholder="Type your full name as acknowledgement" className="w-full rounded border bg-white px-3 py-2" />
         </section>

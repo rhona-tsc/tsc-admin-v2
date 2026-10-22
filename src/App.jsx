@@ -53,6 +53,7 @@ import MyOriginalProjects from "./pages/MyOriginalProjects";
 import ModerateOriginals from "./pages/ModerateOriginals";
 import OriginalProjectWorkspace from "./pages/OriginalProjectWorkspace";
 import OriginalsReadiness from "./pages/OriginalsReadiness";
+import OriginalsOwnerAgreement from "./pages/OriginalsOwnerAgreement";
 import RegularDeputies from "./pages/RegularDeputies";
 import RegularDeputyDetails from "./pages/RegularDeputyDetails";
 import MyDeputyApplications from "./pages/MyDeputyApplications";
@@ -501,6 +502,10 @@ const App = () => {
             <Route
               path="/originals/new"
               element={<RequireOriginalsAccess allowed={originalsAvailable && isOriginalsAdmin}><ListOriginalProject token={token} /></RequireOriginalsAccess>}
+            />
+            <Route
+              path="/originals/owner-agreement"
+              element={<RequireOriginalsAccess allowed={originalsAvailable && isOriginalsAdmin}><OriginalsOwnerAgreement /></RequireOriginalsAccess>}
             />
             <Route
               path="/originals/mine"
