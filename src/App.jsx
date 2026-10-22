@@ -58,6 +58,7 @@ import RegularDeputies from "./pages/RegularDeputies";
 import RegularDeputyDetails from "./pages/RegularDeputyDetails";
 import MyDeputyApplications from "./pages/MyDeputyApplications";
 import VenueBlackBook from "./pages/VenueBlackBook";
+import SeoKeywordTracker from "./pages/SeoKeywordTracker";
 import { canAccessOriginalsPreview } from "./utils/originalsAccess";
 
 export const backendUrl =
@@ -624,6 +625,16 @@ const App = () => {
                 element={
                   <RequireAuth>
                     <Automations />
+                  </RequireAuth>
+                }
+              />
+            )}
+            {isAdminAgent && (
+              <Route
+                path="/seo-keywords"
+                element={
+                  <RequireAuth>
+                    <SeoKeywordTracker token={token} />
                   </RequireAuth>
                 }
               />
