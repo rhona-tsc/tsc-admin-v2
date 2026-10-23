@@ -1460,13 +1460,17 @@ function RoleAllocationCell({ row }) {
 
   const sendOffer = async (slot, candidate) => {
     if (candidate?.available === false) return;
+    const assignment = assignments.find(
+      (member) => member?.roleSlotId === slot.roleSlotId,
+    );
+    const draft = getSlotDraft(slot, assignment);
+    if (!(Number(draft.fee) > 0)) {
+      setError("Enter a fee above £0 before sending an allocation request.");
+      return;
+    }
     setSending(slot.roleSlotId);
     setError("");
     try {
-      const assignment = assignments.find(
-        (member) => member?.roleSlotId === slot.roleSlotId,
-      );
-      const draft = getSlotDraft(slot, assignment);
       const response = await fetch(`${API_BASE}/allocations/offer-role`, {
         method: "POST",
         headers: { ...buildAuthHeaders(), "Content-Type": "application/json" },
@@ -1532,6 +1536,11 @@ function RoleAllocationCell({ row }) {
     const assignment = assignments.find(
       (member) => member?.roleSlotId === slot.roleSlotId,
     );
+    const draft = getSlotDraft(slot, assignment);
+    if (!(Number(draft.fee) > 0)) {
+      setError("Enter a fee above £0 before manually accepting an allocation.");
+      return;
+    }
     const displayName =
       candidate?.name || assignment?.name || "this musician";
     if (
@@ -1545,7 +1554,6 @@ function RoleAllocationCell({ row }) {
     setSending(slot.roleSlotId);
     setError("");
     try {
-      const draft = getSlotDraft(slot, assignment);
       const response = await fetch(`${API_BASE}/allocations/confirm-role`, {
         method: "POST",
         headers: { ...buildAuthHeaders(), "Content-Type": "application/json" },
@@ -2155,6 +2163,12 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
     if (!musicianId || !role) {
       setMusicianSearchError(
         "Choose a musician and enter their role before sending the request.",
+      );
+      return;
+    }
+    if (!(Number(member?.fee || member?.totalFee || 0) > 0)) {
+      setMusicianSearchError(
+        "Enter a fee above £0 before sending an allocation request.",
       );
       return;
     }

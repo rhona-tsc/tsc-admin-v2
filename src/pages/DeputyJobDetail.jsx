@@ -670,6 +670,11 @@ const DeputyJobDetail = () => {
       return;
     }
 
+    if (!(Number(job?.deputyNetAmount || job?.fee || 0) > 0)) {
+      toast.error("Enter a deputy fee above £0 before sending an allocation.");
+      return;
+    }
+
     const musicianId = String(manualAllocateSelectedId || "").trim();
     const role = manualAllocateRole || applyRoleOptions[0] || "";
 
@@ -725,6 +730,8 @@ const DeputyJobDetail = () => {
     applyRoleOptions,
     headers,
     id,
+    job?.deputyNetAmount,
+    job?.fee,
     loadJob,
   ]);
 
