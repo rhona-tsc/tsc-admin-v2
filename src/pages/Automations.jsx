@@ -197,6 +197,7 @@ const consolidateAutomationRows = (sourceRows = []) => {
         (current, fallback) => mergeAutomationRowData(current, fallback),
         byRichness[0] || {},
       );
+    const boardSource = group.find((row) => row?.bookingBoardItemId);
 
     const preferredEmail = rowEmail(contactSource);
     const mergedContactEmails = [];
@@ -236,6 +237,14 @@ const consolidateAutomationRows = (sourceRows = []) => {
         : {}),
       ...(mergedContactEmails.length
         ? { clientEmails: mergedContactEmails }
+        : {}),
+      ...(boardSource
+        ? {
+            songSuggestionsDueDateISO: text(
+              boardSource.songSuggestionsDueDateISO,
+            ),
+            invoiceDueDateISO: text(boardSource.invoiceDueDateISO),
+          }
         : {}),
       // Fail closed: one disabled copy suppresses every duplicate for the booking.
       siteAutomationsEnabled: !group.some(
