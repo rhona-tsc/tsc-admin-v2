@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom"; // add this
 
 import calculateActPricing from "../pages/utils/pricing";
 import CustomToast from "../components/CustomToast";
+import { memberCountyTravelFee } from "../utils/memberCountyTravel";
 
 import { toast } from "react-toastify";
 
@@ -485,7 +486,13 @@ const isActAvailableForSelectedDate = (actId) =>
     if (act.useCountyTravelFee && act.countyFees) {
       const countyKey = selectedCounty.toLowerCase();
       const feePerMember = act.countyFees[countyKey] || 0;
-      travelFee = feePerMember * memberPostcodes.length;
+      travelFee = recipients
+        .filter((member) => member?.postCode)
+        .reduce(
+          (sum, member) =>
+            sum + memberCountyTravelFee(member, selectedCounty, feePerMember),
+          0,
+        );
     } else if (act.costPerMile > 0) {
       // cost-per-mile path (one-way distance * costPerMile * 2)
       for (const postCode of memberPostcodes) {

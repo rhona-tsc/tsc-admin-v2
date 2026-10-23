@@ -6905,41 +6905,47 @@ export default function BookingBoard() {
                       >
                         <div className="flex flex-col gap-3">
                           {/* Row 1: core id + dates */}
-                          <div className="flex flex-wrap gap-2 items-end">
-                            <input
-                              className="border rounded px-2 py-1 w-56"
-                              placeholder="Booker full name"
-                              value={newRow.bookerName}
-                              onChange={(e) =>
-                                setNewRow((v) => ({
-                                  ...v,
-                                  bookerName: e.target.value,
-                                }))
-                              }
-                            />
+                          <div className="order-1 flex flex-wrap gap-2 items-end">
+                            <label className="flex flex-col text-xs text-gray-600">
+                              Booker full name
+                              <input
+                                className="border rounded px-2 py-1 w-56 text-gray-900"
+                                value={newRow.bookerName}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    bookerName: e.target.value,
+                                  }))
+                                }
+                              />
+                            </label>
 
-                            <input
-                              className="border rounded px-2 py-1 w-56"
-                              placeholder="Client first names"
-                              value={newRow.clientFirstNames}
-                              onChange={(e) =>
-                                setNewRow((v) => ({
-                                  ...v,
-                                  clientFirstNames: e.target.value,
-                                }))
-                              }
-                            />
-                            <InlineInput
-                              className="border rounded px-2 py-1 w-40"
-                              placeholder="Ref"
-                              value={newRow.bookingRef}
-                              onChange={(e) =>
-                                setNewRow((v) => ({
-                                  ...v,
-                                  bookingRef: e.target.value,
-                                }))
-                              }
-                            />
+                            <label className="flex flex-col text-xs text-gray-600">
+                              Client first names
+                              <input
+                                className="border rounded px-2 py-1 w-56 text-gray-900"
+                                value={newRow.clientFirstNames}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    clientFirstNames: e.target.value,
+                                  }))
+                                }
+                              />
+                            </label>
+                            <label className="flex flex-col text-xs text-gray-600">
+                              Booking reference
+                              <input
+                                className="border rounded px-2 py-1 w-40 text-gray-900"
+                                value={newRow.bookingRef}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    bookingRef: e.target.value,
+                                  }))
+                                }
+                              />
+                            </label>
                             <div className="flex flex-col">
                               <label className="text-xs text-gray-600">
                                 Event date
@@ -7023,23 +7029,26 @@ export default function BookingBoard() {
                           </div>
 
                           {/* Row 2: agent + contact + money */}
-                          <div className="flex flex-wrap gap-2 items-end">
-                            <select
-                              className="border rounded px-2 py-1 w-48"
-                              value={newRow.agent}
-                              onChange={(e) =>
-                                setNewRow((v) => ({
-                                  ...v,
-                                  agent: e.target.value,
-                                }))
-                              }
-                            >
-                              {AGENTS.map((a) => (
-                                <option key={a} value={a}>
-                                  {a}
-                                </option>
-                              ))}
-                            </select>
+                          <div className="order-2 flex flex-wrap gap-2 items-end">
+                            <label className="flex flex-col text-xs text-gray-600">
+                              Booking source
+                              <select
+                                className="border rounded px-2 py-1 w-48 text-gray-900"
+                                value={newRow.agent}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    agent: e.target.value,
+                                  }))
+                                }
+                              >
+                                {AGENTS.map((a) => (
+                                  <option key={a} value={a}>
+                                    {a}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
 
                             <div className="flex flex-col gap-1">
                               <label className="text-xs text-gray-600">
@@ -7056,105 +7065,120 @@ export default function BookingBoard() {
                               />
                             </div>
 
-                            <select
-                              className="border rounded px-2 py-1 w-48"
-                              value={newRow.eventType}
-                              onChange={(e) =>
-                                setNewRow((v) => ({
-                                  ...v,
-                                  eventType: e.target.value,
-                                }))
-                              }
-                            >
-                              <option value="">Event type</option>
-                              {EVENT_TYPE_OPTIONS.map((option) => (
-                                <option key={option} value={option}>
-                                  {option}
-                                </option>
-                              ))}
-                            </select>
+                            <label className="flex flex-col text-xs text-gray-600">
+                              Event type
+                              <select
+                                className="border rounded px-2 py-1 w-48 text-gray-900"
+                                value={newRow.eventType}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    eventType: e.target.value,
+                                  }))
+                                }
+                              >
+                                <option value="">Choose event type</option>
+                                {EVENT_TYPE_OPTIONS.map((option) => (
+                                  <option key={option} value={option}>
+                                    {option}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
 
-                            <input
-                              className="border rounded px-2 py-1 w-56"
-                              placeholder="Client email"
-                              value={newRow.clientEmail}
-                              onChange={(e) =>
-                                setNewRow((v) => ({
-                                  ...v,
-                                  clientEmail: e.target.value,
-                                }))
-                              }
-                            />
+                            <label className="flex flex-col text-xs text-gray-600">
+                              Client email
+                              <input
+                                className="border rounded px-2 py-1 w-56 text-gray-900"
+                                value={newRow.clientEmail}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    clientEmail: e.target.value,
+                                  }))
+                                }
+                              />
+                            </label>
 
-                            <input
-                              className="border rounded px-2 py-1 w-[360px]"
-                              placeholder="Client address"
-                              value={newRow.clientAddress}
-                              onChange={(e) =>
-                                setNewRow((v) => ({
-                                  ...v,
-                                  clientAddress: e.target.value,
-                                }))
-                              }
-                            />
+                            <label className="flex flex-col text-xs text-gray-600">
+                              Client address
+                              <input
+                                className="border rounded px-2 py-1 w-[360px] text-gray-900"
+                                value={newRow.clientAddress}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    clientAddress: e.target.value,
+                                  }))
+                                }
+                              />
+                            </label>
 
-                            <input
-                              className="border rounded px-2 py-1 w-28"
-                              placeholder="Gross"
-                              value={newRow.grossValue}
-                              onChange={(e) =>
-                                setNewRow((v) => ({
-                                  ...v,
-                                  grossValue: e.target.value,
-                                }))
-                              }
-                            />
+                            <label className="flex flex-col text-xs text-gray-600">
+                              Gross booking value
+                              <input
+                                className="border rounded px-2 py-1 w-32 text-gray-900"
+                                value={newRow.grossValue}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    grossValue: e.target.value,
+                                  }))
+                                }
+                              />
+                            </label>
 
-                            <select
-                              className="border rounded px-2 py-1 w-24"
-                              aria-label="Currency"
-                              value={newRow.currency || "GBP"}
-                              onChange={(e) =>
-                                setNewRow((v) => ({
-                                  ...v,
-                                  currency: e.target.value,
-                                }))
-                              }
-                            >
-                              <option value="GBP">GBP</option>
-                              <option value="EUR">EUR</option>
-                              <option value="USD">USD</option>
-                            </select>
+                            <label className="flex flex-col text-xs text-gray-600">
+                              Currency
+                              <select
+                                className="border rounded px-2 py-1 w-24 text-gray-900"
+                                value={newRow.currency || "GBP"}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    currency: e.target.value,
+                                  }))
+                                }
+                              >
+                                <option value="GBP">GBP</option>
+                                <option value="EUR">EUR</option>
+                                <option value="USD">USD</option>
+                              </select>
+                            </label>
 
                             {/* NEW: Commission (VAT-inc) */}
-                            <input
-                              type="number"
-                              step="0.01"
-                              className="border rounded px-2 py-1 w-36"
-                              placeholder="Commission"
-                              value={newRow.commissionGross ?? ""}
-                              onChange={(e) =>
-                                setNewRow((v) => ({
-                                  ...v,
-                                  commissionGross: e.target.value,
-                                }))
-                              }
-                            />
+                            <label className="flex flex-col text-xs text-gray-600">
+                              Commission (VAT inclusive)
+                              <input
+                                type="number"
+                                step="0.01"
+                                className="border rounded px-2 py-1 w-40 text-gray-900"
+                                value={newRow.commissionGross ?? ""}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    commissionGross: e.target.value,
+                                  }))
+                                }
+                              />
+                            </label>
 
                             {/* NEW: Pass-through (band fee / held) */}
-                            <input
-                              type="number"
-                              step="0.01"
-                              className="border rounded px-2 py-1 w-36"
-                              placeholder="Pass-through"
-                              value={newRow.passThroughGross ?? ""}
-                              onChange={(e) =>
-                                setNewRow((v) => ({
-                                  ...v,
-                                  passThroughGross: e.target.value,
-                                }))
-                              }
-                            />
+                            <label className="flex flex-col text-xs text-gray-600">
+                              Pass-through / band fee
+                              <input
+                                type="number"
+                                step="0.01"
+                                className="border rounded px-2 py-1 w-40 text-gray-900"
+                                value={newRow.passThroughGross ?? ""}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    passThroughGross: e.target.value,
+                                  }))
+                                }
+                              />
+                            </label>
 
                             {/* NEW: VAT rate */}
                             <div className="flex flex-col">
@@ -7182,33 +7206,37 @@ export default function BookingBoard() {
                           </div>
 
                           {/* Row 2b: payment + invoice links */}
-                          <div className="flex flex-wrap gap-2 items-end">
-                            <input
-                              className="border rounded px-2 py-1 w-[360px]"
-                              placeholder="Payment link / checkout URL (optional)"
-                              value={newRow.paymentLink}
-                              onChange={(e) =>
-                                setNewRow((v) => ({
-                                  ...v,
-                                  paymentLink: e.target.value,
-                                }))
-                              }
-                            />
-                            <input
-                              className="border rounded px-2 py-1 w-[360px]"
-                              placeholder="Invoice PDF URL (optional)"
-                              value={newRow.invoiceUrl}
-                              onChange={(e) =>
-                                setNewRow((v) => ({
-                                  ...v,
-                                  invoiceUrl: e.target.value,
-                                }))
-                              }
-                            />
+                          <div className="order-3 flex flex-wrap gap-2 items-end">
+                            <label className="flex flex-col text-xs text-gray-600">
+                              Payment link / checkout URL (optional)
+                              <input
+                                className="border rounded px-2 py-1 w-[360px] text-gray-900"
+                                value={newRow.paymentLink}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    paymentLink: e.target.value,
+                                  }))
+                                }
+                              />
+                            </label>
+                            <label className="flex flex-col text-xs text-gray-600">
+                              Invoice PDF URL (optional)
+                              <input
+                                className="border rounded px-2 py-1 w-[360px] text-gray-900"
+                                value={newRow.invoiceUrl}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    invoiceUrl: e.target.value,
+                                  }))
+                                }
+                              />
+                            </label>
                           </div>
 
                           {/* Row 3: lineup + times */}
-                          <div className="flex flex-wrap gap-4 items-end">
+                          <div className="order-5 flex flex-wrap gap-4 items-end">
                             <div className="flex flex-col">
                               <label className="text-xs text-gray-600">
                                 Booked lineup
@@ -7279,7 +7307,7 @@ export default function BookingBoard() {
                           </div>
 
                           {/* Row 4: linked act */}
-                          <div className="flex flex-wrap gap-3 items-start">
+                          <div className="order-4 flex flex-wrap gap-3 items-start">
                             <div className="relative flex w-full max-w-md flex-col">
                               <label className="text-xs text-gray-600">
                                 Linked TSC act
@@ -7361,33 +7389,37 @@ export default function BookingBoard() {
                           </div>
 
                           {/* Row 5: address */}
-                          <div className="flex flex-wrap gap-2 items-end">
-                            <input
-                              className="border rounded px-2 py-1 w-72"
-                              placeholder="Address"
-                              value={newRow.address}
-                              onChange={(e) =>
-                                setNewRow((v) => ({
-                                  ...v,
-                                  address: e.target.value,
-                                }))
-                              }
-                            />
-                            <input
-                              className="border rounded px-2 py-1 w-44"
-                              placeholder="County"
-                              value={newRow.county}
-                              onChange={(e) =>
-                                setNewRow((v) => ({
-                                  ...v,
-                                  county: e.target.value,
-                                }))
-                              }
-                            />
+                          <div className="order-6 flex flex-wrap gap-2 items-end">
+                            <label className="flex flex-col text-xs text-gray-600">
+                              Venue / event address
+                              <input
+                                className="border rounded px-2 py-1 w-[480px] text-gray-900"
+                                value={newRow.address}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    address: e.target.value,
+                                  }))
+                                }
+                              />
+                            </label>
+                            <label className="flex flex-col text-xs text-gray-600">
+                              County
+                              <input
+                                className="border rounded px-2 py-1 w-44 text-gray-900"
+                                value={newRow.county}
+                                onChange={(e) =>
+                                  setNewRow((v) => ({
+                                    ...v,
+                                    county: e.target.value,
+                                  }))
+                                }
+                              />
+                            </label>
                           </div>
 
                           {/* Actions */}
-                          <div className="flex gap-2 mt-1">
+                          <div className="order-7 flex gap-2 mt-1">
                             <button
                               className="px-3 py-2 bg-black text-white rounded"
                               onClick={postManualRow}

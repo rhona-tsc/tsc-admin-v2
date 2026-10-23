@@ -1,3 +1,5 @@
+import { memberCountyTravelFee } from "../../utils/memberCountyTravel";
+
 const calculateActPricing = async (
   act,
   selectedCounty,
@@ -105,7 +107,12 @@ const calculateActPricing = async (
   if (act.useCountyTravelFee && act.countyFees) {
     const countyKey = String(selectedCounty || "").toLowerCase();
     const feePerMember = act.countyFees[countyKey] || 0;
-    travelFee = (Number(feePerMember) || 0) * memberPostcodes.length;
+    const eligibleMembers = (bandMembers || []).filter((member) => member?.postCode);
+    travelFee = eligibleMembers.reduce(
+      (sum, member) =>
+        sum + memberCountyTravelFee(member, selectedCounty, feePerMember),
+      0,
+    );
   }
   // 2) Per-mile
   else if (Number(act.costPerMile) > 0) {

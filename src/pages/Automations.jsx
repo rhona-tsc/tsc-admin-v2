@@ -415,13 +415,21 @@ const songRequestDueAt = (row) => {
   return oneMonthBefore;
 };
 const songRequestDueDate = (row) => formatDate(songRequestDueAt(row));
+const finalDetailsDueAt = (row) => {
+  const event = parseDate(rowDate(row));
+  if (!event) return null;
+  const eventWeekMonday = new Date(event);
+  eventWeekMonday.setDate(event.getDate() - ((event.getDay() + 6) % 7));
+  const standardDue = new Date(eventWeekMonday);
+  standardDue.setDate(eventWeekMonday.getDate() - 4);
+
+  const booked = parseDate(row.bookingDateISO || row.enquiryDateISO || row.createdAt);
+  if (!booked || booked <= standardDue) return standardDue;
+  if (booked >= event) return event;
+  return new Date(booked.getTime() + ((event.getTime() - booked.getTime()) / 2));
+};
 const invoiceDueDate = (row) => {
-  if (row.invoiceDueDateISO) return friendlyDate(row.invoiceDueDateISO);
-  const date = parseDate(rowDate(row));
-  if (!date) return "";
-  const monday = new Date(date);
-  monday.setDate(date.getDate() - ((date.getDay() + 6) % 7) - 11);
-  return formatDate(monday);
+  return formatDate(finalDetailsDueAt(row));
 };
 const specialRequestLabel = (row) => {
   if (rowWedding(row) === "Wedding") return "First Dance";
@@ -433,10 +441,38 @@ const joinNames = (names) => {
   if (names.length === 2) return `${names[0]} & ${names[1]}`;
   return `${names.slice(0, -1).join(", ")} & ${names.at(-1)}`;
 };
+const assignedMusiciansForAutomation = (row = {}) => {
+  const seen = new Set();
+  return [
+    ...(Array.isArray(row.assignedMusicians) ? row.assignedMusicians : []),
+    ...(Array.isArray(row.bookingMusicians) ? row.bookingMusicians : []),
+    ...(Array.isArray(row.bandLineup) ? row.bandLineup : []),
+    ...(Array.isArray(row.bookingDetails?.assignedMusicians)
+      ? row.bookingDetails.assignedMusicians
+      : []),
+    ...(Array.isArray(row.actsSummary)
+      ? row.actsSummary.flatMap((act) => (
+        Array.isArray(act?.assignedMusicians) ? act.assignedMusicians : []
+      ))
+      : []),
+  ].filter((member) => {
+    const identity = text(
+      member?.email || member?.musicianId || member?._id || member?.name ||
+      `${member?.firstName || ""} ${member?.lastName || ""}`,
+    ).toLowerCase();
+    const role = text(member?.role || member?.instrument).toLowerCase();
+    const key = member?.roleSlotId
+      ? `slot:${member.roleSlotId}`
+      : `${identity}|role:${role}`;
+    if (!identity || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
 const vocalistNames = (row) => joinNames([...new Set(
-  [...(row.assignedMusicians || []), ...(row.bookingMusicians || [])]
+  assignedMusiciansForAutomation(row)
     .filter((member) => /vocal|singer/i.test(`${member.role || ""} ${member.instrument || ""}`))
-    .map((member) => firstName(member.name || `${member.firstName || ""} ${member.lastName || ""}`))
+    .map((member) => firstName(member.firstName || member.name || `${member.firstName || ""} ${member.lastName || ""}`))
     .filter(Boolean),
 )]);
 const vocalistSetlistMissingLinks = (row) => [
@@ -446,7 +482,7 @@ const vocalistSetlistMissingLinks = (row) => [
 const proposedSendAt = (row, timing = {}) => {
   if (timing.strategy === "add_ons_midpoint") {
     const introSent = parseDate(row?.introEmailSentAt);
-    const eventSheetDue = parseDate(row?.invoiceDueDateISO);
+    const eventSheetDue = finalDetailsDueAt(row);
     if (!introSent || !eventSheetDue || introSent >= eventSheetDue) return null;
 
     const planned = new Date(
@@ -469,11 +505,11 @@ const proposedSendAt = (row, timing = {}) => {
     if (planned >= today) return planned;
 
     const nextRun = nextAutomationRunAt();
-    const invoiceDeadline = parseDate(row?.invoiceDueDateISO);
+    const invoiceDeadline = finalDetailsDueAt(row);
     return invoiceDeadline && nextRun < invoiceDeadline ? nextRun : planned;
   }
   if (timing.strategy === "invoice_due") {
-    return parseDate(row?.invoiceDueDateISO);
+    return finalDetailsDueAt(row);
   }
   const event = parseDate(rowDate(row));
   if (!event) return null;
@@ -498,16 +534,7 @@ const proposedSendAt = (row, timing = {}) => {
     return followupDate;
   }
   if (timing.strategy === "final_details_due") {
-    const eventWeekMonday = new Date(event);
-    eventWeekMonday.setDate(event.getDate() - ((event.getDay() + 6) % 7));
-    const thursdayInPreviousWeek = new Date(eventWeekMonday);
-    thursdayInPreviousWeek.setDate(eventWeekMonday.getDate() - 4);
-
-    const booked = parseDate(row.bookingDateISO || row.enquiryDateISO || row.createdAt);
-    if (booked && booked > thursdayInPreviousWeek) {
-      return new Date(booked.getTime() + ((event.getTime() - booked.getTime()) / 2));
-    }
-    return thursdayInPreviousWeek;
+    return finalDetailsDueAt(row);
   }
   if (timing.strategy === "post_event") {
     event.setDate(event.getDate() + 1);
@@ -708,12 +735,12 @@ const ruleMatchesRow = (
   if (!includeDisabled && rule?.enabled === false) return false;
   if (!includeSiteSuppressed && row?.siteAutomationsEnabled === false) return false;
   if (!includeSent && ruleAlreadySent(rule, row)) return false;
-  if (rule?.timing?.strategy === "invoice_due" && !parseDate(row?.invoiceDueDateISO)) {
+  if (rule?.timing?.strategy === "invoice_due" && !finalDetailsDueAt(row)) {
     return false;
   }
   if (rule?.timing?.strategy === "add_ons_midpoint") {
     const introSent = parseDate(row?.introEmailSentAt);
-    const eventSheetDue = parseDate(row?.invoiceDueDateISO);
+    const eventSheetDue = finalDetailsDueAt(row);
     if (!introSent || !eventSheetDue || introSent >= eventSheetDue) return false;
   }
   if (rule?.timing?.strategy === "song_suggestions_advance") {
