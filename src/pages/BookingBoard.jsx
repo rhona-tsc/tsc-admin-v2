@@ -5446,7 +5446,13 @@ export default function BookingBoard() {
         json = JSON.parse(raw);
       } catch {}
 
-      if (json?.success) {
+      if (!res.ok || !json?.success) {
+        throw new Error(
+          json?.message || raw || `The booking could not be saved (${res.status}).`,
+        );
+      }
+
+      if (json.success) {
         setRows((currentRows) => {
           const savedId = String(json.row?._id || "");
           const savedRef = String(json.row?.bookingRef || "")
@@ -5512,6 +5518,9 @@ export default function BookingBoard() {
       }
     } catch (e) {
       console.error("manual add failed", e);
+      window.alert(
+        e?.message || "The booking could not be saved. Please try again.",
+      );
     }
   };
 
