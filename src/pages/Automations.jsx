@@ -240,6 +240,12 @@ const consolidateAutomationRows = (sourceRows = []) => {
         : {}),
       ...(boardSource
         ? {
+            ...(text(boardSource.actTscName)
+              ? { actTscName: text(boardSource.actTscName) }
+              : {}),
+            introEmailSentAt: boardSource.introEmailSentAt || null,
+            introEmailSentTo: text(boardSource.introEmailSentTo),
+            introEmailMessageId: text(boardSource.introEmailMessageId),
             songSuggestionsDueDateISO: text(
               boardSource.songSuggestionsDueDateISO,
             ),
@@ -631,7 +637,17 @@ const TEMPLATE_TAGS = [
 ];
 
 const rowAct = (row) => text(
-  row.actName || row.bandName || row.act?.name || row.bookingDetails?.actName || row.bookingDetails?.bandName,
+  row.actTscName
+    || row.actsSummary?.[0]?.tscName
+    || row.actsSummary?.[0]?.actTscName
+    || row.actData?.tscName
+    || row.selectedAct?.tscName
+    || row.actName
+    || row.bandName
+    || row.act?.name
+    || row.bookingDetails?.actTscName
+    || row.bookingDetails?.actName
+    || row.bookingDetails?.bandName,
 );
 const rowVenue = (row) => text(
   row.venue || row.venueName || row.eventSheet?.answers?.venue_name || row.bookingDetails?.venue,
