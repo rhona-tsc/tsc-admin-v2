@@ -717,7 +717,12 @@ const ruleDisplayName = (rule) => {
     : text(rule?.subject) || `Automation ${rule?.sourceNumber || ""}`;
 };
 
-const matchesChoice = (actual, choice) => choice === "any" || boolValue(actual) === choice;
+const matchesChoice = (actual, choice) => {
+  const normalizedChoice = text(choice).toLowerCase();
+  return !normalizedChoice
+    || normalizedChoice === "any"
+    || boolValue(actual) === normalizedChoice;
+};
 const ruleAlreadySent = (rule, row) => {
   const number = Number(rule?.sourceNumber);
   return [6, 8, 9].includes(number) && Boolean(row?.introEmailSentAt || row?.introEmailMessageId);
@@ -774,6 +779,10 @@ const prepareRules = (source) => source
   .map((rule) => {
     const number = Number(rule.sourceNumber);
     const filters = { ...rule.filters };
+    filters.bookedDj = filters.bookedDj || "any";
+    filters.bookedPlaylist = filters.bookedPlaylist || "any";
+    filters.reviewStatus = filters.reviewStatus || "any";
+    filters.reviewPermission = filters.reviewPermission || "any";
     const timing = { ...rule.timing };
     let body = String(rule.body || "")
       .replace(/Warmest wishes,\s*\nRhona(?:\s*x|\s*✨)?/gi, "Warmest wishes,\nRhona ✨")
