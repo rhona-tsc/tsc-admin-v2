@@ -87,6 +87,8 @@ const getDisplayBookingRef = (row) => {
   return row?.bookingRef || row?.bookingId || row?.reference || row?._id || "—";
 };
 
+const getBookingBoardItemId = (row) => row?.bookingBoardItemId || row?._id || "";
+
 const getDisplayEventDate = (row) => {
   return (
     row?.eventDateISO ||
@@ -4118,8 +4120,9 @@ export default function BookingBoard() {
   const openIntroEmailPreview = async (row) => {
     setIntroEmailLoading(true);
     try {
+      const bookingBoardItemId = getBookingBoardItemId(row);
       const response = await fetch(
-        `${API_BASE}/board/bookings/${row._id}/intro-email/preview`,
+        `${API_BASE}/board/bookings/${bookingBoardItemId}/intro-email/preview`,
         { headers: buildHeaders(), credentials: "include" },
       );
       const payload = await response.json();
@@ -4135,11 +4138,12 @@ export default function BookingBoard() {
   };
 
   const sendIntroEmail = async () => {
-    if (!introEmailPreview?.row?._id || introEmailPreview.sentAt) return;
+    const bookingBoardItemId = getBookingBoardItemId(introEmailPreview?.row);
+    if (!bookingBoardItemId || introEmailPreview.sentAt) return;
     setIntroEmailSending(true);
     try {
       const response = await fetch(
-        `${API_BASE}/board/bookings/${introEmailPreview.row._id}/intro-email/send`,
+        `${API_BASE}/board/bookings/${bookingBoardItemId}/intro-email/send`,
         {
           method: "POST",
           headers: buildHeaders(),
