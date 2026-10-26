@@ -87,15 +87,6 @@ const getVenue = (booking) =>
   booking.bookingDetails?.venue ||
   "Venue TBC";
 
-const getFee = (booking) =>
-  Number(
-    booking.fee ||
-      booking.grossValue ||
-      booking.totals?.fullAmount ||
-      booking.amount ||
-      0,
-  );
-
 const getArrivalTime = (booking) =>
   booking.performanceTimes?.arrivalTime ||
   booking.actsSummary?.[0]?.performance?.arrivalTime ||
@@ -230,11 +221,11 @@ const BookingList = ({ token }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authToken]);
 
-  const confirmedBookings = useMemo(
+  const visibleBookings = useMemo(
     () =>
       bookings.filter((booking) => {
         const status = String(getMusicianTag(booking)?.status || "confirmed").toLowerCase();
-        return ["accepted", "confirmed"].includes(status);
+        return ["accepted", "confirmed", "provisional"].includes(status);
       }),
     [bookings],
   );
@@ -242,8 +233,12 @@ const BookingList = ({ token }) => {
   const withdrawAvailability = async (booking) => {
     const ref = getBookingRef(booking);
     if (!ref || withdrawingId) return;
+    const isProvisional =
+      String(getMusicianTag(booking)?.status || "").toLowerCase() === "provisional";
     const confirmed = window.confirm(
-      "Withdraw from this confirmed gig? The role will be reopened so another musician can be booked.",
+      isProvisional
+        ? "Withdraw your availability from this provisional booking?"
+        : "Withdraw from this confirmed gig? The role will be reopened so another musician can be booked.",
     );
     if (!confirmed) return;
     const reason = window.prompt("Optional: tell us why you are no longer available.", "") || "";
@@ -274,7 +269,7 @@ const BookingList = ({ token }) => {
         <div>
           <h1 className="text-2xl font-bold mb-2">Your Gigs</h1>
           <p className="text-sm text-gray-500">
-            Confirmed bookings you have been allocated to:
+            Confirmed and provisional bookings allocated to you:
           </p>
         </div>
 
@@ -298,15 +293,17 @@ const BookingList = ({ token }) => {
         <div className="rounded border bg-white p-6 text-gray-500">
           Loading your gigs…
         </div>
-      ) : confirmedBookings.length === 0 ? (
+      ) : visibleBookings.length === 0 ? (
         <div className="rounded border bg-white p-6 text-gray-500">
           No gigs have been assigned to your profile yet.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {confirmedBookings.map((booking) => {
+          {visibleBookings.map((booking) => {
             const fee = getMusicianFee(booking);
             const musicianTag = getMusicianTag(booking);
+            const isProvisional =
+              String(musicianTag?.status || "").toLowerCase() === "provisional";
             const arrivalTime = getArrivalTime(booking);
             const startTime = getStartTime(booking);
             const finishTime = getFinishTime(booking);
@@ -314,12 +311,14 @@ const BookingList = ({ token }) => {
             return (
               <div
                 key={booking._id || booking.bookingRef || booking.bookingId}
-                className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+                className={`rounded-xl border bg-white p-5 shadow-sm ${
+                  isProvisional ? "border-amber-300" : "border-gray-200"
+                }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-xs uppercase tracking-widest text-gray-500">
-                      Confirmed gig
+                      {isProvisional ? "Provisional booking" : "Confirmed gig"}
                     </p>
 
                     <h2 className="mt-1 text-lg font-semibold text-gray-900">
@@ -333,10 +332,24 @@ const BookingList = ({ token }) => {
                     ) : null}
                   </div>
 
-                  <span className="rounded-full bg-green-50 border border-green-200 px-3 py-1 text-xs font-semibold capitalize text-green-700">
-                    {getStatusLabel(booking)}
+                  <span
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold capitalize ${
+                      isProvisional
+                        ? "border-amber-300 bg-amber-50 text-amber-800"
+                        : "border-green-200 bg-green-50 text-green-700"
+                    }`}
+                  >
+                    {isProvisional ? "Provisional" : getStatusLabel(booking)}
                   </span>
                 </div>
+
+                {isProvisional ? (
+                  <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    The client has signed the contract, but the deposit is still
+                    outstanding. Please hold the date; we’ll mark this confirmed
+                    as soon as payment arrives.
+                  </div>
+                ) : null}
 
                 <div className="mt-4 space-y-2 text-sm text-gray-700">
                   <p>
@@ -375,16 +388,23 @@ const BookingList = ({ token }) => {
                   ) : null}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => withdrawAvailability(booking)}
-                  disabled={withdrawingId === String(getBookingRef(booking))}
-                  className="mt-5 w-full rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
-                >
-                  {withdrawingId === String(getBookingRef(booking))
-                    ? "Withdrawing…"
-                    : "I’m no longer available"}
-                </button>
+                {isProvisional ? (
+                  <p className="mt-5 text-xs text-gray-500">
+                    If you can no longer hold this date, please contact The
+                    Supreme Collective before the deposit is paid.
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => withdrawAvailability(booking)}
+                    disabled={withdrawingId === String(getBookingRef(booking))}
+                    className="mt-5 w-full rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                  >
+                    {withdrawingId === String(getBookingRef(booking))
+                      ? "Withdrawing…"
+                      : "I’m no longer available"}
+                  </button>
+                )}
               </div>
             );
           })}
