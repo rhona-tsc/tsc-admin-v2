@@ -3907,6 +3907,9 @@ const isPastClientRow = (row) => {
   return Boolean(eventDate && eventDate < todayISODate());
 };
 
+const isCancelledBookingRow = (row) =>
+  String(row?.bookingStatus || row?.status || "").toLowerCase() === "cancelled";
+
 const hasSortableEventDate = (row) => Boolean(getSortableEventDate(row));
 
 const isEnquiryRow = (row) => {
@@ -4003,12 +4006,14 @@ export default function BookingBoard() {
     "upcoming-bookings": false,
     "missing-event-date": false,
     "past-clients": true,
+    "cancelled-bookings": true,
   });
   const [expandedRows, setExpandedRows] = useState({});
   const [rowSaveState, setRowSaveState] = useState({});
   const [introEmailPreview, setIntroEmailPreview] = useState(null);
   const [introEmailLoading, setIntroEmailLoading] = useState(false);
   const [introEmailSending, setIntroEmailSending] = useState(false);
+  const [cancellingBookingId, setCancellingBookingId] = useState("");
 
   const toggleExpandedRow = (rowId) => {
     setExpandedRows((prev) => ({
@@ -4240,14 +4245,26 @@ export default function BookingBoard() {
   );
 
   const enquiryRows = useMemo(
-    () => visibleRows.filter((row) => isEnquiryRow(row)),
+    () => visibleRows.filter((row) => !isCancelledBookingRow(row) && isEnquiryRow(row)),
+    [visibleRows],
+  );
+
+  const cancelledRows = useMemo(
+    () =>
+      visibleRows
+        .filter((row) => isCancelledBookingRow(row))
+        .sort((a, b) =>
+          String(b?.cancellation?.cancelledAt || "").localeCompare(
+            String(a?.cancellation?.cancelledAt || ""),
+          ),
+        ),
     [visibleRows],
   );
 
   const missingDateRows = useMemo(
     () =>
       visibleRows.filter(
-        (row) => !isEnquiryRow(row) && !hasSortableEventDate(row),
+        (row) => !isCancelledBookingRow(row) && !isEnquiryRow(row) && !hasSortableEventDate(row),
       ),
     [visibleRows],
   );
@@ -4258,6 +4275,7 @@ export default function BookingBoard() {
         .filter(
           (row) =>
             !isEnquiryRow(row) &&
+            !isCancelledBookingRow(row) &&
             hasSortableEventDate(row) &&
             !isPastClientRow(row),
         )
@@ -4273,6 +4291,7 @@ export default function BookingBoard() {
         .filter(
           (row) =>
             !isEnquiryRow(row) &&
+            !isCancelledBookingRow(row) &&
             hasSortableEventDate(row) &&
             isPastClientRow(row),
         )
@@ -4291,6 +4310,7 @@ export default function BookingBoard() {
       missingDateRows,
       upcomingRows,
       pastRows,
+      cancelledRows,
       counts: {
         rows: rows.length,
         mergedRows: mergedRows.length,
@@ -4299,6 +4319,7 @@ export default function BookingBoard() {
         missingDates: missingDateRows.length,
         upcoming: upcomingRows.length,
         past: pastRows.length,
+        cancelled: cancelledRows.length,
       },
     };
   }, [
@@ -4309,6 +4330,7 @@ export default function BookingBoard() {
     missingDateRows,
     upcomingRows,
     pastRows,
+    cancelledRows,
   ]);
 
   const boardSections = useMemo(
@@ -4350,8 +4372,17 @@ export default function BookingBoard() {
         titleClass: "text-orange-700",
         emptyText: `No past clients to show. Past clients are events before ${todayISODate()}.`,
       },
+      {
+        key: "cancelled-bookings",
+        title: "Cancelled Bookings",
+        count: cancelledRows.length,
+        rows: cancelledRows,
+        accentClass: "border-l-rose-500",
+        titleClass: "text-rose-700",
+        emptyText: "No cancelled bookings to show.",
+      },
     ],
-    [enquiryRows, upcomingRows, missingDateRows, pastRows],
+    [enquiryRows, upcomingRows, missingDateRows, pastRows, cancelledRows],
   );
 
   const toggleSection = (sectionKey) => {
@@ -4404,6 +4435,69 @@ export default function BookingBoard() {
       }
       setRowSaveState((prev) => ({ ...prev, [id]: "error" }));
       window.alert(e.message || "This booking could not be updated.");
+    }
+  };
+
+  const cancelBooking = async (row) => {
+    const confirmedMusicians = [
+      ...(row?.assignedMusicians || []),
+      ...(row?.bookingMusicians || []),
+      ...(row?.bandLineup || []),
+    ].filter((member, index, all) => {
+      const active = ["accepted", "confirmed"].includes(
+        String(member?.status || "").toLowerCase(),
+      );
+      const identity = String(member?.email || member?.musicianId || member?.name || "");
+      return active && identity && all.findIndex((candidate) =>
+        String(candidate?.email || candidate?.musicianId || candidate?.name || "") === identity,
+      ) === index;
+    });
+    const names = confirmedMusicians.map((member) => member?.name || member?.firstName).filter(Boolean);
+    const feeInput = window.prompt(
+      "Cancellation fee due to each confirmed musician (£). Enter 0 when no fee applies:",
+      "0",
+    );
+    if (feeInput === null) return;
+    const cancellationFeeAmount = Number(String(feeInput).replace(/[£,]/g, ""));
+    if (!Number.isFinite(cancellationFeeAmount) || cancellationFeeAmount < 0) {
+      window.alert("Enter a valid cancellation fee of 0 or more.");
+      return;
+    }
+    const reason = window.prompt(
+      "Optional internal cancellation note:",
+      "Client cancelled",
+    );
+    if (reason === null) return;
+    const confirmed = window.confirm(
+      `Cancel ${getDisplayActTscName(row) || getDisplayActName(row) || "this booking"} on ${getDisplayEventDate(row) || "the booked date"}?\n\n${names.length ? `This will send the approved cancellation WhatsApp to: ${names.join(", ")}.` : "No confirmed musician WhatsApp recipients were found."}\nCancellation fee per confirmed musician: £${cancellationFeeAmount.toFixed(2)}.\n\nClient automations will be stopped and the booking will move to Cancelled Bookings.`,
+    );
+    if (!confirmed) return;
+
+    setCancellingBookingId(String(row?._id || ""));
+    try {
+      const response = await fetch(`${API_BASE}/board/bookings/${row._id}/cancel`, {
+        method: "POST",
+        headers: buildHeaders(),
+        credentials: "include",
+        body: JSON.stringify({ cancellationFeeAmount, reason }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.message || "The booking could not be cancelled.");
+      }
+      setRows((current) => current.map((item) =>
+        String(item?._id) === String(row?._id) ? payload.row : item,
+      ));
+      const failures = payload?.failedNotifications?.length || 0;
+      window.alert(
+        failures
+          ? `${payload.message} Please contact the failed recipient${failures === 1 ? "" : "s"} manually.`
+          : payload.message,
+      );
+    } catch (error) {
+      window.alert(error.message || "The booking could not be cancelled.");
+    } finally {
+      setCancellingBookingId("");
     }
   };
 
@@ -6911,6 +7005,26 @@ export default function BookingBoard() {
                                               ? "Syncing..."
                                               : "Sync finance"}
                                           </button>
+
+                                          {isCancelledBookingRow(r) ? (
+                                            <div className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
+                                              Cancelled
+                                              {r?.cancellation?.cancelledAt
+                                                ? ` ${new Date(r.cancellation.cancelledAt).toLocaleDateString("en-GB")}`
+                                                : ""}
+                                            </div>
+                                          ) : (
+                                            <button
+                                              type="button"
+                                              className="px-3 py-1.5 rounded border border-rose-300 bg-white text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                                              disabled={cancellingBookingId === String(r?._id || "")}
+                                              onClick={() => cancelBooking(r)}
+                                            >
+                                              {cancellingBookingId === String(r?._id || "")
+                                                ? "Cancelling…"
+                                                : "Cancel booking"}
+                                            </button>
+                                          )}
                                         </div>
                                       </td>
                                     </tr>
