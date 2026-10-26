@@ -1048,6 +1048,12 @@ const DeputyForm = ({
           const merged = { ...prev };
 
           for (const key in parsed) {
+            // Stripe status is server-authoritative. The local snapshot is
+            // written before the user leaves for Stripe, so restoring it after
+            // the redirect can incorrectly replace a newly completed account
+            // with the old "incomplete" values.
+            if (key === "stripeConnect") continue;
+
             if (
               parsed[key] !== null &&
               parsed[key] !== undefined &&
@@ -1068,11 +1074,6 @@ const DeputyForm = ({
                   merged[key] = {
                     ...prev.bank_account,
                     ...parsed.bank_account,
-                  };
-                } else if (key === "stripeConnect") {
-                  merged[key] = {
-                    ...prev.stripeConnect,
-                    ...parsed.stripeConnect,
                   };
                 } else {
                   merged[key] = { ...merged[key], ...parsed[key] };
