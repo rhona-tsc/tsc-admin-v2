@@ -2,3 +2,10 @@
   base = "."
   command = "npm install && npm run build"
   publish = "dist"
+
+# Exclude every admin route from search, including SPA fallback responses.
+# Keep crawling allowed so search engines can discover this directive.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
