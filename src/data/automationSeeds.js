@@ -611,9 +611,10 @@ export const automationSeeds = [
       "reviewStatus": "any"
     },
     "timing": {
-      "reference": "eventDate",
+      "reference": "nonGoogleReviewReceivedAt",
       "offsetDays": 0,
-      "label": "Event date"
+      "strategy": "non_google_review_received",
+      "label": "When a non-Google review is received and no Google review exists"
     }
   },
   {

@@ -4526,6 +4526,13 @@ export default function BookingBoard() {
     );
     if (clientFirstName === null) return;
 
+    const sourceInput = window.prompt(
+      "Where was this non-Google review received? (e.g. email, Trustpilot, agency feedback)",
+      existing.source === "trustpilot" ? "Trustpilot" : "Email / other",
+    );
+    if (sourceInput === null) return;
+    const source = /trustpilot/i.test(sourceInput) ? "trustpilot" : "other";
+
     try {
       const response = await fetch(
         `${API_BASE}/board/bookings/${row._id}/review`,
@@ -4538,6 +4545,7 @@ export default function BookingBoard() {
             comment: comment.trim(),
             rating: ratingInput ? rating : null,
             clientFirstName: clientFirstName.trim(),
+            source,
             eventDate: row.eventDateISO || "",
             eventType: row.eventType || "",
             eventLocation: row.county || row.address || "",
@@ -6621,8 +6629,11 @@ export default function BookingBoard() {
                                       </td>
                                       <td className={cellClass}>
                                         <div className="flex flex-col items-start gap-1">
-                                          {r.review?.received && (
-                                            <Tag>⭐ Received</Tag>
+                                          {(r.review?.nonGoogleReceivedAt || (r.review?.receivedAt && r.review?.source !== "google")) && (
+                                            <Tag>⭐ Non-Google review received</Tag>
+                                          )}
+                                          {r.review?.googleReceivedAt && (
+                                            <Tag>Google review received</Tag>
                                           )}
                                           {r.review?.doNotRequest && (
                                             <Tag>Review request blocked</Tag>
@@ -6679,9 +6690,26 @@ export default function BookingBoard() {
                                             onClick={() => recordBookingReview(r)}
                                           >
                                             {r.review?.comment
-                                              ? "Edit feedback"
-                                              : "Add feedback"}
+                                              ? "Edit non-Google review"
+                                              : "Add non-Google review"}
                                           </button>
+                                          <label className="flex items-center gap-1 text-[11px] text-gray-700">
+                                            <input
+                                              type="checkbox"
+                                              checked={Boolean(r.review?.googleReceivedAt)}
+                                              onChange={(event) =>
+                                                onInlineEdit(r._id, {
+                                                  review: {
+                                                    ...(r.review || {}),
+                                                    googleReceivedAt: event.target.checked
+                                                      ? new Date().toISOString()
+                                                      : null,
+                                                  },
+                                                })
+                                              }
+                                            />
+                                            Google review received
+                                          </label>
                                         </div>
                                       </td>
                                       <td className={cellClass}>

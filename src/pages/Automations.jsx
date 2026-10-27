@@ -495,6 +495,14 @@ const vocalistSetlistMissingLinks = (row) => [
   !text(row?.whatsappGroupLink) ? "WhatsApp group link" : "",
 ].filter(Boolean);
 const proposedSendAt = (row, timing = {}) => {
+  if (timing.strategy === "non_google_review_received") {
+    const received = parseDate(row?.review?.nonGoogleReceivedAt || row?.review?.receivedAt);
+    if (!received) return null;
+    received.setDate(received.getDate() + Number(timing.offsetDays || 0));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return received < today ? nextAutomationRunAt() : received;
+  }
   if (timing.strategy === "add_ons_midpoint") {
     const introSent = parseDate(row?.introEmailSentAt);
     const eventSheetDue = finalDetailsDueAt(row);
@@ -579,6 +587,9 @@ const proposedSendDate = (row, timing = {}) => {
     : formatDate(date);
 };
 const describeSendRule = (timing = {}) => {
+  if (timing.strategy === "non_google_review_received") {
+    return "Send after a non-Google review is recorded on the Booking Board, but only while no Google review has been recorded.";
+  }
   if (timing.reference === "fixed" && !timing.strategy) return "Send on the manually selected date.";
   if (timing.strategy === "add_ons_midpoint") {
     return "Send halfway between the intro email being sent and the Booking Board Event Sheet/invoice due date. If that midpoint has passed but the due date has not, send on the next automation run.";
@@ -694,6 +705,7 @@ const templateValues = (row = {}) => ({
   "{{draft_setlist_link}}": text(row.draftSetlistLink),
   "{{whatsapp_group_link}}": text(row.whatsappGroupLink),
   "{{act_add_on_options}}": actAddOnOptions(row),
+  "{{non_google_review_text}}": text(row?.review?.comment),
   // Imported Monday.com tags remain supported while templates are migrated.
   "{pulse.text7}": firstName(rowClient(row)),
   "{pulse.dropdown}": rowAct(row),
@@ -706,6 +718,7 @@ const templateValues = (row = {}) => ({
   "{pulse.text3}": specialRequestLabel(row),
   "{pulse.text94}": songRequestDueDate(row),
   "{pulse.text60}": invoiceDueDate(row),
+  "{pulse.text9}": text(row?.review?.comment),
   "{pulse.dup__of_vocalist}": vocalistNames(row),
 });
 const renderTemplate = (template, row) => {
@@ -789,7 +802,10 @@ const ruleMatchesRow = (
     if (!dueDate || !sendAt || sendAt > dueDate) return false;
   }
   const f = rule?.filters || {};
-  if (!parseDate(rowDate(row))) return false;
+  if (rule?.timing?.strategy === "non_google_review_received") {
+    if (!parseDate(row?.review?.nonGoogleReceivedAt || row?.review?.receivedAt)) return false;
+    if (parseDate(row?.review?.googleReceivedAt) || row?.review?.source === "google") return false;
+  } else if (!parseDate(rowDate(row))) return false;
   if (Array.isArray(f.agents) && f.agents.length && !f.agents.includes(normalizeAgent(row.agent))) return false;
   if (Array.isArray(f.eventTypes) && f.eventTypes.length && !f.eventTypes.includes(normalizeEventType(row.eventType))) return false;
   if (f.recipientRole && rowRole(row) !== f.recipientRole) return false;
@@ -862,6 +878,13 @@ const prepareRules = (source) => source
         /Performance Add-Ons:[\s\S]*?(?=These options are designed)/i,
         "{{act_add_on_options}}\n\n",
       );
+    }
+    if (number === 30) {
+      timing.strategy = "non_google_review_received";
+      timing.reference = "nonGoogleReviewReceivedAt";
+      timing.offsetDays = 0;
+      timing.label = "When a non-Google review is received and no Google review exists";
+      filters.reviewStatus = "received";
     }
     if (number === 14) {
       timing.strategy = "song_suggestions_due";
