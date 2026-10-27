@@ -748,10 +748,20 @@ const matchesChoice = (actual, choice) => {
     || normalizedChoice === "any"
     || boolValue(actual) === normalizedChoice;
 };
-const ruleAlreadySent = (rule, row) => {
+const sentDeliveryForRule = (rule, row) => {
   const number = Number(rule?.sourceNumber);
-  return [6, 8, 9].includes(number) && Boolean(row?.introEmailSentAt || row?.introEmailMessageId);
+  if ([6, 8, 9].includes(number) && (row?.introEmailSentAt || row?.introEmailMessageId)) {
+    return {
+      sentAt: row.introEmailSentAt || null,
+      messageId: row.introEmailMessageId || "",
+    };
+  }
+  return (Array.isArray(row?.automationDeliveries) ? row.automationDeliveries : [])
+    .find((delivery) =>
+      delivery?.status === "sent" && Number(delivery?.automationNumber) === number,
+    ) || null;
 };
+const ruleAlreadySent = (rule, row) => Boolean(sentDeliveryForRule(rule, row));
 const ruleMatchesRow = (
   rule,
   row,
@@ -1211,11 +1221,13 @@ export default function Automations() {
         const sendAt = usesManualDate ? null : proposedSendAt(row, rule.timing);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const alreadySent = ruleAlreadySent(rule, row);
+        const sentDelivery = sentDeliveryForRule(rule, row);
+        const alreadySent = Boolean(sentDelivery);
         return {
           rule,
           row,
           siteSuppressed: row?.siteAutomationsEnabled === false,
+          sentDelivery,
           alreadySent,
           overdue: Boolean(sendAt && sendAt < today && !alreadySent),
           sendAt,
@@ -1431,7 +1443,7 @@ export default function Automations() {
                               {item.siteSuppressed ? (
                                 <><div>Not scheduled</div><div className="mt-1 text-[11px] font-normal text-amber-700">Would otherwise send {item.sendLabel}</div></>
                               ) : item.alreadySent ? (
-                                <><div>Already sent</div><div className="mt-1 text-[11px] font-normal text-slate-500">{item.row.introEmailSentAt ? new Date(item.row.introEmailSentAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "Previously sent"}</div></>
+                                <><div>Already sent</div><div className="mt-1 text-[11px] font-normal text-slate-500">{item.sentDelivery?.sentAt ? new Date(item.sentDelivery.sentAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "Previously sent"}</div></>
                               ) : <><div>{item.sendLabel}</div>{item.overdue && <div className="mt-1 text-[11px] font-semibold text-amber-700">Overdue — not recorded as sent</div>}</>}
                             </td>
                             <td className="px-3 py-3"><div className="font-medium text-slate-900">Automation {item.rule.sourceNumber}</div><div className="text-slate-500">{item.rule.status === "reviewed" ? "Reviewed" : "Needs review"}</div></td>
