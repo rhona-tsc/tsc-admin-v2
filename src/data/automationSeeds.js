@@ -494,7 +494,7 @@ export const automationSeeds = [
     "active": false,
     "filters": {
       "agent": "",
-      "eventType": "",
+      "eventType": "Wedding",
       "weddingStatus": "",
       "bookedDj": "any",
       "bookedPlaylist": "any",

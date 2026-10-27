@@ -650,6 +650,7 @@ const TEMPLATE_TAGS = [
   { tag: "{{event_sheet_link}}", label: "Band / internal event sheet" },
   { tag: "{{invoice_link}}", label: "Invoice link" },
   { tag: "{{booking_reference}}", label: "Booking reference" },
+  { tag: "{{referral_discount_code}}", label: "Wedding referral code" },
   { tag: "{{agent_name}}", label: "Agent" },
   { tag: "{{special_request_label}}", label: "First dance / off-repertoire label" },
   { tag: "{{song_request_due_date}}", label: "Song request due date" },
@@ -710,6 +711,7 @@ const templateValues = (row = {}) => ({
   "{{event_sheet_link}}": rowEventSheetLink(row),
   "{{invoice_link}}": rowInvoiceLink(row),
   "{{booking_reference}}": rowRef(row),
+  "{{referral_discount_code}}": text(row.referralDiscountCode),
   "{{agent_name}}": normalizeAgent(row.agent),
   "{{special_request_label}}": specialRequestLabel(row),
   "{{song_request_due_date}}": songRequestDueDate(row),
@@ -722,6 +724,9 @@ const templateValues = (row = {}) => ({
   // Imported Monday.com tags remain supported while templates are migrated.
   "{pulse.text7}": firstName(rowClient(row)),
   "{pulse.dropdown}": rowAct(row),
+  "{pulse.text__1}": text(row.referralDiscountCode),
+  "[First Names]": rowClient(row),
+  "[Band Name]": rowAct(row),
   "{pulse.event_type}": normalizeEventType(row.eventType),
   "{pulse.dup__of_event_type}": normalizeEventType(row.eventType),
   "{pulse.text04}": friendlyDate(rowDate(row)),
@@ -801,6 +806,7 @@ const ruleMatchesRow = (
   if (!includeDisabled && rule?.enabled === false) return false;
   if (!includeSiteSuppressed && row?.siteAutomationsEnabled === false) return false;
   if (!includeSent && ruleAlreadySent(rule, row)) return false;
+  if (Number(rule?.sourceNumber) === 23 && !text(row?.referralDiscountCode)) return false;
   if (rule?.timing?.strategy === "invoice_due" && !finalDetailsDueAt(row)) {
     return false;
   }
@@ -871,6 +877,7 @@ const prepareRules = (source) => source
     }
     delete filters.eventType;
     if (number === 1) filters.agents = ["Entertainment Nation"];
+    if (number === 23) filters.eventTypes = ["Wedding"];
     delete filters.agentIncludes;
     if ([2, 3].includes(number)) filters.weddingStatus = "Wedding";
     if (number === 3) timing.strategy = "post_event";
