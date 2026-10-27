@@ -567,9 +567,10 @@ export const automationSeeds = [
       "reviewStatus": "any"
     },
     "timing": {
-      "reference": "eventDate",
-      "offsetDays": 0,
-      "label": "Event date"
+      "reference": "automation30SentAt",
+      "offsetDays": 5,
+      "strategy": "after_automation_30",
+      "label": "Five days after Automation 30, while no Google review exists"
     }
   },
   {

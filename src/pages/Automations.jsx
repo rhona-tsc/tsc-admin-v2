@@ -495,6 +495,16 @@ const vocalistSetlistMissingLinks = (row) => [
   !text(row?.whatsappGroupLink) ? "WhatsApp group link" : "",
 ].filter(Boolean);
 const proposedSendAt = (row, timing = {}) => {
+  if (timing.strategy === "after_automation_30") {
+    const firstFollowup = (Array.isArray(row?.automationDeliveries) ? row.automationDeliveries : [])
+      .find((delivery) => delivery?.status === "sent" && Number(delivery?.automationNumber) === 30);
+    const sentAt = parseDate(firstFollowup?.sentAt);
+    if (!sentAt) return null;
+    sentAt.setDate(sentAt.getDate() + Number(timing.offsetDays ?? 5));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return sentAt < today ? nextAutomationRunAt() : sentAt;
+  }
   if (timing.strategy === "non_google_review_received") {
     const received = parseDate(row?.review?.nonGoogleReceivedAt || row?.review?.receivedAt);
     if (!received) return null;
@@ -587,6 +597,9 @@ const proposedSendDate = (row, timing = {}) => {
     : formatDate(date);
 };
 const describeSendRule = (timing = {}) => {
+  if (timing.strategy === "after_automation_30") {
+    return "Send five days after Automation 30 was actually sent, but only while no Google review has been recorded.";
+  }
   if (timing.strategy === "non_google_review_received") {
     return "Send after a non-Google review is recorded on the Booking Board, but only while no Google review has been recorded.";
   }
@@ -805,6 +818,11 @@ const ruleMatchesRow = (
   if (rule?.timing?.strategy === "non_google_review_received") {
     if (!parseDate(row?.review?.nonGoogleReceivedAt || row?.review?.receivedAt)) return false;
     if (parseDate(row?.review?.googleReceivedAt) || row?.review?.source === "google") return false;
+  } else if (rule?.timing?.strategy === "after_automation_30") {
+    const firstFollowup = (Array.isArray(row?.automationDeliveries) ? row.automationDeliveries : [])
+      .find((delivery) => delivery?.status === "sent" && Number(delivery?.automationNumber) === 30);
+    if (!parseDate(firstFollowup?.sentAt)) return false;
+    if (parseDate(row?.review?.googleReceivedAt) || row?.review?.source === "google") return false;
   } else if (!parseDate(rowDate(row))) return false;
   if (Array.isArray(f.agents) && f.agents.length && !f.agents.includes(normalizeAgent(row.agent))) return false;
   if (Array.isArray(f.eventTypes) && f.eventTypes.length && !f.eventTypes.includes(normalizeEventType(row.eventType))) return false;
@@ -884,6 +902,13 @@ const prepareRules = (source) => source
       timing.reference = "nonGoogleReviewReceivedAt";
       timing.offsetDays = 0;
       timing.label = "When a non-Google review is received and no Google review exists";
+      filters.reviewStatus = "received";
+    }
+    if (number === 26) {
+      timing.strategy = "after_automation_30";
+      timing.reference = "automation30SentAt";
+      timing.offsetDays = 5;
+      timing.label = "Five days after Automation 30, while no Google review exists";
       filters.reviewStatus = "received";
     }
     if (number === 14) {
