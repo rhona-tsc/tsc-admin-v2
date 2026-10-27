@@ -900,6 +900,14 @@ export default function Automations() {
       return prepareRules(automationSeeds);
     }
   });
+  const [rulesReady, setRulesReady] = useState(false);
+  const [rulesSaveState, setRulesSaveState] = useState({
+    status: "loading",
+    message: "Loading saved rules…",
+  });
+  const configVersionRef = useRef(0);
+  const lastPersistedRulesRef = useRef("");
+  const saveChainRef = useRef(Promise.resolve());
   const [selectedId, setSelectedId] = useState(rules[0]?.id || "");
   const [query, setQuery] = useState("");
   const [ruleQuery, setRuleQuery] = useState("");
@@ -913,6 +921,83 @@ export default function Automations() {
   const [testPreviewState, setTestPreviewState] = useState({ sending: false, message: "", error: "" });
   const subjectRef = useRef(null);
   const bodyRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const token = localStorage.getItem("token") || "";
+    const headers = {
+      ...(token ? { Authorization: `Bearer ${token}`, token } : {}),
+      "Content-Type": "application/json",
+    };
+    const browserRules = rules;
+
+    const loadPersistedRules = async () => {
+      try {
+        const response = await fetch(`${backendUrl}/api/automation-config/rules`, {
+          headers,
+          credentials: "include",
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.message || "Saved automation rules could not be loaded.");
+        }
+
+        if (payload.exists && Array.isArray(payload.rules) && payload.rules.length) {
+          const prepared = prepareRules(payload.rules);
+          if (cancelled) return;
+          configVersionRef.current = Number(payload.version || 0);
+          lastPersistedRulesRef.current = JSON.stringify(prepared);
+          setRules(prepared);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(prepared));
+          setRulesSaveState({ status: "saved", message: "Saved centrally" });
+          setRulesReady(true);
+          return;
+        }
+
+        const migrationResponse = await fetch(`${backendUrl}/api/automation-config/rules`, {
+          method: "PUT",
+          headers,
+          credentials: "include",
+          body: JSON.stringify({
+            rules: browserRules,
+            expectedVersion: 0,
+            source: localStorage.getItem(STORAGE_KEY)
+              ? "browser_local_storage_migration"
+              : "seed_initialisation",
+          }),
+        });
+        const migrated = await migrationResponse.json();
+        if (!migrationResponse.ok || !migrated?.success) {
+          throw new Error(migrated?.message || "The browser copy could not be migrated.");
+        }
+        if (cancelled) return;
+        const prepared = prepareRules(migrated.rules || browserRules);
+        configVersionRef.current = Number(migrated.version || 1);
+        lastPersistedRulesRef.current = JSON.stringify(prepared);
+        setRules(prepared);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(prepared));
+        setRulesSaveState({
+          status: "saved",
+          message: "Browser copy migrated and saved centrally",
+        });
+        setRulesReady(true);
+      } catch (error) {
+        if (cancelled) return;
+        setRulesSaveState({
+          status: "error",
+          message: `${error.message} Your browser copy has not been overwritten.`,
+        });
+      }
+    };
+
+    loadPersistedRules();
+    return () => {
+      cancelled = true;
+    };
+    // Load once so the browser snapshot used for migration cannot change
+    // underneath the initial server read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("token") || "";
@@ -1004,8 +1089,41 @@ export default function Automations() {
   }, [rows, actProfiles]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(rules));
-  }, [rules]);
+    const serialized = JSON.stringify(rules);
+    localStorage.setItem(STORAGE_KEY, serialized);
+    if (!rulesReady || serialized === lastPersistedRulesRef.current) return;
+
+    setRulesSaveState({ status: "saving", message: "Saving…" });
+    const timer = window.setTimeout(() => {
+      saveChainRef.current = saveChainRef.current.then(async () => {
+        if (serialized === lastPersistedRulesRef.current) return;
+        const token = localStorage.getItem("token") || "";
+        const response = await fetch(`${backendUrl}/api/automation-config/rules`, {
+          method: "PUT",
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}`, token } : {}),
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            rules: JSON.parse(serialized),
+            expectedVersion: configVersionRef.current,
+            source: "dashboard_save",
+          }),
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.message || "Automation rules could not be saved.");
+        }
+        configVersionRef.current = Number(payload.version || configVersionRef.current + 1);
+        lastPersistedRulesRef.current = serialized;
+        setRulesSaveState({ status: "saved", message: "Saved centrally" });
+      }).catch((error) => {
+        setRulesSaveState({ status: "error", message: error.message });
+      });
+    }, 750);
+    return () => window.clearTimeout(timer);
+  }, [rules, rulesReady]);
 
   const selected = rules.find((rule) => rule.id === selectedId) || rules[0];
   const updateRule = (patch) => setRules((current) => current.map((rule) => rule.id === selected.id ? { ...rule, ...patch } : rule));
@@ -1211,6 +1329,9 @@ export default function Automations() {
           <h1 className="text-2xl font-semibold text-slate-900">Automations</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-600">Preview and reconcile the Monday email rules. Sending is locked while the imported conditions are reviewed.</p>
           <p className="mt-2 text-xs font-medium text-slate-500">Review progress: {reviewedCount} of {rules.length} · {enabledCount} switched on</p>
+          <p className={`mt-1 text-xs font-semibold ${rulesSaveState.status === "error" ? "text-red-700" : rulesSaveState.status === "saving" || rulesSaveState.status === "loading" ? "text-amber-700" : "text-emerald-700"}`}>
+            {rulesSaveState.message}
+          </p>
         </div>
         <div className="rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800">Preview only · sending disabled</div>
       </div>
