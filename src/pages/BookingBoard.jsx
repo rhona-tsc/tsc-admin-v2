@@ -2042,6 +2042,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
   const [searchingMusicians, setSearchingMusicians] = useState(false);
   const [musicianSearchError, setMusicianSearchError] = useState("");
   const [sendingOfferIndex, setSendingOfferIndex] = useState(null);
+  const [expandedMusicianRoles, setExpandedMusicianRoles] = useState({});
 
   if (!row || !value) return null;
 
@@ -3365,24 +3366,47 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                   assignedMusicians.map((member, index) => (
                     <div
                       key={`${member?.musicianId || member?.email || member?.name || index}-${index}`}
-                      className="grid grid-cols-1 gap-3 rounded-lg border-2 border-gray-200 bg-gray-50/60 p-4 lg:grid-cols-12 lg:items-end"
+                      className="rounded-lg border-2 border-gray-200 bg-gray-50/60 p-4"
                     >
-                      <div className="lg:col-span-3">
-                        <label className="block text-xs text-gray-600 mb-1">
-                          Musician
-                        </label>
-                        <input
-                          className="border rounded px-3 py-2 w-full bg-gray-50"
-                          value={
-                            member?.name ||
-                            member?.email ||
-                            member?.musicianId ||
-                            ""
-                          }
-                          readOnly
-                        />
+                      <div className="mb-4 flex flex-col gap-3 border-b border-gray-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Musician</div>
+                          <div className="truncate text-base font-semibold text-gray-900">
+                            {member?.name || member?.email || member?.musicianId || "Musician"}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            disabled={
+                              sendingOfferIndex === index ||
+                              member?.status === "offered" ||
+                              member?.status === "accepted" ||
+                              member?.status === "confirmed"
+                            }
+                            className="rounded bg-[#087f9c] px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+                            onClick={() => sendAssignedMusicianOffer(index)}
+                          >
+                            {sendingOfferIndex === index
+                              ? "Sending…"
+                              : member?.status === "accepted" || member?.status === "confirmed"
+                                ? "Accepted"
+                                : member?.status === "offered"
+                                  ? "Request sent"
+                                  : "Send availability request"}
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded border bg-white px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                            onClick={() => removeAssignedMusician(index)}
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
-                      <div className="lg:col-span-3">
+
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-[minmax(14rem,2fr)_minmax(14rem,1.4fr)_minmax(12rem,1.25fr)_minmax(11rem,1fr)] xl:items-end">
+                      <div>
                         <label className="block text-xs text-gray-600 mb-1">
                           Role / instrument
                         </label>
@@ -3397,7 +3421,21 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                           }
                           placeholder="e.g. Vocalist, Guitar, DJ"
                         />
-                        <div className="mt-2 flex flex-wrap gap-1.5">
+                        <button
+                          type="button"
+                          className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[#087f9c] hover:underline"
+                          aria-expanded={Boolean(expandedMusicianRoles[index])}
+                          onClick={() =>
+                            setExpandedMusicianRoles((current) => ({
+                              ...current,
+                              [index]: !current[index],
+                            }))
+                          }
+                        >
+                          {expandedMusicianRoles[index] ? "Hide roles & duties" : "Show roles & duties"}
+                          <span aria-hidden="true">{expandedMusicianRoles[index] ? "▴" : "▾"}</span>
+                        </button>
+                        {expandedMusicianRoles[index] ? <div className="mt-2 flex flex-wrap gap-1.5">
                           {roleOptions.map((role) => {
                             const selected = String(
                               member?.role || member?.instrument || "",
@@ -3423,9 +3461,9 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                               </button>
                             );
                           })}
-                        </div>
+                        </div> : null}
                       </div>
-                      <div className="lg:col-span-2">
+                      <div>
                         <label className="block text-xs text-gray-600 mb-1">
                           Gig fee
                         </label>
@@ -3446,7 +3484,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                             placeholder="0.00"
                           />
                           <select
-                            className="w-20 rounded border bg-white px-2 py-2"
+                            className="w-24 shrink-0 rounded border bg-white px-2 py-2"
                             value={member?.currency || "GBP"}
                             onChange={(e) =>
                               updateAssignedMusician(index, {
@@ -3460,7 +3498,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                           </select>
                         </div>
                       </div>
-                      <div className="lg:col-span-2">
+                      <div>
                         <label className="block text-xs text-gray-600 mb-1">
                           Early arrival
                         </label>
@@ -3481,7 +3519,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                           <option value={90}>90 mins early</option>
                         </select>
                       </div>
-                      <div className="lg:col-span-2">
+                      <div>
                         <label className="block text-xs text-gray-600 mb-1">
                           Payment
                         </label>
@@ -3501,34 +3539,6 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                           <option value="cancelled">Cancelled</option>
                         </select>
                       </div>
-                      <div className="flex flex-wrap gap-2 lg:col-span-12 lg:justify-end">
-                        <button
-                          type="button"
-                          disabled={
-                            sendingOfferIndex === index ||
-                            member?.status === "offered" ||
-                            member?.status === "accepted" ||
-                            member?.status === "confirmed"
-                          }
-                          className="rounded bg-[#087f9c] px-3 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-                          onClick={() => sendAssignedMusicianOffer(index)}
-                        >
-                          {sendingOfferIndex === index
-                            ? "Sending…"
-                            : member?.status === "accepted" ||
-                                member?.status === "confirmed"
-                              ? "Accepted"
-                              : member?.status === "offered"
-                                ? "Request sent"
-                                : "Send availability request"}
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded border px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                          onClick={() => removeAssignedMusician(index)}
-                        >
-                          Remove
-                        </button>
                       </div>
                     </div>
                   ))
