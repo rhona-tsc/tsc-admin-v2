@@ -794,7 +794,7 @@ const matchesChoice = (actual, choice) => {
 };
 const sentDeliveryForRule = (rule, row) => {
   const number = Number(rule?.sourceNumber);
-  if ([6, 8, 9].includes(number) && (row?.introEmailSentAt || row?.introEmailMessageId)) {
+  if ([1, 6, 8, 9].includes(number) && (row?.introEmailSentAt || row?.introEmailMessageId)) {
     return {
       sentAt: row.introEmailSentAt || null,
       messageId: row.introEmailMessageId || "",

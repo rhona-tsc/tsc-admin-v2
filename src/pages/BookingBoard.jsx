@@ -580,9 +580,10 @@ const getPaymentUrl = (row) => {
 const getInvoiceUrl = (row) => {
   const hasBoardInvoice =
     row?.invoicePdfUrl || row?.invoiceUrl || row?.payments?.boardInvoicePdfUrl;
+  const bookingBoardItemId = getBookingBoardItemId(row);
 
-  if (row?._id && hasBoardInvoice) {
-    return `${API_BASE}/invoices/board-invoice/${row._id}`;
+  if (bookingBoardItemId && hasBoardInvoice) {
+    return `${API_BASE}/invoices/board-invoice/${bookingBoardItemId}`;
   }
 
   const raw =
@@ -603,9 +604,10 @@ const getExtrasInvoiceUrl = (row) => {
     row?.extrasInvoicePdfUrl ||
     row?.extrasInvoiceUrl ||
     row?.payments?.extrasInvoicePdfUrl;
+  const bookingBoardItemId = getBookingBoardItemId(row);
 
-  if (row?._id && hasExtrasInvoice) {
-    return `${API_BASE}/invoices/board-invoice/${row._id}?invoiceType=extras`;
+  if (bookingBoardItemId && hasExtrasInvoice) {
+    return `${API_BASE}/invoices/board-invoice/${bookingBoardItemId}?invoiceType=extras`;
   }
 
   return normalizeUrl(row?.extrasInvoicePdfUrl || row?.extrasInvoiceUrl || "");
@@ -3873,9 +3875,10 @@ const getReceiptUrl = (row) => {
     row?.receiptUrl ||
     row?.payments?.boardReceiptPdfUrl ||
     row?.payments?.receiptPdfUrl;
+  const bookingBoardItemId = getBookingBoardItemId(row);
 
-  return hasReceipt && row?._id
-    ? `${API_BASE}/invoices/board-receipt/${row._id}`
+  return hasReceipt && bookingBoardItemId
+    ? `${API_BASE}/invoices/board-receipt/${bookingBoardItemId}`
     : "";
 };
 
@@ -3884,9 +3887,10 @@ const getExtrasReceiptUrl = (row) => {
     row?.extrasReceiptPdfUrl ||
     row?.extrasReceiptUrl ||
     row?.payments?.extrasReceiptPdfUrl;
+  const bookingBoardItemId = getBookingBoardItemId(row);
 
-  return hasExtrasReceipt && row?._id
-    ? `${API_BASE}/invoices/board-receipt/${row._id}?invoiceType=extras`
+  return hasExtrasReceipt && bookingBoardItemId
+    ? `${API_BASE}/invoices/board-receipt/${bookingBoardItemId}?invoiceType=extras`
     : "";
 };
 
@@ -5181,6 +5185,11 @@ export default function BookingBoard() {
 
   const createInvoiceForRow = async (row, invoiceType = "main") => {
     try {
+      const bookingBoardItemId = getBookingBoardItemId(row);
+      if (!bookingBoardItemId) {
+        window.alert("This booking is not linked to a Booking Board row yet.");
+        return;
+      }
       const res = await fetch(`${API_BASE}/invoices/create-board-invoice`, {
         method: "POST",
         headers: buildHeaders(),
@@ -5189,7 +5198,7 @@ export default function BookingBoard() {
           documentType: "invoice",
 
           invoiceType,
-          bookingId: row._id,
+          bookingId: bookingBoardItemId,
           includePaymentLink: false,
         }),
       });
@@ -5226,8 +5235,8 @@ export default function BookingBoard() {
       const apiRoot = String(API_BASE || "").replace(/\/api\/?$/, "");
       const previewUrl = json.previewUrl
         ? `${apiRoot}${json.previewUrl}`
-        : row?._id
-          ? `${API_BASE}/invoices/board-invoice/${row._id}${
+        : bookingBoardItemId
+          ? `${API_BASE}/invoices/board-invoice/${bookingBoardItemId}${
               invoiceType !== "main" ? `?invoiceType=${invoiceType}` : ""
             }`
           : "";
@@ -5295,12 +5304,17 @@ export default function BookingBoard() {
 
     try {
       setSavingReceipt(true);
+      const bookingBoardItemId = getBookingBoardItemId(row);
+      if (!bookingBoardItemId) {
+        window.alert("This booking is not linked to a Booking Board row yet.");
+        return;
+      }
       const res = await fetch(`${API_BASE}/invoices/create-board-receipt`, {
         method: "POST",
         headers: buildHeaders(),
         credentials: "include",
         body: JSON.stringify({
-          bookingId: row._id,
+          bookingId: bookingBoardItemId,
           documentType: "receipt",
           invoiceType: receiptType,
           paymentDate: options.paymentDate,
@@ -5346,8 +5360,8 @@ export default function BookingBoard() {
       const apiRoot = String(API_BASE || "").replace(/\/api\/?$/, "");
       const previewUrl = json.previewUrl
         ? `${apiRoot}${json.previewUrl}`
-        : row?._id
-          ? `${API_BASE}/invoices/board-receipt/${row._id}${
+        : bookingBoardItemId
+          ? `${API_BASE}/invoices/board-receipt/${bookingBoardItemId}${
               isExtrasReceipt ? "?invoiceType=extras" : ""
             }`
           : "";
@@ -5445,12 +5459,17 @@ export default function BookingBoard() {
     if (!confirmed) return;
 
     try {
+      const bookingBoardItemId = getBookingBoardItemId(row);
+      if (!bookingBoardItemId) {
+        window.alert("This booking is not linked to a Booking Board row yet.");
+        return;
+      }
       const res = await fetch(`${API_BASE}/invoices/create-board-invoice`, {
         method: "POST",
         headers: buildHeaders(),
         credentials: "include",
         body: JSON.stringify({
-          bookingId: row._id,
+          bookingId: bookingBoardItemId,
           includePaymentLink: true,
         }),
       });
@@ -5471,8 +5490,8 @@ export default function BookingBoard() {
       const apiRoot = String(API_BASE || "").replace(/\/api\/?$/, "");
       const previewUrl = json.previewUrl
         ? `${apiRoot}${json.previewUrl}`
-        : row?._id
-          ? `${API_BASE}/invoices/board-invoice/${row._id}`
+        : bookingBoardItemId
+          ? `${API_BASE}/invoices/board-invoice/${bookingBoardItemId}`
           : "";
 
       if (cardPaymentUrl) {
