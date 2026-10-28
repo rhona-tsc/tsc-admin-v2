@@ -240,6 +240,9 @@ const consolidateAutomationRows = (sourceRows = []) => {
         : {}),
       ...(boardSource
         ? {
+            ...(text(boardSource.actName)
+              ? { actName: text(boardSource.actName) }
+              : {}),
             ...(text(boardSource.actTscName)
               ? { actTscName: text(boardSource.actTscName) }
               : {}),
@@ -674,6 +677,16 @@ const rowAct = (row) => text(
     || row.bookingDetails?.actName
     || row.bookingDetails?.bandName,
 );
+const rowBookedAct = (row) => text(
+  row.actName
+    || row.actsSummary?.[0]?.actName
+    || row.actsSummary?.[0]?.name
+    || row.bookingDetails?.actName
+    || row.bandName
+    || row.bookingDetails?.bandName
+    || row.act?.name
+    || rowAct(row),
+);
 const rowVenue = (row) => text(
   row.venue || row.venueName || row.eventSheet?.answers?.venue_name || row.bookingDetails?.venue,
 );
@@ -723,7 +736,7 @@ const templateValues = (row = {}) => ({
   "{{non_google_review_text}}": text(row?.review?.comment),
   // Imported Monday.com tags remain supported while templates are migrated.
   "{pulse.text7}": firstName(rowClient(row)),
-  "{pulse.dropdown}": rowAct(row),
+  "{pulse.dropdown}": rowBookedAct(row),
   "{pulse.text__1}": text(row.referralDiscountCode),
   "[First Names]": rowClient(row),
   "[Band Name]": rowAct(row),
