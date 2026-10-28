@@ -2,6 +2,10 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { EVENT_TYPE_OPTIONS, normalizeEventType } from "../constants/eventTypes";
 import { AGENT_OPTIONS, normalizeAgent } from "../constants/agents";
+import {
+  allocationMatchesRoleSlot,
+  normaliseAllocationRole,
+} from "../utils/allocationRoles";
 
 const API_BASE = (
   import.meta?.env?.VITE_ADMIN_API_BASE ||
@@ -1254,7 +1258,6 @@ const buildEditStateFromRow = (row) => {
   };
 };
 
-const normaliseAllocationRole = (value = "") => String(value || "").trim();
 const getRolesFromLineupLabel = (value = "") => {
   const label = String(value || "").trim();
   if (!label) return [];
@@ -1416,10 +1419,17 @@ function RoleAllocationCell({ row }) {
     if (exact) return exact;
 
     const sameRole = assignments.filter(
-      (member) =>
-        normaliseAllocationRole(member?.role || member?.instrument).toLowerCase() ===
-        slot.role.toLowerCase(),
+      (member) => allocationMatchesRoleSlot(member, slot),
     );
+
+    if (sameRole.length === 1) return sameRole[0];
+
+    const sameOrdinal = sameRole.find((member) => {
+      const memberOrdinal = String(member?.roleSlotId || "").match(/-(\d+)$/)?.[1];
+      const slotOrdinal = String(slot?.roleSlotId || "").match(/-(\d+)$/)?.[1];
+      return memberOrdinal && slotOrdinal && memberOrdinal === slotOrdinal;
+    });
+    if (sameOrdinal) return sameOrdinal;
 
     // Legacy allocations did not have slot IDs. Only use the positional
     // fallback when every matching allocation is legacy; otherwise an exact
