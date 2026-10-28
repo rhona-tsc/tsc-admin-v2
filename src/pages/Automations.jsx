@@ -398,14 +398,21 @@ const actAddOnOptions = (row) => {
   });
 
   return lines.length
-    ? `Add-ons available for ${rowAct(row)}:\n${lines.join("\n")}`
-    : `Please ask me if you would like a tailored add-on quote for ${rowAct(row)}.`;
+    ? `Add-ons available for ${rowBookedAct(row)}:\n${lines.join("\n")}`
+    : `Please ask me if you would like a tailored add-on quote for ${rowBookedAct(row)}.`;
 };
 const parseDate = (value) => {
   const date = new Date(`${dateOnly(value)}T12:00:00`);
   return Number.isNaN(date.getTime()) ? null : date;
 };
-const formatDate = (date) => date?.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) || "";
+const ordinalDay = (day) => {
+  const lastTwoDigits = day % 100;
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 13) return `${day}th`;
+  return `${day}${({ 1: "st", 2: "nd", 3: "rd" }[day % 10] || "th")}`;
+};
+const formatDate = (date) => date
+  ? `${ordinalDay(date.getDate())} ${date.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}`
+  : "";
 const nextAutomationRunAt = () => {
   const nextRun = new Date();
   nextRun.setHours(12, 0, 0, 0);
@@ -700,11 +707,6 @@ const rowClientEventSheetLink = (row) => {
 const rowInvoiceLink = (row) => text(
   row.payments?.boardInvoicePdfUrl || row.invoicePdfUrl || row.payments?.hosted_invoice_url || row.payments?.invoiceUrl || row.invoiceUrl || row.invoice?.url,
 );
-const ordinalDay = (day) => {
-  const lastTwoDigits = day % 100;
-  if (lastTwoDigits >= 11 && lastTwoDigits <= 13) return `${day}th`;
-  return `${day}${({ 1: "st", 2: "nd", 3: "rd" }[day % 10] || "th")}`;
-};
 const friendlyDate = (value) => {
   if (!value) return "";
   const date = new Date(`${dateOnly(value)}T12:00:00`);
@@ -716,7 +718,7 @@ const firstName = (value) => text(value).split(/\s+|&/)[0] || "";
 const templateValues = (row = {}) => ({
   "{{client_first_name}}": firstName(rowClient(row)),
   "{{client_names}}": rowClient(row),
-  "{{act_name}}": rowAct(row),
+  "{{act_name}}": rowBookedAct(row),
   "{{event_type}}": normalizeEventType(row.eventType),
   "{{event_date}}": friendlyDate(rowDate(row)),
   "{{venue_name}}": rowVenue(row),
@@ -739,7 +741,7 @@ const templateValues = (row = {}) => ({
   "{pulse.dropdown}": rowBookedAct(row),
   "{pulse.text__1}": text(row.referralDiscountCode),
   "[First Names]": rowClient(row),
-  "[Band Name]": rowAct(row),
+  "[Band Name]": rowBookedAct(row),
   "{pulse.event_type}": normalizeEventType(row.eventType),
   "{pulse.dup__of_event_type}": normalizeEventType(row.eventType),
   "{pulse.text04}": friendlyDate(rowDate(row)),
