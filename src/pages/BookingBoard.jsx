@@ -4745,6 +4745,7 @@ export default function BookingBoard() {
       invoiceDateISO: bookingDateISO,
       invoiceDueDateISO: editForm.invoiceDueDateISO || "",
       songSuggestionsDueDateISO: editForm.songSuggestionsDueDateISO || "",
+      eventType: normalizeEventType(editForm.eventType),
       contactRole: editForm.contactRole || "direct_client",
       siteAutomationsEnabled: editForm.siteAutomationsEnabled !== false,
       eventSheetLink: String(editForm.eventSheetLink || "").trim(),
