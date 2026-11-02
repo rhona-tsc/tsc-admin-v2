@@ -4038,6 +4038,8 @@ export default function BookingBoard() {
   const [introEmailLoading, setIntroEmailLoading] = useState(false);
   const [introEmailSending, setIntroEmailSending] = useState(false);
   const [cancellingBookingId, setCancellingBookingId] = useState("");
+  const [reviewEditor, setReviewEditor] = useState(null);
+  const [savingReview, setSavingReview] = useState(false);
 
   const toggleExpandedRow = (rowId) => {
     setExpandedRows((prev) => ({
@@ -4525,38 +4527,47 @@ export default function BookingBoard() {
     }
   };
 
-  const recordBookingReview = async (row) => {
+  const openReviewEditor = (row, source = "other") => {
     const existing = row?.review || {};
-    const comment = window.prompt(
-      "Paste the client review or testimonial:",
-      existing.comment || "",
-    );
-    if (comment === null || !comment.trim()) return;
+    const existingSource =
+      source === "google"
+        ? "google"
+        : ["internal", "trustpilot", "other"].includes(existing.source)
+          ? existing.source
+          : "other";
+    setReviewEditor({
+      row,
+      source: existingSource,
+      comment: existing.comment || "",
+      rating: existing.rating || (existingSource === "google" ? 5 : ""),
+      clientFirstName: existing.clientFirstName || getClientFirstNames(row) || "",
+      clientLastName: existing.clientLastName || "",
+    });
+  };
 
-    const ratingInput = window.prompt(
-      "Star rating from 1 to 5 (leave blank if none was supplied):",
-      existing.rating || "",
-    );
-    if (ratingInput === null) return;
-    const rating = Number(ratingInput);
-    if (ratingInput && (!Number.isFinite(rating) || rating < 1 || rating > 5)) {
-      window.alert("Please enter a rating from 1 to 5, or leave it blank.");
+  const recordBookingReview = async () => {
+    const row = reviewEditor?.row;
+    const existing = row?.review || {};
+    const comment = String(reviewEditor?.comment || "").trim();
+    const hasRating = String(reviewEditor?.rating ?? "").trim() !== "";
+    const rating = hasRating ? Number(reviewEditor.rating) : null;
+    if (!row || !comment) {
+      window.alert("Please enter the review text.");
+      return;
+    }
+    if (
+      (reviewEditor.source === "google" && !hasRating) ||
+      (hasRating && (!Number.isFinite(rating) || rating < 1 || rating > 5))
+    ) {
+      window.alert(
+        reviewEditor.source === "google"
+          ? "Please choose a rating from 1 to 5 stars for a Google review."
+          : "Please choose a rating from 1 to 5 stars, or clear the rating.",
+      );
       return;
     }
 
-    const clientFirstName = window.prompt(
-      "Client first name (optional):",
-      existing.clientFirstName || "",
-    );
-    if (clientFirstName === null) return;
-
-    const sourceInput = window.prompt(
-      "Where was this non-Google review received? (e.g. email, Trustpilot, agency feedback)",
-      existing.source === "trustpilot" ? "Trustpilot" : "Email / other",
-    );
-    if (sourceInput === null) return;
-    const source = /trustpilot/i.test(sourceInput) ? "trustpilot" : "other";
-
+    setSavingReview(true);
     try {
       const response = await fetch(
         `${API_BASE}/board/bookings/${row._id}/review`,
@@ -4566,10 +4577,12 @@ export default function BookingBoard() {
           credentials: "include",
           body: JSON.stringify({
             reviewId: existing.reviewId || "",
-            comment: comment.trim(),
-            rating: ratingInput ? rating : null,
-            clientFirstName: clientFirstName.trim(),
-            source,
+            comment,
+            rating,
+            clientFirstName: String(reviewEditor.clientFirstName || "").trim(),
+            clientLastName: String(reviewEditor.clientLastName || "").trim(),
+            clientEmail: getPrimaryEmail(row),
+            source: reviewEditor.source,
             eventDate: row.eventDateISO || "",
             eventType: row.eventType || "",
             eventLocation: row.county || row.address || "",
@@ -4583,12 +4596,15 @@ export default function BookingBoard() {
       }
 
       await fetchRows();
+      setReviewEditor(null);
       window.alert(
-        `Feedback saved and linked to ${json.linkedMusicianCount || 0} confirmed musician${json.linkedMusicianCount === 1 ? "" : "s"}${json.linkedAct ? " and the act profile" : ""}.`,
+        `Review saved and linked to ${json.linkedMusicianCount || 0} confirmed musician${json.linkedMusicianCount === 1 ? "" : "s"}${json.linkedAct ? " and the act profile" : ""}.`,
       );
     } catch (error) {
       console.error("Review save failed", error);
-      window.alert(error.message || "Could not save feedback.");
+      window.alert(error.message || "Could not save the review.");
+    } finally {
+      setSavingReview(false);
     }
   };
 
@@ -6727,9 +6743,9 @@ export default function BookingBoard() {
                                           )}
                                           <button
                                             className="text-xs font-medium text-blue-700 underline"
-                                            onClick={() => recordBookingReview(r)}
+                                            onClick={() => openReviewEditor(r, "other")}
                                           >
-                                            {r.review?.comment
+                                            {r.review?.comment && r.review?.source !== "google"
                                               ? "Edit non-Google review"
                                               : "Add non-Google review"}
                                           </button>
@@ -6737,19 +6753,19 @@ export default function BookingBoard() {
                                             <input
                                               type="checkbox"
                                               checked={Boolean(r.review?.googleReceivedAt)}
-                                              onChange={(event) =>
-                                                onInlineEdit(r._id, {
-                                                  review: {
-                                                    ...(r.review || {}),
-                                                    googleReceivedAt: event.target.checked
-                                                      ? new Date().toISOString()
-                                                      : null,
-                                                  },
-                                                })
-                                              }
+                                              onChange={() => openReviewEditor(r, "google")}
                                             />
                                             Google review received
                                           </label>
+                                          {r.review?.googleReceivedAt && (
+                                            <button
+                                              type="button"
+                                              className="text-xs font-medium text-blue-700 underline"
+                                              onClick={() => openReviewEditor(r, "google")}
+                                            >
+                                              Edit Google review
+                                            </button>
+                                          )}
                                         </div>
                                       </td>
                                       <td className={cellClass}>
@@ -7697,6 +7713,125 @@ export default function BookingBoard() {
             )
           }
         />
+      )}
+      {reviewEditor && (
+        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b px-6 py-4">
+              <div>
+                <h2 className="text-xl font-semibold">
+                  {reviewEditor.source === "google" ? "Record Google review" : "Record client review"}
+                </h2>
+                <p className="mt-1 text-sm text-gray-600">
+                  This will appear on the booked act and each confirmed musician’s profile.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="rounded border px-3 py-1.5"
+                onClick={() => setReviewEditor(null)}
+                disabled={savingReview}
+              >
+                Close
+              </button>
+            </div>
+            <div className="space-y-5 p-6">
+              <div>
+                <label className="mb-2 block text-sm font-medium">
+                  Star rating {reviewEditor.source === "google" ? "" : "(optional)"}
+                </label>
+                <div className="flex gap-2" role="radiogroup" aria-label="Star rating">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      className={`text-3xl ${star <= Number(reviewEditor.rating) ? "text-amber-400" : "text-gray-300"}`}
+                      onClick={() => setReviewEditor((current) => ({ ...current, rating: star }))}
+                      aria-label={`${star} star${star === 1 ? "" : "s"}`}
+                      aria-pressed={Number(reviewEditor.rating) === star}
+                    >
+                      ★
+                    </button>
+                  ))}
+                  {reviewEditor.source !== "google" && reviewEditor.rating && (
+                    <button
+                      type="button"
+                      className="ml-2 text-sm text-gray-600 underline"
+                      onClick={() => setReviewEditor((current) => ({ ...current, rating: "" }))}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium">Client name</span>
+                <input
+                  className="w-full rounded-lg border px-3 py-2"
+                  value={reviewEditor.clientFirstName}
+                  onChange={(event) =>
+                    setReviewEditor((current) => ({
+                      ...current,
+                      clientFirstName: event.target.value,
+                    }))
+                  }
+                  placeholder="e.g. Billy & Alice"
+                />
+              </label>
+              {reviewEditor.source !== "google" && (
+                <label className="block">
+                  <span className="mb-1 block text-sm font-medium">Review source</span>
+                  <select
+                    className="w-full rounded-lg border px-3 py-2"
+                    value={reviewEditor.source}
+                    onChange={(event) =>
+                      setReviewEditor((current) => ({
+                        ...current,
+                        source: event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="other">Email / other</option>
+                    <option value="trustpilot">Trustpilot</option>
+                    <option value="internal">Direct client feedback</option>
+                  </select>
+                </label>
+              )}
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium">Review</span>
+                <textarea
+                  className="min-h-56 w-full rounded-lg border px-3 py-2"
+                  value={reviewEditor.comment}
+                  onChange={(event) =>
+                    setReviewEditor((current) => ({
+                      ...current,
+                      comment: event.target.value,
+                    }))
+                  }
+                  placeholder="Paste the client’s review here"
+                />
+              </label>
+            </div>
+            <div className="flex justify-end gap-3 border-t px-6 py-4">
+              <button
+                type="button"
+                className="rounded border px-4 py-2"
+                onClick={() => setReviewEditor(null)}
+                disabled={savingReview}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded bg-green-700 px-5 py-2 font-medium text-white disabled:opacity-50"
+                onClick={recordBookingReview}
+                disabled={savingReview || !String(reviewEditor.comment || "").trim()}
+              >
+                {savingReview ? "Saving…" : "Save and link review"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {introEmailPreview && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
