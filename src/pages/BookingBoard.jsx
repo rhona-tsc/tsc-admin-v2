@@ -143,6 +143,13 @@ const agentTakesDeposit = (row) => {
 const getDisplayDeposit = (row) => {
   if (!agentTakesDeposit(row)) return 0;
 
+  const paidDepositInvoiceGross = Number(
+    String(row?.depositInvoice?.status || "").toLowerCase() === "paid"
+      ? row?.depositInvoice?.gross || 0
+      : 0,
+  );
+  if (paidDepositInvoiceGross > 0) return paidDepositInvoiceGross;
+
   const backendDeposit = Number(
     row?.payments?.depositChargedAmount ??
       row?.payments?.depositAmount ??
@@ -164,6 +171,22 @@ const parseMoneyInput = (value) => {
 };
 
 const clamp0 = (n) => Math.max(0, Number(n || 0) || 0);
+
+const calculatedPassThroughInput = (grossValue, commissionGross) => {
+  if (
+    String(grossValue ?? "").trim() === "" ||
+    String(commissionGross ?? "").trim() === ""
+  ) {
+    return "";
+  }
+
+  return round2(
+    Math.max(
+      0,
+      parseMoneyInput(grossValue) - parseMoneyInput(commissionGross),
+    ),
+  );
+};
 
 const vatSplitFromGross = (gross, vatRate = 0.2) => {
   const g = Number(gross || 0) || 0;
@@ -4025,6 +4048,7 @@ export default function BookingBoard() {
   const [syncingFinanceId, setSyncingFinanceId] = useState(null);
   const [receiptOptions, setReceiptOptions] = useState(null);
   const [savingReceipt, setSavingReceipt] = useState(false);
+  const [sendReceiptWhenPaid, setSendReceiptWhenPaid] = useState({});
   const [collapsedSections, setCollapsedSections] = useState({
     enquiries: false,
     "upcoming-bookings": false,
@@ -4780,6 +4804,10 @@ export default function BookingBoard() {
         fullAmount: Number(newGross.toFixed(2)),
         depositAmount: Number(depositAmount.toFixed(2)),
       },
+      // The board API persists this value into payments.depositAmount and
+      // payments.depositChargedAmount. Keeping it top-level in the request
+      // prevents modal edits from being discarded when totals are sanitised.
+      depositAmount: Number(depositAmount.toFixed(2)),
       grossValue: Number(newGross.toFixed(2)),
       extras: cleanedExtras,
       manualAdjustment: {
@@ -5301,7 +5329,7 @@ export default function BookingBoard() {
             ? "Please mark the deposit invoice as paid before generating its receipt."
           : "Please mark the invoice as paid before generating a receipt.",
       );
-      return;
+      return { success: false };
     }
 
     if (!options) {
@@ -5316,7 +5344,7 @@ export default function BookingBoard() {
         paymentDate: toDateInputValue(storedPaidAt),
         sendReceipt: Boolean(getPrimaryEmail(row)),
       });
-      return;
+      return { success: false };
     }
 
     try {
@@ -5324,7 +5352,7 @@ export default function BookingBoard() {
       const bookingBoardItemId = getBookingBoardItemId(row);
       if (!bookingBoardItemId) {
         window.alert("This booking is not linked to a Booking Board row yet.");
-        return;
+        return { success: false };
       }
       const res = await fetch(`${API_BASE}/invoices/create-board-receipt`, {
         method: "POST",
@@ -5353,13 +5381,13 @@ export default function BookingBoard() {
         window.alert(
           `Receipt failed: backend returned non-JSON.\n\n${raw.slice(0, 250)}`,
         );
-        return;
+        return { success: false };
       }
 
       if (!res.ok || !json?.success) {
         console.error("create receipt failed", json || raw);
         window.alert(json?.message || "Could not create receipt.");
-        return;
+        return { success: false };
       }
 
       const updatedRow = json.row || json.booking || null;
@@ -5398,26 +5426,41 @@ export default function BookingBoard() {
           updatedRow?.payments?.receiptPdfUrl ||
           updatedRow?.payments?.boardReceiptPdfUrl;
 
-      if (nextReceiptUrl) {
+      if (nextReceiptUrl && options.openReceipt !== false) {
         window.open(nextReceiptUrl, "_blank", "noopener,noreferrer");
-      } else {
+      } else if (!nextReceiptUrl) {
         window.alert("Receipt generated, but no receipt URL was returned.");
       }
       setReceiptOptions(null);
       if (options.sendReceipt && json?.receiptEmailResult && !json.receiptEmailResult.ok) {
         window.alert(`The receipt was generated, but the email could not be sent: ${json.receiptEmailResult.error || json.receiptEmailResult.reason || "email delivery failed"}`);
+        return { success: true, emailSent: false };
       }
+      return {
+        success: true,
+        emailSent: options.sendReceipt
+          ? json?.receiptEmailResult?.ok !== false
+          : null,
+      };
     } catch (error) {
       console.error("create receipt failed", error);
       window.alert(error?.message || "Receipt failed.");
+      return { success: false };
     } finally {
       setSavingReceipt(false);
     }
   };
 
   const markInvoicePaidForRow = async (row) => {
+    const rowId = String(row?._id || getDisplayBookingRef(row));
+    const email = getPrimaryEmail(row);
+    const shouldSendReceipt = Boolean(sendReceiptWhenPaid[rowId] && email);
     const confirmed = window.confirm(
-      `Mark invoice as paid for ${getDisplayBookingRef(row)}?`,
+      `Mark invoice as paid for ${getDisplayBookingRef(row)}?${
+        shouldSendReceipt
+          ? `\n\nA receipt will be generated and emailed to ${email}.`
+          : ""
+      }`,
     );
 
     if (!confirmed) return;
@@ -5447,25 +5490,47 @@ export default function BookingBoard() {
       },
     };
 
-    const res = await fetch(`${API_BASE}/board/bookings/${row._id}`, {
-      method: "PATCH",
-      headers: buildHeaders(),
-      credentials: "include",
-      body: JSON.stringify(patch),
-    });
+    try {
+      const res = await fetch(`${API_BASE}/board/bookings/${row._id}`, {
+        method: "PATCH",
+        headers: buildHeaders(),
+        credentials: "include",
+        body: JSON.stringify(patch),
+      });
 
-    const json = await res.json();
+      const json = await res.json();
 
-    if (!json?.success) {
-      window.alert(json?.message || "Could not mark invoice as paid.");
-      return;
+      if (!res.ok || !json?.success) {
+        window.alert(json?.message || "Could not mark invoice as paid.");
+        return;
+      }
+
+      const updatedRow = json.row || { ...row, ...patch };
+      setRows((prev) =>
+        prev.map((r) => (r._id === row._id ? updatedRow : r)),
+      );
+      setSendReceiptWhenPaid((prev) => ({ ...prev, [rowId]: false }));
+
+      if (shouldSendReceipt) {
+        const receiptResult = await createReceiptForRow(updatedRow, "main", {
+          paymentDate: toDateInputValue(now),
+          sendReceipt: true,
+          openReceipt: false,
+        });
+
+        if (receiptResult?.success && receiptResult.emailSent !== false) {
+          window.alert(
+            `Invoice marked as paid and a receipt was emailed to ${email}. You can now sync to finance.`,
+          );
+        }
+        return;
+      }
+
+      window.alert("Invoice marked as paid. You can now sync to finance.");
+    } catch (error) {
+      console.error("mark invoice paid failed", error);
+      window.alert(error?.message || "Could not mark invoice as paid.");
     }
-
-    setRows((prev) =>
-      prev.map((r) => (r._id === row._id ? json.row || { ...r, ...patch } : r)),
-    );
-
-    window.alert("Invoice marked as paid. You can now sync to finance.");
   };
 
   const createCardPaymentInvoiceForRow = async (row) => {
@@ -5555,17 +5620,8 @@ export default function BookingBoard() {
       const grossValue = Number(newRow.grossValue || 0) || 0;
       const vatRateRaw = Number(newRow.vatRate);
       const vatRate = Number.isFinite(vatRateRaw) ? vatRateRaw : 0;
-      let commissionGross = clamp0(newRow.commissionGross);
-      let passThroughGross = clamp0(newRow.passThroughGross);
-
-      // If user only entered one side, infer the other from gross.
-      if (grossValue > 0) {
-        if (commissionGross > 0 && passThroughGross <= 0) {
-          passThroughGross = clamp0(grossValue - commissionGross);
-        } else if (passThroughGross > 0 && commissionGross <= 0) {
-          commissionGross = clamp0(grossValue - passThroughGross);
-        }
-      }
+      const commissionGross = clamp0(newRow.commissionGross);
+      const passThroughGross = clamp0(grossValue - commissionGross);
 
       const hasSplit = commissionGross > 0 || passThroughGross > 0;
 
@@ -5720,7 +5776,16 @@ export default function BookingBoard() {
         throw new Error(json?.message || "Could not read this contract.");
       }
 
-      setNewRow((current) => ({ ...current, ...json.draft }));
+      setNewRow((current) => {
+        const merged = { ...current, ...json.draft };
+        return {
+          ...merged,
+          passThroughGross: calculatedPassThroughInput(
+            merged.grossValue,
+            merged.commissionGross,
+          ),
+        };
+      });
       setSelectedManualAct(null);
       setManualActSearch(
         String(json.draft?.actTscName || json.draft?.actName || ""),
@@ -6935,28 +7000,57 @@ export default function BookingBoard() {
                                               </button>
                                             ) : null}
                                           </div>
-                                          <button
-                                            type="button"
-                                            className="text-xs underline text-green-700 disabled:opacity-50"
-                                            disabled={
-                                              r?.payments
-                                                ?.balancePaymentReceived ||
-                                              r?.payments?.invoicePaid ||
-                                              r?.balancePaid ||
-                                              r?.balanceStatus === "paid"
-                                            }
-                                            onClick={() =>
-                                              markInvoicePaidForRow(r)
-                                            }
-                                          >
-                                            {r?.payments
-                                              ?.balancePaymentReceived ||
-                                            r?.payments?.invoicePaid ||
-                                            r?.balancePaid ||
-                                            r?.balanceStatus === "paid"
-                                              ? "Paid"
-                                              : "Mark paid"}
-                                          </button>
+                                          <div className="flex flex-col gap-1 rounded border border-green-100 bg-green-50/50 p-2">
+                                            <button
+                                              type="button"
+                                              className="text-left text-xs underline text-green-700 disabled:opacity-50"
+                                              disabled={balancePaid}
+                                              onClick={() =>
+                                                markInvoicePaidForRow(r)
+                                              }
+                                            >
+                                              {balancePaid
+                                                ? "Paid"
+                                                : "Mark paid"}
+                                            </button>
+                                            {!balancePaid ? (
+                                              <label
+                                                className={`flex items-start gap-2 text-xs ${
+                                                  getPrimaryEmail(r)
+                                                    ? "text-gray-700"
+                                                    : "text-gray-400"
+                                                }`}
+                                                title={
+                                                  getPrimaryEmail(r)
+                                                    ? `Email the receipt to ${getPrimaryEmail(r)}`
+                                                    : "Add a client email before sending a receipt"
+                                                }
+                                              >
+                                                <input
+                                                  type="checkbox"
+                                                  className="mt-0.5 h-3.5 w-3.5"
+                                                  checked={Boolean(
+                                                    sendReceiptWhenPaid[
+                                                      rowId
+                                                    ],
+                                                  )}
+                                                  disabled={!getPrimaryEmail(r)}
+                                                  onChange={(event) =>
+                                                    setSendReceiptWhenPaid(
+                                                      (prev) => ({
+                                                        ...prev,
+                                                        [rowId]:
+                                                          event.target.checked,
+                                                      }),
+                                                    )
+                                                  }
+                                                />
+                                                <span>
+                                                  Email receipt when marked paid
+                                                </span>
+                                              </label>
+                                            ) : null}
+                                          </div>
                                           {receiptUrl ? (
                                             <a
                                               className="inline-flex items-center justify-center px-2 py-1 border rounded hover:bg-gray-100 text-xs text-purple-700 bg-white"
@@ -7342,12 +7436,20 @@ export default function BookingBoard() {
                             <label className="flex flex-col text-xs text-gray-600">
                               Gross booking value
                               <input
+                                type="number"
+                                step="0.01"
+                                min="0"
                                 className="border rounded px-2 py-1 w-32 text-gray-900"
                                 value={newRow.grossValue}
                                 onChange={(e) =>
                                   setNewRow((v) => ({
                                     ...v,
                                     grossValue: e.target.value,
+                                    passThroughGross:
+                                      calculatedPassThroughInput(
+                                        e.target.value,
+                                        v.commissionGross,
+                                      ),
                                   }))
                                 }
                               />
@@ -7377,12 +7479,19 @@ export default function BookingBoard() {
                               <input
                                 type="number"
                                 step="0.01"
+                                min="0"
+                                max={newRow.grossValue || undefined}
                                 className="border rounded px-2 py-1 w-40 text-gray-900"
                                 value={newRow.commissionGross ?? ""}
                                 onChange={(e) =>
                                   setNewRow((v) => ({
                                     ...v,
                                     commissionGross: e.target.value,
+                                    passThroughGross:
+                                      calculatedPassThroughInput(
+                                        v.grossValue,
+                                        e.target.value,
+                                      ),
                                   }))
                                 }
                               />
@@ -7394,15 +7503,17 @@ export default function BookingBoard() {
                               <input
                                 type="number"
                                 step="0.01"
-                                className="border rounded px-2 py-1 w-40 text-gray-900"
+                                className="border rounded px-2 py-1 w-40 bg-gray-100 text-gray-700"
                                 value={newRow.passThroughGross ?? ""}
-                                onChange={(e) =>
-                                  setNewRow((v) => ({
-                                    ...v,
-                                    passThroughGross: e.target.value,
-                                  }))
-                                }
+                                readOnly
+                                aria-describedby="manual-pass-through-help"
                               />
+                              <span
+                                id="manual-pass-through-help"
+                                className="mt-1 text-[10px] text-gray-500"
+                              >
+                                Gross value minus commission
+                              </span>
                             </label>
 
                             {/* NEW: VAT rate */}
