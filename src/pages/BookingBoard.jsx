@@ -17,9 +17,39 @@ const API_BASE = (
 
 // Where to send someone if there’s no eventSheetLink on the row
 const PUBLIC_SITE_BASE = (
-  import.meta?.env?.VITE_PUBLIC_SITE_URL || "http://localhost:5174"
+  import.meta?.env?.VITE_PUBLIC_SITE_URL || "https://thesupremecollective.co.uk"
 ).replace(/\/$/, "");
 const EVENT_SHEET_FALLBACK = `${PUBLIC_SITE_BASE}/event-sheet`;
+
+const BOOKING_LINEUP_ROLE_OPTIONS = [
+  "Lead Female Vocal",
+  "Lead Male Vocal",
+  "Lead Female Vocal / Rapper",
+  "Lead Male Vocal / Rapper",
+  "Backing Vocals",
+  "Electric Guitar",
+  "Acoustic Guitar",
+  "Bass Guitar",
+  "Keyboard",
+  "Drums",
+  "Percussion",
+  "Saxophone",
+  "Trumpet",
+  "Trombone",
+  "Violin",
+  "Cello",
+];
+
+const brandedEventSheetUrl = (value = "") => {
+  const raw = String(value || "").trim();
+  const match = raw.match(/\/api\/booking\/band-sheet\/([^/?#]+)/i);
+  if (!match) return raw;
+  try {
+    return `${PUBLIC_SITE_BASE}/sheet/${encodeURIComponent(decodeURIComponent(match[1]))}`;
+  } catch {
+    return raw;
+  }
+};
 const ACT_TSC_NAME_OVERRIDES = {
   "motown magic": "Dance Floor Magic",
 };
@@ -892,6 +922,92 @@ function InlineInput({
         if (next !== prev) onCommit(next);
       }}
     />
+  );
+}
+
+const lineupRolesFromRow = (row = {}) => {
+  if (Array.isArray(row.lineupComposition) && row.lineupComposition.length) {
+    return row.lineupComposition.filter(Boolean);
+  }
+
+  const members =
+    row?.actsSummary?.[0]?.lineup?.bandMembers ||
+    row?.actsSummary?.[0]?.bandMembers ||
+    [];
+  return members
+    .filter((member) => !/manager|management/i.test(String(member?.instrument || member?.role || "")))
+    .map((member) => member?.instrument || member?.role || "")
+    .filter(Boolean);
+};
+
+function LineupCompositionEditor({ row, onCommit }) {
+  const roles = lineupRolesFromRow(row);
+
+  const commitRoles = (nextRoles) => {
+    const cleaned = nextRoles.map((role) => String(role || "").trim()).filter(Boolean);
+    onCommit({
+      lineupComposition: cleaned,
+      bandSize: cleaned.length,
+    });
+  };
+
+  return (
+    <div className="flex min-w-[210px] flex-col gap-1.5">
+      <InlineInput
+        value={row?.lineupSelected || ""}
+        placeholder="Lineup"
+        onCommit={(lineupSelected) => onCommit({ lineupSelected })}
+      />
+      <details className="rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5 text-[11px] text-gray-700">
+        <summary className="cursor-pointer select-none font-medium">
+          Customise instruments{roles.length ? ` (${roles.length})` : ""}
+        </summary>
+        <div className="mt-2 flex flex-col gap-1.5">
+          {roles.length ? roles.map((role, index) => (
+            <div key={`${role}-${index}`} className="flex items-center gap-1">
+              <select
+                className="min-w-0 flex-1 rounded border border-gray-300 bg-white px-1.5 py-1 text-[11px]"
+                value={role}
+                onChange={(event) => commitRoles(
+                  roles.map((item, roleIndex) => (
+                    roleIndex === index ? event.target.value : item
+                  )),
+                )}
+              >
+                {!BOOKING_LINEUP_ROLE_OPTIONS.includes(role) ? (
+                  <option value={role}>{role}</option>
+                ) : null}
+                {BOOKING_LINEUP_ROLE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="rounded border border-gray-300 bg-white px-1.5 py-1 text-gray-500 hover:text-red-600"
+                title="Remove this role"
+                onClick={() => commitRoles(roles.filter((_, roleIndex) => roleIndex !== index))}
+              >
+                ×
+              </button>
+            </div>
+          )) : (
+            <p className="leading-4 text-gray-500">
+              Add the booked roles for this one-off lineup.
+            </p>
+          )}
+          <button
+            type="button"
+            className="rounded border border-dashed border-gray-300 bg-white px-2 py-1 text-left text-[11px] font-medium text-gray-600 hover:border-sky-400"
+            onClick={() => commitRoles([...roles, "Trumpet"])}
+          >
+            + Add instrumentalist
+          </button>
+          <p className="leading-4 text-gray-500">
+            Changes apply to this booking only and update its allocation slots and event sheet.
+          </p>
+        </div>
+      </details>
+    </div>
   );
 }
 
@@ -4017,6 +4133,7 @@ export default function BookingBoard() {
     actId: "",
     lineupId: "",
     bandSize: "",
+    lineupComposition: [],
     address: "",
     county: "",
     grossValue: "",
@@ -4118,7 +4235,11 @@ export default function BookingBoard() {
           Number(label.match(/\d+/)?.[0])
           || lineup?.bandMembers?.filter?.((member) => member?.instrument)?.length
           || 0;
-        return id ? { id, label, bandSize } : null;
+        const composition = (lineup?.bandMembers || [])
+          .filter((member) => !/manager|management/i.test(String(member?.instrument || member?.role || "")))
+          .map((member) => member?.instrument || member?.role || "")
+          .filter(Boolean);
+        return id ? { id, label, bandSize, composition } : null;
       })
       .filter(Boolean);
   }, [selectedManualAct]);
@@ -4136,6 +4257,7 @@ export default function BookingBoard() {
       lineupId: "",
       lineupSelected: "",
       bandSize: "",
+      lineupComposition: [],
     }));
   };
 
@@ -5724,6 +5846,7 @@ export default function BookingBoard() {
           actId: "",
           lineupId: "",
           bandSize: "",
+          lineupComposition: [],
           address: "",
           county: "",
           grossValue: "",
@@ -6216,24 +6339,32 @@ export default function BookingBoard() {
                                       {/* Event Sheet */}
                                       <td className={cellClass}>
                                         {r.eventSheetLink ? (
-                                          <a
-                                            className="text-blue-600 underline"
-                                            href={r.eventSheetLink}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                          >
-                                            Open
-                                          </a>
+                                          <div className="flex flex-col items-start gap-1">
+                                            <a
+                                              className="text-blue-600 underline"
+                                              href={brandedEventSheetUrl(r.eventSheetLink)}
+                                              target="_blank"
+                                              rel="noreferrer"
+                                            >
+                                              Open
+                                            </a>
+                                            <button
+                                              type="button"
+                                              className="text-xs text-blue-600 underline"
+                                              onClick={async () => {
+                                                const shareUrl = brandedEventSheetUrl(r.eventSheetLink);
+                                                await navigator.clipboard.writeText(shareUrl);
+                                                window.alert("Branded event sheet link copied.");
+                                              }}
+                                            >
+                                              Copy branded link
+                                            </button>
+                                          </div>
                                         ) : (
                                           <button
                                             className="px-2 py-1 border rounded hover:bg-gray-100"
                                             onClick={() => {
-                                              if (
-                                                !PUBLIC_SITE_BASE ||
-                                                PUBLIC_SITE_BASE.includes(
-                                                  "localhost:5174",
-                                                )
-                                              ) {
+                                              if (!PUBLIC_SITE_BASE) {
                                                 window.alert(
                                                   "Event sheet fallback URL is not configured yet. Please set VITE_PUBLIC_SITE_URL to the live public site URL.",
                                                 );
@@ -6663,13 +6794,10 @@ export default function BookingBoard() {
                                         />
                                       </td>
                                       <td className={cellClass}>
-                                        <InlineInput
-                                          value={r.lineupSelected || ""}
-                                          placeholder="Lineup"
-                                          onCommit={(val) =>
-                                            onInlineEdit(r._id, {
-                                              lineupSelected: val,
-                                            })
+                                        <LineupCompositionEditor
+                                          row={r}
+                                          onCommit={(patch) =>
+                                            onInlineEdit(r._id, patch)
                                           }
                                         />
                                       </td>
@@ -7591,6 +7719,7 @@ export default function BookingBoard() {
                                     lineupId,
                                     lineupSelected: lineup?.label || "",
                                     bandSize: lineup?.bandSize || "",
+                                    lineupComposition: lineup?.composition || [],
                                   }));
                                 }}
                               >
@@ -7605,6 +7734,40 @@ export default function BookingBoard() {
                                   </option>
                                 ))}
                               </select>
+                              {newRow.lineupComposition?.length ? (
+                                <div className="mt-2 flex w-72 flex-col gap-1.5 rounded-md border border-gray-200 bg-white p-2">
+                                  <div className="text-[11px] font-medium text-gray-700">
+                                    Instruments for this booking
+                                  </div>
+                                  {newRow.lineupComposition.map((role, index) => (
+                                    <select
+                                      key={`${role}-${index}`}
+                                      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs"
+                                      value={role}
+                                      onChange={(event) => setNewRow((current) => {
+                                        const lineupComposition = current.lineupComposition.map(
+                                          (item, roleIndex) => roleIndex === index ? event.target.value : item,
+                                        );
+                                        return {
+                                          ...current,
+                                          lineupComposition,
+                                          bandSize: lineupComposition.length,
+                                        };
+                                      })}
+                                    >
+                                      {!BOOKING_LINEUP_ROLE_OPTIONS.includes(role) ? (
+                                        <option value={role}>{role}</option>
+                                      ) : null}
+                                      {BOOKING_LINEUP_ROLE_OPTIONS.map((option) => (
+                                        <option key={option} value={option}>{option}</option>
+                                      ))}
+                                    </select>
+                                  ))}
+                                  <div className="text-[10px] leading-4 text-gray-500">
+                                    Swap Saxophone to Trumpet here when the contract differs from the standard lineup.
+                                  </div>
+                                </div>
+                              ) : null}
                             </div>
                             <div className="flex flex-col">
                               <label className="text-xs text-gray-600">
@@ -7669,6 +7832,7 @@ export default function BookingBoard() {
                                       lineupId: "",
                                       lineupSelected: "",
                                       bandSize: "",
+                                      lineupComposition: [],
                                     }));
                                   }
                                 }}
