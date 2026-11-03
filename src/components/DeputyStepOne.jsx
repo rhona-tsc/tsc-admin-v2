@@ -860,6 +860,34 @@ const DeputyStepOne = ({
         </div>
       </div>
 
+      <div className="mt-4">
+        <label
+          htmlFor="dietaryRequirements"
+          className="block font-semibold mb-1"
+        >
+          Dietary requirements or allergies *
+        </label>
+        <p className="mb-2 text-sm text-gray-600">
+          We use this when you are allocated to a booking. Please enter “No
+          dietary requirements” if you have none.
+        </p>
+        <input
+          id="dietaryRequirements"
+          name="dietaryRequirements"
+          type="text"
+          required
+          value={formData.dietaryRequirements || ""}
+          onChange={(e) =>
+            setFormData((prev) => ({
+              ...prev,
+              dietaryRequirements: e.target.value,
+            }))
+          }
+          placeholder="e.g. Pescatarian, nut allergy, or No dietary requirements"
+          className="border border-gray-300 rounded py-1.5 px-3.5 w-full"
+        />
+      </div>
+
       {/* Digital Wardrobe Section */}
       <div className="mt-4 space-y-2">
         <label className="block font-semibold mb-1">Digital Wardrobe</label>

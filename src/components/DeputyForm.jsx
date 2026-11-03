@@ -372,6 +372,10 @@ const DeputyForm = ({
       );
       fd.append("tagLine", formData.tagLine || "");
       fd.append("customRepertoire", formData.customRepertoire || "");
+      fd.append(
+        "dietaryRequirements",
+        formData.dietaryRequirements || "",
+      );
 
       // contracts/signature
       fd.append(
@@ -565,6 +569,7 @@ const DeputyForm = ({
       postcode: "",
       country: "",
     },
+    dietaryRequirements: "",
     profilePicture: null,
     coverHeroImage: null,
     bio: "",
@@ -1108,6 +1113,16 @@ const DeputyForm = ({
   /* -------------------------------- nav helpers ------------------------------ */
 
   const handleNext = () => {
+    if (step === 1 && !String(formData.dietaryRequirements || "").trim()) {
+      toast(
+        <CustomToast
+          type="error"
+          message="Please enter your dietary requirements, or ‘No dietary requirements’ if you have none."
+        />,
+      );
+      return;
+    }
+
     if (step < totalSteps) {
       setStep((prev) => {
         const nextStep = prev + 1;

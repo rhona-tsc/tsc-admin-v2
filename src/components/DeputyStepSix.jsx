@@ -511,7 +511,7 @@ Email: ${email}</p>
 <p><strong>Agent Contact Details</strong><br/>
 Company Name: The Supreme Collective Ltd<br/>
 Contact Telephone: +44 07594 223200<br/>
-Contact Address: Cramond, Reeves Lane, Roydon, CM19 5LE<br/>
+Contact Address: 71-75 Shelton Street, Covent Garden, London, WC2H 9JQ<br/>
 Contact Email: hello@thesupremecollective.co.uk</p>
 <p><strong>Artistic Supplier Details</strong></p>
 <p>
