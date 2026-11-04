@@ -28,7 +28,7 @@ function ChatAttachment({ token, asset, voice = false }) {
   </div>;
 }
 
-export default function OriginalsChat({ token, projectId, viewerId, initialMessages = [], readOnly = false, onAccessLost }) {
+export default function OriginalsChat({ token, projectId, viewerId, initialMessages = [], readOnly = false, onAccessLost, onMessagesViewed }) {
   const [messages, setMessages] = useState(initialMessages);
   const [body, setBody] = useState('');
   const [files, setFiles] = useState([]);
@@ -56,6 +56,27 @@ export default function OriginalsChat({ token, projectId, viewerId, initialMessa
   }, []);
   const list = useRef(null);
   const stickToBottom = useRef(true);
+  const endOfMessages = useRef(null);
+  const latestMessage = useRef(messages.at(-1));
+  latestMessage.current = messages.at(-1);
+  const reportedRead = useRef('');
+  const pendingReads = useRef(new Set());
+  const reportViewed = useCallback(() => {
+    const messageId = latestMessage.current?._id;
+    if (!messageId || !onMessagesViewed || readOnly || document.hidden || !document.hasFocus() || reportedRead.current === messageId || pendingReads.current.has(messageId)) return;
+    const end = endOfMessages.current, log = list.current;
+    if (!end || !log || !log.clientHeight) return;
+    const marker = end.getBoundingClientRect(), box = log.getBoundingClientRect();
+    // Both the scrolling message list and the browser viewport must expose the
+    // latest rendered message. A collapsed/off-screen chat is not a read receipt.
+    if (marker.top < Math.max(0, box.top) || marker.bottom > Math.min(window.innerHeight, box.bottom) || marker.right <= 0 || marker.left >= window.innerWidth) return;
+    pendingReads.current.add(messageId);
+    Promise.resolve(onMessagesViewed(String(messageId)))
+      .then(saved => { if (saved && mounted.current && latestMessage.current?._id === messageId) reportedRead.current = messageId; })
+      .catch(() => {})
+      .finally(() => pendingReads.current.delete(messageId));
+  }, [onMessagesViewed, readOnly]);
+
 
   useEffect(() => {
     mounted.current = true;
@@ -98,6 +119,17 @@ export default function OriginalsChat({ token, projectId, viewerId, initialMessa
     return () => { clearInterval(timer); controller.abort(); document.removeEventListener('visibilitychange', update); };
   }, [refresh, onAccessLost]);
   useEffect(() => { if (stickToBottom.current && list.current) list.current.scrollTop = list.current.scrollHeight; }, [messages]);
+  useEffect(() => {
+    const observer = typeof IntersectionObserver === 'function' ? new IntersectionObserver(reportViewed, { threshold: 1 }) : null;
+    if (endOfMessages.current) observer?.observe(endOfMessages.current);
+    const frame = requestAnimationFrame(reportViewed);
+    window.addEventListener('scroll', reportViewed, true);
+    window.addEventListener('resize', reportViewed);
+    window.addEventListener('focus', reportViewed);
+    document.addEventListener('visibilitychange', reportViewed);
+    return () => { observer?.disconnect(); cancelAnimationFrame(frame); window.removeEventListener('scroll', reportViewed, true); window.removeEventListener('resize', reportViewed); window.removeEventListener('focus', reportViewed); document.removeEventListener('visibilitychange', reportViewed); };
+  }, [reportViewed, messages]);
+
   const cancelRecording = () => {
     generation.current++; discarded.current = true;
     if (recorder.current?.state === 'recording') recorder.current.stop();
@@ -194,6 +226,7 @@ export default function OriginalsChat({ token, projectId, viewerId, initialMessa
           {message.createdAt && <time dateTime={message.createdAt} className="mt-2 block text-right text-[10px] text-gray-500">{new Date(message.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</time>}
         </article></div>;
       })}
+      <div ref={endOfMessages} className="h-px" aria-hidden="true" />
     </div>
     {refreshError && <p role="status" className="px-4 py-2 text-xs text-amber-800">{refreshError}</p>}
     {readOnly ? <p className="p-4 text-sm text-gray-600">Participant preview is read-only. Return to owner view to send messages.</p> : <div className="space-y-3 border-t p-3 sm:p-4">

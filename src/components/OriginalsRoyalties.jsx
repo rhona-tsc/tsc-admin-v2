@@ -11,14 +11,14 @@ function Split({ title, shares, roles }) {
   </> : <p className="mt-2 text-sm text-gray-600">Songwriting shares will be shown once contributions are approved and songwriting choices are known.</p>}</section>;
 }
 
-export default function OriginalsRoyalties({ project, preview, credits }) {
+export default function OriginalsRoyalties({ project, preview, credits, canIllustrateTscShare = false }) {
   const [view, setView] = useState('planned');
   const [pool, setPool] = useState('master');
   const [recipient, setRecipient] = useState('0');
   const [streamAssumption, setStreamAssumption] = useState('0.004');
   const [amounts, setAmounts] = useState([100, 1000, 10000]);
   const shares = view === 'credits' && credits ? { master: credits.masterShares, composition: credits.compositionShares } : view === 'current' && preview ? preview : { master: plannedMasterShares(project.requestedRoles), composition: [] };
-  const selectedShares = shares[pool] || [];
+  const selectedShares = (shares[pool] || []).filter(share => canIllustrateTscShare || String(share.role || '').trim().toLowerCase() !== 'tsc');
   const selected = selectedShares[Number(recipient)] || selectedShares[0];
   return <details className="mt-4 rounded-xl border bg-white p-4">
     <summary className="cursor-pointer font-semibold">Royalty split & earnings examples</summary>

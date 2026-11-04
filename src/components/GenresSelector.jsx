@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { DEPUTY_GENRE_OPTIONS } from "../constants/deputyGenres";
 
-const GenresSelector = ({ selectedGenres = [], onChange = () => {} }) => {
+const GenresSelector = ({ selectedGenres = [], onChange = () => {}, label = "Which genres best suit your voice?" }) => {
   const standardSet = useMemo(
     () => new Set(DEPUTY_GENRE_OPTIONS.filter((g) => g !== "Other")),
     []
@@ -114,7 +114,7 @@ const GenresSelector = ({ selectedGenres = [], onChange = () => {} }) => {
   return (
     <div className="mt-4">
       <label className="block font-medium mb-1">
-        Which genres best suit your voice?
+        {label}
       </label>
 
       <div className="grid grid-cols-2 gap-2 text-sm">

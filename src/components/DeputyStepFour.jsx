@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import DeputyRepertoire from "./DeputyRepertoire";
 import GenresSelector from "./GenresSelector";
 import DeputySongModeration from "./DeputySongModeration";
@@ -20,55 +20,6 @@ const DeputyStepFour = ({
 }) => {
   const safeArray = (v) => (Array.isArray(v) ? v.filter(Boolean) : []);
 
-  const normalizeSelectedSongs = (v) => {
-    const arr = safeArray(v);
-
-    return arr.map((s) => {
-      // if older data ever stored strings, coerce it
-      if (typeof s === "string") {
-        return { title: s || "", artist: "", genre: "", year: "" };
-      }
-
-      return {
-        title: s?.title ?? "",
-        artist: s?.artist ?? "",
-        genre: s?.genre ?? "",
-        year: s?.year ?? "",
-      };
-    });
-  };
-
-  const normalizeVocals = (v) => {
-    const vv = v && typeof v === "object" ? v : {};
-
-    const rawType = Array.isArray(vv.type)
-      ? vv.type
-      : typeof vv.type === "string" && vv.type.trim()
-        ? [vv.type.trim()]
-        : [];
-
-    const type = rawType
-      .map((t) => String(t || "").trim())
-      .filter((t) => ALLOWED_VOCAL_TYPES.includes(t));
-
-    const genres = Array.isArray(vv.genres)
-      ? vv.genres.filter(Boolean)
-      : typeof vv.genres === "string" && vv.genres.trim()
-        ? vv.genres
-            .split(",")
-            .map((g) => g.trim())
-            .filter(Boolean)
-        : [];
-
-    return {
-      type,
-      gender: vv.gender ?? "",
-      range: vv.range ?? "",
-      rap: vv.rap ?? "",
-      genres,
-    };
-  };
-
   // ✅ Use these everywhere in StepFour
   const instrumentation = safeArray(formData.instrumentation).map((i) => ({
     instrument: i?.instrument ?? "",
@@ -78,13 +29,6 @@ const DeputyStepFour = ({
 
   const other_skills = safeArray(formData.other_skills);
   const logistics = safeArray(formData.logistics);
-
-  const vocals = normalizeVocals(formData.vocals);
-  const selectedSongs = normalizeSelectedSongs(formData.selectedSongs);
-  const customRepertoire =
-    typeof formData.customRepertoire === "string"
-      ? formData.customRepertoire
-      : "";
 
   console.log("[DeputyStepFour] deputyId prop:", deputyId);
   console.log("[DeputyStepFour] initial formData snapshot:", {
@@ -420,15 +364,14 @@ const DeputyStepFour = ({
                 </div>
               </div>
 
-              {/* Conditionally show genres */}
-              {safeType.length > 0 && !safeType.includes("I don't sing") && (
-                <GenresSelector
-                  selectedGenres={safeGenres}
-                  onChange={(updatedGenres) =>
-                    updateVocals({ genres: updatedGenres })
-                  }
-                />
-              )}
+              {/* Genre preferences apply to instrumentalists as well as singers. */}
+              <GenresSelector
+                label="Which genres best suit your playing or singing?"
+                selectedGenres={safeGenres}
+                onChange={(updatedGenres) =>
+                  updateVocals({ genres: updatedGenres })
+                }
+              />
             </>
           );
         })()}
