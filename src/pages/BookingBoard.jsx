@@ -1,5 +1,6 @@
 // admin/src/pages/BookingBoard.jsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
+import BookingPdfImport from "../components/BookingPdfImport.jsx";
 import { EVENT_TYPE_OPTIONS, normalizeEventType } from "../constants/eventTypes";
 import { AGENT_OPTIONS, normalizeAgent } from "../constants/agents";
 import {
@@ -4153,8 +4154,6 @@ export default function BookingBoard() {
   const [manualActResults, setManualActResults] = useState([]);
   const [manualActLoading, setManualActLoading] = useState(false);
   const [selectedManualAct, setSelectedManualAct] = useState(null);
-  const [contractFile, setContractFile] = useState(null);
-  const [supportingInvoiceFile, setSupportingInvoiceFile] = useState(null);
   const [importingContract, setImportingContract] = useState(false);
   const [contractImportWillOverwrite, setContractImportWillOverwrite] =
     useState(false);
@@ -5769,7 +5768,7 @@ export default function BookingBoard() {
             }
           : undefined,
 
-        bookingDetails: {},
+        bookingDetails: newRow.bookingDetails || {},
         allocation: { status: "in_progress" },
         review: { requestedCount: 0, received: false },
         source: "manual",
@@ -5876,19 +5875,9 @@ export default function BookingBoard() {
     }
   };
 
-  const previewContractImport = async () => {
-    if (!contractFile) {
-      window.alert("Please choose a booking or contract PDF first.");
-      return;
-    }
-
+  const previewContractImport = async (formData) => {
     setImportingContract(true);
     try {
-      const formData = new FormData();
-      formData.append("contract", contractFile);
-      if (supportingInvoiceFile) {
-        formData.append("invoice", supportingInvoiceFile);
-      }
       const res = await fetch(`${API_BASE}/board/bookings/import-contract/preview`, {
         method: "POST",
         headers: buildAuthHeaders(),
@@ -5926,10 +5915,10 @@ export default function BookingBoard() {
       const missing = json.draft?.importMetadata?.incompleteFields || [];
       window.alert(
         willOverwrite
-          ? `Contract imported for review. Saving will update the existing ${json.draft.bookingRef} booking rather than create a duplicate.${missing.length ? ` Still to add later: ${missing.join(", ")}.` : ""}`
+          ? `Booking PDFs imported for review. Saving will update the existing ${json.draft.bookingRef} booking rather than create a duplicate.${missing.length ? ` Still to add later: ${missing.join(", ")}.` : ""}`
           : missing.length
-            ? `Contract imported for review. Still to add later: ${missing.join(", ")}.`
-            : "Contract imported. Please review the details, then save the booking.",
+            ? `Booking PDFs imported for review. Still to add later: ${missing.join(", ")}.`
+            : "Booking PDFs imported. Please review the details, then save the booking.",
       );
     } catch (error) {
       window.alert(error?.message || "Could not import this contract.");
@@ -5998,42 +5987,7 @@ export default function BookingBoard() {
         </div>
       </div>
 
-      <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-3">
-        <div className="mb-2 text-sm font-semibold text-blue-950">
-          Import a booking from PDFs
-        </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-xs text-gray-700">
-            Booking or contract PDF
-            <input
-              type="file"
-              accept="application/pdf,.pdf"
-              onChange={(event) => setContractFile(event.target.files?.[0] || null)}
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-gray-700">
-            Supporting email or invoice PDF (optional)
-            <input
-              type="file"
-              accept="application/pdf,.pdf"
-              onChange={(event) =>
-                setSupportingInvoiceFile(event.target.files?.[0] || null)
-              }
-            />
-          </label>
-          <button
-            type="button"
-            className="rounded bg-blue-700 px-4 py-2 text-sm text-white disabled:opacity-50"
-            disabled={!contractFile || importingContract}
-            onClick={previewContractImport}
-          >
-            {importingContract ? "Reading PDFs…" : "Preview imported booking"}
-          </button>
-          <span className="text-xs text-blue-900">
-            Nothing is saved until you review the form and choose Add.
-          </span>
-        </div>
-      </div>
+      <BookingPdfImport importing={importingContract} onPreview={previewContractImport} />
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
         <div className="rounded-lg border bg-white p-3">
@@ -7352,6 +7306,19 @@ export default function BookingBoard() {
                         className="px-3 py-3 border-b border-yellow-200"
                       >
                         <div className="flex flex-col gap-3">
+                          {newRow.importMetadata?.source === "encore_pdf" && (
+                            <section className="order-first rounded-lg border border-blue-200 bg-white p-3" aria-labelledby="encore-review-heading">
+                              <h3 id="encore-review-heading" className="font-semibold text-blue-950">Review Encore booking {newRow.bookingRef}</h3>
+                              <p className="mt-1 text-xs text-gray-600">Combined {newRow.importMetadata.documents?.length || 0} PDFs. Check the details below, choose the linked act and lineup, then save.</p>
+                              {newRow.importMetadata.warnings?.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-900">{newRow.importMetadata.warnings.map(warning => <li key={warning}>{warning}</li>)}</ul>}
+                              <div className="mt-3 flex flex-wrap gap-3">
+                                <label className="flex flex-col text-xs text-gray-600">Performance plan<input className="rounded border px-2 py-1 text-gray-900" value={newRow.performancePlan || ""} onChange={event => setNewRow(current => ({ ...current, performancePlan: event.target.value }))} /></label>
+                                <label className="flex flex-col text-xs text-gray-600">Event slot start<input type="time" className="rounded border px-2 py-1 text-gray-900" value={newRow.startTime || ""} onChange={event => setNewRow(current => ({ ...current, startTime: event.target.value }))} /></label>
+                                <label className="flex flex-col text-xs text-gray-600">Client phone<input className="rounded border px-2 py-1 text-gray-900" value={newRow.clientPhone || ""} onChange={event => setNewRow(current => ({ ...current, clientPhone: event.target.value }))} /></label>
+                              </div>
+                              <label className="mt-3 flex flex-col gap-1 text-xs text-gray-600">Booking notes and conversation details<textarea rows={9} className="w-full rounded border p-2 text-sm text-gray-900" value={newRow.notes || ""} onChange={event => setNewRow(current => ({ ...current, notes: event.target.value }))} /></label>
+                            </section>
+                          )}
                           {/* Row 1: core id + dates */}
                           <div className="order-1 flex flex-wrap gap-2 items-end">
                             <label className="flex flex-col text-xs text-gray-600">
