@@ -5,6 +5,7 @@ import axios from "axios";
 import { backendUrl } from "../App";
 import CustomToast from "../components/CustomToast";
 import { assets } from "../assets/assets";
+import { loginReturnPath } from "../utils/loginReturnPath";
 
 const Login = ({
   setToken,
@@ -24,26 +25,6 @@ const Login = ({
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-const getPostLoginRedirect = () => {
-  const stateRedirect = location.state?.from;
-
-  const blockedRedirects = ["/list", "/moderate", "/moderate-deputies"];
-
-  const isBlockedRedirect =
-    typeof stateRedirect === "string" &&
-    blockedRedirects.some((path) => stateRedirect.startsWith(path));
-
-  if (
-    typeof stateRedirect === "string" &&
-    stateRedirect.startsWith("/") &&
-    !isBlockedRedirect
-  ) {
-    return stateRedirect;
-  }
-
-  return "/musicians-dashboard";
-};
 
   const onSubmitHandler = async (event) => {
     event.preventDefault();
@@ -113,7 +94,7 @@ const getPostLoginRedirect = () => {
       // never store plaintext password
       setUserPassword?.("");
 
-      const redirectPath = getPostLoginRedirect();
+      const redirectPath = loginReturnPath(location);
 
       if (mustChangePassword) {
         navigate("/security", { state: { from: redirectPath } });

@@ -59,6 +59,7 @@ import RegularDeputyDetails from "./pages/RegularDeputyDetails";
 import MyDeputyApplications from "./pages/MyDeputyApplications";
 import VenueBlackBook from "./pages/VenueBlackBook";
 import SeoKeywordTracker from "./pages/SeoKeywordTracker";
+import { loginPathFor, loginReturnPath } from "./utils/loginReturnPath";
 import { canAccessOriginalsPreview } from "./utils/originalsAccess";
 
 export const backendUrl =
@@ -79,7 +80,7 @@ function parseToken(t) {
   if (!t) return {};
   try {
     const d = jwtDecode(t);
-    const rawId = d?.userId || d?.id || "";
+    const rawId = d?.userId || d?.id || d?._id || "";
     const isOid = /^[0-9a-fA-F]{24}$/.test(rawId);
 
     const user = {
@@ -109,7 +110,7 @@ const RequireAuth = ({ children }) => {
   if (!token) {
     return (
       <Navigate
-        to="/login"
+        to={loginPathFor(location)}
         replace
         state={{
           from: `${location.pathname}${location.search}${location.hash}`,
@@ -131,7 +132,7 @@ const RequireOriginalsAccess = ({ children, allowed }) => {
   if (!token) {
     return (
       <Navigate
-        to="/login"
+        to={loginPathFor(location)}
         replace
         state={{
           from: `${location.pathname}${location.search}${location.hash}`,
@@ -148,16 +149,18 @@ const RequireOriginalsAccess = ({ children, allowed }) => {
 };
 
 const PublicOnlyRoute = ({ children }) => {
+  const location = useLocation();
   const token = localStorage.getItem("token") || "";
 
   if (token) {
-    return <Navigate to="/musicians-dashboard" replace />;
+    return <Navigate to={loginReturnPath(location)} replace />;
   }
 
   return children;
 };
 
 const App = () => {
+  const isOriginalsWorkspace = /^\/originals\/[a-f0-9]{24}\/?$/i.test(useLocation().pathname);
   Modal.setAppElement("#root");
 
   const initialToken = localStorage.getItem("token") || "";
@@ -256,12 +259,12 @@ const App = () => {
       {isLoggedIn ? <hr /> : null}
 
       <div className={isLoggedIn ? "flex w-full" : "w-full"}>
-        {isLoggedIn ? <Sidebar {...sidebarProps} collapsed={sidebarCollapsed} onToggle={toggleSidebar} /> : null}
+        {isLoggedIn ? <div className={isOriginalsWorkspace ? "hidden md:contents" : "contents"}><Sidebar {...sidebarProps} collapsed={sidebarCollapsed} onToggle={toggleSidebar} /></div> : null}
 
         <div
           className={
             isLoggedIn
-              ? `${sidebarCollapsed ? "w-[calc(100%-4rem)] px-4" : "min-w-0 flex-1 px-4 lg:px-6"} my-6 text-gray-600 text-base`
+              ? `${isOriginalsWorkspace ? "min-w-0 flex-1 px-2 sm:px-4 lg:px-6" : sidebarCollapsed ? "w-[calc(100%-4rem)] px-4" : "min-w-0 flex-1 px-4 lg:px-6"} my-6 text-gray-600 text-base`
               : "w-full min-h-screen"
           }
         >

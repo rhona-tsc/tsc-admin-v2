@@ -4,6 +4,7 @@ const ORIGINALS_PREVIEW_USER_IDS = new Set(["693ac400ef2c3100595c0ed8"]);
 const ORIGINALS_PREVIEW_EMAILS = new Set([
   "hello@thesupremecollective.co.uk",
   "rhona@thesupremecollective.co.uk",
+  "rhonagdownie@gmail.com",
   "ewanneilmcintosh@gmail.com",
 ]);
 

@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from "react";
 import axios from "axios";
+import { useLocation, useNavigate } from "react-router-dom";
+import { safeLoginReturnPath } from "../utils/loginReturnPath";
 import { backendUrl } from "../App";
 import { toast } from "react-toastify";
 import CustomToast from "../components/CustomToast";
@@ -24,6 +26,8 @@ const Section = ({ title, subtitle, children }) => (
 );
 
 const Security = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const token = useMemo(() => localStorage.getItem("token") || "", []);
   const storedEmail = useMemo(() => localStorage.getItem("userEmail") || "", []);
   const userRole = useMemo(() => localStorage.getItem("userRole") || "agent", []);
@@ -182,6 +186,7 @@ if (np !== cp) {
       setNewPassword("");
       setConfirmPassword("");
       toast(<CustomToast type="success" message="Password updated successfully." />);
+      if (location.state?.from) navigate(safeLoginReturnPath(location.state.from), { replace: true });
     } catch (err) {
       console.log('[Security] password error', err?.response?.status, err?.response?.data || err?.message);
       toast(
