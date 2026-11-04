@@ -3,34 +3,36 @@ import { originalsRequest } from '../utils/originalsApi';
 import { originalProjectListening } from '../utils/originalsListening';
 import OriginalsLayeredPlayer from './OriginalsLayeredPlayer';
 
-function EmbeddedReference({ token, asset }) {
+export function EmbeddedReference({ token, asset, showDownload = false, hideName = false }) {
   const mediaRef = useRef(null);
   const setMediaRef = useCallback(element => {
     if (!element) mediaRef.current?.pause();
     mediaRef.current = element;
   }, []);
   const [url, setUrl] = useState('');
+  const [downloadUrl, setDownloadUrl] = useState('');
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let cancelled = false;
-    setUrl(''); setError('');
+    setUrl(''); setDownloadUrl(''); setError('');
     originalsRequest(token, { method: 'get', url: `/assets/${asset._id}/access` })
       .then(({ data }) => {
         if (!data.url) throw new Error('The audio link is unavailable.');
-        if (!cancelled) setUrl(data.url);
+        if (!cancelled) { setUrl(data.url); setDownloadUrl(data.downloadUrl || data.url); }
       })
       .catch(() => { if (!cancelled) setError('Could not load this file. Please try again.'); });
     return () => { cancelled = true; };
   }, [asset._id, token, attempt]);
   const video = asset.kind === 'video_submission' || asset.mimeType?.startsWith('video/');
   return <div className="mt-3 space-y-2">
-    <p className="break-words text-xs text-gray-500">{asset.originalName}</p>
+    {!hideName && <p className="break-words text-xs text-gray-500">{asset.originalName}</p>}
     {error ? <div role="alert" className="text-sm text-red-700">{error}<button type="button" onClick={() => setAttempt(value => value + 1)} className="ml-2 underline">Try again</button></div>
       : url ? video
-        ? <video ref={setMediaRef} aria-label={asset.listeningLabel} controls playsInline preload="metadata" src={url} onError={() => setError('This video could not be played. Reload its secure link and try again.')} className="max-h-96 w-full rounded-lg bg-black" />
-        : <audio ref={setMediaRef} aria-label={asset.listeningLabel} controls preload="metadata" src={url} onError={() => setError('This audio could not be played. Reload its secure link and try again.')} className="w-full" />
+        ? <video ref={setMediaRef} aria-label={asset.listeningLabel || asset.originalName} controls playsInline preload="metadata" src={url} onError={() => setError('This video could not be played. Reload its secure link and try again.')} className="max-h-96 w-full rounded-lg bg-black" />
+        : asset.mimeType?.startsWith("image/") ? <img src={url} alt={asset.originalName} className="max-h-72 max-w-full rounded object-contain" /> : asset.mimeType && !asset.mimeType.startsWith("audio/") ? <p className="text-sm">This file is ready to download below.</p> : <audio ref={setMediaRef} aria-label={asset.listeningLabel || asset.originalName} controls preload="metadata" src={url} onError={() => setError('This audio could not be played. Reload its secure link and try again.')} className="w-full" />
         : <p role="status" className="text-sm text-gray-500">Preparing secure playback…</p>}
+    {showDownload && downloadUrl && <a href={downloadUrl} download={asset.originalName} target="_blank" rel="noopener noreferrer" className="inline-block text-sm underline">Download original file</a>}
   </div>;
 }
 

@@ -25,7 +25,7 @@ export function originalProjectListening({ assets = [], submissions = [] } = {})
     // An entire approved take supersedes any partial ranges of that same stem.
     if (existing && !existing.playbackRanges) return;
     layers.set(key, {
-      ...asset, label: submission.roleName || asset.originalName,
+      ...asset, label: take.stemAssetIds?.length > 1 ? `${submission.roleName} — ${asset.originalName}` : submission.roleName || asset.originalName,
       ...(ranges ? { playbackRanges: [...(existing?.playbackRanges || []), ...ranges] } : {}),
     });
   };
@@ -33,14 +33,14 @@ export function originalProjectListening({ assets = [], submissions = [] } = {})
     if (submission.state !== 'accepted' || submission.category !== 'contribution') continue;
     if (submission.selectionMode === 'whole_take') {
       const take = (submission.takes || []).find(take => idOf(take._id) === idOf(submission.selectedTakeId));
-      if (take) addTake(submission, take);
+      if (take) for (const stemAssetId of take.stemAssetIds?.length ? take.stemAssetIds : [take.stemAssetId]) addTake(submission, { ...take, stemAssetId });
     } else if (submission.selectionMode === 'selected_ranges') {
       for (const take of submission.takes || []) {
         const ranges = (submission.selectedRanges || []).filter(range => idOf(range.takeId) === idOf(take._id)
           && Number.isFinite(range.startSeconds) && Number.isFinite(range.endSeconds)
           && range.startSeconds >= 0 && range.endSeconds > range.startSeconds)
           .map(({ startSeconds, endSeconds }) => ({ startSeconds, endSeconds }));
-        if (ranges.length) addTake(submission, take, ranges);
+        if (ranges.length) for (const stemAssetId of take.stemAssetIds?.length ? take.stemAssetIds : [take.stemAssetId]) addTake(submission, { ...take, stemAssetId }, ranges);
       }
     }
   }

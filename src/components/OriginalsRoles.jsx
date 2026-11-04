@@ -1,7 +1,9 @@
+import OriginalsReservationAgreement from './OriginalsReservationAgreement';
 import React, { useState } from 'react';
 import { originalsRequest } from '../utils/originalsApi';
-export default function OriginalsRoles({ token, projectId, roles = [], readOnly = false }) {
+export default function OriginalsRoles({ token, projectId, roles = [], readOnly = false, futureReservations = [], onChange, creditPreferences = {} }) {
   const [role, setRole] = useState('');
+  const [reservationReview, setReservationReview] = useState(null);
   const [mode, setMode] = useState('search');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -10,6 +12,14 @@ export default function OriginalsRoles({ token, projectId, roles = [], readOnly 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const reserveAhead = name => setReservationReview({ roleName: name, request: { method: 'post', url: `/projects/${projectId}/role-reservations`, data: { roleName: name, ...creditPreferences } } });
+  const renewAgreement = reservation => setReservationReview({ roleName: reservation.roleName, request: { method: 'post', url: `/projects/${projectId}/role-reservations/${reservation._id}/agreement` } });
+  const releaseAhead = async reservation => {
+    setBusy(true); setError('');
+    try { await originalsRequest(token, { method: 'post', url: `/projects/${projectId}/role-reservations/${reservation._id}/release` }); setSuccess(`Your ${reservation.roleName} advance place has been released.`); await onChange?.(); }
+    catch (failure) { setError(failure.response?.data?.message || 'Could not release this place.'); }
+    finally { setBusy(false); }
+  };
   const search = async () => {
     if (query.trim().length < 2) return setError('Enter at least two letters of their name.');
     setBusy(true); setError('');
@@ -26,8 +36,10 @@ export default function OriginalsRoles({ token, projectId, roles = [], readOnly 
     } catch (failure) { setError(failure.response?.data?.message || 'Could not send the recommendation.'); }
     finally { setBusy(false); }
   };
-  return <section className="mt-4 rounded-xl border bg-white p-4" aria-label="Project roles"><h2 className="font-semibold">Parts we are building</h2><p className="mt-1 text-sm text-gray-600">Follow each role from the first expression of interest to an approved recording. Recommendations do not reserve a slot.</p>
-    <ul className="mt-4 grid gap-3 sm:grid-cols-2">{roles.map(item => <li key={item.name} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-slate-50 p-3"><div><h3 className="font-semibold">{item.name}</h3><p className="mt-1 text-xs text-gray-600">{item.status}</p></div>{item.canRecommend && <button type="button" disabled={readOnly || busy} onClick={() => { setRole(item.name); setError(''); setSuccess(''); setResults([]); setChosen(''); setQuery(''); }} className="rounded border bg-white px-3 py-2 text-sm disabled:opacity-40">Recommend someone for {item.name}</button>}</li>)}</ul>
+  return <section id="project-roles" tabIndex={-1} className="scroll-mt-6 mt-4 rounded-xl border bg-white p-4" aria-label="Project roles"><h2 className="font-semibold">Parts we are building</h2><p className="mt-1 text-sm text-gray-600">Follow each role from the first expression of interest to an approved recording. You can reserve an available future role now. There is no countdown until its round opens; then your place becomes a 24-hour recording reservation. Recommendations alone do not reserve a slot.</p>
+    {reservationReview && <OriginalsReservationAgreement token={token} projectId={projectId} {...reservationReview} onCancel={() => setReservationReview(null)} onSaved={() => { setSuccess(`Agreement accepted for your ${reservationReview.roleName} place. We will email when the recording reservation activates.`); setReservationReview(null); onChange?.(); }} />}
+    <ul className="mt-4 grid gap-3 sm:grid-cols-2">{roles.map(item => <li key={item.name} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-slate-50 p-3"><div><h3 className="font-semibold">{item.name}</h3><p className="mt-1 text-xs text-gray-600">{item.status}</p>{item.canReserveAhead && <p className="mt-1 text-xs text-gray-500">{item.advanceCount || 0}/3 advance places reserved</p>}</div>{futureReservations.some(reservation => reservation.state === "waiting" && reservation.roleName === item.name) ? <div className="text-sm"><p className="text-emerald-800">Your advance place is held. We will email when your recording reservation activates.</p>{futureReservations.some(reservation => reservation.state === 'waiting' && reservation.roleName === item.name && reservation.agreementNeedsReview) && <><p className="mt-1 text-amber-800">Review and accept the current agreement before your recording reservation can activate.</p><button type="button" disabled={readOnly || busy} onClick={() => renewAgreement(futureReservations.find(reservation => reservation.state === 'waiting' && reservation.roleName === item.name))} className="mt-2 block underline">Review reservation agreement</button></>}<button type="button" disabled={readOnly || busy} onClick={() => releaseAhead(futureReservations.find(reservation => reservation.state === "waiting" && reservation.roleName === item.name))} className="mt-2 underline">Release advance reservation</button></div> : item.canReserveAhead && <button type="button" disabled={readOnly || busy || item.advancePlacesRemaining === 0} onClick={() => reserveAhead(item.name)} className="rounded bg-black px-3 py-2 text-sm text-white disabled:opacity-40">{item.advancePlacesRemaining === 0 ? "Advance places full" : `Reserve a future ${item.name} place`}</button>}{item.canRecommend && <button type="button" disabled={readOnly || busy} onClick={() => { setRole(item.name); setError(''); setSuccess(''); setResults([]); setChosen(''); setQuery(''); }} className="rounded border bg-white px-3 py-2 text-sm disabled:opacity-40">Recommend someone for {item.name}</button>}</li>)}</ul>
+    {error && !role && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
     {success && <p role="status" className="mt-3 rounded bg-emerald-50 p-3 text-sm text-emerald-900">{success}</p>}
     {role && <form onSubmit={send} className="mt-4 space-y-3 rounded-lg border p-3"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold">Recommend someone for {role}</h3><button type="button" disabled={busy} onClick={() => setRole('')} className="text-sm underline">Cancel</button></div>
       <label className="block text-sm">Find or add a contact<select value={mode} onChange={event => { setMode(event.target.value); setError(''); }} className="mt-1 w-full rounded border p-2"><option value="search">Find a musician on the system</option><option value="new">Add someone new</option></select></label>

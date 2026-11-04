@@ -52,3 +52,12 @@ test('deduplicates stems and does not guess when an approval has no selected tak
   const result = originalProjectListening({ assets: [asset('original', 'initial_stem'), asset('keys'), asset('unknown')], submissions: [selected, selected, accepted('missing', [take('other', 'unknown')], { selectedTakeId: null })] });
   assert.deepEqual(result.projectTracks.map(item => item._id), ['original', 'keys']);
 });
+
+test('a selected grouped take layers all its stems with the same approval windows, excluding alternatives and mixdowns', () => {
+  const grouped = accepted('group', [take('chosen', 'lead')], { selectionMode: 'selected_ranges', selectedRanges: [{ takeId: 'chosen', startSeconds: 2, endSeconds: 6 }] });
+  grouped.takes[0].stemAssetIds = ['lead', 'harmony', 'double'];
+  grouped.takes[0].wetStemAssetId = 'effect';
+  const result = originalProjectListening({ assets: ['lead','harmony','double','effect'].map(id => asset(id)), submissions: [grouped] });
+  assert.deepEqual(result.projectTracks.map(item => item._id), ['lead','harmony','double']);
+  for (const track of result.projectTracks) { assert.equal(trackIsAudibleAt(track, 1), false); assert.equal(trackIsAudibleAt(track, 3), true); assert.equal(trackIsAudibleAt(track, 6), false); }
+});
