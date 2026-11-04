@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { backendUrl } from "../App";
@@ -230,7 +231,7 @@ const Moderate = ({ token: tokenProp }) => {
               >
                 <div className="flex gap-4 items-center">
                   <img
-                    src={profileSrc}
+                    src={cloudinaryImage(profileSrc, 160)}
                     alt={act.name}
                     className="w-20 h-20 object-cover rounded"
                     onError={(e) => {

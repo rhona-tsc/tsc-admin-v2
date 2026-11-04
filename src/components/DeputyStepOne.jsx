@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, { useState, useEffect, useRef } from "react";
 import DragAndDropImageUploader from "./DragAndDropImageUploader";
 import ImageCropModal from "./ImageCropModal";
@@ -537,7 +538,7 @@ const DeputyStepOne = ({
 
           {profileSrc ? (
             <img
-              src={profileSrc}
+              src={cloudinaryImage(profileSrc, 256)}
               alt="Profile"
               className="mt-2 w-32 h-32 object-cover rounded-full mx-auto"
             />
@@ -578,7 +579,7 @@ const DeputyStepOne = ({
 
           {coverHeroSrc ? (
             <img
-              src={coverHeroSrc}
+              src={cloudinaryImage(coverHeroSrc, 1200)}
               alt="Cover Hero"
               className="mt-2 w-full aspect-video object-cover rounded-md border"
             />
@@ -1425,7 +1426,7 @@ function SortableList({ files, setFiles, previewAltPrefix }) {
             onDragOver={(e) => e.preventDefault()}
           >
             <img
-              src={url}
+              src={cloudinaryImage(url, 160)}
               alt={`${previewAltPrefix} ${idx + 1}`}
               className="w-20 h-20 object-cover rounded"
               onLoad={(e) => {

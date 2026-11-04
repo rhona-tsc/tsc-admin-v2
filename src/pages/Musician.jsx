@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
@@ -155,7 +156,7 @@ const MediaScroller = ({ title, items = [] }) => {
             className="w-[260px] h-[180px] bg-gray-100 rounded-xl overflow-hidden flex-shrink-0 border border-gray-200"
           >
             <img
-              src={url}
+              src={cloudinaryImage(url, 1200)}
               alt={`${title} ${index + 1}`}
               className="w-full h-full object-cover"
               loading="lazy"
@@ -292,7 +293,7 @@ const DownloadableImage = ({ url, label }) => {
   if (!url) return null;
   return (
     <div className="overflow-hidden rounded-xl border bg-white">
-      <img src={url} alt={label} className="aspect-[4/3] w-full object-cover" />
+      <img src={cloudinaryImage(url, 1200)} alt={label} className="aspect-[4/3] w-full object-cover" />
       <div className="flex items-center justify-between gap-2 p-3">
         <span className="text-sm font-medium">{label}</span>
         <a
@@ -792,7 +793,7 @@ const Musician = () => {
           <div className="flex flex-col md:flex-row gap-6 md:items-center">
             <div className="w-32 h-32 rounded-2xl overflow-hidden bg-white/10 border border-white/10 flex-shrink-0">
               {profileImage ? (
-                <img src={profileImage} alt={fullName} className="w-full h-full object-cover" />
+                <img src={cloudinaryImage(profileImage, 1200)} alt={fullName} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-3xl font-semibold">
                   {String(fullName || "M").charAt(0).toUpperCase()}

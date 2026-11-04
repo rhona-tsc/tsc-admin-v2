@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, { useState } from "react";
 import Cropper from "react-easy-crop";
 import Modal from "react-modal";
@@ -187,7 +188,7 @@ const ImageItem = ({ image, index, moveImage, removeImage }) => {
       className={`relative w-24 h-24 ${isDragging ? "opacity-50" : ""}`}
     >
       <img
-        src={image.url}
+        src={cloudinaryImage(image.url, 192)}
         alt="preview"
         // ⭕️ round preview
         className="w-24 h-24 object-cover rounded-full border shadow-sm"

@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -314,7 +315,7 @@ const YourProfileCard = ({ me, fallbackFirstName, deputyCTA, token }) => {
         {imgUrl && !imgBroken ? (
           <div className="w-24 h-24 rounded-full overflow-hidden border border-gray-200 flex items-center justify-center">
             <img
-              src={imgUrl}
+              src={cloudinaryImage(imgUrl, 1200)}
               alt={nameLine}
               className="w-full h-full object-cover"
               onError={() => setImgBroken(true)}

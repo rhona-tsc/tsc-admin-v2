@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 
@@ -658,10 +659,8 @@ const DeputyJobApplicantsPanel = ({
                     {mergedApplication?.profileImage ||
                     mergedApplication?.photoUrl ? (
                       <img
-                        src={
-                          mergedApplication.profileImage ||
-                          mergedApplication.photoUrl
-                        }
+                        src={cloudinaryImage(mergedApplication.profileImage ||
+                          mergedApplication.photoUrl, 112)}
                         alt={applicantName}
                         className="w-14 h-14 rounded-full object-cover border border-gray-200"
                       />

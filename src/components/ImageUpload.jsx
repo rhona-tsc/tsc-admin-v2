@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, { useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { DndProvider, useDrag, useDrop } from "react-dnd";
@@ -116,7 +117,7 @@ const ImageItem = ({ image, index, moveImage, removeImage }) => {
     >
     
       <img
-        src={image.url}
+        src={cloudinaryImage(image.url, 192)}
         alt="preview"
         className="w-24 h-24 object-cover rounded border shadow-sm"
       />

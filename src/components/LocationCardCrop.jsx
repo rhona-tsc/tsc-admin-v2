@@ -1,10 +1,11 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, { useState } from 'react';
 import Cropper from 'react-easy-crop';
 
 const cropUrl = (url, crop) => {
-  if (!crop || !url?.startsWith('https://res.cloudinary.com/')) return url;
+  if (!crop || !/^https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\//.test(url || '')) return cloudinaryImage(url, 960);
   const { x, y, width, height } = crop;
-  return url.replace('/upload/', `/upload/c_crop,g_north_west,x_${Math.round(x)},y_${Math.round(y)},w_${Math.round(width)},h_${Math.round(height)}/c_limit,w_960,f_auto,q_auto/`);
+  return cloudinaryImage(url.replace('/upload/', `/upload/c_crop,g_north_west,x_${Math.round(x)},y_${Math.round(y)},w_${Math.round(width)},h_${Math.round(height)}/`), 960);
 };
 
 export default function LocationCardCrop({ images = [], setImages }) {

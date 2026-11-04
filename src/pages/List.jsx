@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import React, { useEffect, useMemo, useState } from "react";
@@ -284,7 +285,7 @@ const List = ({ token }) => {
               >
                 <div className="w-full h-full overflow-hidden flex items-center justify-center">
                   <img
-                    src={imgSrc}
+                    src={cloudinaryImage(imgSrc, 1200)}
                     alt={item.name}
                     className="object-cover w-full h-full"
                     onError={(e) =>

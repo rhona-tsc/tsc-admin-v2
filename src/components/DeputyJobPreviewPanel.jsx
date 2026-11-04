@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -1165,7 +1166,7 @@ const DeputyJobPreviewPanel = ({
                       <div className="flex min-w-0 items-center gap-3">
                         {profileImage ? (
                           <img
-                            src={profileImage}
+                            src={cloudinaryImage(profileImage, 88)}
                             alt={name}
                             className="h-11 w-11 rounded-full object-cover"
                           />

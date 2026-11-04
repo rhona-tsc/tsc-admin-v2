@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 // src/components/DragAndDropImageUploader.jsx
 import React, { useEffect, useMemo, useRef } from "react";
 import { assets } from "../assets/assets";
@@ -124,7 +125,7 @@ const DragAndDropImageUploader = ({ label, files = [], setFiles }) => {
             <div key={idx} className="relative h-20 w-20">
               {preview.src ? (
                 <img
-                  src={preview.src}
+                  src={cloudinaryImage(preview.src, 1200)}
                   alt={`preview-${idx}`}
                   className="h-full w-full rounded object-cover"
                 />

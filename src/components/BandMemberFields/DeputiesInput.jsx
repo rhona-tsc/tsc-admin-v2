@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../../utils/cloudinaryImage.js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import { postcodes as POSTCODE_DATA } from "../../assets/postcodes.js";
@@ -877,7 +878,7 @@ const addDeputy = (m) => {
       title="Add deputy"
     >
       <img
-        src={url}
+        src={cloudinaryImage(url, 1200)}
         alt={`${m.firstName || ""} ${m.lastName || ""}`}
         className="w-full h-full object-cover"
         onError={() => {

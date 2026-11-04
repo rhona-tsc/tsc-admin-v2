@@ -1,3 +1,4 @@
+import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { backendUrl } from "../App";
@@ -251,7 +252,7 @@ const ActPreSubmissionPage = () => {
               >
                 <div className="flex gap-4 items-center">
                   <img
-                    src={profileSrc}
+                    src={cloudinaryImage(profileSrc, 160)}
                     alt={act.actName || "Act"}
                     className="w-20 h-20 object-cover rounded"
                     onError={(e) => {
