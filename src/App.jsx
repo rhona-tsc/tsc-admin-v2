@@ -501,7 +501,7 @@ const App = () => {
 
             <Route
               path="/originals"
-              element={<RequireOriginalsAccess allowed={originalsAvailable && isOriginalsAdmin}><OriginalProjects token={token} /></RequireOriginalsAccess>}
+              element={<RequireOriginalsAccess allowed={originalsAvailable}><OriginalProjects token={token} /></RequireOriginalsAccess>}
             />
             <Route
               path="/originals/new"
@@ -517,7 +517,7 @@ const App = () => {
             />
             <Route
               path="/originals/:id"
-              element={<RequireOriginalsAccess allowed={originalsAvailable && isOriginalsAdmin}><OriginalProjectWorkspace token={token} canModerate={isAdminAgent} /></RequireOriginalsAccess>}
+              element={<RequireOriginalsAccess allowed={originalsAvailable}><OriginalProjectWorkspace token={token} canModerate={isAdminAgent} /></RequireOriginalsAccess>}
             />
 
             {originalsAvailable && isOriginalsAdmin && (

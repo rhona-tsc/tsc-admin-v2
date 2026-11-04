@@ -1,11 +1,32 @@
+import OriginalsRoles from "../components/OriginalsRoles";
+import OriginalsRecordingGuide from "../components/OriginalsRecordingGuide";
+import { openWorkspaceSection } from "../utils/originalsWorkspace";
+import OriginalsChat from "../components/OriginalsChat";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import Title from "../components/Title";
 import OriginalsLayeredPlayer from "../components/OriginalsLayeredPlayer";
+import OriginalsRoyalties from "../components/OriginalsRoyalties";
+import OriginalsProjectListening from "../components/OriginalsProjectListening";
 import { originalsRequest } from "../utils/originalsApi";
 
+const SectionLink = ({ to, children }) => <a href={`#${to}`} onClick={event => { event.preventDefault(); openWorkspaceSection(to); }} className="font-medium underline">{children}</a>;
+
 const dateTime = (value) => value ? new Date(value).toLocaleString("en-GB") : "—";
+
+const ChatWhenOpen = (props) => {
+  const [open, setOpen] = useState(false);
+  const wrapper = React.useRef(null);
+  useEffect(() => {
+    const details = wrapper.current?.closest("details");
+    const toggle = () => setOpen(details.open);
+    toggle();
+    details?.addEventListener("toggle", toggle);
+    return () => details?.removeEventListener("toggle", toggle);
+  }, []);
+  return <div ref={wrapper}>{open && <OriginalsChat {...props} />}</div>;
+};
 
 const OriginalProjectWorkspace = ({ token, canModerate = false }) => {
   const { id } = useParams();
@@ -16,8 +37,9 @@ const OriginalProjectWorkspace = ({ token, canModerate = false }) => {
   const [roleName, setRoleName] = useState("");
   const [creditName, setCreditName] = useState("");
   const [anonymous, setAnonymous] = useState(false);
+  const uploadInput = React.useRef(null);
   const [upload, setUpload] = useState({ file: null, kind: "demo", reservationId: "" });
-  const [submission, setSubmission] = useState({ reservationId: "", stemAssetId: "", mixdownAssetId: "", songwritingChoice: "master_only", notes: "" });
+  const [submission, setSubmission] = useState({ reservationId: "", stemAssetId: "", mixdownAssetId: "", wetStemAssetId: "", songwritingChoice: "master_only", notes: "" });
   const [review, setReview] = useState({});
   const [nextRound, setNextRound] = useState({ type: "instrument", roleName: "" });
   const [invitation, setInvitation] = useState({ musicianId: "", message: "" });
@@ -25,19 +47,41 @@ const OriginalProjectWorkspace = ({ token, canModerate = false }) => {
   const [musicianResults, setMusicianResults] = useState([]);
   const [production, setProduction] = useState({ reservationId: "", outputAssetId: "", notes: "" });
   const [creditOverrideReason, setCreditOverrideReason] = useState("");
-  const [chat, setChat] = useState({ body: "", voiceAssetId: "" });
   const [concern, setConcern] = useState({ submissionId: "", category: "creative_direction", reason: "" });
   const [issueReplies, setIssueReplies] = useState({});
   const [replacements, setReplacements] = useState({});
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     setError("");
-    return originalsRequest(token, { method: "get", url: `/projects/${id}/workspace` })
-      .then(({ data: response }) => setData(response))
-      .catch((requestError) => setError(requestError?.response?.data?.message || "Could not load workspace"));
+    try {
+      const address = new URL(window.location.href);
+      const referral = address.searchParams.get("referral");
+      if (referral) {
+        await originalsRequest(token, { method: "post", url: `/projects/${id}/referrals/claim`, data: { token: referral } });
+        address.searchParams.delete("referral");
+        window.history.replaceState(window.history.state, "", `${address.pathname}${address.search}${address.hash}`);
+      }
+      const { data: response } = await originalsRequest(token, { method: "get", url: `/projects/${id}/workspace` });
+      setData(response);
+    } catch (failure) { setError(failure.response?.data?.message || "Could not load workspace"); }
   }, [id, token]);
 
   useEffect(() => { load(); }, [load]);
+  // Participants whose involvement has ended also lose an already-open workspace, including when chat is collapsed.
+  useEffect(() => {
+    const controller = new AbortController();
+    let pending = false;
+    const verify = async () => {
+      if (document.hidden || pending) return;
+      pending = true;
+      try { await originalsRequest(token, { method: "get", url: `/projects/${id}/access`, signal: controller.signal }); }
+      catch (failure) { if (failure.response?.status === 403 || failure.response?.data?.code === "ORIGINALS_PARTICIPATION_ENDED") setError(failure.response.data.message); }
+      finally { pending = false; }
+    };
+    const timer = setInterval(verify, 15000);
+    document.addEventListener("visibilitychange", verify);
+    return () => { clearInterval(timer); controller.abort(); document.removeEventListener("visibilitychange", verify); };
+  }, [id, token]);
   const currentRound = useMemo(() => data?.rounds?.find((round) => String(round._id) === String(data?.project?.currentRoundId)) || data?.rounds?.at(-1), [data]);
   const isManager = data?.permissions?.canManage === true;
   const canManage = isManager && !participantPreview;
@@ -60,7 +104,7 @@ const OriginalProjectWorkspace = ({ token, canModerate = false }) => {
 
   const act = async (request, success) => {
     if (participantPreview) return toast.info("Participant preview is read-only. Return to owner view to make changes.");
-    try { setBusy(true); await originalsRequest(token, request); toast.success(success); await load(); }
+    try { setBusy(true); const response = await originalsRequest(token, request); toast.success(success); await load(); return response.data; }
     catch (requestError) { toast.error(requestError?.response?.data?.message || "Action failed"); }
     finally { setBusy(false); }
   };
@@ -72,7 +116,16 @@ const OriginalProjectWorkspace = ({ token, canModerate = false }) => {
     body.append("file", upload.file); body.append("kind", upload.kind);
     if (currentRound?._id) body.append("roundId", currentRound._id);
     if (upload.reservationId) body.append("reservationId", upload.reservationId);
-    await act({ method: "post", url: `/projects/${id}/assets`, data: body }, "Private file uploaded");
+    const saved = await act({ method: "post", url: `/projects/${id}/assets`, data: body }, "File uploaded. Choose it in Submit a take when you are ready.");
+    if (saved?.asset) {
+      setSubmission(current => String(current.reservationId) !== String(upload.reservationId) ? current : {
+        ...current,
+        ...(upload.kind === "take_stem" && !current.stemAssetId ? { stemAssetId: saved.asset._id } : {}),
+        ...(upload.kind === "take_mixdown" && !current.mixdownAssetId ? { mixdownAssetId: saved.asset._id } : {}),
+      });
+      setUpload(current => ({ ...current, file: null }));
+      if (uploadInput.current) uploadInput.current.value = "";
+    }
   };
   const openAsset = async (assetId) => {
     try { const response = await originalsRequest(token, { method: "get", url: `/assets/${assetId}/access` }); window.open(response.data.url, "_blank", "noopener,noreferrer"); }
@@ -84,7 +137,7 @@ const OriginalProjectWorkspace = ({ token, canModerate = false }) => {
     data: {
       songwritingChoice: submission.songwritingChoice,
       notes: submission.notes,
-      takes: [{ label: "Take 1", stemAssetId: submission.stemAssetId, mixdownAssetId: submission.mixdownAssetId }],
+      takes: [{ label: "Take 1", stemAssetId: submission.stemAssetId, mixdownAssetId: submission.mixdownAssetId, ...(submission.wetStemAssetId ? { wetStemAssetId: submission.wetStemAssetId } : {}) }],
     },
   }, "Take submitted for review");
   const setReviewField = (submissionId, field, value) => setReview((current) => ({
@@ -119,7 +172,6 @@ const OriginalProjectWorkspace = ({ token, canModerate = false }) => {
   };
   const submitProduction = () => act({ method: "post", url: `/reservations/${production.reservationId}/production-submissions`, data: { outputAssetId: production.outputAssetId, notes: production.notes } }, "Production output submitted");
   const latestCredits = data?.creditVersions?.[0];
-  const sendChat = () => act({ method: "post", url: `/projects/${id}/messages`, data: chat }, "Message posted");
   const openConcern = () => act({ method: "post", url: `/submissions/${concern.submissionId}/issues`, data: { category: concern.category, reason: concern.reason } }, "Concern opened for remedy before retraction");
   const updateIssue = (issueId, action) => act({ method: "post", url: `/issues/${issueId}`, data: { action, body: issueReplies[issueId] || "" } }, action === "confirm_retraction" ? "Retraction confirmed" : "Concern updated");
   const replaceSubmission = (item) => {
@@ -157,33 +209,36 @@ const OriginalProjectWorkspace = ({ token, canModerate = false }) => {
         <h2 className="font-semibold">Current {currentRound.type} round</h2>
         <p className="mt-1 text-sm text-gray-600">{currentRound.closesAt ? `Closes ${dateTime(currentRound.closesAt)}` : "The seven-day round starts when the first person reserves a slot."} · {slotCount}/{currentRound.slotLimit} active slots</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
-          <select aria-label="Instrument to reserve" value={roleName} onChange={(event) => setRoleName(event.target.value)} className="min-w-0 rounded border px-3 py-2"><option value="">Choose instrument</option>{(currentRound.type === "foundation" ? currentRound.eligibleRoles : [currentRound.roleName]).map((role) => <option key={role}>{role}</option>)}</select>
+          <select aria-label="Instrument to reserve" value={roleName} onChange={(event) => setRoleName(event.target.value)} className="w-full min-w-0 rounded border px-3 py-2"><option value="">Choose instrument</option>{(currentRound.type === "foundation" ? currentRound.eligibleRoles : [currentRound.roleName]).map((role) => <option key={role}>{role}</option>)}</select>
           <button disabled={busy || participantPreview || !roleName || !roundOpen || activeReservations.length > 0 || slotCount >= currentRound.slotLimit} onClick={reserve} className="rounded bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{activeReservations.length ? "Your slot is reserved" : "Reserve for 24 hours"}</button>
         </div>
         <details className="mt-3 text-sm"><summary className="cursor-pointer text-gray-600">Credit preferences (optional)</summary><div className="mt-2 flex flex-wrap gap-3"><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={anonymous} onChange={(event) => setAnonymous(event.target.checked)} /> Anonymous</label>
           <input disabled={!anonymous} value={creditName} onChange={(event) => setCreditName(event.target.value)} placeholder="Artistic name" className="rounded border px-3 py-2 disabled:bg-gray-100" /></div></details>
         {!roundOpen && <p className="mt-3 text-sm text-amber-800">This round is awaiting review. The owner will open the next opportunity.</p>}
-        {!participantPreview && activeReservations.map(item => <p key={item._id} className="mt-3 rounded bg-emerald-50 p-3 text-sm text-emerald-900">Your {item.roleName} slot is reserved until {dateTime(item.expiresAt)}. Upload your files and submit your contribution below.</p>)}
+        {!participantPreview && activeReservations.map(item => <p key={item._id} className="mt-3 rounded bg-emerald-50 p-3 text-sm text-emerald-900">Your {item.roleName} slot is reserved until {dateTime(item.expiresAt)}. Upload your recordings in <SectionLink to="project-files">Files and uploads</SectionLink>, then send them for review in <SectionLink to="submit-take">Submit a take</SectionLink>.</p>)}
         {canManage && <details className="mt-4 border-t pt-3"><summary className="cursor-pointer text-sm font-semibold">Invite musicians privately</summary>        <div className="mt-4 space-y-3 border-t pt-4"><div className="flex gap-2"><input value={musicianSearch} onChange={(event) => setMusicianSearch(event.target.value)} placeholder="Search musicians by name, email or instrument" className="min-w-0 flex-1 rounded border px-3 py-2" /><button onClick={searchMusicians} className="rounded border px-4 py-2 text-sm">Search</button></div>{musicianResults.length ? <select value={invitation.musicianId} onChange={(event) => setInvitation((value) => ({ ...value, musicianId: event.target.value }))} className="w-full rounded border px-3 py-2"><option value="">Choose musician</option>{musicianResults.map((musician) => <option key={musician._id} value={musician._id}>{[musician.firstName, musician.lastName].filter(Boolean).join(" ")} — {musician.instrument || musician.instruments?.join?.(", ") || musician.email}</option>)}</select> : null}<div className="grid gap-3 md:grid-cols-[1fr_auto]"><input value={invitation.message} onChange={(event) => setInvitation((value) => ({ ...value, message: event.target.value }))} placeholder="Optional private invitation message" className="rounded border px-3 py-2" /><button disabled={busy || !invitation.musicianId} onClick={sendInvitation} className="rounded border px-4 py-2 text-sm font-semibold disabled:opacity-40">Invite musician</button></div></div></details>}
       </section> : null}
-      {data.assets.some(asset => ["initial_stem", "guide_track", "demo", "video_submission", "click_track"].includes(asset.kind)) && <details className="mt-4 rounded-xl border bg-white p-4"><summary className="cursor-pointer font-semibold">Listen to the project</summary><div className="mt-3 space-y-2">{data.assets.filter(asset => ["initial_stem", "guide_track", "demo", "video_submission", "click_track"].includes(asset.kind)).map(asset => <button key={asset._id} onClick={() => openAsset(asset._id)} className="block text-sm text-[#b53639] underline">{asset.originalName}</button>)}</div></details>}
+      <OriginalsRoyalties project={data.project} preview={data.royaltyPreview} credits={latestCredits} />
+      <section id="project-guidance" tabIndex={-1} className="scroll-mt-6 mt-4 rounded-xl border bg-white p-4"><h2 className="font-semibold">Guidance for the project</h2><p className="mt-1 text-sm text-gray-600">Listen to the guide or sample before recording. Approved musical parts appear separately as the project develops.</p><OriginalsProjectListening token={token} assets={data.assets} submissions={data.submissions} /></section>
+      <OriginalsRoles token={token} projectId={id} roles={data.roleProgress || data.project.requestedRoles.map(role => ({ name: role.name, status: "Awaiting a recording", canRecommend: true }))} readOnly={participantPreview} />
 
       <>{(canManage && data.submissions.some(item => item.state === "accepted")) && <details className="mt-4 rounded-xl border bg-white p-4"><summary className="cursor-pointer font-semibold">Owner tools: next stage</summary><section className="mt-6 rounded-xl border bg-white p-5"><h2 className="font-semibold">Open the next stage</h2><p className="mt-1 text-sm text-gray-600">At least one appropriate submission must be accepted first. Opening a stage closes the current round.</p><div className="mt-3 grid gap-3 md:grid-cols-3"><select value={nextRound.type} onChange={(event) => setNextRound((value) => ({ ...value, type: event.target.value }))} className="rounded border px-3 py-2"><option value="instrument">Next instrument</option><option value="mix">Competitive mixing</option><option value="master">Competitive mastering</option></select>{nextRound.type === "instrument" ? <select value={nextRound.roleName} onChange={(event) => setNextRound((value) => ({ ...value, roleName: event.target.value }))} className="rounded border px-3 py-2"><option value="">Choose role</option>{data.project.requestedRoles.map((role) => <option key={role.name}>{role.name}</option>)}</select> : <div className="rounded bg-gray-50 px-3 py-2 text-sm text-gray-600">Three 24-hour competitive slots</div>}<button disabled={busy || (nextRound.type === "instrument" && !nextRound.roleName)} onClick={openRound} className="rounded bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">Open stage</button></div></section></details>}</>
 
-      <>{(canManage || (!participantPreview && activeReservations.length > 0)) && <details className="mt-4 rounded-xl border bg-white p-4"><summary className="cursor-pointer font-semibold">Files and uploads</summary><section className="mt-6 rounded-xl border bg-white p-5">
-        <h2 className="font-semibold">Private files</h2>
-        <div className="mt-3 grid gap-3 md:grid-cols-4">
-          <select value={upload.kind} onChange={(event) => setUpload((value) => ({ ...value, kind: event.target.value }))} className="rounded border px-3 py-2">{(canManage ? [["demo", "Demo"], ["voice_note", "Voice note"], ["guide_track", "Guide track"], ["video_submission", "Video submission"], ["click_track", "Click track"], ["initial_stem", "Initial stem"], ["take_stem", "Take stem"], ["take_mixdown", "Take mixdown"], ["mix", "Mix output"], ["master", "Master output"]] : [["take_stem", "Take stem"], ["take_mixdown", "Take mixdown"], ["voice_note", "Voice note"], ...(["mix", "master"].includes(currentRound?.type) ? [[currentRound.type, `${currentRound.type} output`]] : [])]).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-          <select value={upload.reservationId} onChange={(event) => setUpload((value) => ({ ...value, reservationId: event.target.value }))} className="rounded border px-3 py-2"><option value="">No reservation</option>{activeReservations.map((item) => <option key={item._id} value={item._id}>{item.roleName} — expires {dateTime(item.expiresAt)}</option>)}</select>
-          <input type="file" accept="audio/*,video/mp4,video/quicktime,.wav,.aiff,.flac,.m4a,.mov" onChange={(event) => setUpload((value) => ({ ...value, file: event.target.files?.[0] || null }))} className="rounded border p-2 text-sm" />
-          <button disabled={busy || !upload.file} onClick={uploadFile} className="rounded bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">Upload privately</button>
+      <><details id="project-files" tabIndex={-1} className="scroll-mt-6 mt-4 rounded-xl border bg-white p-4"><summary className="cursor-pointer font-semibold">Files and uploads</summary><section className="mt-4 min-w-0">
+        <h2 className="font-semibold">Project files & your uploads</h2><p className="mt-2 text-sm text-gray-600">1. Upload your recordings here. 2. Choose those uploaded files in <SectionLink to="submit-take">Submit a take</SectionLink> and send them for review. An upload alone is not a submission. Your unsubmitted recordings are visible to you and the owner. The expiry time shown is your reservation deadline, not an automatic deletion time for files.</p>
+        {(canManage || (!participantPreview && activeReservations.length > 0)) && <><div className="mt-3 grid min-w-0 grid-cols-1 gap-3 md:grid-cols-4">
+          <select value={upload.kind} onChange={(event) => setUpload((value) => ({ ...value, kind: event.target.value }))} aria-label="Type of recording to upload" className="w-full min-w-0 rounded border px-3 py-2">{(canManage ? [["demo", "Demo"], ["guide_track", "Guide track"], ["video_submission", "Video submission"], ["click_track", "Click track"], ["initial_stem", "Initial stem"], ["take_stem", "Your part only (stem)"], ["take_mixdown", "Listening mix with the project"], ["mix", "Mix output"], ["master", "Master output"]] : [["take_stem", "Your part only (stem)"], ["take_mixdown", "Listening mix with the project"], ...(["mix", "master"].includes(currentRound?.type) ? [[currentRound.type, `${currentRound.type} output`]] : [])]).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+          <select value={upload.reservationId} onChange={(event) => setUpload((value) => ({ ...value, reservationId: event.target.value }))} aria-label="Reservation for this upload" className="w-full min-w-0 rounded border px-3 py-2"><option value="">Project reference (no reservation)</option>{activeReservations.map((item) => <option key={item._id} value={item._id}>{item.roleName} — expires {dateTime(item.expiresAt)}</option>)}</select>
+          <input ref={uploadInput} type="file" accept="audio/*,video/mp4,video/quicktime,.wav,.aiff,.flac,.m4a,.mov" onChange={(event) => setUpload((value) => ({ ...value, file: event.target.files?.[0] || null }))} className="w-full min-w-0 max-w-full rounded border p-2 text-sm" />
+          <button disabled={busy || !upload.file} onClick={uploadFile} className="rounded bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">Upload file</button>
         </div>
-        <div className="mt-4 space-y-2">{data.assets.map((asset) => <div key={asset._id} className="flex items-center justify-between rounded border p-3 text-sm"><span>{asset.originalName} <span className="text-gray-400">({asset.kind})</span></span><button onClick={() => openAsset(asset._id)} className="text-[#b53639] hover:underline">Open secure link</button></div>)}</div>
-      </section></details>}</>
+        </>}<p className="mt-3 text-xs text-gray-600">For voice notes and messages, use <SectionLink to="project-chat">Project chat</SectionLink>.</p>
+        <div className="mt-4 space-y-2">{!data.assets.length && <p className="rounded bg-gray-50 p-3 text-sm text-gray-600">No files uploaded yet.</p>}{data.assets.map((asset) => <div key={asset._id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-3 text-sm"><span className="min-w-0 break-all">{asset.originalName} <span className="text-gray-400">{({ take_stem: "your part only", take_mixdown: "listening mix", guide_track: "guide", initial_stem: "original stem", demo: "sample", voice_note: "voice note" })[asset.kind] || asset.kind}</span></span><button onClick={() => openAsset(asset._id)} className="text-[#b53639] hover:underline">Open secure link</button></div>)}</div>
+      </section></details></>
 
-      <>{(canManage || (!participantPreview && hasParticipation)) && <details className="mt-4 rounded-xl border bg-white p-4"><summary className="cursor-pointer font-semibold">Project chat</summary><section className="mt-6 rounded-xl border bg-white p-5"><h2 className="font-semibold">Project group chat</h2><p className="mt-1 text-sm text-gray-600">Clarify the brief before anyone records. Private voice notes can be attached from the files section.</p><div className="mt-3 max-h-80 space-y-2 overflow-y-auto rounded bg-gray-50 p-3">{(data.messages || []).map((message) => <div key={message._id} className="rounded bg-white p-3 text-sm shadow-sm"><b>{message.authorAnonymous ? message.authorCreditName || "Anonymous" : "Project participant"}</b>{message.body ? <p className="mt-1">{message.body}</p> : null}{message.voiceAssetId ? <button onClick={() => openAsset(message.voiceAssetId)} className="mt-2 text-[#b53639] underline">Play secure voice note</button> : null}</div>)}{!data.messages?.length ? <p className="text-sm text-gray-400">No messages yet.</p> : null}</div><div className="mt-3 grid gap-2 md:grid-cols-[1fr_240px_auto]"><input value={chat.body} onChange={(e) => setChat((value) => ({ ...value, body: e.target.value }))} placeholder="Ask a question or clarify the creative direction" className="rounded border px-3 py-2" /><select value={chat.voiceAssetId} onChange={(e) => setChat((value) => ({ ...value, voiceAssetId: e.target.value }))} className="rounded border px-3 py-2"><option value="">No voice note</option>{data.assets.filter((asset) => asset.kind === "voice_note" && asset.state === "active").map((asset) => <option key={asset._id} value={asset._id}>{asset.originalName}</option>)}</select><button disabled={busy || (!chat.body.trim() && !chat.voiceAssetId)} onClick={sendChat} className="rounded bg-black px-4 py-2 text-white disabled:opacity-40">Post</button></div></section></details>}</>
+      <details id="project-chat" tabIndex={-1} className="scroll-mt-6 mt-4 rounded-xl border bg-white p-4"><summary className="cursor-pointer font-semibold">Project chat</summary><ChatWhenOpen key={id} token={token} projectId={id} viewerId={data.viewerId} initialMessages={data.messages} readOnly={participantPreview} onAccessLost={setError} /></details>
 
-      <>{(canManage || (!participantPreview && hasParticipation)) && <details className="mt-4 rounded-xl border bg-white p-4"><summary className="cursor-pointer font-semibold">Reservations and extensions</summary><section className="mt-6 rounded-xl border bg-white p-5"><h2 className="font-semibold">Reservations and extensions</h2><div className="mt-3 space-y-3">{(canManage ? data.reservations : ownReservations).map((reservation) => <div key={reservation._id} className="rounded border p-3 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><span><b>{reservation.roleName}</b> · {reservation.state} · expires {dateTime(reservation.expiresAt)}</span>{String(reservation.musicianId) === String(data.viewerId) && reservation.state === "active" && reservation.extensionCount < 3 ? <button disabled={busy} onClick={() => act({ method: "post", url: `/reservations/${reservation._id}/request-extension` }, "Extension requested") } className="rounded border px-3 py-1">Request extension</button> : null}</div>{canManage && reservation.extensionRequest?.status === "pending" ? <div className="mt-2 flex gap-2"><button onClick={() => act({ method: "post", url: `/reservations/${reservation._id}/grant-extension`, data: { hours: 12 } }, "12-hour extension granted")} className="rounded bg-black px-3 py-1 text-white">Grant 12h</button><button onClick={() => act({ method: "post", url: `/reservations/${reservation._id}/grant-extension`, data: { hours: 24 } }, "24-hour extension granted")} className="rounded bg-black px-3 py-1 text-white">Grant 24h</button></div> : null}</div>)}</div></section></details>}</>
+
 
       {!currentRound || !["mix", "master"].includes(currentRound.type) ? <>{(canManage) && <details className="mt-4 rounded-xl border bg-white p-4"><summary className="cursor-pointer font-semibold">Owner tools: review submissions</summary><section className="mt-6 rounded-xl border bg-white p-5">
         <div className="flex items-center justify-between gap-3"><h2 className="font-semibold">Submission review</h2>{currentRound && !["open", "reopened"].includes(currentRound.state) ? <button disabled={busy} onClick={() => act({ method: "post", url: `/rounds/${currentRound._id}/reopen`, data: { reason: "Reopened from admin preview" } }, "Round reopened; the seven-day clock starts with the first reservation")} className="rounded border px-3 py-2 text-sm">Reopen round</button> : null}</div>
@@ -192,13 +247,14 @@ const OriginalProjectWorkspace = ({ token, canModerate = false }) => {
           return <article key={item._id} className="rounded-lg border p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><b>{item.roleName}</b><span className="ml-2 text-xs text-gray-500">{item.songwritingChoice.replaceAll("_", " ")}</span></div><span className="rounded bg-gray-100 px-2 py-1 text-xs capitalize">{item.state}</span></div>
             <OriginalsLayeredPlayer token={token} tracks={playerTracks(item)} onTimeChange={(seconds) => setReviewField(item._id, "cursorSeconds", seconds.toFixed(2))} />
+            {item.takes?.some(take => take.wetStemAssetId) && <details className="mt-3 text-sm"><summary className="cursor-pointer">Optional effects versions — reference for the mix</summary><OriginalsLayeredPlayer token={token} tracks={data.assets.filter(asset => item.takes.some(take => String(take.wetStemAssetId) === String(asset._id)))} /></details>}
             {item.state === "submitted" ? <div className="mt-4 grid gap-3 md:grid-cols-2">
               <select disabled={item.category !== "contribution"} value={value.selectionMode} onChange={(event) => setReviewField(item._id, "selectionMode", event.target.value)} className="rounded border px-3 py-2 disabled:bg-gray-100"><option value="whole_take">Approve entire take/output</option>{item.category === "contribution" ? <option value="selected_ranges">Approve selected time ranges</option> : null}</select>
               {item.category === "contribution" ? <select value={value.selectedTakeId} onChange={(event) => setReviewField(item._id, "selectedTakeId", event.target.value)} className="rounded border px-3 py-2">{item.takes.map((take) => <option key={take._id} value={take._id}>{take.label}</option>)}</select> : <div className="rounded bg-gray-50 px-3 py-2 text-sm capitalize">Complete {item.category} output</div>}
               {value.selectionMode === "selected_ranges" ? <div className="space-y-2 md:col-span-2">{value.ranges.map((range, rangeIndex) => <div key={rangeIndex} className="grid gap-2 rounded border p-2 md:grid-cols-[1fr_1fr_2fr_auto]"><input type="number" min="0" step="0.01" value={range.startSeconds} onChange={(event) => setRange(item._id, rangeIndex, { startSeconds: event.target.value })} placeholder={`Start${value.cursorSeconds ? ` · player ${value.cursorSeconds}` : ""}`} className="rounded border px-3 py-2" /><input type="number" min="0" step="0.01" value={range.endSeconds} onChange={(event) => setRange(item._id, rangeIndex, { endSeconds: event.target.value })} placeholder="End seconds" className="rounded border px-3 py-2" /><input value={range.note} onChange={(event) => setRange(item._id, rangeIndex, { note: event.target.value })} placeholder="Why this section?" className="rounded border px-3 py-2" /><button onClick={() => setReviewField(item._id, "ranges", value.ranges.filter((_, index) => index !== rangeIndex))} className="text-sm text-red-600">Remove</button></div>)}<button onClick={() => setReviewField(item._id, "ranges", [...value.ranges, { startSeconds: value.cursorSeconds || "", endSeconds: "", note: "" }])} className="rounded border px-3 py-2 text-sm">+ Add another range at player position</button></div> : null}
               <textarea value={value.note} onChange={(event) => setReviewField(item._id, "note", event.target.value)} placeholder="Decision note (required when rejecting)" className="rounded border px-3 py-2 md:col-span-2" />
               <button disabled={busy} onClick={() => decideSubmission(item, "accept")} className="rounded bg-emerald-700 px-4 py-2 font-semibold text-white">Accept selection</button><button disabled={busy || !value.note.trim()} onClick={() => decideSubmission(item, "reject")} className="rounded bg-red-700 px-4 py-2 font-semibold text-white disabled:opacity-40">Reject and reopen slot</button>
-              {item.category === "contribution" ? <div className="rounded border border-dashed p-3 md:col-span-2"><p className="text-sm font-semibold">Replace this submission before the next stage</p><div className="mt-2 grid gap-2 md:grid-cols-2"><select value={replacements[item._id]?.stemAssetId || ""} onChange={(e) => setReplacements((current) => ({ ...current, [item._id]: { ...(current[item._id] || {}), stemAssetId: e.target.value } }))} className="rounded border px-3 py-2"><option value="">New stem</option>{data.assets.filter((asset) => asset.kind === "take_stem" && String(asset.reservationId) === String(item.reservationId) && asset.state === "active").map((asset) => <option key={asset._id} value={asset._id}>{asset.originalName}</option>)}</select><select value={replacements[item._id]?.mixdownAssetId || ""} onChange={(e) => setReplacements((current) => ({ ...current, [item._id]: { ...(current[item._id] || {}), mixdownAssetId: e.target.value } }))} className="rounded border px-3 py-2"><option value="">New mixdown</option>{data.assets.filter((asset) => asset.kind === "take_mixdown" && String(asset.reservationId) === String(item.reservationId) && asset.state === "active").map((asset) => <option key={asset._id} value={asset._id}>{asset.originalName}</option>)}</select><button disabled={busy || !replacements[item._id]?.stemAssetId || !replacements[item._id]?.mixdownAssetId} onClick={() => replaceSubmission(item)} className="rounded border px-3 py-2 text-sm font-semibold md:col-span-2">Replace with updated revision</button></div></div> : null}
+              {item.category === "contribution" ? <div className="rounded border border-dashed p-3 md:col-span-2"><p className="text-sm font-semibold">Replace this submission before the next stage</p><div className="mt-2 grid gap-2 md:grid-cols-2"><select value={replacements[item._id]?.stemAssetId || ""} onChange={(e) => setReplacements((current) => ({ ...current, [item._id]: { ...(current[item._id] || {}), stemAssetId: e.target.value } }))} className="rounded border px-3 py-2"><option value="">New stem</option>{data.assets.filter((asset) => asset.kind === "take_stem" && asset.state === "active" && String(asset.reservationId) === String(item.reservationId) && asset.state === "active").map((asset) => <option key={asset._id} value={asset._id}>{asset.originalName}</option>)}</select><select value={replacements[item._id]?.mixdownAssetId || ""} onChange={(e) => setReplacements((current) => ({ ...current, [item._id]: { ...(current[item._id] || {}), mixdownAssetId: e.target.value } }))} className="rounded border px-3 py-2"><option value="">New mixdown</option>{data.assets.filter((asset) => asset.kind === "take_mixdown" && asset.state === "active" && String(asset.reservationId) === String(item.reservationId) && asset.state === "active").map((asset) => <option key={asset._id} value={asset._id}>{asset.originalName}</option>)}</select><button disabled={busy || !replacements[item._id]?.stemAssetId || !replacements[item._id]?.mixdownAssetId} onClick={() => replaceSubmission(item)} className="rounded border px-3 py-2 text-sm font-semibold md:col-span-2">Replace with updated revision</button></div></div> : null}
             </div> : item.decisionNote ? <p className="mt-3 text-sm text-gray-600">Decision note: {item.decisionNote}</p> : null}
           </article>;
         })}{!data.submissions.length ? <p className="text-sm text-gray-500">No submissions yet.</p> : null}</div>
@@ -213,18 +269,22 @@ const OriginalProjectWorkspace = ({ token, canModerate = false }) => {
 
       {currentRound && ["mix", "master"].includes(currentRound.type) ? <>{(!participantPreview && activeReservations.length > 0) && <section className="mt-6 rounded-xl border bg-white p-5"><h2 className="font-semibold">Submit {currentRound.type} output</h2><p className="mt-1 text-sm text-gray-600">Upload the finished output above using the matching file type, then submit it here.</p><div className="mt-3 grid gap-3 md:grid-cols-2"><select value={production.reservationId} onChange={(event) => setProduction((value) => ({ ...value, reservationId: event.target.value, outputAssetId: "" }))} className="rounded border px-3 py-2"><option value="">Choose reservation</option>{activeReservations.map((item) => <option key={item._id} value={item._id}>{item.roleName}</option>)}</select><select value={production.outputAssetId} onChange={(event) => setProduction((value) => ({ ...value, outputAssetId: event.target.value }))} className="rounded border px-3 py-2"><option value="">Choose uploaded {currentRound.type}</option>{data.assets.filter((asset) => asset.kind === currentRound.type && String(asset.reservationId) === production.reservationId).map((asset) => <option key={asset._id} value={asset._id}>{asset.originalName}</option>)}</select><textarea value={production.notes} onChange={(event) => setProduction((value) => ({ ...value, notes: event.target.value }))} placeholder="Production notes" className="rounded border px-3 py-2 md:col-span-2" /><button disabled={busy || !production.reservationId || !production.outputAssetId} onClick={submitProduction} className="rounded bg-black px-4 py-2 font-semibold text-white disabled:opacity-40 md:col-span-2">Submit {currentRound.type}</button></div></section>}</> : null}
 
-      <>{(!participantPreview && activeReservations.length > 0 && !["mix", "master"].includes(currentRound?.type)) && <section className="mt-6 rounded-xl border bg-white p-5">
-        <h2 className="font-semibold">Submit a take</h2>
-        <p className="mt-1 text-sm text-gray-600">Upload your individual stem and an MP3 mixdown, then submit them together for the owner to review.</p>
+      <>{(!participantPreview && activeReservations.length > 0 && !["mix", "master"].includes(currentRound?.type)) && <section id="submit-take" tabIndex={-1} className="scroll-mt-6 mt-6 rounded-xl border bg-white p-5">
+        <h2 className="font-semibold">Submit a take{activeReservations.find(item => String(item._id) === submission.reservationId)?.roleName ? ` — ${activeReservations.find(item => String(item._id) === submission.reservationId).roleName}` : ""}</h2>
+        <p className="mt-1 text-sm text-gray-600">Before submitting, check <SectionLink to="project-chat">Project chat</SectionLink>, <SectionLink to="project-guidance">Guidance for the project</SectionLink> and <SectionLink to="project-files">Files and uploads</SectionLink>. Then choose your uploaded recordings below to request a review.</p><OriginalsRecordingGuide />
         <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <select value={submission.reservationId} onChange={(event) => setSubmission((value) => ({ ...value, reservationId: event.target.value, stemAssetId: "", mixdownAssetId: "" }))} className="rounded border px-3 py-2"><option value="">Choose active reservation</option>{activeReservations.map((item) => <option key={item._id} value={item._id}>{item.roleName}</option>)}</select>
-          <select value={submission.songwritingChoice} onChange={(event) => setSubmission((value) => ({ ...value, songwritingChoice: event.target.value }))} className="rounded border px-3 py-2"><option value="master_only">Master royalty only</option><option value="songwriting_claim">Claim songwriting contribution</option></select>
-          <select value={submission.stemAssetId} onChange={(event) => setSubmission((value) => ({ ...value, stemAssetId: event.target.value }))} className="rounded border px-3 py-2"><option value="">Choose individual stem</option>{data.assets.filter((asset) => asset.kind === "take_stem" && String(asset.reservationId) === submission.reservationId).map((asset) => <option key={asset._id} value={asset._id}>{asset.originalName}</option>)}</select>
-          <select value={submission.mixdownAssetId} onChange={(event) => setSubmission((value) => ({ ...value, mixdownAssetId: event.target.value }))} className="rounded border px-3 py-2"><option value="">Choose mixdown</option>{data.assets.filter((asset) => asset.kind === "take_mixdown" && String(asset.reservationId) === submission.reservationId).map((asset) => <option key={asset._id} value={asset._id}>{asset.originalName}</option>)}</select>
+          <label className="text-sm font-medium">Your reserved role<select aria-label="Your reserved role" value={submission.reservationId} onChange={(event) => setSubmission((value) => ({ ...value, reservationId: event.target.value, stemAssetId: "", mixdownAssetId: "", wetStemAssetId: "" }))} className="rounded border px-3 py-2"><option value="">Choose active reservation</option>{activeReservations.map((item) => <option key={item._id} value={item._id}>{item.roleName}</option>)}</select></label>
+          <fieldset className="rounded border p-3 text-sm"><legend className="px-1 font-semibold">Royalty request if your take is accepted</legend><label className="flex items-center gap-2"><input type="checkbox" checked disabled /> Master royalties — included for accepted recordings</label><label className="mt-2 flex items-center gap-2"><input type="checkbox" checked={submission.songwritingChoice === "songwriting_claim"} onChange={event => setSubmission(value => ({ ...value, songwritingChoice: event.target.checked ? "songwriting_claim" : "master_only" }))} /> Also request songwriting credit</label><p className="mt-2 text-xs text-gray-600">{submission.songwritingChoice === "songwriting_claim" ? "Requesting master royalties and a songwriting contribution. Songwriting shares are confirmed with the project credits." : "Master royalties only. Add songwriting if you contributed to writing the song."}</p></fieldset>
+          <label className="text-sm font-medium">Your part only (individual stem)<span className="my-1 block text-xs font-normal text-gray-600">Only your vocal or instrument, without the backing track. Prefer the clean version.</span><select aria-label="Your part only" value={submission.stemAssetId} onChange={(event) => setSubmission((value) => ({ ...value, stemAssetId: event.target.value, wetStemAssetId: value.wetStemAssetId === event.target.value ? "" : value.wetStemAssetId }))} className="w-full min-w-0 rounded border px-3 py-2"><option value="">Choose your uploaded separate recording</option>{data.assets.filter((asset) => asset.kind === "take_stem" && asset.state === "active" && String(asset.reservationId) === submission.reservationId).map((asset) => <option key={asset._id} value={asset._id}>{asset.originalName}</option>)}</select></label>
+          <label className="text-sm font-medium">Listening mix with the project<span className="my-1 block text-xs font-normal text-gray-600">Your part and the project track together, so the owner can hear how they fit.</span><select aria-label="Listening mix" value={submission.mixdownAssetId} onChange={(event) => setSubmission((value) => ({ ...value, mixdownAssetId: event.target.value }))} className="w-full min-w-0 rounded border px-3 py-2"><option value="">Choose your uploaded listening mix</option>{data.assets.filter((asset) => asset.kind === "take_mixdown" && asset.state === "active" && String(asset.reservationId) === submission.reservationId).map((asset) => <option key={asset._id} value={asset._id}>{asset.originalName}</option>)}</select></label>
+          <label className="text-sm font-medium">Effects version of your part (optional)<select aria-label="Optional effects stem" value={submission.wetStemAssetId} onChange={event => setSubmission(value => ({ ...value, wetStemAssetId: event.target.value }))} className="mt-1 w-full min-w-0 rounded border p-2"><option value="">No additional effects version</option>{data.assets.filter(asset => asset.kind === "take_stem" && asset.state === "active" && String(asset.reservationId) === submission.reservationId && String(asset._id) !== submission.stemAssetId).map(asset => <option key={asset._id} value={asset._id}>{asset.originalName}</option>)}</select></label>
+          <p className="text-sm text-gray-600">Missing a file? <SectionLink to="project-files">Upload it first</SectionLink>. The same performance can be supplied clean and with effects.</p>
           <textarea value={submission.notes} onChange={(event) => setSubmission((value) => ({ ...value, notes: event.target.value }))} placeholder="Notes for the project owner" className="rounded border px-3 py-2 md:col-span-2" />
-          <button disabled={busy || !submission.reservationId || !submission.stemAssetId || !submission.mixdownAssetId} onClick={submitTake} className="rounded bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40 md:col-span-2">Submit take</button>
+          <button disabled={busy || !submission.reservationId || !submission.stemAssetId || !submission.mixdownAssetId} onClick={submitTake} className="rounded bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40 md:col-span-2">Submit take for review</button>
         </div>
+        <p className="mt-4 text-sm text-gray-600">Need longer? <SectionLink to="project-extensions">Request an extension</SectionLink> before your reservation expires.</p>
       </section>}</>
+      <>{(canManage || (!participantPreview && hasParticipation)) && <details id="project-extensions" tabIndex={-1} className="mt-4 rounded-xl border bg-white p-4"><summary className="cursor-pointer font-semibold">Reservations and extensions</summary><section className="mt-6 rounded-xl border bg-white p-5"><h2 className="font-semibold">Reservations and extensions</h2><div className="mt-3 space-y-3">{(canManage ? data.reservations : ownReservations).map((reservation) => <div key={reservation._id} className="rounded border p-3 text-sm"><div className="flex flex-wrap items-center justify-between gap-2"><span><b>{reservation.roleName}</b> · {reservation.state} · expires {dateTime(reservation.expiresAt)}</span>{String(reservation.musicianId) === String(data.viewerId) && reservation.state === "active" && reservation.extensionCount < 3 ? <button disabled={busy} onClick={() => act({ method: "post", url: `/reservations/${reservation._id}/request-extension` }, "Extension requested") } className="rounded border px-3 py-1">Request extension</button> : null}</div>{canManage && reservation.extensionRequest?.status === "pending" ? <div className="mt-2 flex gap-2"><button onClick={() => act({ method: "post", url: `/reservations/${reservation._id}/grant-extension`, data: { hours: 12 } }, "12-hour extension granted")} className="rounded bg-black px-3 py-1 text-white">Grant 12h</button><button onClick={() => act({ method: "post", url: `/reservations/${reservation._id}/grant-extension`, data: { hours: 24 } }, "24-hour extension granted")} className="rounded bg-black px-3 py-1 text-white">Grant 24h</button></div> : null}</div>)}</div></section></details>}</>
     </div>
   );
 };

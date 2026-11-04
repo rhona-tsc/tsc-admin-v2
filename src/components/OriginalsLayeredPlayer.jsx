@@ -1,86 +1,145 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { originalsRequest } from "../utils/originalsApi";
+import { trackIsAudibleAt } from "../utils/originalsListening";
 
 const formatTime = (seconds) => {
   const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
   return `${Math.floor(safe / 60)}:${String(Math.floor(safe % 60)).padStart(2, "0")}`;
 };
 
-const OriginalsLayeredPlayer = ({ token, tracks = [], onTimeChange }) => {
+const OriginalsLayeredPlayer = ({ token, tracks = [], onTimeChange, autoLoad = false }) => {
   const audioRefs = useRef({});
+  const refCallbacks = useRef({});
+  const loadVersion = useRef(0);
   const [urls, setUrls] = useState({});
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+  const [durations, setDurations] = useState({});
   const [mix, setMix] = useState({});
-
-  const activeTracks = useMemo(() => tracks.filter((track) => track?._id && track.state !== "hidden"), [tracks]);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const entries = await Promise.all(activeTracks.map(async (track) => {
-        const response = await originalsRequest(token, { method: "get", url: `/assets/${track._id}/access` });
-        return [track._id, response.data.url];
-      }));
-      setUrls(Object.fromEntries(entries));
-    } finally { setLoading(false); }
-  };
+  const activeTracks = useMemo(() => tracks.filter(track => track?._id && (!track.state || track.state === "active")), [tracks]);
+  const trackKey = activeTracks.map(track => track._id).join(":");
+  const leadTrack = activeTracks.reduce((lead, track) => (durations[track._id] || 0) > (durations[lead?._id] || 0) ? track : lead, activeTracks[0]);
+  const duration = durations[leadTrack?._id] || 0;
 
   useEffect(() => {
-    setMix((current) => Object.fromEntries(activeTracks.map((track) => [track._id, current[track._id] || { muted: false, solo: false, volume: 1 }])));
+    loadVersion.current += 1;
+    Object.values(audioRefs.current).forEach(audio => audio?.pause());
+    setUrls({}); setPlaying(false); setTime(0); setDurations({}); setError("");
+    return () => { loadVersion.current += 1; };
+  }, [trackKey, token]);
+
+  const load = useCallback(async () => {
+    const version = ++loadVersion.current;
+    setLoading(true); setError("");
+    try {
+      const entries = await Promise.all(activeTracks.map(async track => {
+        const response = await originalsRequest(token, { method: "get", url: `/assets/${track._id}/access` });
+        if (!response.data.url) throw new Error("File unavailable");
+        return [track._id, response.data.url];
+      }));
+      if (version === loadVersion.current) setUrls(Object.fromEntries(entries));
+    } catch {
+      if (version === loadVersion.current) setError("Could not prepare the audio. Please try again.");
+    } finally { if (version === loadVersion.current) setLoading(false); }
+  }, [activeTracks, token]);
+
+  useEffect(() => { if (autoLoad && activeTracks.length) load(); }, [autoLoad, activeTracks.length, load]);
+  useEffect(() => {
+    setMix(current => Object.fromEntries(activeTracks.map(track => [track._id, current[track._id] || { muted: false, solo: false, volume: 1 }])));
   }, [activeTracks]);
 
-  const effectiveMuted = (id) => {
-    const anySolo = Object.values(mix).some((value) => value.solo);
-    return Boolean(mix[id]?.muted || (anySolo && !mix[id]?.solo));
+  const audioRefFor = track => {
+    if (!refCallbacks.current[track._id]) refCallbacks.current[track._id] = element => {
+      if (!element) { audioRefs.current[track._id]?.pause(); delete audioRefs.current[track._id]; }
+      else { audioRefs.current[track._id] = element; element.muted = !trackIsAudibleAt(track, 0); }
+    };
+    return refCallbacks.current[track._id];
   };
-  const syncMix = (next) => {
-    setMix(next);
-    const anySolo = Object.values(next).some((value) => value.solo);
-    Object.entries(audioRefs.current).forEach(([id, audio]) => {
-      if (!audio) return;
-      audio.muted = Boolean(next[id]?.muted || (anySolo && !next[id]?.solo));
-      audio.volume = next[id]?.volume ?? 1;
-    });
-  };
+  useEffect(() => {
+    if (playing) return;
+    const anySolo = Object.values(mix).some(value => value.solo);
+    for (const track of activeTracks) {
+      const audio = audioRefs.current[track._id];
+      if (!audio) continue;
+      audio.muted = Boolean(mix[track._id]?.muted || (anySolo && !mix[track._id]?.solo) || !trackIsAudibleAt(track, time));
+      audio.volume = mix[track._id]?.volume ?? 1;
+    }
+  }, [mix, activeTracks, playing, time]);
+
+  // Gate partially approved stems against the shared timeline, and correct
+  // noticeable drift without treating an early-ending stem as the end of the song.
+  useEffect(() => {
+    if (!playing) return;
+    let frame;
+    const tick = () => {
+      const lead = audioRefs.current[leadTrack?._id];
+      const at = lead?.currentTime || 0;
+      const anySolo = Object.values(mix).some(value => value.solo);
+      for (const track of activeTracks) {
+        const audio = audioRefs.current[track._id];
+        if (!audio) continue;
+        audio.muted = Boolean(mix[track._id]?.muted || (anySolo && !mix[track._id]?.solo) || !trackIsAudibleAt(track, at));
+        audio.volume = mix[track._id]?.volume ?? 1;
+        if (audio !== lead && !audio.ended && Math.abs(audio.currentTime - at) > 0.2) audio.currentTime = at;
+      }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [playing, leadTrack?._id, activeTracks, mix]);
+
   const playPause = async () => {
     const audios = Object.values(audioRefs.current).filter(Boolean);
-    if (playing) audios.forEach((audio) => audio.pause());
-    else await Promise.allSettled(audios.map((audio) => { audio.currentTime = time; return audio.play(); }));
-    setPlaying(!playing);
+    if (playing) { audios.forEach(audio => audio.pause()); setPlaying(false); return; }
+    const start = time >= duration ? 0 : time;
+    if (!audios.length || !duration) return;
+    setError("");
+    const results = await Promise.allSettled(audios.map(audio => { audio.currentTime = Math.min(start, audio.duration || start); return audio.play(); }));
+    if (results.some(result => result.status === "rejected")) {
+      audios.forEach(audio => audio.pause());
+      setPlaying(false); setError("Playback could not start. Reload the secure audio and try again.");
+    } else { setTime(start); setPlaying(true); }
   };
-  const seek = (nextTime) => {
+  const seek = nextTime => {
     setTime(nextTime); onTimeChange?.(nextTime);
-    Object.values(audioRefs.current).forEach((audio) => { if (audio) audio.currentTime = nextTime; });
+    Object.values(audioRefs.current).forEach(audio => {
+      if (!audio) return;
+      audio.currentTime = Math.min(nextTime, Number.isFinite(audio.duration) ? audio.duration : nextTime);
+      if (playing && nextTime < audio.duration && audio.paused) audio.play().catch(() => { setPlaying(false); setError("Playback paused. Press Play to continue."); });
+    });
+  };
+  const reload = () => {
+    Object.values(audioRefs.current).forEach(audio => audio?.pause());
+    setPlaying(false); setUrls({}); setTime(0); setDurations({}); load();
   };
 
-  if (!activeTracks.length) return <p className="text-sm text-gray-500">No playable stems in this submission.</p>;
-  if (!Object.keys(urls).length) return <button disabled={loading} onClick={load} className="rounded border px-3 py-2 text-sm">{loading ? "Preparing secure audio…" : "Load layered player"}</button>;
+  if (!activeTracks.length) return <p className="text-sm text-gray-500">No playable stems available.</p>;
+  if (!Object.keys(urls).length) return <div className="mt-3 space-y-2">{error && <p role="alert" className="text-sm text-red-700">{error}</p>}<button disabled={loading} onClick={load} className="rounded border px-3 py-2 text-sm">{loading ? "Preparing secure audio…" : error ? "Try again" : "Load audio player"}</button></div>;
 
-  return (
-    <div className="rounded-lg bg-gray-950 p-4 text-white">
-      <div className="flex items-center gap-3"><button onClick={playPause} className="rounded bg-white px-4 py-2 text-sm font-semibold text-black">{playing ? "Pause" : "Play all"}</button><span className="text-xs text-gray-300">{formatTime(time)} / {formatTime(duration)}</span></div>
-      <input aria-label="Timeline" type="range" min="0" max={duration || 0} step="0.01" value={Math.min(time, duration || 0)} onChange={(event) => seek(Number(event.target.value))} className="mt-3 w-full" />
-      <div className="mt-3 space-y-2">{activeTracks.map((track, index) => {
-        const controls = mix[track._id] || { muted: false, solo: false, volume: 1 };
-        return <div key={track._id} className="grid grid-cols-[1fr_auto_auto_120px] items-center gap-2 rounded bg-gray-900 p-2 text-xs">
-          <span className="truncate">{track.originalName} <span className="text-gray-500">{track.kind}</span></span>
-          <button onClick={() => syncMix({ ...mix, [track._id]: { ...controls, muted: !controls.muted } })} className={`rounded px-2 py-1 ${effectiveMuted(track._id) ? "bg-red-700" : "bg-gray-700"}`}>Mute</button>
-          <button onClick={() => syncMix({ ...mix, [track._id]: { ...controls, solo: !controls.solo } })} className={`rounded px-2 py-1 ${controls.solo ? "bg-amber-500 text-black" : "bg-gray-700"}`}>Solo</button>
-          <input aria-label={`${track.originalName} volume`} type="range" min="0" max="1" step="0.05" value={controls.volume} onChange={(event) => syncMix({ ...mix, [track._id]: { ...controls, volume: Number(event.target.value) } })} />
-          <audio
-            ref={(element) => { audioRefs.current[track._id] = element; }}
-            src={urls[track._id]}
-            onLoadedMetadata={(event) => setDuration((value) => Math.max(value, event.currentTarget.duration || 0))}
-            onTimeUpdate={index === 0 ? (event) => { setTime(event.currentTarget.currentTime); onTimeChange?.(event.currentTarget.currentTime); } : undefined}
-            onEnded={index === 0 ? () => setPlaying(false) : undefined}
-          />
-        </div>;
-      })}</div>
-    </div>
-  );
+  return <div className="rounded-lg bg-gray-950 p-4 text-white">
+    <div className="flex flex-wrap items-center gap-3"><button disabled={!duration} onClick={playPause} className="rounded bg-white px-4 py-2 text-sm font-semibold text-black disabled:opacity-40">{playing ? "Pause" : activeTracks.length > 1 ? "Play all" : "Play"}</button><span className="text-xs text-gray-300">{formatTime(time)} / {formatTime(duration)}</span></div>
+    {error && <p role="alert" className="mt-2 text-sm text-red-300">{error} <button onClick={reload} className="underline">Reload audio</button></p>}
+    <input aria-label="Timeline" type="range" min="0" max={duration || 0} step="0.01" value={Math.min(time, duration || 0)} onChange={event => seek(Number(event.target.value))} className="mt-3 w-full" />
+    <div className="mt-3 space-y-2">{activeTracks.map(track => {
+      const controls = mix[track._id] || { muted: false, solo: false, volume: 1 };
+      return <div key={track._id} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 rounded bg-gray-900 p-2 text-xs sm:grid-cols-[1fr_auto_auto_120px]">
+        <span className="min-w-0 break-words">{track.label || track.originalName}{track.playbackRanges && <span className="block text-gray-400">Approved sections only</span>}</span>
+        <button aria-pressed={controls.muted} onClick={() => setMix({ ...mix, [track._id]: { ...controls, muted: !controls.muted } })} className={`rounded px-2 py-1 ${controls.muted ? "bg-red-700" : "bg-gray-700"}`}>Mute</button>
+        <button aria-pressed={controls.solo} onClick={() => setMix({ ...mix, [track._id]: { ...controls, solo: !controls.solo } })} className={`rounded px-2 py-1 ${controls.solo ? "bg-amber-500 text-black" : "bg-gray-700"}`}>Solo</button>
+        <input aria-label={`${track.label || track.originalName} volume`} type="range" min="0" max="1" step="0.05" value={controls.volume} onChange={event => setMix({ ...mix, [track._id]: { ...controls, volume: Number(event.target.value) } })} className="col-span-3 w-full sm:col-span-1" />
+        <audio
+          ref={audioRefFor(track)}
+          preload="metadata" src={urls[track._id]}
+          onLoadedMetadata={event => { const length = event.currentTarget.duration; if (Number.isFinite(length)) setDurations(current => ({ ...current, [track._id]: length })); }}
+          onTimeUpdate={String(track._id) === String(leadTrack?._id) ? event => { setTime(event.currentTarget.currentTime); onTimeChange?.(event.currentTarget.currentTime); } : undefined}
+          onEnded={String(track._id) === String(leadTrack?._id) ? () => { Object.values(audioRefs.current).forEach(audio => audio?.pause()); setPlaying(false); } : undefined}
+          onError={() => { Object.values(audioRefs.current).forEach(audio => audio?.pause()); setPlaying(false); setError("An audio file could not be played. Reload its secure link and try again."); }}
+        />
+      </div>;
+    })}</div>
+  </div>;
 };
 
 export default OriginalsLayeredPlayer;
