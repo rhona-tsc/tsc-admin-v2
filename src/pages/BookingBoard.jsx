@@ -1422,6 +1422,7 @@ const getRolesFromLineupLabel = (value = "") => {
     .map((role) => roleAliases.get(role.toLowerCase()) || role);
 };
 const ALLOCATION_DUTY_OPTIONS = [
+  "Band leading",
   "DJ with mixing console/decks",
   "Sound engineering",
   "PA provision",
