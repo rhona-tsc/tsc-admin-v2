@@ -1,3 +1,5 @@
+import { originalAudibleTracks } from '../utils/originalsRoughMix';
+import OriginalsMixDownload from './OriginalsMixDownload';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { originalsRequest } from "../utils/originalsApi";
 import { trackIsAudibleAt } from "../utils/originalsListening";
@@ -8,7 +10,7 @@ const formatTime = (seconds) => {
   return `${Math.floor(safe / 60)}:${String(Math.floor(safe % 60)).padStart(2, "0")}`;
 };
 
-const OriginalsLayeredPlayer = ({ token, tracks = [], onTimeChange, initialSelectedIds }) => {
+const OriginalsLayeredPlayer = ({ token, tracks = [], onTimeChange, initialSelectedIds, title, onPlaybackStarted }) => {
   const audioRefs = useRef({});
   const refCallbacks = useRef({});
   const loadVersion = useRef(0);
@@ -118,7 +120,7 @@ const OriginalsLayeredPlayer = ({ token, tracks = [], onTimeChange, initialSelec
     if (results.some(result => result.status === "rejected")) {
       audios.forEach(audio => audio.pause());
       setPlaying(false); setError("Playback could not start. Reload the secure audio and try again.");
-    } else { setTime(start); setPlaying(true); }
+    } else { setTime(start); setPlaying(true); onPlaybackStarted?.(); }
   };
   const seek = nextTime => {
     setTime(nextTime); onTimeChange?.(nextTime);
@@ -152,11 +154,13 @@ const OriginalsLayeredPlayer = ({ token, tracks = [], onTimeChange, initialSelec
           preload="metadata" src={urls[track._id]}
           onLoadedMetadata={event => { const length = event.currentTarget.duration; if (Number.isFinite(length)) setDurations(current => ({ ...current, [track._id]: length })); }}
           onTimeUpdate={String(track._id) === String(leadTrack?._id) ? event => { setTime(event.currentTarget.currentTime); onTimeChange?.(event.currentTarget.currentTime); } : undefined}
+          onPause={String(track._id) === String(leadTrack?._id) ? () => setPlaying(false) : undefined}
           onEnded={String(track._id) === String(leadTrack?._id) ? () => { Object.values(audioRefs.current).forEach(audio => audio?.pause()); setPlaying(false); } : undefined}
           onError={() => { Object.values(audioRefs.current).forEach(audio => audio?.pause()); setPlaying(false); setError("An audio file could not be played. Reload its secure link and try again."); }}
         />
       </div>;
     })}</div>
+    <OriginalsMixDownload token={token} tracks={activeTracks} mix={mix} duration={Math.max(0, ...originalAudibleTracks(activeTracks, mix).map(track => durations[track._id] || 0))} title={title} />
   </div>;
 };
 

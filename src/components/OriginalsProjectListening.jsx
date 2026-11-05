@@ -47,14 +47,14 @@ function ListeningPanel({ title, children }) {
   </details>;
 }
 
-export default memo(function OriginalsProjectListening({ token, assets, submissions }) {
+export default memo(function OriginalsProjectListening({ token, assets, submissions, title }) {
   const { references, projectTracks } = useMemo(() => originalProjectListening({ assets, submissions }), [assets, submissions]);
   return <>
     {!references.length && !projectTracks.length && <p className="mt-3 text-sm text-gray-500">No guide, sample or approved recording uploaded yet. Read the <OriginalsSectionLink to="project-brief">brief</OriginalsSectionLink> and check the <OriginalsSectionLink to="project-chat">project chat</OriginalsSectionLink> before you start.</p>}
-    {references.map(asset => <ListeningPanel key={asset._id} title={asset.listeningLabel}>{asset.playbackRanges ? <OriginalsLayeredPlayer token={token} tracks={[asset]} /> : <EmbeddedReference token={token} asset={asset} />}</ListeningPanel>)}
-    {projectTracks.length > 1 && <ListeningPanel title="Listen to the project">
-      <p className="my-3 text-sm text-gray-600">Approved stems, played together. Guides, samples and click tracks are separate references.</p>
-      <OriginalsLayeredPlayer token={token} tracks={projectTracks} />
+    {references.map(asset => <ListeningPanel key={asset._id} title={asset.listeningLabel}>{asset.playbackRanges || asset.mimeType?.startsWith('audio/') ? <OriginalsLayeredPlayer token={token} tracks={[asset]} title={title} /> : <EmbeddedReference token={token} asset={asset} showDownload />}</ListeningPanel>)}
+    {projectTracks.length > 0 && <ListeningPanel title={projectTracks.length === 1 ? "Listen to the approved stem" : "Listen to the project"}>
+      <p className="my-3 text-sm text-gray-600">Choose the parts and levels you want to hear, then download a merged rough mix to record against. Keep its start point at zero in your recording software.</p>
+      <OriginalsLayeredPlayer token={token} tracks={[...projectTracks, ...references.filter(asset => asset.kind === "click_track")]} initialSelectedIds={projectTracks.map(track => String(track._id))} title={title} />
     </ListeningPanel>}
   </>;
 });

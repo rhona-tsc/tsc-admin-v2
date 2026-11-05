@@ -1,5 +1,5 @@
 import React from 'react';
-export default function OriginalsRecordingGuide({ listeningMixRequired = true }) {
+export default function OriginalsRecordingGuide() {
   return <details className="mt-4 rounded-lg border bg-slate-50 p-3 text-sm"><summary className="cursor-pointer font-semibold">Before you record: equipment & export tips</summary>
     <p className="mt-3">You need your own recording software (a DAW), headphones and suitable recording equipment. This page uploads and reviews your recordings; record and export your musical parts in your own software.</p>
     <ol className="mt-3 list-decimal space-y-2 pl-5">
@@ -8,7 +8,7 @@ export default function OriginalsRecordingGuide({ listeningMixRequired = true })
       <li>Upload one to three stem files (separate musical parts), preferably clean, on their own, with no backing track or click and no added reverb or delay. Use headphones to avoid recording the guide through your microphone.</li>
       <li>If effects are part of your sound, also export an effects version of the same performance and start point. Upload it as an optional effects stem and identify it in your notes. Keep essential instrument processing where needed to preserve the sound.</li>
       <li>Use WAV or AIFF for the separate recording where practical, at the project's agreed sample rate. Avoid clipping or unnecessary loudness processing. Give files clear names such as Vocal_Name_Take1_Clean.wav.</li>
-      <li>{listeningMixRequired ? <>Export one listening mix per stem, ideally MP3. Each mix should contain only that submitted stem alongside the existing project track or approved stems, if available. For example, if you submit three vocal stems or takes, export three listening mixes so the owner can review each one separately and decide which they like best. Keep your other submitted options out of each mix. Name each stem and its matching listening mix clearly, and check every file before uploading. The listening mixes are for review; the separate stems are used in the final mix.</> : <>For this first foundation round, submit your stems on their own. A separate listening mix is optional. In later instrument rounds, provide one listening mix per submitted stem alongside the project track or approved stems, so each option can be reviewed separately.</>}</li>
+      <li>Download a rough mix from Guidance for the project if you need one track to record against. Keep that file at zero in your session. You do not need to upload a separate mixdown. After uploading each stem, listen to its preview with the project, check the start, your entry and later sections, then confirm it fits before submitting. Alternative takes are reviewed separately by the owner.</li>
     </ol><p className="mt-3 text-xs text-gray-600">Export help: <a className="underline" target="_blank" rel="noopener noreferrer" href="https://help.ableton.com/hc/en-us/articles/360000843404-Importing-and-exporting-stems">Ableton stem guide</a> · <a className="underline" target="_blank" rel="noopener noreferrer" href="https://support.apple.com/en-ca/guide/logicpro/lgcpb27f70f9/10.7/mac/11.6.1">Logic audio export guide</a></p>
   </details>;
 }

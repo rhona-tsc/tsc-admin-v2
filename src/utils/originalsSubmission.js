@@ -9,7 +9,7 @@ export function originalSubmissionTakes(submission, assets = []) {
   }));
 }
 
-export function originalSubmissionPairsReady(submission, assets = [], { listeningMixRequired = true } = {}) {
+export function originalSubmissionPairsReady(submission, assets = [], { listeningMixRequired = false } = {}) {
   const { stemAssetIds, mixdownAssetIds, wetStemAssetId, reservationId } = submission;
   if (!stemAssetIds.length || stemAssetIds.length + (wetStemAssetId ? 1 : 0) > 3 || new Set(stemAssetIds).size !== stemAssetIds.length) return false;
   const available = new Map(assets.filter(asset => asset.state === 'active' && String(asset.reservationId) === String(reservationId)).map(asset => [String(asset._id), asset.kind]));

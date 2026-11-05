@@ -30,7 +30,7 @@ export function originalProjectListening({ assets = [], submissions = [] } = {})
     });
   };
   for (const submission of submissions) {
-    if (submission.state !== 'accepted' || submission.category !== 'contribution') continue;
+    if (submission.state !== 'accepted' || (submission.category && submission.category !== 'contribution')) continue;
     if (submission.selectionMode === 'whole_take') {
       const take = (submission.takes || []).find(take => idOf(take._id) === idOf(submission.selectedTakeId));
       if (take) for (const stemAssetId of take.stemAssetIds?.length ? take.stemAssetIds : [take.stemAssetId]) addTake(submission, { ...take, stemAssetId });
@@ -45,13 +45,18 @@ export function originalProjectListening({ assets = [], submissions = [] } = {})
     }
   }
   const projectTracks = [...layers.values()];
-  // A foundation with just one approved stem is still useful to listen to,
-  // but is not yet presented as a combined project.
-  if (projectTracks.length === 1 && projectTracks[0].kind === 'take_stem') {
-    references.push({ ...projectTracks[0], listeningLabel: 'Listen to the approved stem' });
-  }
-  return { references: projectTracks.length > 1 ? references.filter(asset => asset.kind !== "initial_stem") : references, projectTracks: projectTracks.length > 1 ? projectTracks : [] };
+  return { references: projectTracks.length ? references.filter(asset => asset.kind !== "initial_stem") : references, projectTracks };
+
 }
 
 export const trackIsAudibleAt = (track, time) => !track.playbackRanges
   || track.playbackRanges.some(range => time >= range.startSeconds && time < range.endSeconds);
+
+export function originalRecordingTracks(input) {
+  const { references, projectTracks } = originalProjectListening(input);
+  const clicks = references.filter(asset => asset.kind === 'click_track');
+  const guides = references.filter(asset => asset.kind === 'guide_track' && asset.mimeType?.startsWith('audio/'));
+  const demos = references.filter(asset => asset.kind === 'demo' && asset.mimeType?.startsWith('audio/'));
+  const guide = (guides.length ? guides : demos).sort((a, b) => (new Date(a.createdAt || 0) - new Date(b.createdAt || 0)) || String(a._id).localeCompare(String(b._id))).at(-1);
+  return [...projectTracks, ...(!projectTracks.length && guide ? [guide] : []), ...clicks];
+}
