@@ -29,7 +29,7 @@ function ChatAttachment({ token, asset, voice = false }) {
   </div>;
 }
 
-export default function OriginalsChat({ token, projectId, viewerId, initialMessages = [], readOnly = false, onAccessLost, onMessagesViewed }) {
+export default function OriginalsChat({ token, projectId, viewerId, initialMessages = [], readOnly = false, onAccessLost, onMessagesViewed, active = true, widget = false, onRecordingChange }) {
   const [messages, setMessages] = useState(initialMessages);
   const [body, setBody] = useState('');
   const [files, setFiles] = useState([]);
@@ -63,9 +63,10 @@ export default function OriginalsChat({ token, projectId, viewerId, initialMessa
   latestMessage.current = messages.at(-1);
   const reportedRead = useRef('');
   const pendingReads = useRef(new Set());
+  useEffect(() => { onRecordingChange?.(recording); }, [recording, onRecordingChange]);
   const reportViewed = useCallback(() => {
     const messageId = latestMessage.current?._id;
-    if (!messageId || !onMessagesViewed || readOnly || document.hidden || !document.hasFocus() || reportedRead.current === messageId || pendingReads.current.has(messageId)) return;
+    if (!active || !messageId || !onMessagesViewed || readOnly || document.querySelector('dialog[open]') || document.hidden || !document.hasFocus() || reportedRead.current === messageId || pendingReads.current.has(messageId)) return;
     const end = endOfMessages.current, log = list.current;
     if (!end || !log || !log.clientHeight) return;
     const marker = end.getBoundingClientRect(), box = log.getBoundingClientRect();
@@ -77,7 +78,7 @@ export default function OriginalsChat({ token, projectId, viewerId, initialMessa
       .then(saved => { if (saved && mounted.current && latestMessage.current?._id === messageId) reportedRead.current = messageId; })
       .catch(() => {})
       .finally(() => pendingReads.current.delete(messageId));
-  }, [onMessagesViewed, readOnly]);
+  }, [onMessagesViewed, readOnly, active]);
 
 
   useEffect(() => {
@@ -120,7 +121,7 @@ export default function OriginalsChat({ token, projectId, viewerId, initialMessa
     document.addEventListener('visibilitychange', update);
     return () => { clearInterval(timer); controller.abort(); document.removeEventListener('visibilitychange', update); };
   }, [refresh, onAccessLost]);
-  useEffect(() => { if (stickToBottom.current && list.current) list.current.scrollTop = list.current.scrollHeight; }, [messages]);
+  useEffect(() => { if (active && stickToBottom.current && list.current) list.current.scrollTop = list.current.scrollHeight; }, [messages, active]);
   useEffect(() => {
     const observer = typeof IntersectionObserver === 'function' ? new IntersectionObserver(reportViewed, { threshold: 1 }) : null;
     if (endOfMessages.current) observer?.observe(endOfMessages.current);
@@ -129,7 +130,8 @@ export default function OriginalsChat({ token, projectId, viewerId, initialMessa
     window.addEventListener('resize', reportViewed);
     window.addEventListener('focus', reportViewed);
     document.addEventListener('visibilitychange', reportViewed);
-    return () => { observer?.disconnect(); cancelAnimationFrame(frame); window.removeEventListener('scroll', reportViewed, true); window.removeEventListener('resize', reportViewed); window.removeEventListener('focus', reportViewed); document.removeEventListener('visibilitychange', reportViewed); };
+    document.addEventListener('focusin', reportViewed);
+    return () => { observer?.disconnect(); cancelAnimationFrame(frame); window.removeEventListener('scroll', reportViewed, true); window.removeEventListener('resize', reportViewed); window.removeEventListener('focus', reportViewed); document.removeEventListener('visibilitychange', reportViewed); document.removeEventListener('focusin', reportViewed); };
   }, [reportViewed, messages]);
 
   const cancelRecording = () => {
@@ -226,9 +228,9 @@ export default function OriginalsChat({ token, projectId, viewerId, initialMessa
     } catch (failure) { if (failure.response?.status === 403 || failure.response?.data?.code === "ORIGINALS_PARTICIPATION_ENDED") onAccessLost?.(failure.response.data.message); if (mounted.current) setError(failure.response?.data?.message || 'Could not send. Your message is saved here; press Send to retry.'); }
     finally { sendingRef.current = false; if (mounted.current) { setSending(false); setProgress(''); } }
   };
-  return <section aria-label="Project group chat" className="mt-4 overflow-hidden rounded-xl border bg-white">
-    <div className="border-b px-4 py-3"><h2 className="font-semibold">Project group chat</h2><p className="mt-1 text-xs text-gray-500">Messages and attachments are shared with people who can access this project. Updates every five seconds.</p></div>
-    <div ref={list} role="log" aria-label="Chat messages" aria-live="polite" onScroll={() => { const node = list.current; stickToBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 80; }} className="h-80 space-y-3 overflow-y-auto bg-slate-50 p-3 sm:p-4">
+  return <section aria-label="Project group chat" className={widget ? "flex h-[min(65dvh,600px)] min-h-0 flex-col overflow-hidden bg-white" : "mt-4 overflow-hidden rounded-xl border bg-white"}>
+    {!widget && <div className="border-b px-4 py-3"><h2 className="font-semibold">Project group chat</h2><p className="mt-1 text-xs text-gray-500">Messages and attachments are shared with people who can access this project. Updates every five seconds.</p></div>}
+    <div ref={list} role="log" aria-label="Chat messages" aria-live="polite" onScroll={() => { const node = list.current; stickToBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 80; }} className={`${widget ? "min-h-24 flex-1" : "h-80"} space-y-3 overflow-y-auto bg-slate-50 p-3 sm:p-4`}>
       {!messages.length && <p className="py-8 text-center text-sm text-gray-500">No messages yet. Start the conversation.</p>}
       {messages.map(message => {
         if (['stem_submitted', 'stem_approved'].includes(message.messageType)) return <div key={message._id} className="flex justify-center"><article className={`min-w-0 max-w-[95%] rounded-lg border px-4 py-3 text-center text-sm ${message.messageType === 'stem_approved' ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-sky-200 bg-sky-50 text-sky-900'}`}>
@@ -248,7 +250,7 @@ export default function OriginalsChat({ token, projectId, viewerId, initialMessa
       <div ref={endOfMessages} className="h-px" aria-hidden="true" />
     </div>
     {refreshError && <p role="status" className="px-4 py-2 text-xs text-amber-800">{refreshError}</p>}
-    {readOnly ? <p className="p-4 text-sm text-gray-600">Participant preview is read-only. Return to owner view to send messages.</p> : <div className="space-y-3 border-t p-3 sm:p-4">
+    {readOnly ? <p className="p-4 text-sm text-gray-600">Participant preview is read-only. Return to owner view to send messages.</p> : <div className="max-h-[40dvh] shrink-0 space-y-3 overflow-y-auto border-t p-3 sm:p-4">
       {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
       {!!files.length && <ul className="space-y-2">{files.map((file, index) => <li key={index} className="flex items-center justify-between gap-2 rounded border p-2 text-xs"><span className="min-w-0 break-all">📎 {file.name}</span><button type="button" disabled={sending} aria-label={`Remove ${file.name}`} onClick={() => { setFiles(current => current.filter((_, i) => i !== index)); uploadIds.current.delete(file); clientId.current = null; }} className="shrink-0 underline">Remove</button></li>)}</ul>}
       {voice && <div className="rounded border bg-slate-50 p-3"><p className="mb-2 text-sm font-medium">Voice note ready — listen before sending</p><audio ref={setPreviewAudio} src={voiceUrl} controls className="w-full max-w-sm" /><button type="button" disabled={sending} onClick={() => { uploadIds.current.delete(voice); setVoice(null); clientId.current = null; }} className="mt-2 text-sm text-red-700 underline">Delete recording</button></div>}

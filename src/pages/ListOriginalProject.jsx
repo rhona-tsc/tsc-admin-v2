@@ -1,3 +1,4 @@
+import { recordingOrderError } from '../utils/originalsRecordingOrder';
 import OriginalsAiDeclaration from "../components/OriginalsAiDeclaration";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -10,7 +11,7 @@ import OriginalsMasterRoyaltySplit from "../components/OriginalsMasterRoyaltySpl
 import { plannedMasterShares } from "../utils/originalsRoyalties";
 import { originalsRequest } from "../utils/originalsApi";
 
-const emptyRole = () => ({ name: "", foundationEligible: false });
+const emptyRole = () => ({ name: "", foundationEligible: false, recordingOrder: "" });
 
 const ListOriginalProject = ({ token }) => {
   const navigate = useNavigate();
@@ -63,6 +64,7 @@ const ListOriginalProject = ({ token }) => {
     if (recordingVoiceNoteRef.current) return toast.error("Stop or cancel the voice recording before submitting the project.");
     if (!ownerAgreement) return toast.error("Load and read the owner agreement before submitting the project.");
     if (!form.ownerAgreementAccepted || !form.ownerAgreementDisplayName.trim()) return toast.error("Accept the owner agreement and enter your full name.");
+    if (recordingOrderError(validRoles)) return toast.error(recordingOrderError(validRoles));
     if (!validRoles.length) return toast.error("Add at least one instrument or role");
     if (["none", "video_demo"].includes(form.sourceType) && !validRoles.some((role) => role.foundationEligible)) {
       return toast.error("Choose at least one role that can start the foundation");
@@ -145,13 +147,14 @@ const ListOriginalProject = ({ token }) => {
             <button type="button" onClick={() => setField("requestedRoles", [...form.requestedRoles, emptyRole()])} className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50">+ Add role</button>
           </div>
           <p className="mt-1 text-xs text-gray-500">
-            Their order is the preferred sequential round order. Mixing and mastering are already included as separate final stages below.
+            Optionally number roles in your preferred recording order (1–30). Leave blank if undecided. We will suggest your next numbered role after each approval; you can change it then. TSC can follow this plan if a review is overdue. Mixing and mastering follow as separate final stages.
           </p>
           <div className="mt-3 space-y-2">
             {form.requestedRoles.map((role, index) => (
               <div key={index} className="flex flex-col gap-2 rounded border p-3 sm:flex-row sm:items-center">
-                <span className="text-xs font-semibold text-gray-400">{index + 1}</span>
-                <input value={role.name} onChange={(e) => setRole(index, { name: e.target.value })} placeholder="Guitar, vocals, mix producer…" className="flex-1 rounded border px-3 py-2" />
+
+                <input value={role.name} onChange={(e) => setRole(index, { name: e.target.value })} placeholder="Guitar, vocals, click track…" className="flex-1 rounded border px-3 py-2" />
+                <label className="shrink-0 text-xs font-medium">Recording order (optional)<input aria-label={`Recording order for role ${index + 1}`} type="number" min="1" max="30" step="1" value={role.recordingOrder ?? ''} onChange={event => setRole(index, { recordingOrder: event.target.value })} className="mt-1 block w-24 rounded border p-2" placeholder="—" /></label>
                 {["none", "video_demo"].includes(form.sourceType) ? (
                   <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={role.foundationEligible} onChange={(e) => setRole(index, { foundationEligible: e.target.checked })} />

@@ -1,4 +1,5 @@
 export function openWorkspaceSection(id) {
+  if (id === 'project-chat') { window.dispatchEvent(new Event('originals:open-chat')); return; }
   const target = document.getElementById(id);
   if (!target) return;
   let parent = target;
