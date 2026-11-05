@@ -1,3 +1,4 @@
+import OriginalsAgreementText from './OriginalsAgreementText';
 import React, { useEffect, useRef, useState } from 'react';
 import { originalsRequest } from '../utils/originalsApi';
 
@@ -40,7 +41,7 @@ export default function OriginalsReservationAgreement({ token, projectId, type =
       <div className="flex items-start justify-between gap-3"><h2 id="reservation-agreement-title" className="text-xl font-semibold">Review your {roleName} reservation agreement</h2><button type="button" aria-label="Close agreement" disabled={busy} onClick={onCancel} className="shrink-0 rounded border px-2 py-1 text-sm disabled:opacity-40">Close</button></div>
       <p className="text-sm text-slate-600">Read the terms and confirm below before your place is reserved.</p>
       {agreement && <>
-        <div className="space-y-4 text-sm leading-6">{agreement.sections.map(section => <section key={section.title}><h3 className="font-semibold">{section.title}</h3><p>{section.text}</p></section>)}</div>
+        <OriginalsAgreementText agreement={agreement} />
         <label className="block border-t pt-4 text-sm font-medium">Your full name<input required autoComplete="name" maxLength={160} value={fullName} onChange={event => setFullName(event.target.value)} disabled={busy} className="mt-1 w-full rounded border px-3 py-2" /></label>
         <p className="text-xs text-slate-600">This acknowledgement is linked to your signed-in account and kept private. It does not replace your chosen public credit name.</p>
         <label className="flex items-start gap-3 text-sm"><input required type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} disabled={busy} className="mt-1" /><span>{agreement.acknowledgement}</span></label>

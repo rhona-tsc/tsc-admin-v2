@@ -35,3 +35,33 @@ export const streamsForAnnualIncome = (income, assumedIncomePerStream) => {
   const streams = Math.ceil(Math.min(amount, 1e9) / rate);
   return Number.isSafeInteger(streams) ? streams : null;
 };
+
+export const isTscRoyaltyShare = share => share?.recipientType === 'tsc' ||
+  String(share?.role || '').trim().toLowerCase() === 'tsc';
+
+// Stored credits remain percentages of total master receipts. Only the display
+// is rebased to the pool left after TSC's separately disclosed management share.
+export const remainingMasterRoyaltyPool = (masterShares = []) => {
+  const validShares = masterShares.filter(share => Number.isFinite(Number(share.percent)) && Number(share.percent) > 0);
+  const tscShares = validShares.filter(isTscRoyaltyShare);
+  const tscPercent = tscShares.length ? tscShares.reduce((sum, share) => sum + Number(share.percent), 0) : 20;
+  const participants = validShares.filter(share => !isTscRoyaltyShare(share));
+  const total = participants.reduce((sum, share) => sum + Number(share.percent), 0);
+  return {
+    tscPercent,
+    remainingPercent: Math.max(0, 100 - tscPercent),
+    shares: total > 0 ? participants.map(share => ({ ...share, masterReceiptsPercent: Number(share.percent), percent: Number(share.percent) / total * 100 })) : [],
+  };
+};
+
+export const royaltyIllustrationAmount = ({ annualIncome, share, pool = 'master', remainingPercent = 80 }) => {
+  if (!share) return 0;
+  // Keep cash illustrations exact to the recorded receipt allocation even
+  // where six-decimal credits introduce a tiny display-normalisation remainder.
+  if (pool === 'master' && !isTscRoyaltyShare(share) && Number.isFinite(share.masterReceiptsPercent)) {
+    return royaltyAmount(annualIncome, share.masterReceiptsPercent);
+  }
+  const income = pool === 'master' && !isTscRoyaltyShare(share)
+    ? royaltyAmount(annualIncome, remainingPercent) : annualIncome;
+  return royaltyAmount(income, share.percent);
+};

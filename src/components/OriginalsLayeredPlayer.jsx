@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { originalsRequest } from "../utils/originalsApi";
 import { trackIsAudibleAt } from "../utils/originalsListening";
+import OriginalsSubmittedBy from './OriginalsSubmittedBy';
 
 const formatTime = (seconds) => {
   const safe = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
   return `${Math.floor(safe / 60)}:${String(Math.floor(safe % 60)).padStart(2, "0")}`;
 };
 
-const OriginalsLayeredPlayer = ({ token, tracks = [], onTimeChange, autoLoad = false, initialSelectedIds }) => {
+const OriginalsLayeredPlayer = ({ token, tracks = [], onTimeChange, initialSelectedIds }) => {
   const audioRefs = useRef({});
   const refCallbacks = useRef({});
   const loadVersion = useRef(0);
@@ -22,6 +23,8 @@ const OriginalsLayeredPlayer = ({ token, tracks = [], onTimeChange, autoLoad = f
   initiallySelected.current = initialSelectedIds;
   const activeTracks = useMemo(() => tracks.filter(track => track?._id && (!track.state || track.state === "active")), [tracks]);
   const trackKey = activeTracks.map(track => track._id).join(":");
+  const tracksToLoad = useRef(activeTracks);
+  tracksToLoad.current = activeTracks;
   const leadTrack = activeTracks.reduce((lead, track) => (durations[track._id] || 0) > (durations[lead?._id] || 0) ? track : lead, activeTracks[0]);
   const duration = durations[leadTrack?._id] || 0;
 
@@ -36,7 +39,7 @@ const OriginalsLayeredPlayer = ({ token, tracks = [], onTimeChange, autoLoad = f
     const version = ++loadVersion.current;
     setLoading(true); setError("");
     try {
-      const entries = await Promise.all(activeTracks.map(async track => {
+      const entries = await Promise.all(tracksToLoad.current.map(async track => {
         const response = await originalsRequest(token, { method: "get", url: `/assets/${track._id}/access` });
         if (!response.data.url) throw new Error("File unavailable");
         return [track._id, response.data.url];
@@ -45,9 +48,11 @@ const OriginalsLayeredPlayer = ({ token, tracks = [], onTimeChange, autoLoad = f
     } catch {
       if (version === loadVersion.current) setError("Could not prepare the audio. Please try again.");
     } finally { if (version === loadVersion.current) setLoading(false); }
-  }, [activeTracks, token]);
+  }, [token]);
 
-  useEffect(() => { if (autoLoad && activeTracks.length) load(); }, [autoLoad, activeTracks.length, load]);
+  // Parent edits and playback position updates recreate track arrays. Reload only
+  // when the actual files or account change, so review controls cannot interrupt audio.
+  useEffect(() => { if (trackKey) load(); }, [trackKey, load]);
   useEffect(() => {
     setMix(current => Object.fromEntries(activeTracks.map(track => [track._id, current[track._id] || { muted: initiallySelected.current ? !initiallySelected.current.includes(String(track._id)) : false, solo: false, volume: 1 }])));
   }, [activeTracks]);
@@ -129,7 +134,7 @@ const OriginalsLayeredPlayer = ({ token, tracks = [], onTimeChange, autoLoad = f
   };
 
   if (!activeTracks.length) return <p className="text-sm text-gray-500">No playable stems available.</p>;
-  if (!Object.keys(urls).length) return <div className="mt-3 space-y-2">{error && <p role="alert" className="text-sm text-red-700">{error}</p>}<button disabled={loading} onClick={load} className="rounded border px-3 py-2 text-sm">{loading ? "Preparing secure audio…" : error ? "Try again" : "Load audio player"}</button></div>;
+  if (!Object.keys(urls).length) return <div className="mt-3 space-y-2">{error ? <><p role="alert" className="text-sm text-red-700">{error}</p><button disabled={loading} onClick={load} className="rounded border px-3 py-2 text-sm">Try again</button></> : <p role="status" className="text-sm text-gray-500">Preparing secure audio…</p>}</div>;
 
   return <div className="rounded-lg bg-gray-950 p-4 text-white">
     <div className="flex flex-wrap items-center gap-3"><button disabled={!duration || !selectedCount} onClick={playPause} className="rounded bg-white px-4 py-2 text-sm font-semibold text-black disabled:opacity-40">{playing ? "Pause" : activeTracks.length > 1 ? "Play selected stems" : "Play"}</button><span className="text-xs text-gray-300">{formatTime(time)} / {formatTime(duration)} · {selectedCount}/{activeTracks.length} included</span><button type="button" onClick={reset} className="ml-auto rounded border px-3 py-2 text-xs">Reset</button></div><div className="mt-3 flex flex-wrap gap-3 text-xs"><button type="button" className="underline" onClick={() => chooseAll(true)}>Select all stems</button><button type="button" className="underline" onClick={() => chooseAll(false)}>Deselect all stems</button><span className="text-gray-400">Tick the parts you want to hear together. Solo isolates a selected part.</span></div>
@@ -138,7 +143,7 @@ const OriginalsLayeredPlayer = ({ token, tracks = [], onTimeChange, autoLoad = f
     <div className="mt-3 space-y-2">{activeTracks.map(track => {
       const controls = mix[track._id] || { muted: false, solo: false, volume: 1 };
       return <div key={track._id} className="grid grid-cols-[1fr_auto] items-center gap-2 rounded bg-gray-900 p-2 text-xs sm:grid-cols-[1fr_auto_160px]">
-        <label className="flex min-w-0 items-start gap-2 break-words"><input type="checkbox" aria-label={`Include ${track.label || track.originalName}`} checked={!controls.muted} onChange={event => setMix(current => ({ ...current, [track._id]: { ...controls, muted: !event.target.checked } }))} /><span>{track.label || track.originalName}{track.playbackRanges && <span className="block text-gray-400">Approved sections only</span>}</span></label>
+        <div className="min-w-0"><label className="flex min-w-0 items-start gap-2 break-words"><input type="checkbox" aria-label={`Include ${track.label || track.originalName}`} checked={!controls.muted} onChange={event => setMix(current => ({ ...current, [track._id]: { ...controls, muted: !event.target.checked } }))} /><span>{track.label || track.originalName}{track.playbackRanges && <span className="block text-gray-400">Approved sections only</span>}</span></label><OriginalsSubmittedBy credit={track.submittedBy} dark /></div>
 
         <button aria-pressed={controls.solo} onClick={() => setMix({ ...mix, [track._id]: { ...controls, solo: !controls.solo } })} className={`rounded px-2 py-1 ${controls.solo ? "bg-amber-500 text-black" : "bg-gray-700"}`}>Solo</button>
         <label className="col-span-2 flex items-center gap-2 sm:col-span-1"><span className="shrink-0">{Math.round(controls.volume * 100)}%</span><input aria-label={`${track.label || track.originalName} volume`} type="range" min="0" max="1" step="0.05" value={controls.volume} onChange={event => setMix({ ...mix, [track._id]: { ...controls, volume: Number(event.target.value) } })} className="min-w-0 w-full" /></label>

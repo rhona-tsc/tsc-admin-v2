@@ -509,7 +509,7 @@ const App = () => {
             />
             <Route
               path="/originals/owner-agreement"
-              element={<RequireOriginalsAccess allowed={originalsAvailable && isOriginalsAdmin}><OriginalsOwnerAgreement /></RequireOriginalsAccess>}
+              element={<RequireOriginalsAccess allowed={originalsAvailable && isOriginalsAdmin}><OriginalsOwnerAgreement token={token} /></RequireOriginalsAccess>}
             />
             <Route
               path="/originals/mine"

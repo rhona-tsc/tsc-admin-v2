@@ -36,3 +36,21 @@ test('removing an option excludes its remembered mapping and effects remain with
   assert.equal(originalSubmissionPairsReady({ ...submission, wetStemAssetId: 'wet' }, assets), false);
   assert.equal(originalSubmissionPairsReady({ ...changed, wetStemAssetId: 'two' }, assets), false);
 });
+
+test('foundation submissions can contain independent stems without listening mixes', () => {
+  const first = { ...submission, mixdownAssetIds: {} };
+  assert.equal(originalSubmissionPairsReady(first, assets, { listeningMixRequired: false }), true);
+  assert.equal(originalSubmissionPairsReady(first, assets), false);
+  assert.deepEqual(originalSubmissionTakes(first, assets).map(take => take.mixdownAssetId), [null, null, null]);
+});
+
+test('optional foundation mixes still need valid, distinct, current-reservation uploads', () => {
+  const first = { ...submission, mixdownAssetIds: { one: 'mix1' } };
+  const options = { listeningMixRequired: false };
+  assert.equal(originalSubmissionPairsReady(first, assets, options), true);
+  assert.equal(originalSubmissionPairsReady({ ...first, mixdownAssetIds: { one: 'one' } }, assets, options), false);
+  assert.equal(originalSubmissionPairsReady({ ...first, mixdownAssetIds: { one: 'mix1', two: 'mix1' } }, assets, options), false);
+  assert.equal(originalSubmissionPairsReady(first, assets.map(asset => asset._id === 'mix1' ? { ...asset, reservationId: 'other' } : asset), options), false);
+  assert.equal(originalSubmissionPairsReady({ ...first, stemAssetIds: [] }, assets, options), false);
+  assert.equal(originalSubmissionPairsReady({ ...first, stemAssetIds: ['one','two','three','wet'] }, assets, options), false);
+});

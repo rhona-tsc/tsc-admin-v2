@@ -1,10 +1,11 @@
+import { OriginalsAiStatus } from './OriginalsAiDeclaration';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { EmbeddedReference } from './OriginalsProjectListening';
 import OriginalsLayeredPlayer from './OriginalsLayeredPlayer';
 import { originalProjectListening } from '../utils/originalsListening';
 function FilePlayer({ token, asset }) {
   const [open, setOpen] = useState(false);
-  return <details className="rounded-lg border p-3" onToggle={event => setOpen(event.currentTarget.open)}><summary className="cursor-pointer break-all text-sm font-medium">{asset.originalName}<span className="ml-2 text-xs font-normal text-gray-500">{asset.state === 'active' ? 'Play / preview' : 'Unavailable'}</span></summary>{open && asset.state === 'active' && <EmbeddedReference token={token} asset={asset} showDownload hideName />}</details>;
+  return <details className="rounded-lg border p-3" onToggle={event => setOpen(event.currentTarget.open)}><summary className="cursor-pointer break-all text-sm font-medium">{asset.originalName} <OriginalsAiStatus asset={asset} /><span className="ml-2 text-xs font-normal text-gray-500">{asset.state === 'active' ? 'Play / preview' : 'Unavailable'}</span></summary>{open && asset.state === 'active' && <EmbeddedReference token={token} asset={asset} showDownload hideName />}</details>;
 }
 export default function OriginalsFilesPlayback({ token, assets = [], submissions = [], viewerId, canManage }) {
   const root = useRef(null);

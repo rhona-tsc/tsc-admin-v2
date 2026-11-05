@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { originalsRequest } from '../utils/originalsApi';
 import { CHAT_ACCEPT, chatFileError, recordingExtension, recordingTime } from '../utils/originalsChat';
+import OriginalsEmojiPicker from './OriginalsEmojiPicker';
 
 function ChatAttachment({ token, asset, voice = false }) {
   const [url, setUrl] = useState('');
@@ -49,6 +50,7 @@ export default function OriginalsChat({ token, projectId, viewerId, initialMessa
   const uploadIds = useRef(new Map());
   const sendingRef = useRef(false);
   const fileInput = useRef(null);
+  const messageInput = useRef(null);
   const previewAudio = useRef(null);
   const setPreviewAudio = useCallback(node => {
     if (previewAudio.current && previewAudio.current !== node) previewAudio.current.pause();
@@ -186,6 +188,18 @@ export default function OriginalsChat({ token, projectId, viewerId, initialMessa
     if (problem) { setError(problem); return; }
     setFiles(current => [...current, ...added]); setError(''); clientId.current = null;
   };
+  const insertEmoji = emoji => {
+    if (readOnly || sendingRef.current) return;
+    const input = messageInput.current;
+    const start = input?.selectionStart ?? body.length;
+    const end = input?.selectionEnd ?? start;
+    const next = body.slice(0, start) + emoji + body.slice(end);
+    if (next.length > 3000) { setError('Messages can contain up to 3,000 characters. Remove some text to add an emoji.'); input?.focus(); return; }
+    setBody(next); clientId.current = null; setError('');
+    requestAnimationFrame(() => {
+      input?.focus(); input?.setSelectionRange(start + emoji.length, start + emoji.length);
+    });
+  };
   const send = async () => {
     if (readOnly || sendingRef.current || recording !== 'idle' || (!body.trim() && !files.length && !voice)) return;
     sendingRef.current = true; setSending(true); setError('');
@@ -234,8 +248,8 @@ export default function OriginalsChat({ token, projectId, viewerId, initialMessa
       {!!files.length && <ul className="space-y-2">{files.map((file, index) => <li key={index} className="flex items-center justify-between gap-2 rounded border p-2 text-xs"><span className="min-w-0 break-all">📎 {file.name}</span><button type="button" disabled={sending} aria-label={`Remove ${file.name}`} onClick={() => { setFiles(current => current.filter((_, i) => i !== index)); uploadIds.current.delete(file); clientId.current = null; }} className="shrink-0 underline">Remove</button></li>)}</ul>}
       {voice && <div className="rounded border bg-slate-50 p-3"><p className="mb-2 text-sm font-medium">Voice note ready — listen before sending</p><audio ref={setPreviewAudio} src={voiceUrl} controls className="w-full max-w-sm" /><button type="button" disabled={sending} onClick={() => { uploadIds.current.delete(voice); setVoice(null); clientId.current = null; }} className="mt-2 text-sm text-red-700 underline">Delete recording</button></div>}
       {recording !== 'idle' && <div className="flex flex-wrap items-center gap-3 rounded bg-red-50 p-3 text-sm"><span role="status" className="text-red-700">{recording === 'starting' ? 'Waiting for microphone…' : recording === 'stopping' ? 'Preparing voice note…' : `● Recording ${recordingTime(seconds)}`}</span>{recording === 'recording' && <button type="button" onClick={stopRecording} className="rounded border bg-white px-3 py-2">Stop recording</button>}<button type="button" onClick={cancelRecording} className="text-red-700 underline">Delete / cancel</button></div>}
-      <textarea aria-label="Message" placeholder="Message the group…" maxLength={3000} rows={2} value={body} disabled={sending} onChange={event => { setBody(event.target.value); clientId.current = null; }} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); send(); } }} className="block w-full resize-y rounded-lg border p-3 text-sm disabled:bg-gray-50" />
-      <div className="flex flex-wrap items-center gap-2"><input ref={fileInput} type="file" multiple accept={CHAT_ACCEPT} onChange={attach} className="hidden" /><button type="button" disabled={sending || recording !== 'idle'} onClick={() => fileInput.current.click()} className="rounded-lg border px-3 py-2 text-sm disabled:opacity-40">📎 Attach</button><button type="button" disabled={sending || recording !== 'idle' || !!voice} onClick={startRecording} className="rounded-lg border px-3 py-2 text-sm disabled:opacity-40">● Record</button><button type="button" disabled={sending || recording !== 'idle' || (!body.trim() && !voice && !files.length)} onClick={send} className="ml-auto rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{sending ? 'Sending…' : 'Send'}</button></div>
+      <textarea ref={messageInput} aria-label="Message" placeholder="Message the group…" maxLength={3000} rows={2} value={body} disabled={sending} onChange={event => { setBody(event.target.value); clientId.current = null; }} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); send(); } }} className="block w-full resize-y rounded-lg border p-3 text-sm disabled:bg-gray-50" />
+      <OriginalsEmojiPicker onSelect={insertEmoji} disabled={sending}><input ref={fileInput} type="file" multiple accept={CHAT_ACCEPT} onChange={attach} className="hidden" /><button type="button" disabled={sending || recording !== 'idle'} onClick={() => fileInput.current.click()} className="rounded-lg border px-3 py-2 text-sm disabled:opacity-40">📎 Attach</button><button type="button" disabled={sending || recording !== 'idle' || !!voice} onClick={startRecording} className="rounded-lg border px-3 py-2 text-sm disabled:opacity-40">● Record</button><button type="button" disabled={sending || recording !== 'idle' || (!body.trim() && !voice && !files.length)} onClick={send} className="ml-auto rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{sending ? 'Sending…' : 'Send'}</button></OriginalsEmojiPicker>
       <p className="text-xs text-gray-500">{progress || 'Up to 5 attachments · 10 MB each · Voice notes up to 5 minutes'}</p>
     </div>}
   </section>;

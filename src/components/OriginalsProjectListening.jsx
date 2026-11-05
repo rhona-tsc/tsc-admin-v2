@@ -2,6 +2,8 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { originalsRequest } from '../utils/originalsApi';
 import { originalProjectListening } from '../utils/originalsListening';
 import OriginalsLayeredPlayer from './OriginalsLayeredPlayer';
+import OriginalsSectionLink from './OriginalsSectionLink';
+import OriginalsSubmittedBy from './OriginalsSubmittedBy';
 
 export function EmbeddedReference({ token, asset, showDownload = false, hideName = false }) {
   const mediaRef = useRef(null);
@@ -27,6 +29,7 @@ export function EmbeddedReference({ token, asset, showDownload = false, hideName
   const video = asset.kind === 'video_submission' || asset.mimeType?.startsWith('video/');
   return <div className="mt-3 space-y-2">
     {!hideName && <p className="break-words text-xs text-gray-500">{asset.originalName}</p>}
+    <OriginalsSubmittedBy credit={asset.submittedBy} />
     {error ? <div role="alert" className="text-sm text-red-700">{error}<button type="button" onClick={() => setAttempt(value => value + 1)} className="ml-2 underline">Try again</button></div>
       : url ? video
         ? <video ref={setMediaRef} aria-label={asset.listeningLabel || asset.originalName} controls playsInline preload="metadata" src={url} onError={() => setError('This video could not be played. Reload its secure link and try again.')} className="max-h-96 w-full rounded-lg bg-black" />
@@ -47,11 +50,11 @@ function ListeningPanel({ title, children }) {
 export default memo(function OriginalsProjectListening({ token, assets, submissions }) {
   const { references, projectTracks } = useMemo(() => originalProjectListening({ assets, submissions }), [assets, submissions]);
   return <>
-    {!references.length && !projectTracks.length && <p className="mt-3 text-sm text-gray-500">No guide, sample or approved recording uploaded yet. Read the brief and check the project chat before you start.</p>}
-    {references.map(asset => <ListeningPanel key={asset._id} title={asset.listeningLabel}>{asset.playbackRanges ? <OriginalsLayeredPlayer token={token} tracks={[asset]} autoLoad /> : <EmbeddedReference token={token} asset={asset} />}</ListeningPanel>)}
+    {!references.length && !projectTracks.length && <p className="mt-3 text-sm text-gray-500">No guide, sample or approved recording uploaded yet. Read the <OriginalsSectionLink to="project-brief">brief</OriginalsSectionLink> and check the <OriginalsSectionLink to="project-chat">project chat</OriginalsSectionLink> before you start.</p>}
+    {references.map(asset => <ListeningPanel key={asset._id} title={asset.listeningLabel}>{asset.playbackRanges ? <OriginalsLayeredPlayer token={token} tracks={[asset]} /> : <EmbeddedReference token={token} asset={asset} />}</ListeningPanel>)}
     {projectTracks.length > 1 && <ListeningPanel title="Listen to the project">
       <p className="my-3 text-sm text-gray-600">Approved stems, played together. Guides, samples and click tracks are separate references.</p>
-      <OriginalsLayeredPlayer token={token} tracks={projectTracks} autoLoad />
+      <OriginalsLayeredPlayer token={token} tracks={projectTracks} />
     </ListeningPanel>}
   </>;
 });
