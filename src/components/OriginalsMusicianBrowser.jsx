@@ -1,8 +1,16 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { originalsRequest } from '../utils/originalsApi';
+import { cloudinaryImage } from '../utils/cloudinaryImage';
 
 const publicSite = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://thesupremecollective.co.uk').replace(/\/+$/, '');
 const sorted = values => [...new Set(values.filter(Boolean))].sort((a,b) => a.localeCompare(b, 'en'));
+
+function MusicianPhoto({ musician }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [musician.profilePhoto]);
+  const initials = musician.displayName?.split(/\s+/).filter(Boolean).slice(0, 2).map(part => Array.from(part)[0]).join('') || '♪';
+  return musician.profilePhoto && !failed ? <img src={cloudinaryImage(musician.profilePhoto, 112)} alt="" width="56" height="56" loading="lazy" onError={() => setFailed(true)} className="h-14 w-14 shrink-0 rounded-full border bg-white object-cover" /> : <span aria-hidden="true" className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border bg-white text-lg font-semibold text-slate-600">{initials}</span>;
+}
 
 export default function OriginalsMusicianBrowser({ token, projectId, initialInstrument = '', ownerLookup = false, selectedId = '', onSelect, disabled = false }) {
   const radioName = useId();
@@ -50,7 +58,7 @@ export default function OriginalsMusicianBrowser({ token, projectId, initialInst
       {!results.length ? <p role="status" className="rounded bg-slate-50 p-3 text-sm text-gray-600">No musicians match these filters. Try another instrument, genre or name.</p> : <>
         <p role="status" className="text-xs text-gray-600">Page {pagination.page} · {results.length} musician{results.length === 1 ? '' : 's'} shown{pagination.hasMore ? ' · more available on the next page' : ''}</p>
         <ul className="grid gap-3 sm:grid-cols-2">{results.map(musician => <li key={musician._id} className="min-w-0 rounded-lg border bg-slate-50 p-3">
-          <label className="flex cursor-pointer items-start gap-2 text-sm font-semibold"><input type="radio" name={radioName} value={musician._id} checked={String(selectedId) === String(musician._id)} disabled={disabled} onChange={() => onSelect?.(musician._id, musician)} className="mt-1" /><span className="min-w-0 break-words">{musician.displayName}</span></label>
+          <label className="flex cursor-pointer items-center gap-3 text-sm font-semibold"><input type="radio" name={radioName} value={musician._id} checked={String(selectedId) === String(musician._id)} disabled={disabled} onChange={() => onSelect?.(musician._id, musician)} className="shrink-0" /><MusicianPhoto musician={musician} /><span className="min-w-0 break-words">{musician.displayName}</span></label>
           <p className="mt-2 break-words text-xs text-gray-600">{musician.instruments?.length ? musician.instruments.join(', ') : 'Instruments not yet listed'}</p>
           <p className="mt-1 break-words text-xs text-gray-600">{musician.genres?.length ? musician.genres.join(' · ') : 'Genres not yet selected'}</p>
           {musician.profilePath && <a href={`${publicSite}${musician.profilePath}`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-sm font-medium underline" aria-label={`View ${musician.displayName}’s profile`}>View profile & listen</a>}

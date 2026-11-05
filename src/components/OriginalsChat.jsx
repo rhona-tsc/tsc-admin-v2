@@ -231,6 +231,11 @@ export default function OriginalsChat({ token, projectId, viewerId, initialMessa
     <div ref={list} role="log" aria-label="Chat messages" aria-live="polite" onScroll={() => { const node = list.current; stickToBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 80; }} className="h-80 space-y-3 overflow-y-auto bg-slate-50 p-3 sm:p-4">
       {!messages.length && <p className="py-8 text-center text-sm text-gray-500">No messages yet. Start the conversation.</p>}
       {messages.map(message => {
+        if (['stem_submitted', 'stem_approved'].includes(message.messageType)) return <div key={message._id} className="flex justify-center"><article className={`min-w-0 max-w-[95%] rounded-lg border px-4 py-3 text-center text-sm ${message.messageType === 'stem_approved' ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-sky-200 bg-sky-50 text-sky-900'}`}>
+          <p className="text-xs font-semibold">{message.messageType === 'stem_approved' ? '✓ ' : ''}Project update</p>
+          <p className="mt-1 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.body}</p>
+          {message.createdAt && <time dateTime={message.createdAt} className="mt-2 block text-[10px] opacity-75">{new Date(message.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</time>}
+        </article></div>;
         const own = String(message.authorId) === String(viewerId);
         return <div key={message._id} className={`flex ${own ? 'justify-end' : 'justify-start'}`}><article className={`min-w-0 max-w-[90%] rounded-xl border p-3 text-sm shadow-sm ${own ? 'border-emerald-100 bg-emerald-50' : 'bg-white'}`}>
           <p className="text-xs font-semibold text-gray-600">{own ? 'You' : message.authorCreditName || (message.authorAnonymous ? 'Anonymous' : 'Project participant')}</p>
