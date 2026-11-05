@@ -1,3 +1,9 @@
+.originals-role-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: 0.75rem;
+}
+
 .originals-role-card {
   position: relative;
   isolation: isolate;
@@ -7,6 +13,18 @@
   border-radius: 0.75rem;
   background: #0f172a;
   color: #fff;
+}
+
+.originals-role-grid > .originals-role-card {
+  display: flex;
+  aspect-ratio: 1;
+}
+
+.originals-role-grid .originals-role-card__content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 1rem;
 }
 
 .originals-role-card__photo {

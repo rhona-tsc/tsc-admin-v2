@@ -8,7 +8,7 @@ export default function OriginalsRoleCard({ roleName, children, as: element = 'l
   const image = originalsRoleImage(roleName);
   const Element = element;
   return <Element className={`originals-role-card${compact ? ' originals-role-card--compact' : ''}`}>
-    <img alt="" aria-hidden="true" loading="lazy" decoding="async" className="originals-role-card__photo" src={`${assetBase}${image}-960.webp`} srcSet={`${assetBase}${image}-480.webp 480w, ${assetBase}${image}-960.webp 960w`} sizes="(min-width: 1280px) 600px, (min-width: 640px) 48vw, 100vw" style={{ objectPosition: positions[image] || '50% 50%' }} />
+    <img alt="" aria-hidden="true" loading="lazy" decoding="async" className="originals-role-card__photo" src={`${assetBase}${image}-960.webp`} srcSet={`${assetBase}${image}-480.webp 480w, ${assetBase}${image}-960.webp 960w`} sizes={compact ? '(min-width: 1280px) 600px, (min-width: 640px) 48vw, 100vw' : '(min-width: 640px) 320px, 100vw'} style={{ objectPosition: positions[image] || '50% 50%' }} />
     <div className="originals-role-card__content">{children}</div>
   </Element>;
 }

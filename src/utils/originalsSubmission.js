@@ -26,7 +26,7 @@ export function originalStemSubmission(submission, assets = []) {
   const draft = { ...submission, mixdownAssetIds: {} };
   let message = '';
   if (!draft.reservationId) message = 'Choose your reserved role first.';
-  else if (!draft.stemAssetIds.length) message = 'Select at least one file under “Your stems” to submit. No listening mix is needed.';
+  else if (!draft.stemAssetIds.length) message = 'Select at least one file under “Your stems” to submit.';
   else if (draft.stemAssetIds.length + (draft.wetStemAssetId ? 1 : 0) > 3) message = 'Choose up to three stem files, including any effects reference.';
   else if (!originalSubmissionPairsReady(draft, assets)) message = 'A selected file is unavailable or selected twice. Choose your stems again for this reservation.';
   return { ready: !message, message, takes: message ? [] : originalSubmissionTakes(draft, assets) };

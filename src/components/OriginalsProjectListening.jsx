@@ -50,12 +50,12 @@ function ListeningPanel({ title, children }) {
 export default memo(function OriginalsProjectListening({ token, assets, submissions, title }) {
   const { references, projectTracks } = useMemo(() => originalProjectListening({ assets, submissions }), [assets, submissions]);
   return <>
-    <h2 className="text-sm font-bold uppercase tracking-wide text-slate-800">{projectTracks.length ? 'Guidance & approved stems' : 'Guidance for the project'}</h2>
+    <h2 className="text-sm font-bold uppercase tracking-wide text-slate-800">{projectTracks.length ? 'Listen & download the stems' : 'Guidance for the project'}</h2>
     <p className="mt-1 text-sm text-gray-600">Listen to the guide or sample and any approved stems before recording.</p>
     {!references.length && !projectTracks.length && <p className="mt-3 text-sm text-gray-500">No guide, sample or approved recording uploaded yet. Read the <OriginalsSectionLink to="project-brief">brief</OriginalsSectionLink> and check the <OriginalsSectionLink to="project-chat">project chat</OriginalsSectionLink> before you start.</p>}
     {references.map(asset => <ListeningPanel key={asset._id} title={asset.listeningLabel}>{asset.playbackRanges || asset.mimeType?.startsWith('audio/') ? <OriginalsLayeredPlayer token={token} tracks={[asset]} title={title} /> : <EmbeddedReference token={token} asset={asset} showDownload />}</ListeningPanel>)}
     {projectTracks.length > 0 && <div className="mt-4" aria-label="Approved stems">
-      <p className="my-3 text-sm text-gray-600">Choose the parts and levels you want to hear, then download a merged rough mix to record against. Keep its start point at zero in your recording software.</p>
+      <p className="my-3 text-sm text-gray-600">Adjust the volume of each stem to your preference for your recording, then download the selected stems together as one WAV track. Keep its start point at zero in your recording software.</p>
       <OriginalsLayeredPlayer token={token} tracks={[...projectTracks, ...references.filter(asset => asset.kind === "click_track")]} initialSelectedIds={projectTracks.map(track => String(track._id))} title={title} />
     </div>}
   </>;
