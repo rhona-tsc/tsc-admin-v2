@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { originalSubmissionPairsReady, originalSubmissionTakes } from './originalsSubmission.js';
+import { originalSubmissionPairsReady, originalSubmissionTakes, originalStemSubmission } from './originalsSubmission.js';
 
 const assets = ['one', 'two', 'three', 'wet'].map(id => ({ _id: id, kind: 'take_stem', state: 'active', reservationId: 'booking', originalName: `${id}.wav` }))
   .concat(['mix1', 'mix2', 'mix3'].map(id => ({ _id: id, kind: 'take_mixdown', state: 'active', reservationId: 'booking' })));
@@ -16,9 +16,9 @@ test('three stems produce three independent reviewable takes with their matching
   assert.equal(takes[1].stemAssetId, 'two');
 });
 
-test('every selected stem needs its own active mix owned by the same reservation', () => {
+test('explicit legacy mix-required validation checks each mix belongs to its reservation', () => {
   for (const mapping of [{ one: 'mix1', two: 'mix2' }, { one: 'mix1', two: 'mix1', three: 'mix3' }, { ...submission.mixdownAssetIds, two: 'one' }]) {
-    assert.equal(originalSubmissionPairsReady({ ...submission, mixdownAssetIds: mapping }, assets), false);
+    assert.equal(originalSubmissionPairsReady({ ...submission, mixdownAssetIds: mapping }, assets, { listeningMixRequired: true }), false);
   }
   for (const change of [{ state: 'hidden' }, { reservationId: 'another' }]) {
     assert.equal(originalSubmissionPairsReady(submission, assets.map(asset => asset._id === 'mix2' ? { ...asset, ...change } : asset)), false);
@@ -40,7 +40,8 @@ test('removing an option excludes its remembered mapping and effects remain with
 test('foundation submissions can contain independent stems without listening mixes', () => {
   const first = { ...submission, mixdownAssetIds: {} };
   assert.equal(originalSubmissionPairsReady(first, assets, { listeningMixRequired: false }), true);
-  assert.equal(originalSubmissionPairsReady(first, assets), false);
+  assert.equal(originalSubmissionPairsReady(first, assets), true);
+  assert.equal(originalSubmissionPairsReady(first, assets, { listeningMixRequired: true }), false);
   assert.deepEqual(originalSubmissionTakes(first, assets).map(take => take.mixdownAssetId), [null, null, null]);
 });
 
@@ -53,4 +54,28 @@ test('optional foundation mixes still need valid, distinct, current-reservation 
   assert.equal(originalSubmissionPairsReady(first, assets.map(asset => asset._id === 'mix1' ? { ...asset, reservationId: 'other' } : asset), options), false);
   assert.equal(originalSubmissionPairsReady({ ...first, stemAssetIds: [] }, assets, options), false);
   assert.equal(originalSubmissionPairsReady({ ...first, stemAssetIds: ['one','two','three','wet'] }, assets, options), false);
+});
+
+
+test('the current form submits stems alone and discards stale listening-mix selections', () => {
+  const draft = { ...submission, stemAssetIds: ['one'], mixdownAssetIds: { one: 'missing-old-mix' } };
+  const result = originalStemSubmission(draft, assets);
+  assert.equal(result.ready, true); assert.equal(result.message, '');
+  assert.equal(result.takes[0].stemAssetId, 'one'); assert.equal(result.takes[0].mixdownAssetId, null);
+  assert.equal(draft.mixdownAssetIds.one, 'missing-old-mix');
+  assert.equal(originalStemSubmission({ ...draft, mixdownAssetIds: undefined }, assets).ready, true);
+});
+test('an effects reference alone explains that a main stem must be selected, while a paired effects reference is valid', () => {
+  const draft = { ...submission, stemAssetIds: [], wetStemAssetId: 'wet' };
+  const blocked = originalStemSubmission(draft, assets);
+  assert.equal(blocked.ready, false); assert.match(blocked.message, /Select at least one file/); assert.deepEqual(blocked.takes, []);
+  const paired = originalStemSubmission({ ...draft, stemAssetIds: ['one'] }, assets);
+  assert.equal(paired.ready, true); assert.equal(paired.takes[0].wetStemAssetId, 'wet'); assert.equal(paired.takes[0].mixdownAssetId, null);
+});
+test('stem-only submission still rejects missing, hidden, wrong-reservation or duplicate stems and excess files', () => {
+  for (const draft of [{ ...submission, reservationId: '' }, { ...submission, stemAssetIds: ['missing'] }, { ...submission, stemAssetIds: ['one','one'] }, { ...submission, wetStemAssetId: 'wet' }]) {
+    const result = originalStemSubmission(draft, assets); assert.equal(result.ready, false); assert.ok(result.message); assert.deepEqual(result.takes, []);
+  }
+  for (const change of [{ state: 'hidden' }, { reservationId: 'other' }]) assert.equal(originalStemSubmission(submission, assets.map(asset => asset._id === 'one' ? { ...asset, ...change } : asset)).ready, false);
+  assert.equal(originalStemSubmission({ ...submission, wetStemAssetId: 'one', stemAssetIds: ['one'] }, assets).ready, false);
 });
