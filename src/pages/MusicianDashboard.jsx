@@ -1,3 +1,4 @@
+import OriginalsIntroduction from "../components/OriginalsIntroduction";
 import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
@@ -1116,6 +1117,8 @@ useEffect(() => {
           ) : null}
         </section>
       ) : null}
+
+      {(import.meta.env.VITE_ORIGINALS_ENABLED === undefined || String(import.meta.env.VITE_ORIGINALS_ENABLED).trim() === "" || String(import.meta.env.VITE_ORIGINALS_ENABLED).toLowerCase() === "true") && <OriginalsIntroduction />}
 
       {/* MAIN + RIGHT SIDEBAR */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

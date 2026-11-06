@@ -1,3 +1,4 @@
+import OriginalsIntroduction from "../components/OriginalsIntroduction";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Title from "../components/Title";
@@ -19,6 +20,7 @@ const OriginalProjects = ({ token }) => {
     <div className="px-4 py-8 sm:px-6">
       <Title text1="ORIGINALS" text2="PROJECTS" />
       <p className="mt-3 max-w-2xl text-sm text-gray-600">Approved collaborations currently open or progressing through TSC Originals.</p>
+      <OriginalsIntroduction />
       {loading ? <p className="mt-8">Loading projects…</p> : null}
       {error ? <div className="mt-8 rounded border border-red-200 bg-red-50 p-4 text-red-700">{error}</div> : null}
       {!loading && !error && !projects.length ? <div className="mt-8 rounded border bg-white p-8 text-center text-gray-500">No approved Originals projects yet.</div> : null}

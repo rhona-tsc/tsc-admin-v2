@@ -17,14 +17,18 @@ const Noticeboard = ({ userRole, email }) => {
   const [editorContent, setEditorContent] = useState("");
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const loadNotices = async () => {
       try {
-        const res = await axios.get(`${backendUrl}/api/noticeboard`);
-        if (res.data?.success) setItems(res.data.items || []);
+        const res = await axios.get(`${backendUrl}/api/noticeboard/all`);
+        if (!res.data?.success) throw new Error("Could not load announcements");
+        setItems(res.data.notices || []);
       } catch (err) {
         console.error("Failed to load noticeboard:", err);
+        setError("Could not load announcements. Please refresh to try again.");
       } finally {
         setLoading(false);
       }
@@ -34,21 +38,28 @@ const Noticeboard = ({ userRole, email }) => {
   }, []);
 
   const handleSubmit = async () => {
-    if (!title.trim() || !editorContent.trim()) return;
+    if (saving || !title.trim() || !editorContent.trim()) return;
+    setSaving(true);
+    setError("");
 
     try {
-      const res = await axios.post(`${backendUrl}/api/noticeboard`, {
-        title,
-        content: editorContent,
+      const res = await axios.post(`${backendUrl}/api/noticeboard/create`, {
+        title: title.trim(),
+        body: editorContent,
+        authorName: "The Supreme Collective",
       });
 
+      if (!res.data.success || !res.data.notice) throw new Error("Could not publish announcement");
       if (res.data.success) {
-        setItems([res.data.notice, ...items]);
+        setItems(current => [res.data.notice, ...current].sort((a, b) => Number(Boolean(b.pinned)) - Number(Boolean(a.pinned)) || new Date(b.createdAt) - new Date(a.createdAt)));
         setTitle("");
         setEditorContent("");
       }
     } catch (err) {
       console.error("Failed to create notice:", err);
+      setError("The announcement was not published. Please try again.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -64,6 +75,8 @@ const Noticeboard = ({ userRole, email }) => {
           Updates, reminders and announcements from The Supreme Collective.
         </p>
       </div>
+
+      {error && <p role="alert" className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
 
       {isAgent && (
         <div className="bg-white shadow border p-4 rounded-lg mb-8">
@@ -86,14 +99,35 @@ const Noticeboard = ({ userRole, email }) => {
 
           <button
             onClick={handleSubmit}
-            className="mt-4 px-4 py-2 bg-black hover:bg-[#ff6667] text-white rounded"
+            disabled={saving || !title.trim() || !editorContent.trim()}
+            className="mt-4 px-4 py-2 bg-black hover:bg-[#ff6667] text-white rounded disabled:opacity-40"
           >
-            Post Announcement
+            {saving ? "Publishing…" : "Post Announcement"}
           </button>
         </div>
       )}
 
       <div className="space-y-6">
+        {loading ? (
+          <p>Loading notices...</p>
+        ) : (
+          items.map((notice) => (
+            <div key={notice._id} className="bg-white shadow border rounded-lg p-4">
+              <div className="flex justify-between gap-4">
+                <h3 className="font-semibold">{notice.title}</h3>
+                <p className="text-xs text-gray-500">
+                  {new Date(notice.createdAt).toLocaleString()}
+                </p>
+              </div>
+
+              <div
+                className="mt-3 max-w-none text-sm leading-7 [&_p]:mb-4 [&_h3]:mb-2 [&_h3]:mt-5 [&_h3]:font-semibold [&_ul]:list-disc [&_ul]:pl-5 [&_a]:font-semibold [&_a]:text-[#b53639] [&_a]:underline"
+                dangerouslySetInnerHTML={{ __html: notice.body || notice.content || "" }}
+              />
+            </div>
+          ))
+        )}
+
         <div className="bg-black text-white p-6 shadow-lg border border-gray-200 rounded-xl">
           <h2 className="text-2xl font-bold tracking-wide mb-2">
             The Supreme Collective Portal
@@ -168,25 +202,7 @@ const Noticeboard = ({ userRole, email }) => {
           </div>
         </div>
 
-        {loading ? (
-          <p>Loading notices...</p>
-        ) : (
-          items.map((notice) => (
-            <div key={notice._id} className="bg-white shadow border rounded-lg p-4">
-              <div className="flex justify-between gap-4">
-                <h3 className="font-semibold">{notice.title}</h3>
-                <p className="text-xs text-gray-500">
-                  {new Date(notice.createdAt).toLocaleString()}
-                </p>
-              </div>
 
-              <div
-                className="mt-3 prose max-w-none"
-                dangerouslySetInnerHTML={{ __html: notice.content }}
-              />
-            </div>
-          ))
-        )}
       </div>
     </div>
   );

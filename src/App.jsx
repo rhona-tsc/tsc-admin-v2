@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import EmailPreferences from "./pages/EmailPreferences";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -269,6 +270,7 @@ const App = () => {
           }
         >
           <Routes>
+            <Route path="/email-preferences" element={<EmailPreferences token={token} onProfileDeleted={handleLogout} />} />
             <Route path="/regular-deputies/details/:token" element={<RegularDeputyDetails />} />
             {/* PUBLIC ROUTES */}
             <Route
@@ -505,22 +507,22 @@ const App = () => {
             />
             <Route
               path="/originals/new"
-              element={<RequireOriginalsAccess allowed={originalsAvailable && isOriginalsAdmin}><ListOriginalProject token={token} /></RequireOriginalsAccess>}
+              element={<RequireOriginalsAccess allowed={originalsAvailable}><ListOriginalProject token={token} /></RequireOriginalsAccess>}
             />
             <Route
               path="/originals/owner-agreement"
-              element={<RequireOriginalsAccess allowed={originalsAvailable && isOriginalsAdmin}><OriginalsOwnerAgreement token={token} /></RequireOriginalsAccess>}
+              element={<RequireOriginalsAccess allowed={originalsAvailable}><OriginalsOwnerAgreement token={token} /></RequireOriginalsAccess>}
             />
             <Route
               path="/originals/mine"
-              element={<RequireOriginalsAccess allowed={originalsAvailable && isOriginalsAdmin}><MyOriginalProjects token={token} /></RequireOriginalsAccess>}
+              element={<RequireOriginalsAccess allowed={originalsAvailable}><MyOriginalProjects token={token} /></RequireOriginalsAccess>}
             />
             <Route
               path="/originals/:id"
               element={<RequireOriginalsAccess allowed={originalsAvailable}><OriginalProjectWorkspace token={token} canModerate={isAdminAgent} /></RequireOriginalsAccess>}
             />
 
-            {originalsAvailable && isOriginalsAdmin && (
+            {originalsAvailable && isAdminAgent && (
               <>
                 <Route
                   path="/originals/moderation"
