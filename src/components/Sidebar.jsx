@@ -279,7 +279,13 @@ useEffect(() => {
           <p className="hidden md:block text-white">Security</p>
         </NavLink>
 
-        <NavLink className="flex items-center gap-3 border border-gray-300 px-3 py-2 text-white" to="/email-preferences"><span aria-hidden="true">✉</span><p className="hidden md:block">Email preferences</p></NavLink>
+        <NavLink
+          className="flex items-center gap-3 bg-black hover:bg-[#ff6667] border border-gray-300 border-r-0 px-3 py-2 rounded-l text-white"
+          to="/email-preferences"
+        >
+          <span className="grid h-5 w-5 shrink-0 place-items-center" aria-hidden="true">✉</span>
+          <p className="hidden md:block text-white">Email preferences</p>
+        </NavLink>
 
         {originalsAvailable ? (
           <>
