@@ -1,6 +1,7 @@
 // admin/src/pages/BookingBoard.jsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import BookingLineupSlotsEditor from "../components/BookingLineupSlotsEditor.jsx";
+import { effectiveLineupRoles, lineupDisplayLabel } from "../utils/bookingLineupAdditions.js";
 import { BESPOKE_LINEUP_ID, buildBespokeLineupPatch, lineupSlotsFromRow, normaliseLineupSlots } from "../utils/bookingLineup.js";
 import BookingPdfImport from "../components/BookingPdfImport.jsx";
 import { EVENT_TYPE_OPTIONS, normalizeEventType } from "../constants/eventTypes";
@@ -727,7 +728,7 @@ function ReceiptOptionsModal({ value, onChange, onCancel, onConfirm, saving }) {
 
 const buildFullLineup = (row) => {
   const label =
-    row?.lineupSelected ||
+    lineupDisplayLabel(row) ||
     row?.actsSummary?.[0]?.lineupLabel ||
     row?.actsSummary?.[0]?.lineup?.actSize ||
     "";
@@ -919,7 +920,7 @@ function LineupCompositionEditor({ row, onCommit }) {
   const patch = buildBespokeLineupPatch(currentSlots);
   return (
     <div className="flex min-w-[240px] flex-col gap-1.5">
-      {row?.lineupMode === "bespoke" ? <div className="px-2 py-1 text-sm font-medium">{row.lineupSelected}</div> :
+      {row?.lineupMode === "bespoke" ? <div className="px-2 py-1 text-sm font-medium">{lineupDisplayLabel(row)}</div> :
         <InlineInput value={row?.lineupSelected || ""} placeholder="Lineup"
           onCommit={(lineupSelected) => onCommit({ lineupSelected })} />}
       <details className="rounded-md border border-gray-200 bg-gray-50 p-2 text-[11px]">
@@ -988,6 +989,8 @@ const getExtrasFromRow = (row) => {
       price: Number(extra?.price || 0) || 0,
       passThroughGross: Number(extra?.passThroughGross || 0) || 0,
       managementGross: Number(extra?.managementGross || 0) || 0,
+      addsMusician: extra?.addsMusician === true,
+      musicianRole: extra?.musicianRole || "",
       refundableDeposit: Boolean(extra?.refundableDeposit),
       finishTime: extra?.finishTime || "",
       arrivalTime: extra?.arrivalTime || "",
@@ -1016,6 +1019,8 @@ const getExtrasFromRow = (row) => {
       price: Number(extra?.price || 0) || 0,
       passThroughGross: Number(extra?.passThroughGross || 0) || 0,
       managementGross: Number(extra?.managementGross || 0) || 0,
+      addsMusician: extra?.addsMusician === true,
+      musicianRole: extra?.musicianRole || "",
       refundableDeposit: Boolean(extra?.refundableDeposit),
       finishTime: extra?.finishTime || "",
       arrivalTime: extra?.arrivalTime || "",
@@ -1307,7 +1312,7 @@ const buildEditStateFromRow = (row) => {
         "",
     ).slice(0, 10),
     songSuggestionsDueDateISO: String(row?.songSuggestionsDueDateISO || "").slice(0, 10),
-    baseGross: Number(coreGross || 0),
+    baseGross: Number(row.originalBookingTotal ?? coreGross ?? 0),
     depositAmount: Number(deposit || 0),
     eventType: row?.eventType || "",
     venueAddress: getDisplayAddress(row),
@@ -1385,7 +1390,7 @@ const getBookingRoleSlots = (row = {}) => {
         ? assignedRoles
         : labelRoles;
   const counts = new Map();
-  return roles
+  return effectiveLineupRoles(row, roles)
     .map(normaliseAllocationRole)
     .filter((role) => role && !["manager", "admin"].includes(role.toLowerCase()))
     .map((role) => {
@@ -2400,6 +2405,8 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
       price: Number(seed.price || 0) || 0,
       passThroughGross: Number(seed.passThroughGross || 0) || 0,
       managementGross: Number(seed.managementGross || 0) || 0,
+      addsMusician: seed.addsMusician === true,
+      musicianRole: seed.musicianRole || "",
       refundableDeposit: Boolean(seed.refundableDeposit),
       finishTime: seed.finishTime || "",
       arrivalTime: seed.arrivalTime || value.arrivalTime || "",
@@ -3216,6 +3223,17 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                       updateExtra(extra.id, { name: e.target.value })
                     }
                   />
+                </div>
+                <div className="md:col-span-12 flex flex-wrap items-center gap-3 text-sm">
+                  <label className="flex items-center gap-2">
+                    <input type="checkbox" checked={extra.addsMusician === true}
+                      onChange={e => updateExtra(extra.id, { addsMusician: e.target.checked })} />
+                    Adds a musician (quantity = extra players)
+                  </label>
+                  {extra.addsMusician && <input className="border rounded px-3 py-2"
+                    aria-label="Additional musician role" placeholder={extra.name || "Musician role"}
+                    value={extra.musicianRole || ""}
+                    onChange={e => updateExtra(extra.id, { musicianRole: e.target.value })} />}
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-xs text-gray-600 mb-1">
@@ -4708,6 +4726,8 @@ export default function BookingBoard() {
         price: Number(extra?.price || 0) || 0,
         passThroughGross: Number(extra?.passThroughGross || 0) || 0,
         managementGross: Number(extra?.managementGross || 0) || 0,
+        addsMusician: extra?.addsMusician === true,
+        musicianRole: extra?.musicianRole || "",
         refundableDeposit: Boolean(extra?.refundableDeposit),
         finishTime: extra?.finishTime || "",
         arrivalTime: extra?.arrivalTime || "",
@@ -4868,6 +4888,7 @@ export default function BookingBoard() {
       // payments.depositChargedAmount. Keeping it top-level in the request
       // prevents modal edits from being discarded when totals are sanitised.
       depositAmount: Number(depositAmount.toFixed(2)),
+      originalBookingTotal: Number(Number(editForm.baseGross || 0).toFixed(2)),
       grossValue: Number(newGross.toFixed(2)),
       extras: cleanedExtras,
       manualAdjustment: {
