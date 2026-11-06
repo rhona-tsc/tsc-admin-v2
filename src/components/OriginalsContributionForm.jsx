@@ -42,15 +42,20 @@ function ReferenceUpload({ token, projectId, roundId, disabled, onBusyChange, on
 
 // One form owns the current reservation, its uploads and the final submission.
 // The reservation is supplied by the workspace; future holds are never offered.
-export default function OriginalsContributionForm({ token, project, currentRound, reservation, assets = [], submissions = [], viewerId, submittedReservation, canManage = false, readOnly = false, busy = false, onBusyChange, onRefresh, onReviewAssets }) {
+export default function OriginalsContributionForm({ token, project, currentRound, reservation, assets = [], submissions = [], viewerId, submittedReservation, latestReservation, canManage = false, readOnly = false, busy = false, onBusyChange, onRefresh, onReviewAssets }) {
   const isProduction = ['mix', 'master'].includes(currentRound?.type);
   const kind = isProduction ? currentRound.type : 'take_stem';
-  const role = reservation?.roleName || currentRound?.roleName || '';
+  const role = reservation?.roleName || submittedReservation?.roleName || currentRound?.roleName || '';
+  const reservationExpired = latestReservation && ['active', 'expired'].includes(latestReservation.state) && new Date(latestReservation.expiresAt) <= new Date();
+
   const [deletedIds, setDeletedIds] = useState([]);
   const visibleAssets = assets.filter(asset => asset.state !== 'deleted' && !deletedIds.includes(idOf(asset._id)));
   const available = reservation ? visibleAssets.filter(asset => asset.state === 'active' && asset.kind === kind && idOf(asset.ownerId) === idOf(viewerId) && idOf(asset.reservationId) === idOf(reservation._id)) : [];
   const submitted = submissions.find(item => idOf(item.musicianId) === idOf(viewerId) && idOf(item.roundId) === idOf(currentRound?._id) && item.state === 'submitted');
   const editing = submitted?.revisionSession?.status === 'editing';
+  const unavailableMessage = submitted ? `Your ${submitted.roleName} recording has been submitted for review. Use the revision controls below if you need to correct it.`
+    : reservationExpired ? `Your ${latestReservation.roleName} recording reservation ended ${formatOriginalsDeadline(latestReservation.expiresAt)}. Your uploaded files are kept below. Reserve an available place in the current round to upload and submit a new take.`
+      : 'Reserve a place in the current round to upload and submit your recording. Future places activate when their round opens.';
   const submittedIds = new Set(submitted ? [submitted, ...(submitted.previousVersions || [])].flatMap(version => [version.outputAssetId, ...(version.takes || []).flatMap(take => [...(take.stemAssetIds || [take.stemAssetId]), take.mixdownAssetId, take.wetStemAssetId])].filter(Boolean).map(idOf)) : []);
   const input = useRef(null);
   const [files, setFiles] = useState([]), [ai, setAi] = useState(false), [working, setWorking] = useState(''), [error, setError] = useState('');
@@ -126,20 +131,22 @@ export default function OriginalsContributionForm({ token, project, currentRound
   const toggle = (assetId, include) => setSelected(value => isProduction ? [assetId] : include ? [...value, assetId].slice(0, 4) : value.filter(id => id !== assetId));
   return <section id="submit-take" tabIndex={-1} className="scroll-mt-6 mt-4 min-w-0 rounded-xl border bg-white p-4 sm:p-5">
     <span id="project-files" tabIndex={-1} className="scroll-mt-6" />
-    <h2 className={heading}>{reservation ? `${editing ? 'Revise & resubmit your' : 'Upload & submit your'} ${isProduction ? currentRound.type : 'take'}${!isProduction && role ? ` — ${role}` : ''}` : 'Your recordings & project files'}</h2>
+    <h2 className={heading}>{`${editing ? 'Revise & resubmit your' : 'Upload & submit your'} ${isProduction ? currentRound.type : 'take'}${!isProduction && role ? ` — ${role}` : ''}`}</h2>
+    {!reservation && <p id="recording-availability" role="status" className={`mt-3 rounded p-3 text-sm ${submitted ? 'bg-emerald-50 text-emerald-900' : 'bg-slate-50 text-gray-600'}`}>{unavailableMessage}</p>}
     {submitted && <OriginalsRevisionControls token={token} submission={submitted} reservation={reservation || submittedReservation} currentRoundId={currentRound?._id} disabled={disabled} onBusyChange={onBusyChange} onRefresh={onRefresh} />}
-    {reservation && <>
+    <>
       <OriginalsRecordingGuide productionType={isProduction ? currentRound.type : ''} />
       <p className="mt-4 text-sm text-gray-600">{isProduction ? `Upload your finished ${currentRound.type}, listen back, then send it for review.` : 'Upload your part on its own, check the preview, then submit below. You can send up to four stems together.'}</p>
-      <p className="mt-1 text-xs text-gray-500">Your {role} reservation ends {formatOriginalsDeadline(reservation.expiresAt)}.</p>
+      {reservation && <p className="mt-1 text-xs text-gray-500">Your {role} reservation ends {formatOriginalsDeadline(reservation.expiresAt)}.</p>}
       <div className="mt-4 rounded-lg border bg-slate-50 p-3 sm:p-4">
-        <label className="block min-w-0 text-sm font-semibold">{isProduction ? `Upload your ${currentRound.type} output` : `Upload your ${role} stem${files.length > 1 ? 's' : ''}`}
-          <input ref={input} aria-label={isProduction ? `Choose ${currentRound.type} output` : `Choose ${role} stems`} type="file" multiple={!isProduction} disabled={disabled} accept="audio/*,.wav,.aiff,.aif,.flac,.m4a" onChange={event => { setFiles(Array.from(event.target.files || [])); setAi(false); setError(''); }} className="mt-2 block w-full min-w-0 max-w-full rounded border bg-white p-2 text-sm font-normal" />
+        <label className="block min-w-0 text-sm font-semibold">{isProduction ? `Upload your ${currentRound.type} output` : role ? `Upload your ${role} stem${files.length > 1 ? 's' : ''}` : 'Upload your stems'}
+          <input ref={input} aria-label={isProduction ? `Choose ${currentRound.type} output` : role ? `Choose ${role} stems` : 'Choose stems'} type="file" multiple={!isProduction} aria-describedby={!reservation ? "recording-availability" : undefined} disabled={disabled || !reservation} accept="audio/*,.wav,.aiff,.aif,.flac,.m4a" onChange={event => { setFiles(Array.from(event.target.files || [])); setAi(false); setError(''); }} className="mt-2 block w-full min-w-0 max-w-full rounded border bg-white p-2 text-sm font-normal" />
         </label>
         {!!files.length && <p className="mt-2 break-words text-xs text-gray-600">Ready to upload: {files.map(file => file.name).join(', ')}</p>}
         {!isProduction && !!files.length && <OriginalsAiDeclaration checked={ai} onChange={setAi} disabled={disabled} multiple={files.length > 1} />}
-        <button type="button" disabled={disabled || !files.length} onClick={upload} className="mt-3 rounded bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{working === 'upload' ? 'Uploading…' : files.length > 1 ? 'Upload stems' : isProduction ? 'Upload output' : 'Upload stem'}</button>
+        <button type="button" disabled={disabled || !reservation || !files.length} onClick={upload} className="mt-3 rounded bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{working === 'upload' ? 'Uploading…' : files.length > 1 ? 'Upload stems' : isProduction ? 'Upload output' : 'Upload stem'}</button>
       </div>
+      {reservation && <>
       {!!available.length && <div className="mt-4">
         <h3 className="text-sm font-semibold">{isProduction ? 'Your uploaded output' : 'Your stems'}</h3>
         {!isProduction && <p className="mt-1 text-xs text-gray-600">Include up to four files — for example, two ideas with a clean and effects version of each. Mark each as with or without effects; either version can be submitted on its own.</p>}
@@ -158,11 +165,11 @@ export default function OriginalsContributionForm({ token, project, currentRound
       {!isProduction && <fieldset className="mt-4 rounded-lg border p-3 text-sm"><legend className="px-1 font-semibold">Royalties if your take is accepted</legend><p className="text-xs text-gray-600">Master royalties are included for accepted recordings. <SectionLink to="project-royalties">View the royalty split</SectionLink>.</p><label className="mt-3 flex items-start gap-2"><input type="checkbox" checked={songwriting} disabled={disabled} onChange={event => setSongwriting(event.target.checked)} className="mt-1" /><span>Also request songwriting credit</span></label></fieldset>}
       <label className="mt-4 block text-sm font-medium">Notes for the project owner (optional)<textarea value={notes} disabled={disabled} onChange={event => setNotes(event.target.value)} className="mt-1 w-full rounded border px-3 py-2 font-normal" rows={2} /></label>
       <p id="take-submission-status" role="status" className="mt-3 text-sm text-gray-600">{isProduction ? productionReady ? 'Your output is ready to submit.' : 'Upload your finished output to continue.' : stemSubmission.message || (pendingAlignment.length ? `Check alignment for ${pendingAlignment.length} stem${pendingAlignment.length === 1 ? '' : 's'} before submitting.` : `${selected.length} stem${selected.length === 1 ? '' : 's'} included. Ready to send for review.`)}</p>
+      </>}
       {error && <p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
-      <button type="button" aria-describedby="take-submission-status" disabled={disabled || (isProduction ? !productionReady : !stemSubmission.ready)} onClick={submit} className="mt-3 rounded bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{working === 'submit' ? 'Submitting…' : isProduction ? `Submit ${currentRound.type} for review` : editing ? 'Submit revised take for review' : 'Submit take for review'}</button>
-      {!editing && <p className="mt-3 text-xs text-gray-600">Need longer? <SectionLink to="project-extensions">Request an extension</SectionLink> before your reservation expires.</p>}
-    </>}
-    {!reservation && <p role={submitted ? 'status' : undefined} className={`mt-3 rounded p-3 text-sm ${submitted ? 'bg-emerald-50 text-emerald-900' : 'bg-slate-50 text-gray-600'}`}>{submitted ? `Your ${submitted.roleName} recording has been submitted for review. We’ll email you a confirmation.` : 'Reserve a place in the current round to upload and submit your recording. Future places activate when their round opens.'}</p>}
+      <button type="button" aria-describedby={reservation ? "take-submission-status" : "recording-availability"} disabled={disabled || !reservation || (isProduction ? !productionReady : !stemSubmission.ready)} onClick={submit} className="mt-3 rounded bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{working === 'submit' ? 'Submitting…' : isProduction ? `Submit ${currentRound.type} for review` : editing ? 'Submit revised take for review' : 'Submit take for review'}</button>
+      {reservation && !editing && <p className="mt-3 text-xs text-gray-600">Need longer? <SectionLink to="project-extensions">Request an extension</SectionLink> before your reservation expires.</p>}
+    </>
     {canManage && <ReferenceUpload token={token} projectId={project._id} roundId={currentRound?._id} disabled={disabled} onBusyChange={onBusyChange} onRefresh={onRefresh} />}
     {!!otherFiles.length && <details className="mt-4 rounded-lg border p-3"><summary className="cursor-pointer text-sm font-semibold">Project files{reservation ? ' & earlier uploads' : ''}</summary><OriginalsFilesPlayback token={token} assets={otherFiles} submissions={submissions} viewerId={viewerId} canManage={canManage} /></details>}
   </section>;
