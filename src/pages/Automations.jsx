@@ -4,9 +4,10 @@ import { automation37SendISO } from "../utils/automation37Schedule.js";
 import { allowedAutomationRecipient } from "../utils/automationAllowlist.js";
 import {
   AUTOMATION_37_TAGS,
-  automation37ExtrasState,
-  prepareAutomation37Rule,
-  renderAutomation37Conditions,
+  eventDetailsExtrasState,
+  isEventDetailsExtrasReminder,
+  prepareEventDetailsReminderRule,
+  renderEventDetailsReminderConditions,
 } from "../utils/automation37Extras.js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendUrl } from "../App";
@@ -765,7 +766,7 @@ const renderTemplate = (template, row, rule, resolveConditions = true) => {
   const values = templateValues(row);
   return Object.entries(values).reduce(
     (rendered, [tag, value]) => rendered.split(tag).join(value || `[${tag.replace(/[{}]/g, "")}]`),
-    resolveConditions ? renderAutomation37Conditions(template, row, rule) : String(template || ""),
+    resolveConditions ? renderEventDetailsReminderConditions(template, row, rule) : String(template || ""),
   );
 };
 const renderTemplatePreview = (template, row, rule) => {
@@ -790,9 +791,9 @@ const renderTemplatePreview = (template, row, rule) => {
 };
 const ruleDisplayName = (rule) => {
   const name = text(rule?.name);
-  if (Number(rule?.sourceNumber) === 37 && text(rule?.subject) === AUTOMATION_37_TAGS.subject
+  if (isEventDetailsExtrasReminder(rule) && text(rule?.subject) === AUTOMATION_37_TAGS.subject
     && (!name || /^automation\s+\d+$/i.test(name))) {
-    return "Event Sheet & Spotify playlist reminder";
+    return Number(rule.sourceNumber) === 38 ? "Event Sheet & Spotify playlist due today" : "Event Sheet & Spotify playlist reminder";
   }
   return name && !/^automation\s+\d+$/i.test(name)
     ? name
@@ -1000,10 +1001,10 @@ const prepareRules = (source) => source
     if (number === 6) filters.recipientRole = "direct_client";
     if (number === 8) filters.recipientRole = "end_client_via_agent";
     if (number === 9) filters.recipientRole = "agent";
-    return prepareAutomation37Rule({
+    return prepareEventDetailsReminderRule({
       ...rule,
       enabled: rule.enabled !== false,
-      attachInvoice: rule.attachInvoice ?? ([10, 37].includes(number)),
+      attachInvoice: rule.attachInvoice ?? ([10, 37, 38].includes(number)),
       body,
       filters,
       timing,
@@ -1014,6 +1015,7 @@ export default function Automations() {
   const [rows, setRows] = useState([]);
   const [automationAllowlist, setAutomationAllowlist] = useState(null);
   const [automation37EmailReady, setAutomation37EmailReady] = useState(false);
+  const [automation38EmailReady, setAutomation38EmailReady] = useState(false);
   const [allowlistLoadError, setAllowlistLoadError] = useState("");
   const [actProfiles, setActProfiles] = useState([]);
   const [fullActProfiles, setFullActProfiles] = useState([]);
@@ -1135,6 +1137,7 @@ export default function Automations() {
         }
         setAutomationAllowlist({ emails: payload.emails, bookingRefs: payload.bookingRefs });
         setAutomation37EmailReady(payload.capabilities?.automation37Extras === true);
+        setAutomation38EmailReady(payload.capabilities?.automation38Extras === true);
         setAllowlistLoadError("");
       })
       .catch(() => setAllowlistLoadError("The automation allowlist could not be loaded. Please refresh and try again."));
@@ -1418,8 +1421,9 @@ export default function Automations() {
   );
 
   const previewRow = matchingRows.find((row) => String(row._id || rowRef(row)) === previewRowId) || matchingRows[0];
-  const isExtrasReminder = Number(selected?.sourceNumber) === 37;
-  const extrasReminderState = automation37ExtrasState(previewRow, selected);
+  const isExtrasReminder = isEventDetailsExtrasReminder(selected);
+  const extrasEmailReady = Number(selected?.sourceNumber) === 38 ? automation38EmailReady : automation37EmailReady;
+  const extrasReminderState = eventDetailsExtrasState(previewRow, selected);
   const invoicePreviewMessage = isExtrasReminder
     ? (extrasReminderState.shouldAttachInvoice
       ? "The issued extras invoice PDF will be attached."
@@ -1434,7 +1438,7 @@ export default function Automations() {
         : "Invoice attachment is enabled, but no issued invoice PDF is currently recorded for this booking.")
       : "No invoice attachment is enabled for this automation.";
   const sendTestPreview = async () => {
-    if (!previewRow || testPreviewState.sending || (isExtrasReminder && !automation37EmailReady)) return;
+    if (!previewRow || testPreviewState.sending || (isExtrasReminder && !extrasEmailReady)) return;
     setTestPreviewState({ sending: true, message: "", error: "" });
     try {
       const token = localStorage.getItem("token") || "";
@@ -1630,7 +1634,7 @@ export default function Automations() {
                 <div className="flex items-start gap-2">
                   <button type="button" onClick={() => setSelectedId(rule.id)} className="min-w-0 flex-1 text-left">
                     <div className="flex items-start justify-between gap-2"><span className="text-sm font-semibold leading-5 text-slate-900">{ruleDisplayName(rule)}</span><span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${rule.status === "reviewed" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{rule.status === "reviewed" ? "Reviewed" : "Needs review"}</span></div>
-                    {ruleDisplayName(rule) !== rule.subject && <div className="mt-1 line-clamp-2 text-xs text-slate-500">{Number(rule.sourceNumber) === 37 && rule.subject === AUTOMATION_37_TAGS.subject ? "Subject varies with unpaid extras" : rule.subject}</div>}
+                    {ruleDisplayName(rule) !== rule.subject && <div className="mt-1 line-clamp-2 text-xs text-slate-500">{isEventDetailsExtrasReminder(rule) && rule.subject === AUTOMATION_37_TAGS.subject ? "Subject varies with unpaid extras" : rule.subject}</div>}
                     <div className="mt-1 text-[10px] font-medium text-slate-400">Reference #{rule.sourceNumber}</div>
                   </button>
                   <button
@@ -1784,10 +1788,10 @@ export default function Automations() {
               <div><h2 className="font-semibold text-slate-900">Personalised email preview</h2><p className="text-xs text-slate-500">Tags are replaced using the selected matching client.</p></div>
               <div className="flex flex-wrap items-center gap-2">
                 {matchingRows.length > 0 && <select className={selectClass} value={String(previewRow?._id || rowRef(previewRow))} onChange={(e) => setPreviewRowId(e.target.value)}>{matchingRows.map((row) => <option key={row._id || rowRef(row)} value={String(row._id || rowRef(row))}>{rowClient(row)} · {rowRef(row)}</option>)}</select>}
-                {previewRow && <button type="button" onClick={sendTestPreview} disabled={testPreviewState.sending || (isExtrasReminder && !automation37EmailReady)} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{testPreviewState.sending ? "Sending…" : "Email test to Rhona"}</button>}
+                {previewRow && <button type="button" onClick={sendTestPreview} disabled={testPreviewState.sending || (isExtrasReminder && !extrasEmailReady)} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{testPreviewState.sending ? "Sending…" : "Email test to Rhona"}</button>}
               </div>
             </div>
-            {isExtrasReminder && !automation37EmailReady && <div className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">The preview is ready. Test emails for this reminder will be available after the server update; refresh this page once it is deployed.</div>}
+            {isExtrasReminder && !extrasEmailReady && <div className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">The preview is ready. Test emails for this reminder will be available after the server update; refresh this page once it is deployed.</div>}
             {testPreviewState.message && <div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs font-medium text-emerald-800">{testPreviewState.message}</div>}
             {testPreviewState.error && <div className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-medium text-red-700">{testPreviewState.error}</div>}
             {previewRow ? <div className="mt-3 rounded-lg border bg-white p-3"><p className="text-xs font-semibold text-slate-500">Subject</p><p className="mt-1 text-sm font-semibold text-slate-900">{renderTemplate(selected.subject, previewRow, selected)}</p><p className="mt-3 text-xs font-semibold text-slate-500">Body</p><div className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap text-sm leading-5 text-slate-700">{renderTemplatePreview(selected.body, previewRow, selected)}</div>{Number(selected.sourceNumber) === 4 && vocalistSetlistMissingLinks(previewRow).length > 0 && <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs font-medium text-amber-900">Held — {vocalistSetlistMissingLinks(previewRow).join(" and ")} {vocalistSetlistMissingLinks(previewRow).length === 1 ? "is" : "are"} missing. The vocalists will not be emailed. Rhona will be alerted once, and the email will join the next run after both links are added.</div>}<div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-800">{invoicePreviewMessage} The standard TSC signature and footer will be appended.</div></div> : <div className="mt-3 rounded-lg border border-dashed bg-white p-4 text-sm text-slate-500">No matching client is available for a personalised preview.</div>}
