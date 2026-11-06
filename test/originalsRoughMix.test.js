@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { originalAudibleTracks, originalMixRanges, encodeOriginalMixWav, makeOriginalRoughMix, originalRoughMixName } from '../src/utils/originalsRoughMix.js';
-import { originalSubmissionPairsReady, originalSubmissionTakes } from '../src/utils/originalsSubmission.js';
+import { originalSubmissionPairsReady, originalSubmissionTakes, originalStemSubmission } from '../src/utils/originalsSubmission.js';
 import { originalRecordingTracks } from '../src/utils/originalsListening.js';
 
 test('the rendered mix follows inclusion, solo and level settings',()=>{
@@ -35,6 +35,15 @@ test('stems no longer need uploaded mixes, while optional pairs remain distinct 
  const assets=[{_id:'a',kind:'take_stem',state:'active',reservationId:'r'},{_id:'b',kind:'take_stem',state:'active',reservationId:'r'}],submission={reservationId:'r',stemAssetIds:['a','b'],mixdownAssetIds:{}};
  assert.equal(originalSubmissionPairsReady(submission,assets),true);assert.deepEqual(originalSubmissionTakes(submission,assets).map(take=>take.mixdownAssetId),[null,null]);
  assert.equal(originalSubmissionPairsReady({...submission,mixdownAssetIds:{a:'invalid'}},assets),false);
+});
+test('effects labels belong to each submitted file and an effects version needs no clean partner',()=>{
+ const assets=[{_id:'wet',kind:'take_stem',state:'active',reservationId:'r',originalName:'Bass FX.wav'},{_id:'clean',kind:'take_stem',state:'active',reservationId:'r',originalName:'Bass clean.wav'}];
+ const one=originalStemSubmission({reservationId:'r',stemAssetIds:['wet'],effectsByAssetId:{wet:'with_effects'}},assets);
+ assert.equal(one.ready,true);assert.equal(one.takes[0].effects,'with_effects');assert.equal(one.takes[0].wetStemAssetId,undefined);
+ const both=originalStemSubmission({reservationId:'r',stemAssetIds:['wet','clean'],effectsByAssetId:{wet:'with_effects',clean:'without_effects'}},assets);
+ assert.equal(both.ready,true);assert.deepEqual(both.takes.map(take=>take.effects),['with_effects','without_effects']);
+ assert.ok(both.takes.every(take=>take.mixdownAssetId===null));
+ assert.equal(originalStemSubmission({reservationId:'other',stemAssetIds:['wet'],effectsByAssetId:{wet:'with_effects'}},assets).ready,false);
 });
 test('one approved stem is available as a project backing track without using unapproved alternatives',()=>{
  const assets=[{_id:'a',kind:'take_stem',state:'active'},{_id:'b',kind:'take_stem',state:'active'}];

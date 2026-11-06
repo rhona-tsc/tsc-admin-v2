@@ -5,13 +5,14 @@ export function originalSubmissionTakes(submission, assets = []) {
     stemAssetId,
     stemAssetIds: [stemAssetId],
     mixdownAssetId: submission.mixdownAssetIds?.[stemAssetId] || null,
+    ...(submission.effectsByAssetId ? { effects: submission.effectsByAssetId[stemAssetId] || 'without_effects' } : {}),
     ...(index === 0 && submission.wetStemAssetId ? { wetStemAssetId: submission.wetStemAssetId } : {}),
   }));
 }
 
 export function originalSubmissionPairsReady(submission, assets = [], { listeningMixRequired = false } = {}) {
   const { stemAssetIds, mixdownAssetIds = {}, wetStemAssetId, reservationId } = submission;
-  if (!stemAssetIds.length || stemAssetIds.length + (wetStemAssetId ? 1 : 0) > 3 || new Set(stemAssetIds).size !== stemAssetIds.length) return false;
+  if (!stemAssetIds.length || stemAssetIds.length + (wetStemAssetId ? 1 : 0) > 4 || new Set(stemAssetIds).size !== stemAssetIds.length) return false;
   const available = new Map(assets.filter(asset => asset.state === 'active' && String(asset.reservationId) === String(reservationId)).map(asset => [String(asset._id), asset.kind]));
   const mixes = stemAssetIds.map(id => mixdownAssetIds[id]);
   return stemAssetIds.every(id => available.get(String(id)) === 'take_stem')
@@ -25,9 +26,9 @@ export function originalSubmissionPairsReady(submission, assets = [], { listenin
 export function originalStemSubmission(submission, assets = []) {
   const draft = { ...submission, mixdownAssetIds: {} };
   let message = '';
-  if (!draft.reservationId) message = 'Choose your reserved role first.';
-  else if (!draft.stemAssetIds.length) message = 'Select at least one file under “Your stems” to submit.';
-  else if (draft.stemAssetIds.length + (draft.wetStemAssetId ? 1 : 0) > 3) message = 'Choose up to three stem files, including any effects reference.';
+  if (!draft.reservationId) message = 'Reserve a place in the current round to upload your recording.';
+  else if (!draft.stemAssetIds.length) message = assets.some(asset => asset.kind === 'take_stem' && asset.state === 'active' && String(asset.reservationId) === String(draft.reservationId)) ? 'Include at least one file from “Your stems”.' : 'Upload your first stem to continue.';
+  else if (draft.stemAssetIds.length + (draft.wetStemAssetId ? 1 : 0) > 4) message = 'Choose up to four stem files, including any effects reference.';
   else if (!originalSubmissionPairsReady(draft, assets)) message = 'A selected file is unavailable or selected twice. Choose your stems again for this reservation.';
   return { ready: !message, message, takes: message ? [] : originalSubmissionTakes(draft, assets) };
 }

@@ -7,8 +7,8 @@ const accepted = (id, takes, extra = {}) => ({ _id: id, roleName: 'Keys', catego
 
 test('individual reference labels match the submitted material without presenting references as a combined project', () => {
   const result = originalProjectListening({ assets: [asset('guide', 'guide_track'), asset('sample', 'demo'), asset('video', 'video_submission'), asset('original', 'initial_stem'), asset('click', 'click_track')] });
-  assert.deepEqual(result.references.map(item => item.listeningLabel), ['Listen to the guide', 'Listen to the sample', 'Watch the video sample', 'Listen to the original stem', 'Listen to the click track']);
-  assert.deepEqual(result.projectTracks, []);
+  assert.deepEqual(result.references.map(item => item.listeningLabel), ['Listen to the guide', 'Listen to the sample', 'Watch the video sample', 'Listen to the click track']);
+  assert.deepEqual(result.projectTracks.map(track => track._id), ['original']);
   assert.equal(originalProjectListening({ assets: [asset('video', 'demo', { mimeType: 'video/mp4' })] }).references[0].listeningLabel, 'Watch the video sample');
 });
 
@@ -20,10 +20,10 @@ test('combines only the original stem and selected approved takes, excluding gui
   assert.deepEqual(result.projectTracks.map(item => item._id), ['original', 'keys']);
 });
 
-test('a single approved foundation stem is labelled as a stem until another layer is approved', () => {
+test('a single approved foundation stem is available in the approved stems player', () => {
   const result = originalProjectListening({ assets: [asset('keys')], submissions: [accepted('keys-submission', [take('chosen', 'keys')])] });
-  assert.equal(result.references[0].listeningLabel, 'Listen to the approved stem');
-  assert.deepEqual(result.projectTracks, []);
+  assert.deepEqual(result.references, []);
+  assert.deepEqual(result.projectTracks.map(track => track._id), ['keys']);
 });
 
 test('does not include pending, rejected, retracted, hidden or non-final stems in the project player', () => {
@@ -31,7 +31,7 @@ test('does not include pending, rejected, retracted, hidden or non-final stems i
     assets: [asset('original', 'initial_stem'), asset('pending'), asset('rejected'), asset('retracted'), asset('hidden', 'take_stem', { state: 'hidden' }), asset('not-final', 'take_stem', { finalEligible: false })],
     submissions: ['pending', 'rejected', 'retracted', 'hidden', 'not-final'].map(id => accepted(id, [take(`${id}-take`, id)], { state: id === 'pending' ? 'submitted' : ['rejected', 'retracted'].includes(id) ? id : 'accepted' })),
   });
-  assert.deepEqual(result.projectTracks, []);
+  assert.deepEqual(result.projectTracks.map(track => track._id), ['original']);
 });
 
 test('partially approved takes retain only their selected time windows and ignore unknown takes or invalid ranges', () => {

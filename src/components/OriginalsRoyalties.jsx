@@ -21,7 +21,7 @@ export default function OriginalsRoyalties({ project, preview, credits, canIllus
     ? [...(canIllustrateTscShare ? (shares.master || []).filter(isTscRoyaltyShare) : []), ...masterPool.shares]
     : shares.composition || [];
   const selected = selectedShares[Number(recipient)] || selectedShares[0];
-  return <details open id="project-royalties" tabIndex={-1} className="scroll-mt-6 min-w-0 rounded-xl border bg-white p-4">
+  return <details id="project-royalties" tabIndex={-1} className="scroll-mt-6 min-w-0 rounded-xl border bg-white p-4">
     <summary className="cursor-pointer text-sm font-bold uppercase tracking-wide text-slate-800">Royalty split</summary>
     <label className="mt-4 block text-sm font-medium">Show split<select value={view} onChange={event => { setView(event.target.value); setRecipient('0'); }} className="mt-2 block w-full rounded border p-2"><option value="planned">Expected — planned roles</option><option value="current" disabled={!preview}>So far — approved contributions{!preview ? ' (none yet)' : ''}</option>{credits && <option value="credits">Credit version {credits.version} — {credits.state === 'final' ? 'finalised' : 'awaiting finalisation'}</option>}</select></label>
     <p className="mt-2 text-sm text-gray-600">{view === 'planned' ? 'Assumes one accepted contribution per planned role. Accepted contributor roles share 50% of the remaining master pool equally. Roles and shares may change.' : view === 'current' ? 'Based only on approved contributions so far. Mixing and mastering each retain 12.5% of the remaining master pool, even before selection. These shares may change as more contributions are approved.' : 'Uses this credit version. Later approvals or revised credits may change the split.'}</p>
