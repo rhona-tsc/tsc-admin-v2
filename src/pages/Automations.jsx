@@ -1,3 +1,4 @@
+import { collisionFreeAddOnDay } from "../utils/addOnAutomationDate.js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendUrl } from "../App";
 import { automationSeeds } from "../data/automationSeeds";
@@ -504,7 +505,7 @@ const vocalistSetlistMissingLinks = (row) => [
   !text(row?.draftSetlistLink) ? "Draft setlist link" : "",
   !text(row?.whatsappGroupLink) ? "WhatsApp group link" : "",
 ].filter(Boolean);
-const proposedSendAt = (row, timing = {}) => {
+const proposedSendAt = (row, timing = {}, blockedISOs = []) => {
   if (timing.strategy === "after_automation_30") {
     const firstFollowup = (Array.isArray(row?.automationDeliveries) ? row.automationDeliveries : [])
       .find((delivery) => delivery?.status === "sent" && Number(delivery?.automationNumber) === 30);
@@ -533,10 +534,13 @@ const proposedSendAt = (row, timing = {}) => {
     );
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    if (planned >= today) return planned;
-
-    const nextRun = nextAutomationRunAt();
-    return nextRun < eventSheetDue ? nextRun : null;
+    const options = { introISO: dateOnly(introSent), deadlineISO: dateOnly(eventSheetDue), blockedISOs };
+    let adjustedISO = collisionFreeAddOnDay({ ...options, plannedISO: dateOnly(planned) });
+    if (adjustedISO && adjustedISO < dateOnly(today)) {
+      const nextRunISO = dateOnly(nextAutomationRunAt());
+      adjustedISO = collisionFreeAddOnDay({ ...options, plannedISO: nextRunISO, notBeforeISO: nextRunISO });
+    }
+    return adjustedISO ? parseDate(adjustedISO) : null;
   }
   if (timing.strategy === "balance_reminder_advance") {
     const event = parseDate(rowDate(row));
@@ -598,8 +602,8 @@ const proposedSendAt = (row, timing = {}) => {
   event.setDate(event.getDate() + Number(timing.offsetDays || 0));
   return event;
 };
-const proposedSendDate = (row, timing = {}) => {
-  const date = proposedSendAt(row, timing);
+const proposedSendDate = (row, timing = {}, blockedISOs = []) => {
+  const date = proposedSendAt(row, timing, blockedISOs);
   if (!date) return "Needs date";
   if (timing.reference === "fixed" && !timing.strategy) return "Manual date";
   return timing.strategy === "post_event"
@@ -615,7 +619,7 @@ const describeSendRule = (timing = {}) => {
   }
   if (timing.reference === "fixed" && !timing.strategy) return "Send on the manually selected date.";
   if (timing.strategy === "add_ons_midpoint") {
-    return "Send halfway between the intro email being sent and the Booking Board Event Sheet/invoice due date. If that midpoint has passed but the due date has not, send on the next automation run.";
+    return "Send halfway between the intro email and final-details deadline. If another automation is on that day, use the nearest free day, preferring the day before. Catch-ups move to the next free day before the deadline.";
   }
   if (timing.strategy === "invoice_due") {
     return "Send on the Invoice due date recorded on the Booking Board. If that date is blank, do not schedule this email.";
@@ -863,6 +867,37 @@ const ruleMatchesRow = (
     if (sendAt && sendAt < today) return false;
   }
   return true;
+};
+const automationSendPlan = (row, rules) => {
+  const applicable = rules.filter(rule => ruleMatchesRow(rule, row, { excludePast: false }));
+  const blocked = [row.introEmailSentAt, ...(row.automationDeliveries || [])
+    .filter(delivery => delivery.status === "sent").map(delivery => delivery.sentAt)].map(dateOnly);
+  const plan = new Map();
+  for (const rule of applicable.filter(rule => rule.timing?.strategy !== "add_ons_midpoint")) {
+    const date = proposedSendAt(row, rule.timing);
+    plan.set(rule.id, date);
+    if (date) blocked.push(dateOnly(date));
+  }
+  // Allocate flexible emails in a stable order so two add-on emails cannot
+  // move onto the same alternative day.
+  for (const rule of applicable.filter(rule => rule.timing?.strategy === "add_ons_midpoint")
+    .sort((left, right) => Number(left.sourceNumber) - Number(right.sourceNumber))) {
+    const date = proposedSendAt(row, rule.timing, blocked);
+    plan.set(rule.id, date);
+    if (date) blocked.push(dateOnly(date));
+  }
+  return plan;
+};
+const ruleSendAt = (row, rule, rules) => {
+  if (rule.timing?.strategy !== "add_ons_midpoint") return proposedSendAt(row, rule.timing);
+  const sent = sentDeliveryForRule(rule, row);
+  if (sent) return parseDate(sent.sentAt);
+  return automationSendPlan(row, rules).get(rule.id) || null;
+};
+const ruleSendDate = (row, rule, rules) => {
+  if (rule.timing?.strategy !== "add_ons_midpoint") return proposedSendDate(row, rule.timing);
+  const date = ruleSendAt(row, rule, rules);
+  return date ? formatDate(date) : "No free date before the deadline";
 };
 const prepareRules = (source) => source
   .filter((rule) => Number(rule.sourceNumber) !== 7)
@@ -1288,7 +1323,7 @@ export default function Automations() {
       }))
       .map((rule) => {
         const usesManualDate = rule.timing?.reference === "fixed" && !rule.timing?.strategy;
-        const sendAt = usesManualDate ? null : proposedSendAt(row, rule.timing);
+        const sendAt = usesManualDate ? null : ruleSendAt(row, rule, rules);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const sentDelivery = sentDeliveryForRule(rule, row);
@@ -1299,9 +1334,10 @@ export default function Automations() {
           siteSuppressed: row?.siteAutomationsEnabled === false,
           sentDelivery,
           alreadySent,
+          noAvailableDate: rule.timing?.strategy === "add_ons_midpoint" && !sendAt && !alreadySent,
           overdue: Boolean(sendAt && sendAt < today && !alreadySent),
           sendAt,
-          sendLabel: usesManualDate ? "Manual date" : proposedSendDate(row, rule.timing),
+          sendLabel: usesManualDate ? "Manual date" : ruleSendDate(row, rule, rules),
           subject: renderTemplate(rule.subject, row),
         };
       }))
@@ -1520,7 +1556,7 @@ export default function Automations() {
                             <td className="max-w-xl px-3 py-3 text-slate-700">{item.subject}</td>
                             <td className="px-3 py-3">
                               <div className="flex flex-wrap gap-1">
-                                {item.siteSuppressed ? <span className="rounded bg-amber-200 px-2 py-1 font-semibold text-amber-900">Website automations off — managed in Monday.com</span> : item.alreadySent ? <span className="rounded bg-sky-100 px-2 py-1 font-semibold text-sky-800">Sent — excluded from future schedule</span> : item.rule.enabled === false ? <span className="rounded bg-slate-200 px-2 py-1 font-semibold text-slate-600">Switched off — will not send</span> : item.overdue ? <span className="rounded bg-amber-100 px-2 py-1 font-semibold text-amber-800">Needs attention</span> : (
+                                {item.siteSuppressed ? <span className="rounded bg-amber-200 px-2 py-1 font-semibold text-amber-900">Website automations off — managed in Monday.com</span> : item.alreadySent ? <span className="rounded bg-sky-100 px-2 py-1 font-semibold text-sky-800">Sent — excluded from future schedule</span> : item.rule.enabled === false ? <span className="rounded bg-slate-200 px-2 py-1 font-semibold text-slate-600">Switched off — will not send</span> : item.noAvailableDate ? <span className="rounded bg-amber-100 px-2 py-1 font-semibold text-amber-800">No free date before the deadline</span> : item.overdue ? <span className="rounded bg-amber-100 px-2 py-1 font-semibold text-amber-800">Needs attention</span> : (
                                   <>
                                     {item.duplicateSubject && <span className="rounded bg-red-100 px-2 py-1 font-semibold text-red-800">Same subject appears more than once</span>}
                                     {item.sameDayCount > 1 && <span className="rounded bg-amber-100 px-2 py-1 font-semibold text-amber-800">{item.sameDayCount} emails on this day</span>}
@@ -1645,7 +1681,7 @@ export default function Automations() {
           <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Planned send rule</p>
             <p className="mt-1 text-sm leading-6 text-sky-950">{describeSendRule(selected.timing)}</p>
-            {previewRow && <p className="mt-2 text-xs font-medium text-sky-800">Example for {rowClient(previewRow)}: {proposedSendDate(previewRow, selected.timing)}</p>}
+            {previewRow && <p className="mt-2 text-xs font-medium text-sky-800">Example for {rowClient(previewRow)}: {ruleSendDate(previewRow, selected, rules)}</p>}
           </div>
           <details className={`rounded-lg border border-slate-200 bg-slate-50 p-3 ${selected.timing.strategy ? "text-slate-400" : ""}`}>
             <summary className="cursor-pointer text-xs font-semibold text-slate-600">Advanced scheduling settings</summary>
@@ -1713,7 +1749,7 @@ export default function Automations() {
           </div>
           <div className="flex items-center justify-between border-b px-4 py-3"><div><h2 className="font-semibold text-slate-900">Matching clients</h2><p className="text-xs text-slate-500">Who would receive this email under the current filters</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">{matchingRows.length}</span></div>
           {loadError && <div className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{loadError}</div>}
-          <div className="max-h-[760px] overflow-auto"><table className="min-w-full text-left text-xs"><thead className="sticky top-0 bg-slate-50 text-slate-600"><tr><th className="px-3 py-2">Client</th><th className="px-3 py-2">Event</th><th className="px-3 py-2">Agent</th><th className="px-3 py-2">Service</th><th className="px-3 py-2">Proposed send</th></tr></thead><tbody>{loading ? <tr><td colSpan={5} className="p-6 text-center">Loading bookings…</td></tr> : matchingRows.map((row) => <tr key={row._id || rowRef(row)} className="border-b-2 border-slate-100 align-top"><td className="px-3 py-3"><div className="font-medium text-slate-900">{rowClient(row)}</div><div className="text-slate-500">{rowEmail(row) || "No email"}</div><div className="text-slate-400">{rowRef(row)}</div><div className="text-slate-400">{rowRole(row).replaceAll("_", " ")}</div></td><td className="px-3 py-3"><div>{text(row.eventType) || "No event type"}</div><div className="text-slate-500">{dateOnly(rowDate(row)) || "No date"}</div></td><td className="px-3 py-3">{text(row.agent) || "—"}</td><td className="px-3 py-3 capitalize">{rowService(row).replaceAll("_", " ") || "Not recorded"}</td><td className="px-3 py-3 font-medium text-slate-800"><div>{selected.timing.reference === "fixed" ? "Manual date" : proposedSendDate(row, selected.timing)}</div>{Number(selected.sourceNumber) === 4 && vocalistSetlistMissingLinks(row).length > 0 && <div className="mt-1 font-semibold text-amber-700">Held: {vocalistSetlistMissingLinks(row).join(" + ")} missing</div>}</td></tr>)}</tbody></table></div>
+          <div className="max-h-[760px] overflow-auto"><table className="min-w-full text-left text-xs"><thead className="sticky top-0 bg-slate-50 text-slate-600"><tr><th className="px-3 py-2">Client</th><th className="px-3 py-2">Event</th><th className="px-3 py-2">Agent</th><th className="px-3 py-2">Service</th><th className="px-3 py-2">Proposed send</th></tr></thead><tbody>{loading ? <tr><td colSpan={5} className="p-6 text-center">Loading bookings…</td></tr> : matchingRows.map((row) => <tr key={row._id || rowRef(row)} className="border-b-2 border-slate-100 align-top"><td className="px-3 py-3"><div className="font-medium text-slate-900">{rowClient(row)}</div><div className="text-slate-500">{rowEmail(row) || "No email"}</div><div className="text-slate-400">{rowRef(row)}</div><div className="text-slate-400">{rowRole(row).replaceAll("_", " ")}</div></td><td className="px-3 py-3"><div>{text(row.eventType) || "No event type"}</div><div className="text-slate-500">{dateOnly(rowDate(row)) || "No date"}</div></td><td className="px-3 py-3">{text(row.agent) || "—"}</td><td className="px-3 py-3 capitalize">{rowService(row).replaceAll("_", " ") || "Not recorded"}</td><td className="px-3 py-3 font-medium text-slate-800"><div>{selected.timing.reference === "fixed" ? "Manual date" : ruleSendDate(row, selected, rules)}</div>{Number(selected.sourceNumber) === 4 && vocalistSetlistMissingLinks(row).length > 0 && <div className="mt-1 font-semibold text-amber-700">Held: {vocalistSetlistMissingLinks(row).join(" + ")} missing</div>}</td></tr>)}</tbody></table></div>
         </section>
       </div>
     </div>
