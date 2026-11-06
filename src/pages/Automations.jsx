@@ -1,4 +1,5 @@
 import { collisionFreeAddOnDay } from "../utils/addOnAutomationDate.js";
+import { allowedAutomationRecipient } from "../utils/automationAllowlist.js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendUrl } from "../App";
 import { automationSeeds } from "../data/automationSeeds";
@@ -1005,6 +1006,8 @@ const prepareRules = (source) => source
 
 export default function Automations() {
   const [rows, setRows] = useState([]);
+  const [automationAllowlist, setAutomationAllowlist] = useState(null);
+  const [allowlistLoadError, setAllowlistLoadError] = useState("");
   const [actProfiles, setActProfiles] = useState([]);
   const [fullActProfiles, setFullActProfiles] = useState([]);
   const [rules, setRules] = useState(() => {
@@ -1116,6 +1119,17 @@ export default function Automations() {
 
   useEffect(() => {
     const token = localStorage.getItem("token") || "";
+    const headers = token ? { Authorization: `Bearer ${token}`, token } : {};
+    fetch(`${backendUrl}/api/automation-config/allowlist`, { headers, credentials: "include" })
+      .then(async response => {
+        const payload = await response.json();
+        if (!response.ok || !payload?.success || !Array.isArray(payload.emails) || !Array.isArray(payload.bookingRefs)) {
+          throw new Error("The automation allowlist could not be loaded. Please refresh and try again.");
+        }
+        setAutomationAllowlist({ emails: payload.emails, bookingRefs: payload.bookingRefs });
+        setAllowlistLoadError("");
+      })
+      .catch(() => setAllowlistLoadError("The automation allowlist could not be loaded. Please refresh and try again."));
     const params = new URLSearchParams({ q: "", sortBy: "eventDateISO", sortDir: "asc" });
     fetch(`${backendUrl}/api/board/bookings?${params}`, {
       headers: token ? { Authorization: `Bearer ${token}`, token } : {},
@@ -1292,7 +1306,8 @@ export default function Automations() {
     if (!selected) return [];
     const f = selected.filters || {};
     const eligible = consolidatedRows.filter((row) => {
-      const haystack = `${rowClient(row)} ${rowEmail(row)} ${rowRef(row)}`.toLowerCase();
+      if (!allowedAutomationRecipient(row, automationAllowlist)) return false;
+      const haystack = `${rowClient(row)} ${rowEmails(row).join(" ")} ${rowRef(row)}`.toLowerCase();
       if (query && !haystack.includes(query.toLowerCase())) return false;
       if (global.agent && normalizeAgent(row.agent) !== global.agent) return false;
       if (global.eventType && normalizeEventType(row.eventType) !== global.eventType) return false;
@@ -1302,10 +1317,10 @@ export default function Automations() {
     const uniqueBookings = new Map();
     eligible.forEach((row) => {
       const key = rowRef(row).toLowerCase() || String(row._id || "");
-      if (!uniqueBookings.has(key)) uniqueBookings.set(key, row);
+      if (!uniqueBookings.has(key)) uniqueBookings.set(key, { ...row, automationRecipient: allowedAutomationRecipient(row, automationAllowlist) });
     });
     return [...uniqueBookings.values()];
-  }, [consolidatedRows, selected, query, global]);
+  }, [consolidatedRows, selected, query, global, automationAllowlist]);
 
   const emailAudit = useMemo(() => {
     const wanted = emailAuditQuery.trim().toLowerCase();
@@ -1747,9 +1762,10 @@ export default function Automations() {
             {testPreviewState.error && <div className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-medium text-red-700">{testPreviewState.error}</div>}
             {previewRow ? <div className="mt-3 rounded-lg border bg-white p-3"><p className="text-xs font-semibold text-slate-500">Subject</p><p className="mt-1 text-sm font-semibold text-slate-900">{renderTemplate(selected.subject, previewRow)}</p><p className="mt-3 text-xs font-semibold text-slate-500">Body</p><div className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap text-sm leading-5 text-slate-700">{renderTemplatePreview(selected.body, previewRow)}</div>{Number(selected.sourceNumber) === 4 && vocalistSetlistMissingLinks(previewRow).length > 0 && <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs font-medium text-amber-900">Held — {vocalistSetlistMissingLinks(previewRow).join(" and ")} {vocalistSetlistMissingLinks(previewRow).length === 1 ? "is" : "are"} missing. The vocalists will not be emailed. Rhona will be alerted once, and the email will join the next run after both links are added.</div>}<div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-800">{selected.attachInvoice === true ? (rowInvoiceLink(previewRow) ? "Invoice PDF will be attached — no long invoice URL in the email." : "Invoice attachment is enabled, but no issued invoice PDF is currently recorded for this booking.") : "No invoice attachment is enabled for this automation."} The standard TSC signature and footer will be appended.</div></div> : <div className="mt-3 rounded-lg border border-dashed bg-white p-4 text-sm text-slate-500">No matching client is available for a personalised preview.</div>}
           </div>
-          <div className="flex items-center justify-between border-b px-4 py-3"><div><h2 className="font-semibold text-slate-900">Matching clients</h2><p className="text-xs text-slate-500">Who would receive this email under the current filters</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">{matchingRows.length}</span></div>
+          <div className="flex items-center justify-between border-b px-4 py-3"><div><h2 className="font-semibold text-slate-900">Matching clients</h2><p className="text-xs text-slate-500">Allowlisted bookings matching this email’s filters</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">{matchingRows.length}</span></div>
           {loadError && <div className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{loadError}</div>}
-          <div className="max-h-[760px] overflow-auto"><table className="min-w-full text-left text-xs"><thead className="sticky top-0 bg-slate-50 text-slate-600"><tr><th className="px-3 py-2">Client</th><th className="px-3 py-2">Event</th><th className="px-3 py-2">Agent</th><th className="px-3 py-2">Service</th><th className="px-3 py-2">Proposed send</th></tr></thead><tbody>{loading ? <tr><td colSpan={5} className="p-6 text-center">Loading bookings…</td></tr> : matchingRows.map((row) => <tr key={row._id || rowRef(row)} className="border-b-2 border-slate-100 align-top"><td className="px-3 py-3"><div className="font-medium text-slate-900">{rowClient(row)}</div><div className="text-slate-500">{rowEmail(row) || "No email"}</div><div className="text-slate-400">{rowRef(row)}</div><div className="text-slate-400">{rowRole(row).replaceAll("_", " ")}</div></td><td className="px-3 py-3"><div>{text(row.eventType) || "No event type"}</div><div className="text-slate-500">{dateOnly(rowDate(row)) || "No date"}</div></td><td className="px-3 py-3">{text(row.agent) || "—"}</td><td className="px-3 py-3 capitalize">{rowService(row).replaceAll("_", " ") || "Not recorded"}</td><td className="px-3 py-3 font-medium text-slate-800"><div>{selected.timing.reference === "fixed" ? "Manual date" : ruleSendDate(row, selected, rules)}</div>{Number(selected.sourceNumber) === 4 && vocalistSetlistMissingLinks(row).length > 0 && <div className="mt-1 font-semibold text-amber-700">Held: {vocalistSetlistMissingLinks(row).join(" + ")} missing</div>}</td></tr>)}</tbody></table></div>
+          {allowlistLoadError && <p role="status" className="border-b bg-amber-50 px-4 py-3 text-sm text-amber-800">{allowlistLoadError}</p>}
+          <div className="max-h-[760px] overflow-auto"><table className="min-w-full text-left text-xs"><thead className="sticky top-0 bg-slate-50 text-slate-600"><tr><th className="px-3 py-2">Client</th><th className="px-3 py-2">Event</th><th className="px-3 py-2">Agent</th><th className="px-3 py-2">Service</th><th className="px-3 py-2">Proposed send</th></tr></thead><tbody>{loading || (!automationAllowlist && !allowlistLoadError) ? <tr><td colSpan={5} className="p-6 text-center">Loading allowlisted bookings…</td></tr> : !matchingRows.length ? <tr><td colSpan={5} className="p-6 text-center text-slate-500">{allowlistLoadError ? "Matching clients are unavailable until the allowlist loads." : "No allowlisted bookings match this rule and the current filters."}</td></tr> : matchingRows.map((row) => <tr key={row._id || rowRef(row)} className="border-b-2 border-slate-100 align-top"><td className="px-3 py-3"><div className="font-medium text-slate-900">{rowClient(row)}</div><div className="text-slate-500">{row.automationRecipient || rowEmail(row) || "No email"}</div><div className="text-slate-400">{rowRef(row)}</div><div className="text-slate-400">{rowRole(row).replaceAll("_", " ")}</div></td><td className="px-3 py-3"><div>{text(row.eventType) || "No event type"}</div><div className="text-slate-500">{dateOnly(rowDate(row)) || "No date"}</div></td><td className="px-3 py-3">{text(row.agent) || "—"}</td><td className="px-3 py-3 capitalize">{rowService(row).replaceAll("_", " ") || "Not recorded"}</td><td className="px-3 py-3 font-medium text-slate-800"><div>{selected.timing.reference === "fixed" ? "Manual date" : ruleSendDate(row, selected, rules)}</div>{Number(selected.sourceNumber) === 4 && vocalistSetlistMissingLinks(row).length > 0 && <div className="mt-1 font-semibold text-amber-700">Held: {vocalistSetlistMissingLinks(row).join(" + ")} missing</div>}</td></tr>)}</tbody></table></div>
         </section>
       </div>
     </div>
