@@ -1,5 +1,11 @@
 import { collisionFreeAddOnDay } from "../utils/addOnAutomationDate.js";
 import { allowedAutomationRecipient } from "../utils/automationAllowlist.js";
+import {
+  AUTOMATION_37_TAGS,
+  automation37ExtrasState,
+  prepareAutomation37Rule,
+  renderAutomation37Conditions,
+} from "../utils/automation37Extras.js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { backendUrl } from "../App";
 import { automationSeeds } from "../data/automationSeeds";
@@ -759,15 +765,15 @@ const templateValues = (row = {}) => ({
   "{pulse.text9}": text(row?.review?.comment),
   "{pulse.dup__of_vocalist}": vocalistNames(row),
 });
-const renderTemplate = (template, row) => {
+const renderTemplate = (template, row, rule, resolveConditions = true) => {
   const values = templateValues(row);
   return Object.entries(values).reduce(
     (rendered, [tag, value]) => rendered.split(tag).join(value || `[${tag.replace(/[{}]/g, "")}]`),
-    String(template || ""),
+    resolveConditions ? renderAutomation37Conditions(template, row, rule) : String(template || ""),
   );
 };
-const renderTemplatePreview = (template, row) => {
-  const rendered = renderTemplate(template, row);
+const renderTemplatePreview = (template, row, rule) => {
+  const rendered = renderTemplate(template, row, rule);
   const parts = [];
   const labelledLink = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g;
   let cursor = 0;
@@ -788,6 +794,10 @@ const renderTemplatePreview = (template, row) => {
 };
 const ruleDisplayName = (rule) => {
   const name = text(rule?.name);
+  if (Number(rule?.sourceNumber) === 37 && text(rule?.subject) === AUTOMATION_37_TAGS.subject
+    && (!name || /^automation\s+\d+$/i.test(name))) {
+    return "Event Sheet & Spotify playlist reminder";
+  }
   return name && !/^automation\s+\d+$/i.test(name)
     ? name
     : text(rule?.subject) || `Automation ${rule?.sourceNumber || ""}`;
@@ -994,14 +1004,14 @@ const prepareRules = (source) => source
     if (number === 6) filters.recipientRole = "direct_client";
     if (number === 8) filters.recipientRole = "end_client_via_agent";
     if (number === 9) filters.recipientRole = "agent";
-    return {
+    return prepareAutomation37Rule({
       ...rule,
       enabled: rule.enabled !== false,
-      attachInvoice: rule.attachInvoice ?? (number === 10),
+      attachInvoice: rule.attachInvoice ?? ([10, 37].includes(number)),
       body,
       filters,
       timing,
-    };
+    });
   });
 
 export default function Automations() {
@@ -1353,7 +1363,7 @@ export default function Automations() {
           overdue: Boolean(sendAt && sendAt < today && !alreadySent),
           sendAt,
           sendLabel: usesManualDate ? "Manual date" : ruleSendDate(row, rule, rules),
-          subject: renderTemplate(rule.subject, row),
+          subject: renderTemplate(rule.subject, row, rule),
         };
       }))
       .sort((a, b) => {
@@ -1410,6 +1420,21 @@ export default function Automations() {
   );
 
   const previewRow = matchingRows.find((row) => String(row._id || rowRef(row)) === previewRowId) || matchingRows[0];
+  const isExtrasReminder = Number(selected?.sourceNumber) === 37;
+  const extrasReminderState = automation37ExtrasState(previewRow, selected);
+  const invoicePreviewMessage = isExtrasReminder
+    ? (extrasReminderState.shouldAttachInvoice
+      ? "The issued extras invoice PDF will be attached."
+      : !extrasReminderState.hasOutstandingExtras
+        ? "No extras payment is due. The payment paragraph and extras balance subject are omitted."
+        : selected.attachInvoice === false
+          ? "The extras invoice attachment is switched off. The attachment paragraph is omitted."
+          : "Extras are due, but no issued extras invoice PDF is recorded. The attachment paragraph is omitted.")
+    : selected?.attachInvoice === true
+      ? (rowInvoiceLink(previewRow || {})
+        ? "Invoice PDF will be attached — no long invoice URL in the email."
+        : "Invoice attachment is enabled, but no issued invoice PDF is currently recorded for this booking.")
+      : "No invoice attachment is enabled for this automation.";
   const sendTestPreview = async () => {
     if (!previewRow || testPreviewState.sending) return;
     setTestPreviewState({ sending: true, message: "", error: "" });
@@ -1423,8 +1448,9 @@ export default function Automations() {
         },
         credentials: "include",
         body: JSON.stringify({
-          subject: renderTemplate(selected.subject, previewRow),
-          body: renderTemplate(selected.body, previewRow),
+          subject: renderTemplate(selected.subject, previewRow, selected, false),
+          body: renderTemplate(selected.body, previewRow, selected, false),
+          automationNumber: Number(selected.sourceNumber),
           audience: Number(selected.sourceNumber) === 4 ? "musician" : "client",
           bookingId: previewRow?._id || "",
           attachInvoice: selected.attachInvoice === true,
@@ -1606,7 +1632,7 @@ export default function Automations() {
                 <div className="flex items-start gap-2">
                   <button type="button" onClick={() => setSelectedId(rule.id)} className="min-w-0 flex-1 text-left">
                     <div className="flex items-start justify-between gap-2"><span className="text-sm font-semibold leading-5 text-slate-900">{ruleDisplayName(rule)}</span><span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${rule.status === "reviewed" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{rule.status === "reviewed" ? "Reviewed" : "Needs review"}</span></div>
-                    {ruleDisplayName(rule) !== rule.subject && <div className="mt-1 line-clamp-2 text-xs text-slate-500">{rule.subject}</div>}
+                    {ruleDisplayName(rule) !== rule.subject && <div className="mt-1 line-clamp-2 text-xs text-slate-500">{Number(rule.sourceNumber) === 37 && rule.subject === AUTOMATION_37_TAGS.subject ? "Subject varies with unpaid extras" : rule.subject}</div>}
                     <div className="mt-1 text-[10px] font-medium text-slate-400">Reference #{rule.sourceNumber}</div>
                   </button>
                   <button
@@ -1726,11 +1752,12 @@ export default function Automations() {
           <div className="border-t pt-4">
             <h2 className="mb-1 text-lg font-semibold text-slate-900">Email template</h2>
             <p className="mb-3 text-xs text-slate-500">Click in the subject or body, then choose a tag. It will be replaced with each booking’s details when the email is prepared.</p>
+            {isExtrasReminder && <p className="mb-3 rounded-lg bg-sky-50 p-3 text-xs text-sky-900">The reminder subject and closing sentence follow each booking’s unpaid extras. The extras payment paragraph appears only when its issued invoice PDF will be attached. Paid extras are omitted.</p>}
             <label className="block text-xs font-medium text-slate-600">Subject<input ref={subjectRef} onFocus={() => setActiveTemplateField("subject")} className={`${inputClass} mt-1`} value={selected.subject} onChange={(e) => updateRule({ subject: e.target.value })} /></label>
             <label className="mt-3 block text-xs font-medium text-slate-600">Body<textarea ref={bodyRef} onFocus={() => setActiveTemplateField("body")} className={`${inputClass} mt-1 min-h-[310px] font-mono text-xs leading-5`} value={selected.body} onChange={(e) => updateRule({ body: e.target.value })} /></label>
             <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
               <input type="checkbox" className="mt-0.5" checked={selected.attachInvoice === true} onChange={(e) => updateRule({ attachInvoice: e.target.checked })} />
-              <span><span className="block font-semibold text-slate-900">Attach issued invoice PDF</span><span className="mt-0.5 block text-xs text-slate-500">Uses the invoice recorded against each matching booking. If no issued invoice is recorded, no attachment is added.</span></span>
+              <span><span className="block font-semibold text-slate-900">{isExtrasReminder ? "Attach issued extras invoice PDF when unpaid" : "Attach issued invoice PDF"}</span><span className="mt-0.5 block text-xs text-slate-500">{isExtrasReminder ? "Uses only the extras invoice. The original booking invoice is never attached to this reminder." : "Uses the invoice recorded against each matching booking. If no issued invoice is recorded, no attachment is added."}</span></span>
             </label>
             <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 p-3">
               <div className="flex items-center justify-between gap-3">
@@ -1738,7 +1765,11 @@ export default function Automations() {
                 <span className="text-[10px] text-sky-700">Place your cursor first</span>
               </div>
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {TEMPLATE_TAGS.map(({ tag, label }) => (
+                {[...TEMPLATE_TAGS, ...(isExtrasReminder ? [
+                  { tag: AUTOMATION_37_TAGS.subject, label: "Subject with or without extras" },
+                  { tag: AUTOMATION_37_TAGS.payment, label: "Extras invoice reminder when due" },
+                  { tag: AUTOMATION_37_TAGS.completion, label: "Completion reminder with or without extras" },
+                ] : [])].map(({ tag, label }) => (
                   <button key={tag} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => insertTag(tag)} title={tag} className="rounded-full border border-sky-300 bg-white px-2.5 py-1 text-[11px] font-medium text-sky-800 hover:bg-sky-100">
                     + {label}
                   </button>
@@ -1760,7 +1791,7 @@ export default function Automations() {
             </div>
             {testPreviewState.message && <div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs font-medium text-emerald-800">{testPreviewState.message}</div>}
             {testPreviewState.error && <div className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-medium text-red-700">{testPreviewState.error}</div>}
-            {previewRow ? <div className="mt-3 rounded-lg border bg-white p-3"><p className="text-xs font-semibold text-slate-500">Subject</p><p className="mt-1 text-sm font-semibold text-slate-900">{renderTemplate(selected.subject, previewRow)}</p><p className="mt-3 text-xs font-semibold text-slate-500">Body</p><div className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap text-sm leading-5 text-slate-700">{renderTemplatePreview(selected.body, previewRow)}</div>{Number(selected.sourceNumber) === 4 && vocalistSetlistMissingLinks(previewRow).length > 0 && <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs font-medium text-amber-900">Held — {vocalistSetlistMissingLinks(previewRow).join(" and ")} {vocalistSetlistMissingLinks(previewRow).length === 1 ? "is" : "are"} missing. The vocalists will not be emailed. Rhona will be alerted once, and the email will join the next run after both links are added.</div>}<div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-800">{selected.attachInvoice === true ? (rowInvoiceLink(previewRow) ? "Invoice PDF will be attached — no long invoice URL in the email." : "Invoice attachment is enabled, but no issued invoice PDF is currently recorded for this booking.") : "No invoice attachment is enabled for this automation."} The standard TSC signature and footer will be appended.</div></div> : <div className="mt-3 rounded-lg border border-dashed bg-white p-4 text-sm text-slate-500">No matching client is available for a personalised preview.</div>}
+            {previewRow ? <div className="mt-3 rounded-lg border bg-white p-3"><p className="text-xs font-semibold text-slate-500">Subject</p><p className="mt-1 text-sm font-semibold text-slate-900">{renderTemplate(selected.subject, previewRow, selected)}</p><p className="mt-3 text-xs font-semibold text-slate-500">Body</p><div className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap text-sm leading-5 text-slate-700">{renderTemplatePreview(selected.body, previewRow, selected)}</div>{Number(selected.sourceNumber) === 4 && vocalistSetlistMissingLinks(previewRow).length > 0 && <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs font-medium text-amber-900">Held — {vocalistSetlistMissingLinks(previewRow).join(" and ")} {vocalistSetlistMissingLinks(previewRow).length === 1 ? "is" : "are"} missing. The vocalists will not be emailed. Rhona will be alerted once, and the email will join the next run after both links are added.</div>}<div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-800">{invoicePreviewMessage} The standard TSC signature and footer will be appended.</div></div> : <div className="mt-3 rounded-lg border border-dashed bg-white p-4 text-sm text-slate-500">No matching client is available for a personalised preview.</div>}
           </div>
           <div className="flex items-center justify-between border-b px-4 py-3"><div><h2 className="font-semibold text-slate-900">Matching clients</h2><p className="text-xs text-slate-500">Allowlisted bookings matching this email’s filters</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">{matchingRows.length}</span></div>
           {loadError && <div className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{loadError}</div>}
