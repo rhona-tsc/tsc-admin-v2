@@ -1736,6 +1736,9 @@ function RoleAllocationCell({ row }) {
     ["accepted", "confirmed"].includes(
       String(assignment?.status || "").toLowerCase(),
     );
+  const hasPendingCalendarDecline = (assignment) =>
+    Boolean(assignment?.calendarCancellationConfirmationPending) ||
+    assignment?.calendarStatus === "decline_confirmation_pending";
   const confirmedCount = allocationRows.filter(({ assignment }) =>
     isConfirmedAllocation(assignment),
   ).length;
@@ -1749,6 +1752,11 @@ function RoleAllocationCell({ row }) {
     ({ assignment }) => String(assignment?.status || "").toLowerCase() !== "offered",
   );
   const allAllocated = outstandingRows.length === 0;
+  const declinePendingRows = allocationRows.filter(({ assignment }) =>
+    hasPendingCalendarDecline(assignment),
+  );
+  const hasDeclinePending = declinePendingRows.length > 0;
+  const needsManagerApproval = Boolean(row?.allocation?.managerApprovalRequired);
   const noneAllocated = confirmedCount === 0;
   const outstandingRoleCounts = unfilledRows.reduce((counts, { slot }) => {
     counts.set(slot.role, (counts.get(slot.role) || 0) + 1);
@@ -1761,7 +1769,11 @@ function RoleAllocationCell({ row }) {
       <button
         type="button"
         className={`flex w-full items-start justify-between gap-3 rounded-lg border p-3 text-left transition-colors ${
-          allAllocated
+          needsManagerApproval
+            ? "border-red-300 bg-red-50 text-red-950 hover:bg-red-100"
+            : hasDeclinePending
+              ? "border-orange-300 bg-orange-50 text-orange-950 hover:bg-orange-100"
+              : allAllocated
             ? "border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
             : "border-amber-200 bg-amber-50 text-amber-950 hover:bg-amber-100"
         }`}
@@ -1770,7 +1782,11 @@ function RoleAllocationCell({ row }) {
       >
         <span className="min-w-0">
           <span className="block text-xs font-semibold">
-            {allAllocated
+            {needsManagerApproval
+              ? "Vocalist change requires client approval"
+              : hasDeclinePending
+                ? "Decline awaiting confirmation"
+                : allAllocated
               ? "Lineup allocated"
               : noneAllocated
                 ? "Full band needs to be allocated"
@@ -1792,6 +1808,21 @@ function RoleAllocationCell({ row }) {
                   `${assignment?.name || "Musician"} (${slot.role})`,
                 )
                 .join(", ")}
+            </span>
+          ) : null}
+          {hasDeclinePending ? (
+            <span className="mt-1 block whitespace-normal text-[11px] font-medium leading-4">
+              {declinePendingRows
+                .map(({ slot, assignment }) =>
+                  `${assignment?.name || "Musician"} (${slot.role})`,
+                )
+                .join(", ")}
+            </span>
+          ) : null}
+          {needsManagerApproval ? (
+            <span className="mt-1 block whitespace-normal text-[11px] leading-4">
+              {row?.allocation?.managerApprovalReason ||
+                "No replacement vocalist has been contacted."}
             </span>
           ) : null}
           <span className="mt-1 block text-[10px] opacity-75">
@@ -1817,6 +1848,7 @@ function RoleAllocationCell({ row }) {
         roleSeen.set(slot.role.toLowerCase(), roleIndex + 1);
         const assignment = findAssignment(slot, roleIndex);
         const status = assignment?.status || "unfilled";
+        const declineAwaitingConfirmation = hasPendingCalendarDecline(assignment);
         const isOpen = activeSlot === slot.roleSlotId;
         const draft = getSlotDraft(slot, assignment);
         const originalSuggestion = originalSuggestions[slot.roleSlotId];
@@ -1834,7 +1866,9 @@ function RoleAllocationCell({ row }) {
                 {assignment?.name || "Choose musician"}
               </button>
               <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold ${
-                status === "accepted" || status === "confirmed"
+                declineAwaitingConfirmation
+                  ? "bg-orange-100 text-orange-900"
+                  : status === "accepted" || status === "confirmed"
                   ? "bg-green-100 text-green-800"
                   : status === "offered"
                     ? "bg-amber-100 text-amber-800"
@@ -1842,7 +1876,9 @@ function RoleAllocationCell({ row }) {
                       ? "bg-purple-100 text-purple-800"
                       : "bg-gray-100 text-gray-600"
               }`}>
-                {status === "offered"
+                {declineAwaitingConfirmation
+                  ? "Decline awaiting confirmation"
+                  : status === "offered"
                   ? "Awaiting reply"
                   : status === "accepted"
                     ? "confirmed"
