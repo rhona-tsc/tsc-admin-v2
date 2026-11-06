@@ -1,3 +1,4 @@
+import { BIRTHDAY_REVIEW_NUMBER, isBirthdayBooking } from "../utils/birthdayReviewSequence.js";
 import { REVIEW_AUTOMATION_NUMBERS, exclusiveReviewPlan, reviewPlanItems, reviewPlanItem, reviewPlanStopReason, reviewPlanSendISO, reviewPlanTemplate } from "../utils/reviewRequestPlan.js";
 import { collisionFreeAddOnDay } from "../utils/addOnAutomationDate.js";
 import { finalDetailsDueISO } from "../utils/finalDetailsDueDate.js";
@@ -840,6 +841,7 @@ const ruleMatchesRow = (
   if (!includeSiteSuppressed && row?.siteAutomationsEnabled === false) return false;
   if (!includeSent && ruleAlreadySent(rule, row)) return false;
   const plannedReview = reviewPlanItem(row, rule?.sourceNumber);
+  if (Number(rule?.sourceNumber) === BIRTHDAY_REVIEW_NUMBER && !plannedReview) return false;
   if (exclusiveReviewPlan(row) && REVIEW_AUTOMATION_NUMBERS.includes(Number(rule?.sourceNumber)) && !plannedReview) return false;
   if (plannedReview) {
     if (reviewPlanStopReason(row)) return false;
@@ -1035,6 +1037,9 @@ export default function Automations() {
   const [automation37EmailReady, setAutomation37EmailReady] = useState(false);
   const [automation38EmailReady, setAutomation38EmailReady] = useState(false);
   const [automaticSendingEnabled, setAutomaticSendingEnabled] = useState(null);
+  const [birthdaySequencesReady, setBirthdaySequencesReady] = useState(false);
+  const [birthdayBookingId, setBirthdayBookingId] = useState("");
+  const [birthdaySaveState, setBirthdaySaveState] = useState({ saving: false, error: "", message: "" });
   const [allowlistLoadError, setAllowlistLoadError] = useState("");
   const [actProfiles, setActProfiles] = useState([]);
   const [fullActProfiles, setFullActProfiles] = useState([]);
@@ -1157,6 +1162,7 @@ export default function Automations() {
         setAutomationAllowlist({ emails: payload.emails, bookingRefs: payload.bookingRefs });
         setAutomation37EmailReady(payload.capabilities?.automation37Extras === true);
         setAutomation38EmailReady(payload.capabilities?.automation38Extras === true);
+        setBirthdaySequencesReady(payload.capabilities?.birthdayReviewSequences === true);
         setAutomaticSendingEnabled(typeof payload.senderEnabled === "boolean" ? payload.senderEnabled : null);
         setAllowlistLoadError("");
       })
@@ -1442,6 +1448,38 @@ export default function Automations() {
 
   const previewRow = matchingRows.find((row) => String(row._id || rowRef(row)) === previewRowId) || matchingRows[0];
   const selectedReviewPlanItem = reviewPlanItem(previewRow, selected?.sourceNumber);
+  const birthdayBookings = consolidatedRows.filter(row => isBirthdayBooking(row) && allowedAutomationRecipient(row, automationAllowlist));
+  const birthdayBooking = birthdayBookings.find(row => String(row._id) === birthdayBookingId)
+    || birthdayBookings.find(row => emailAudit.bookings.some(booking => rowRef(booking) === rowRef(row)))
+    || birthdayBookings[0];
+  const openReviewRule = (number, row = previewRow) => {
+    const rule = rules.find(candidate => Number(candidate.sourceNumber) === Number(number));
+    if (!rule) return;
+    setSelectedId(rule.id);
+    setRuleQuery("");
+    if (row) { setPreviewRowId(String(row._id || rowRef(row))); setQuery(rowEmail(row)); }
+    setGlobal({ agent: "", eventType: "", bookedDj: "any" });
+    requestAnimationFrame(() => subjectRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  };
+  const enableBirthdaySequence = async () => {
+    if (!birthdayBooking || birthdaySaveState.saving || !birthdaySequencesReady) return;
+    setBirthdaySaveState({ saving: true, error: "", message: "" });
+    try {
+      const token = localStorage.getItem("token") || "";
+      const response = await fetch(`${backendUrl}/api/board/bookings/${birthdayBooking.bookingBoardItemId || birthdayBooking._id}/birthday-review-sequence`, {
+        method: "POST", credentials: "include",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}`, token } : {}) },
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) throw new Error(payload?.message || "The birthday review sequence could not be saved.");
+      setRows(current => current.map(row => rowRef(row) === rowRef(birthdayBooking)
+        ? { ...row, reviewRequestPlan: payload.row.reviewRequestPlan } : row));
+      setBirthdaySaveState({ saving: false, error: "", message: "Birthday review sequence saved. No email was sent by this action." });
+      openReviewRule(BIRTHDAY_REVIEW_NUMBER, birthdayBooking);
+    } catch (error) {
+      setBirthdaySaveState({ saving: false, error: error.message, message: "" });
+    }
+  };
   const isExtrasReminder = isEventDetailsExtrasReminder(selected);
   const extrasEmailReady = Number(selected?.sourceNumber) === 38 ? automation38EmailReady : automation37EmailReady;
   const extrasReminderState = eventDetailsExtrasState(previewRow, selected);
@@ -1524,6 +1562,26 @@ export default function Automations() {
         <select className={selectClass} value={global.eventType} onChange={(e) => setGlobal((v) => ({ ...v, eventType: e.target.value }))}><option value="">All event types</option>{eventTypes.map((v) => <option key={v}>{v}</option>)}</select>
         <select className={selectClass} value={global.bookedDj} onChange={(e) => setGlobal((v) => ({ ...v, bookedDj: e.target.value }))}><option value="any">DJ: either</option><option value="yes">DJ booked</option><option value="no">No DJ</option></select>
       </div>
+
+      <section className="rounded-xl border border-sky-200 bg-white p-4">
+        <h2 className="font-semibold text-slate-900">Birthday review emails</h2>
+        <p className="mt-1 text-sm text-slate-600">Reuse the thank-you, follow-up and final birthday review templates, scheduled 3, 10 and 17 days after the event. Remaining requests stop when a Google review is recorded. Only bookings you set up here use this sequence.</p>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <button type="button" className="rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-sm font-semibold text-sky-900" onClick={() => openReviewRule(BIRTHDAY_REVIEW_NUMBER, birthdayBooking)}>Edit birthday review template · 41</button>
+          <label className="min-w-[240px] text-xs font-semibold text-slate-600">Allowlisted birthday booking
+            <select aria-label="Birthday review booking" className={`${inputClass} mt-1`} value={birthdayBooking?._id || ""} onChange={event => { setBirthdayBookingId(event.target.value); setBirthdaySaveState({ saving: false, error: "", message: "" }); }}>
+              {!birthdayBookings.length && <option value="">No allowlisted birthday bookings</option>}
+              {birthdayBookings.map(row => <option key={row._id} value={row._id}>{rowClient(row)} · {rowRef(row)}</option>)}
+            </select>
+          </label>
+          {birthdayBooking?.reviewRequestPlan?.enabled === true
+            ? <div className="flex flex-wrap gap-2">{reviewPlanItems(birthdayBooking).map(item => <button key={item.automationNumber} type="button" className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700" onClick={() => openReviewRule(item.automationNumber, birthdayBooking)}>Edit email {item.automationNumber}</button>)}</div>
+            : <button type="button" disabled={!birthdayBooking || birthdaySaveState.saving || !birthdaySequencesReady} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40" onClick={enableBirthdaySequence}>{birthdaySaveState.saving ? "Saving…" : "Use three-email birthday sequence"}</button>}
+        </div>
+        {!birthdaySequencesReady && <p className="mt-2 text-xs text-amber-800">Server update pending. Existing schedules are shown; setting up another birthday sequence will be available after deployment.</p>}
+        {birthdaySaveState.error && <p role="alert" className="mt-2 text-xs text-red-700">{birthdaySaveState.error}</p>}
+        {birthdaySaveState.message && <p role="status" className="mt-2 text-xs text-emerald-700">{birthdaySaveState.message}</p>}
+      </section>
 
       <section className="overflow-hidden rounded-xl border border-indigo-200 bg-white">
         <div className="border-b border-indigo-100 bg-indigo-50 p-4">
@@ -1645,7 +1703,7 @@ export default function Automations() {
       <div className="grid min-h-[680px] gap-4 xl:grid-cols-[280px_minmax(420px,0.9fr)_minmax(520px,1.35fr)]">
         <aside className="overflow-hidden rounded-xl border bg-white">
           <div className="border-b p-3">
-            <div className="flex items-center justify-between gap-2 text-sm font-semibold text-slate-800"><span>Imported templates</span><span className="text-xs font-medium text-slate-500">{visibleRules.length} of {rules.length}</span></div>
+            <div className="flex items-center justify-between gap-2 text-sm font-semibold text-slate-800"><span>Email templates</span><span className="text-xs font-medium text-slate-500">{visibleRules.length} of {rules.length}</span></div>
             <input className={`${inputClass} mt-2`} value={ruleQuery} onChange={(event) => setRuleQuery(event.target.value)} placeholder="Search rule name or subject" />
           </div>
           <div className="max-h-[760px] overflow-y-auto">
@@ -1677,7 +1735,7 @@ export default function Automations() {
 
         <section className="space-y-4 rounded-xl border bg-white p-4">
           <div className="flex items-start justify-between gap-3">
-            <div><h2 className="text-lg font-semibold text-slate-900">Rule conditions</h2><p className="text-xs text-slate-500">{selectedReviewPlanItem ? "The selected booking uses its saved review sequence. The default rule conditions are shown below." : "These start blank where Monday’s screenshots still need reconciling."}</p></div>
+            <div><h2 className="text-lg font-semibold text-slate-900">Rule conditions</h2><p className="text-xs text-slate-500">{selectedReviewPlanItem ? "This booking uses its saved review sequence for the dates. The shared template is editable below; default rule conditions are shown here." : "These start blank where Monday’s screenshots still need reconciling."}</p></div>
             <button
               type="button"
               role="switch"
@@ -1691,7 +1749,7 @@ export default function Automations() {
           </div>
           {selected.enabled === false && <div className="rounded-lg border border-slate-300 bg-slate-50 p-3 text-sm text-slate-600">This automation is switched off. It will stay editable here, but it is excluded from matching clients and client email schedule checks.</div>}
           <label className="block text-xs font-medium text-slate-600">Rule name<input className={`${inputClass} mt-1`} value={selected.name} onChange={(e) => updateRule({ name: e.target.value })} /></label>
-          <div className="grid gap-3 sm:grid-cols-2">
+          {Number(selected.sourceNumber) === BIRTHDAY_REVIEW_NUMBER ? <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">Birthday bookings with a saved review sequence only. Requests must be allowed, and stop once a Google review is recorded.</p> : <div className="grid gap-3 sm:grid-cols-2">
             <fieldset className="text-xs font-medium text-slate-600 sm:col-span-2">
               <legend>Agents</legend>
               <div className="mt-1 max-h-44 overflow-y-auto rounded-lg border border-slate-300 bg-white p-2">
@@ -1741,7 +1799,7 @@ export default function Automations() {
             <label className="text-xs font-medium text-slate-600">Review requests<select className={`${inputClass} mt-1`} value={selected.filters.reviewPermission || "any"} onChange={(e) => updateFilters({ reviewPermission: e.target.value })}><option value="any">Either</option><option value="allowed">Allowed only</option><option value="suppressed">Do not request</option></select></label>
             <label className="text-xs font-medium text-slate-600">Recipient<select className={`${inputClass} mt-1`} value={selected.filters.recipientRole || ""} onChange={(e) => updateFilters({ recipientRole: e.target.value })}><option value="">Any contact</option><option value="direct_client">Direct client</option><option value="agent">Agent / planner</option><option value="end_client_via_agent">End client via agent</option></select></label>
             <label className="text-xs font-medium text-slate-600">Music service<select className={`${inputClass} mt-1`} value={selected.filters.playlistService || ""} onChange={(e) => updateFilters({ playlistService: e.target.value })}><option value="">Any service</option><option value="spotify_playlist">Spotify Playlist</option><option value="manned_playlist">Manned Playlist</option><option value="pro_dj">Pro DJ Service</option></select></label>
-          </div>
+          </div>}
           <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Planned send rule</p>
             <p className="mt-1 text-sm leading-6 text-sky-950">{selectedReviewPlanItem ? `This booking’s review sequence schedules Automation ${selected.sourceNumber} ${selectedReviewPlanItem.offsetDays} days after the event, with at least seven days between actual review requests.` : describeSendRule(selected.timing)}</p>
@@ -1774,6 +1832,8 @@ export default function Automations() {
 
           <div className="border-t pt-4">
             <h2 className="mb-1 text-lg font-semibold text-slate-900">Email template</h2>
+            {Number(selected.sourceNumber) === BIRTHDAY_REVIEW_NUMBER && <p className="mb-3 rounded-lg bg-sky-50 p-3 text-xs text-sky-900">Reusable birthday template. Edits apply to every booking using this template. Client and act tags fill in automatically. Corporate and wedding emails have separate templates.</p>}
+            {selectedReviewPlanItem && Number(selected.sourceNumber) !== BIRTHDAY_REVIEW_NUMBER && <p className="mb-3 text-xs text-slate-600">This is a shared template. Changes also affect other bookings using Automation {selected.sourceNumber}.</p>}
             <p className="mb-3 text-xs text-slate-500">Click in the subject or body, then choose a tag. It will be replaced with each booking’s details when the email is prepared.</p>
             {isExtrasReminder && <p className="mb-3 rounded-lg bg-sky-50 p-3 text-xs text-sky-900">The reminder subject and closing sentence follow each booking’s unpaid extras. The extras payment paragraph appears only when its issued invoice PDF will be attached. Paid extras are omitted.</p>}
             <label className="block text-xs font-medium text-slate-600">Subject<input ref={subjectRef} onFocus={() => setActiveTemplateField("subject")} className={`${inputClass} mt-1`} value={selected.subject} onChange={(e) => updateRule({ subject: e.target.value })} /></label>
@@ -1799,7 +1859,7 @@ export default function Automations() {
                 ))}
               </div>
             </div>
-            <p className="mt-2 text-xs text-slate-500">Changes are saved in this browser while the rule import is reviewed. For a labelled link, use {"[Link text]({{client_event_sheet_link}})"}. Existing imported Monday.com tags are also supported.</p>
+            <p className="mt-2 text-xs text-slate-500">Changes are saved centrally; check the save status at the top of this page. For a labelled link, use {"[Link text]({{client_event_sheet_link}})"}. Existing imported Monday.com tags are also supported.</p>
           </div>
         </section>
 
@@ -1813,7 +1873,7 @@ export default function Automations() {
               </div>
             </div>
             {isExtrasReminder && !extrasEmailReady && <div className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">The preview is ready. Test emails for this reminder will be available after the server update; refresh this page once it is deployed.</div>}
-            {previewRow && reviewPlanItems(previewRow).length > 0 && REVIEW_AUTOMATION_NUMBERS.includes(Number(selected.sourceNumber)) && <div className="mt-3 rounded-lg bg-sky-50 p-3 text-xs text-sky-900"><p className="font-semibold">This booking’s review sequence</p><p className="mt-1">{reviewPlanItems(previewRow).map(item => `Automation ${item.automationNumber}: ${formatDate(parseDate(reviewPlanSendISO(previewRow, item.automationNumber)))}`).join(" · ")}</p><p className="mt-1">Three requests maximum, at least seven days apart. Remaining requests stop when a Google review is recorded or review requests are switched off. This booking’s sequence supplies the dates and wording shown below.</p>{automaticSendingEnabled === false && <p className="mt-2 font-semibold text-amber-900">Automatic sending is switched off on the server. This sequence is saved but will not send until it is enabled.</p>}</div>}
+            {previewRow && reviewPlanItems(previewRow).length > 0 && REVIEW_AUTOMATION_NUMBERS.includes(Number(selected.sourceNumber)) && <div className="mt-3 rounded-lg bg-sky-50 p-3 text-xs text-sky-900"><p className="font-semibold">This booking’s review sequence</p><div className="mt-2 flex flex-wrap gap-2">{reviewPlanItems(previewRow).map(item => <button type="button" key={item.automationNumber} onClick={() => openReviewRule(item.automationNumber)} className="rounded border border-sky-300 bg-white px-2 py-1 font-semibold">Edit email {item.automationNumber}</button>)}</div><p className="mt-1">{reviewPlanItems(previewRow).map(item => `Automation ${item.automationNumber}: ${formatDate(parseDate(reviewPlanSendISO(previewRow, item.automationNumber)))}`).join(" · ")}</p><p className="mt-1">Three requests maximum, at least seven days apart. Remaining requests stop when a Google review is recorded or review requests are switched off. This booking’s sequence supplies the dates and wording shown below.</p>{automaticSendingEnabled === false && <p className="mt-2 font-semibold text-amber-900">Automatic sending is switched off on the server. This sequence is saved but will not send until it is enabled.</p>}</div>}
             {testPreviewState.message && <div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs font-medium text-emerald-800">{testPreviewState.message}</div>}
             {testPreviewState.error && <div className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-medium text-red-700">{testPreviewState.error}</div>}
             {previewRow ? <div className="mt-3 rounded-lg border bg-white p-3"><p className="text-xs font-semibold text-slate-500">Subject</p><p className="mt-1 text-sm font-semibold text-slate-900">{renderTemplate(selected.subject, previewRow, selected)}</p><p className="mt-3 text-xs font-semibold text-slate-500">Body</p><div className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap text-sm leading-5 text-slate-700">{renderTemplatePreview(selected.body, previewRow, selected)}</div>{Number(selected.sourceNumber) === 4 && vocalistSetlistMissingLinks(previewRow).length > 0 && <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs font-medium text-amber-900">Held — {vocalistSetlistMissingLinks(previewRow).join(" and ")} {vocalistSetlistMissingLinks(previewRow).length === 1 ? "is" : "are"} missing. The vocalists will not be emailed. Rhona will be alerted once, and the email will join the next run after both links are added.</div>}<div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-800">{invoicePreviewMessage} The standard TSC signature and footer will be appended.</div></div> : <div className="mt-3 rounded-lg border border-dashed bg-white p-4 text-sm text-slate-500">No matching client is available for a personalised preview.</div>}

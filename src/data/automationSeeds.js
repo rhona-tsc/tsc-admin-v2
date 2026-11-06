@@ -1,3 +1,4 @@
+import { birthdayReviewRule } from "../utils/birthdayReviewSequence.js";
 export const automationSeeds = [
   {
     "id": "monday-1",
@@ -903,5 +904,6 @@ export const automationSeeds = [
       "offsetDays": 0,
       "label": "Manual/fixed date"
     }
-  }
+  },
+  birthdayReviewRule()
 ];
