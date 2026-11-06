@@ -1,5 +1,6 @@
 import { collisionFreeAddOnDay } from "../utils/addOnAutomationDate.js";
 import { finalDetailsDueISO } from "../utils/finalDetailsDueDate.js";
+import { automation37SendISO } from "../utils/automation37Schedule.js";
 import { allowedAutomationRecipient } from "../utils/automationAllowlist.js";
 import {
   AUTOMATION_37_TAGS,
@@ -554,6 +555,9 @@ const proposedSendAt = (row, timing = {}, blockedISOs = []) => {
   if (timing.strategy === "invoice_due") {
     return finalDetailsDueAt(row);
   }
+  if (timing.strategy === "final_details_advance") {
+    return parseDate(automation37SendISO(row));
+  }
   const event = parseDate(rowDate(row));
   if (!event) return null;
   if (timing.strategy === "song_suggestions_due") {
@@ -631,6 +635,9 @@ const describeSendRule = (timing = {}) => {
   }
   if (timing.strategy === "song_suggestions_followup") {
     return "Send one day after the Song suggestions due date recorded on the Booking Board.";
+  }
+  if (timing.strategy === "final_details_advance") {
+    return "Send on the Thursday two calendar weeks before the event, moving to the previous working day only if that reminder date is closed.";
   }
   if (timing.strategy === "final_details_due") {
     return "Send on the Thursday in the calendar week before the event, moved earlier for weekends, bank holidays and Christmas Eve. For late bookings, use the adjusted halfway date between booking and event.";
