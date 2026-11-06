@@ -1,4 +1,5 @@
 import { collisionFreeAddOnDay } from "../utils/addOnAutomationDate.js";
+import { finalDetailsDueISO } from "../utils/finalDetailsDueDate.js";
 import { allowedAutomationRecipient } from "../utils/automationAllowlist.js";
 import {
   AUTOMATION_37_TAGS,
@@ -448,19 +449,7 @@ const songRequestDueAt = (row) => {
   return oneMonthBefore;
 };
 const songRequestDueDate = (row) => formatDate(songRequestDueAt(row));
-const finalDetailsDueAt = (row) => {
-  const event = parseDate(rowDate(row));
-  if (!event) return null;
-  const eventWeekMonday = new Date(event);
-  eventWeekMonday.setDate(event.getDate() - ((event.getDay() + 6) % 7));
-  const standardDue = new Date(eventWeekMonday);
-  standardDue.setDate(eventWeekMonday.getDate() - 4);
-
-  const booked = parseDate(row.bookingDateISO || row.enquiryDateISO || row.createdAt);
-  if (!booked || booked <= standardDue) return standardDue;
-  if (booked >= event) return event;
-  return new Date(booked.getTime() + ((event.getTime() - booked.getTime()) / 2));
-};
+const finalDetailsDueAt = (row) => parseDate(finalDetailsDueISO(row));
 const invoiceDueDate = (row) => {
   return formatDate(finalDetailsDueAt(row));
 };
@@ -644,7 +633,7 @@ const describeSendRule = (timing = {}) => {
     return "Send one day after the Song suggestions due date recorded on the Booking Board.";
   }
   if (timing.strategy === "final_details_due") {
-    return "Send on the Thursday in the calendar week before the event. If the booking enters the system after that Thursday, send halfway between the booking and event dates.";
+    return "Send on the Thursday in the calendar week before the event, moved earlier for weekends, bank holidays and Christmas Eve. For late bookings, use the adjusted halfway date between booking and event.";
   }
   if (timing.strategy === "post_event") return "Send one day after the event at 6:00pm.";
   if (timing.strategy === "setlist") {
@@ -991,7 +980,7 @@ const prepareRules = (source) => source
     }
     if (number === 38) {
       timing.strategy = "final_details_due";
-      timing.label = "Thursday in the week before the event; halfway for late bookings";
+      timing.label = "Previous-week Thursday; earlier for closed days; halfway for late bookings";
     }
     if (
       [2, 3].includes(number) ||
