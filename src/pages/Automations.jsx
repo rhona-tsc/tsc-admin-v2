@@ -1017,6 +1017,7 @@ const prepareRules = (source) => source
 export default function Automations() {
   const [rows, setRows] = useState([]);
   const [automationAllowlist, setAutomationAllowlist] = useState(null);
+  const [automation37EmailReady, setAutomation37EmailReady] = useState(false);
   const [allowlistLoadError, setAllowlistLoadError] = useState("");
   const [actProfiles, setActProfiles] = useState([]);
   const [fullActProfiles, setFullActProfiles] = useState([]);
@@ -1137,6 +1138,7 @@ export default function Automations() {
           throw new Error("The automation allowlist could not be loaded. Please refresh and try again.");
         }
         setAutomationAllowlist({ emails: payload.emails, bookingRefs: payload.bookingRefs });
+        setAutomation37EmailReady(payload.capabilities?.automation37Extras === true);
         setAllowlistLoadError("");
       })
       .catch(() => setAllowlistLoadError("The automation allowlist could not be loaded. Please refresh and try again."));
@@ -1436,7 +1438,7 @@ export default function Automations() {
         : "Invoice attachment is enabled, but no issued invoice PDF is currently recorded for this booking.")
       : "No invoice attachment is enabled for this automation.";
   const sendTestPreview = async () => {
-    if (!previewRow || testPreviewState.sending) return;
+    if (!previewRow || testPreviewState.sending || (isExtrasReminder && !automation37EmailReady)) return;
     setTestPreviewState({ sending: true, message: "", error: "" });
     try {
       const token = localStorage.getItem("token") || "";
@@ -1786,9 +1788,10 @@ export default function Automations() {
               <div><h2 className="font-semibold text-slate-900">Personalised email preview</h2><p className="text-xs text-slate-500">Tags are replaced using the selected matching client.</p></div>
               <div className="flex flex-wrap items-center gap-2">
                 {matchingRows.length > 0 && <select className={selectClass} value={String(previewRow?._id || rowRef(previewRow))} onChange={(e) => setPreviewRowId(e.target.value)}>{matchingRows.map((row) => <option key={row._id || rowRef(row)} value={String(row._id || rowRef(row))}>{rowClient(row)} · {rowRef(row)}</option>)}</select>}
-                {previewRow && <button type="button" onClick={sendTestPreview} disabled={testPreviewState.sending} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{testPreviewState.sending ? "Sending…" : "Email test to Rhona"}</button>}
+                {previewRow && <button type="button" onClick={sendTestPreview} disabled={testPreviewState.sending || (isExtrasReminder && !automation37EmailReady)} className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50">{testPreviewState.sending ? "Sending…" : "Email test to Rhona"}</button>}
               </div>
             </div>
+            {isExtrasReminder && !automation37EmailReady && <div className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">The preview is ready. Test emails for this reminder will be available after the server update; refresh this page once it is deployed.</div>}
             {testPreviewState.message && <div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs font-medium text-emerald-800">{testPreviewState.message}</div>}
             {testPreviewState.error && <div className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-medium text-red-700">{testPreviewState.error}</div>}
             {previewRow ? <div className="mt-3 rounded-lg border bg-white p-3"><p className="text-xs font-semibold text-slate-500">Subject</p><p className="mt-1 text-sm font-semibold text-slate-900">{renderTemplate(selected.subject, previewRow, selected)}</p><p className="mt-3 text-xs font-semibold text-slate-500">Body</p><div className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap text-sm leading-5 text-slate-700">{renderTemplatePreview(selected.body, previewRow, selected)}</div>{Number(selected.sourceNumber) === 4 && vocalistSetlistMissingLinks(previewRow).length > 0 && <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs font-medium text-amber-900">Held — {vocalistSetlistMissingLinks(previewRow).join(" and ")} {vocalistSetlistMissingLinks(previewRow).length === 1 ? "is" : "are"} missing. The vocalists will not be emailed. Rhona will be alerted once, and the email will join the next run after both links are added.</div>}<div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-800">{invoicePreviewMessage} The standard TSC signature and footer will be appended.</div></div> : <div className="mt-3 rounded-lg border border-dashed bg-white p-4 text-sm text-slate-500">No matching client is available for a personalised preview.</div>}
