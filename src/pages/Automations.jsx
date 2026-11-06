@@ -1,3 +1,4 @@
+import { REVIEW_AUTOMATION_NUMBERS, exclusiveReviewPlan, reviewPlanItems, reviewPlanItem, reviewPlanStopReason, reviewPlanSendISO, reviewPlanTemplate } from "../utils/reviewRequestPlan.js";
 import { collisionFreeAddOnDay } from "../utils/addOnAutomationDate.js";
 import { finalDetailsDueISO } from "../utils/finalDetailsDueDate.js";
 import { automation37SendISO } from "../utils/automation37Schedule.js";
@@ -264,6 +265,8 @@ const consolidateAutomationRows = (sourceRows = []) => {
               boardSource.songSuggestionsDueDateISO,
             ),
             invoiceDueDateISO: text(boardSource.invoiceDueDateISO),
+            reviewRequestPlan: boardSource.reviewRequestPlan,
+            ...(boardSource.reviewRequestPlan ? { review: boardSource.review } : {}),
           }
         : {}),
       // Fail closed: one disabled copy suppresses every duplicate for the booking.
@@ -763,10 +766,13 @@ const templateValues = (row = {}) => ({
   "{pulse.dup__of_vocalist}": vocalistNames(row),
 });
 const renderTemplate = (template, row, rule, resolveConditions = true) => {
+  const effectiveRule = reviewPlanTemplate(rule, row);
+  const effectiveTemplate = template === rule?.subject ? effectiveRule.subject
+    : template === rule?.body ? effectiveRule.body : template;
   const values = templateValues(row);
   return Object.entries(values).reduce(
     (rendered, [tag, value]) => rendered.split(tag).join(value || `[${tag.replace(/[{}]/g, "")}]`),
-    resolveConditions ? renderEventDetailsReminderConditions(template, row, rule) : String(template || ""),
+    resolveConditions ? renderEventDetailsReminderConditions(effectiveTemplate, row, rule) : String(effectiveTemplate || ""),
   );
 };
 const renderTemplatePreview = (template, row, rule) => {
@@ -833,6 +839,13 @@ const ruleMatchesRow = (
   if (!includeDisabled && rule?.enabled === false) return false;
   if (!includeSiteSuppressed && row?.siteAutomationsEnabled === false) return false;
   if (!includeSent && ruleAlreadySent(rule, row)) return false;
+  const plannedReview = reviewPlanItem(row, rule?.sourceNumber);
+  if (exclusiveReviewPlan(row) && REVIEW_AUTOMATION_NUMBERS.includes(Number(rule?.sourceNumber)) && !plannedReview) return false;
+  if (plannedReview) {
+    if (reviewPlanStopReason(row)) return false;
+    const plannedISO = reviewPlanSendISO(row, rule.sourceNumber);
+    return Boolean(plannedISO) && (!excludePast || plannedISO >= dateOnly(new Date()));
+  }
   if (Number(rule?.sourceNumber) === 23 && !text(row?.referralDiscountCode)) return false;
   if (rule?.timing?.strategy === "invoice_due" && !finalDetailsDueAt(row)) {
     return false;
@@ -882,7 +895,7 @@ const automationSendPlan = (row, rules) => {
     .filter(delivery => delivery.status === "sent").map(delivery => delivery.sentAt)].map(dateOnly);
   const plan = new Map();
   for (const rule of applicable.filter(rule => rule.timing?.strategy !== "add_ons_midpoint")) {
-    const date = proposedSendAt(row, rule.timing);
+    const date = reviewPlanItem(row, rule.sourceNumber) ? parseDate(reviewPlanSendISO(row, rule.sourceNumber)) : proposedSendAt(row, rule.timing);
     plan.set(rule.id, date);
     if (date) blocked.push(dateOnly(date));
   }
@@ -897,12 +910,17 @@ const automationSendPlan = (row, rules) => {
   return plan;
 };
 const ruleSendAt = (row, rule, rules) => {
+  if (reviewPlanItem(row, rule.sourceNumber)) {
+    const sent = sentDeliveryForRule(rule, row);
+    return parseDate(sent?.sentAt || reviewPlanSendISO(row, rule.sourceNumber));
+  }
   if (rule.timing?.strategy !== "add_ons_midpoint") return proposedSendAt(row, rule.timing);
   const sent = sentDeliveryForRule(rule, row);
   if (sent) return parseDate(sent.sentAt);
   return automationSendPlan(row, rules).get(rule.id) || null;
 };
 const ruleSendDate = (row, rule, rules) => {
+  if (reviewPlanItem(row, rule.sourceNumber)) return formatDate(ruleSendAt(row, rule, rules));
   if (rule.timing?.strategy !== "add_ons_midpoint") return proposedSendDate(row, rule.timing);
   const date = ruleSendAt(row, rule, rules);
   return date ? formatDate(date) : "No free date before the deadline";
@@ -1016,6 +1034,7 @@ export default function Automations() {
   const [automationAllowlist, setAutomationAllowlist] = useState(null);
   const [automation37EmailReady, setAutomation37EmailReady] = useState(false);
   const [automation38EmailReady, setAutomation38EmailReady] = useState(false);
+  const [automaticSendingEnabled, setAutomaticSendingEnabled] = useState(null);
   const [allowlistLoadError, setAllowlistLoadError] = useState("");
   const [actProfiles, setActProfiles] = useState([]);
   const [fullActProfiles, setFullActProfiles] = useState([]);
@@ -1138,6 +1157,7 @@ export default function Automations() {
         setAutomationAllowlist({ emails: payload.emails, bookingRefs: payload.bookingRefs });
         setAutomation37EmailReady(payload.capabilities?.automation37Extras === true);
         setAutomation38EmailReady(payload.capabilities?.automation38Extras === true);
+        setAutomaticSendingEnabled(typeof payload.senderEnabled === "boolean" ? payload.senderEnabled : null);
         setAllowlistLoadError("");
       })
       .catch(() => setAllowlistLoadError("The automation allowlist could not be loaded. Please refresh and try again."));
@@ -1421,6 +1441,7 @@ export default function Automations() {
   );
 
   const previewRow = matchingRows.find((row) => String(row._id || rowRef(row)) === previewRowId) || matchingRows[0];
+  const selectedReviewPlanItem = reviewPlanItem(previewRow, selected?.sourceNumber);
   const isExtrasReminder = isEventDetailsExtrasReminder(selected);
   const extrasEmailReady = Number(selected?.sourceNumber) === 38 ? automation38EmailReady : automation37EmailReady;
   const extrasReminderState = eventDetailsExtrasState(previewRow, selected);
@@ -1488,13 +1509,13 @@ export default function Automations() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900">Automations</h1>
-          <p className="mt-1 max-w-3xl text-sm text-slate-600">Preview and reconcile the Monday email rules. Sending is locked while the imported conditions are reviewed.</p>
+          <p className="mt-1 max-w-3xl text-sm text-slate-600">Preview client emails, review conditions and check planned schedules.</p>
           <p className="mt-2 text-xs font-medium text-slate-500">Review progress: {reviewedCount} of {rules.length} · {enabledCount} switched on</p>
           <p className={`mt-1 text-xs font-semibold ${rulesSaveState.status === "error" ? "text-red-700" : rulesSaveState.status === "saving" || rulesSaveState.status === "loading" ? "text-amber-700" : "text-emerald-700"}`}>
             {rulesSaveState.message}
           </p>
         </div>
-        <div className="rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800">Preview only · sending disabled</div>
+        <div className="rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-800">Email template previews</div>
       </div>
 
       <div className="grid gap-3 rounded-xl border bg-white p-4 md:grid-cols-4">
@@ -1656,7 +1677,7 @@ export default function Automations() {
 
         <section className="space-y-4 rounded-xl border bg-white p-4">
           <div className="flex items-start justify-between gap-3">
-            <div><h2 className="text-lg font-semibold text-slate-900">Rule conditions</h2><p className="text-xs text-slate-500">These start blank where Monday’s screenshots still need reconciling.</p></div>
+            <div><h2 className="text-lg font-semibold text-slate-900">Rule conditions</h2><p className="text-xs text-slate-500">{selectedReviewPlanItem ? "The selected booking uses its saved review sequence. The default rule conditions are shown below." : "These start blank where Monday’s screenshots still need reconciling."}</p></div>
             <button
               type="button"
               role="switch"
@@ -1723,7 +1744,7 @@ export default function Automations() {
           </div>
           <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Planned send rule</p>
-            <p className="mt-1 text-sm leading-6 text-sky-950">{describeSendRule(selected.timing)}</p>
+            <p className="mt-1 text-sm leading-6 text-sky-950">{selectedReviewPlanItem ? `This booking’s review sequence schedules Automation ${selected.sourceNumber} ${selectedReviewPlanItem.offsetDays} days after the event, with at least seven days between actual review requests.` : describeSendRule(selected.timing)}</p>
             {previewRow && <p className="mt-2 text-xs font-medium text-sky-800">Example for {rowClient(previewRow)}: {ruleSendDate(previewRow, selected, rules)}</p>}
           </div>
           <details className={`rounded-lg border border-slate-200 bg-slate-50 p-3 ${selected.timing.strategy ? "text-slate-400" : ""}`}>
@@ -1792,6 +1813,7 @@ export default function Automations() {
               </div>
             </div>
             {isExtrasReminder && !extrasEmailReady && <div className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">The preview is ready. Test emails for this reminder will be available after the server update; refresh this page once it is deployed.</div>}
+            {previewRow && reviewPlanItems(previewRow).length > 0 && REVIEW_AUTOMATION_NUMBERS.includes(Number(selected.sourceNumber)) && <div className="mt-3 rounded-lg bg-sky-50 p-3 text-xs text-sky-900"><p className="font-semibold">This booking’s review sequence</p><p className="mt-1">{reviewPlanItems(previewRow).map(item => `Automation ${item.automationNumber}: ${formatDate(parseDate(reviewPlanSendISO(previewRow, item.automationNumber)))}`).join(" · ")}</p><p className="mt-1">Three requests maximum, at least seven days apart. Remaining requests stop when a Google review is recorded or review requests are switched off. This booking’s sequence supplies the dates and wording shown below.</p>{automaticSendingEnabled === false && <p className="mt-2 font-semibold text-amber-900">Automatic sending is switched off on the server. This sequence is saved but will not send until it is enabled.</p>}</div>}
             {testPreviewState.message && <div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs font-medium text-emerald-800">{testPreviewState.message}</div>}
             {testPreviewState.error && <div className="mt-3 rounded-lg bg-red-50 p-2 text-xs font-medium text-red-700">{testPreviewState.error}</div>}
             {previewRow ? <div className="mt-3 rounded-lg border bg-white p-3"><p className="text-xs font-semibold text-slate-500">Subject</p><p className="mt-1 text-sm font-semibold text-slate-900">{renderTemplate(selected.subject, previewRow, selected)}</p><p className="mt-3 text-xs font-semibold text-slate-500">Body</p><div className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap text-sm leading-5 text-slate-700">{renderTemplatePreview(selected.body, previewRow, selected)}</div>{Number(selected.sourceNumber) === 4 && vocalistSetlistMissingLinks(previewRow).length > 0 && <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs font-medium text-amber-900">Held — {vocalistSetlistMissingLinks(previewRow).join(" and ")} {vocalistSetlistMissingLinks(previewRow).length === 1 ? "is" : "are"} missing. The vocalists will not be emailed. Rhona will be alerted once, and the email will join the next run after both links are added.</div>}<div className="mt-3 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-800">{invoicePreviewMessage} The standard TSC signature and footer will be appended.</div></div> : <div className="mt-3 rounded-lg border border-dashed bg-white p-4 text-sm text-slate-500">No matching client is available for a personalised preview.</div>}
