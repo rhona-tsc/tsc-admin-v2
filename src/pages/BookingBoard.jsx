@@ -1,5 +1,7 @@
 // admin/src/pages/BookingBoard.jsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
+import BookingLineupSlotsEditor from "../components/BookingLineupSlotsEditor.jsx";
+import { BESPOKE_LINEUP_ID, buildBespokeLineupPatch, lineupSlotsFromRow, normaliseLineupSlots } from "../utils/bookingLineup.js";
 import BookingPdfImport from "../components/BookingPdfImport.jsx";
 import { EVENT_TYPE_OPTIONS, normalizeEventType } from "../constants/eventTypes";
 import { AGENT_OPTIONS, normalizeAgent } from "../constants/agents";
@@ -22,24 +24,7 @@ const PUBLIC_SITE_BASE = (
 ).replace(/\/$/, "");
 const EVENT_SHEET_FALLBACK = `${PUBLIC_SITE_BASE}/event-sheet`;
 
-const BOOKING_LINEUP_ROLE_OPTIONS = [
-  "Lead Female Vocal",
-  "Lead Male Vocal",
-  "Lead Female Vocal / Rapper",
-  "Lead Male Vocal / Rapper",
-  "Backing Vocals",
-  "Electric Guitar",
-  "Acoustic Guitar",
-  "Bass Guitar",
-  "Keyboard",
-  "Drums",
-  "Percussion",
-  "Saxophone",
-  "Trumpet",
-  "Trombone",
-  "Violin",
-  "Cello",
-];
+
 
 const brandedEventSheetUrl = (value = "") => {
   const raw = String(value || "").trim();
@@ -926,86 +911,34 @@ function InlineInput({
   );
 }
 
-const lineupRolesFromRow = (row = {}) => {
-  if (Array.isArray(row.lineupComposition) && row.lineupComposition.length) {
-    return row.lineupComposition.filter(Boolean);
-  }
-
-  const members =
-    row?.actsSummary?.[0]?.lineup?.bandMembers ||
-    row?.actsSummary?.[0]?.bandMembers ||
-    [];
-  return members
-    .filter((member) => !/manager|management/i.test(String(member?.instrument || member?.role || "")))
-    .map((member) => member?.instrument || member?.role || "")
-    .filter(Boolean);
-};
 
 function LineupCompositionEditor({ row, onCommit }) {
-  const roles = lineupRolesFromRow(row);
-
-  const commitRoles = (nextRoles) => {
-    const cleaned = nextRoles.map((role) => String(role || "").trim()).filter(Boolean);
-    onCommit({
-      lineupComposition: cleaned,
-      bandSize: cleaned.length,
-    });
-  };
-
+  const [slots, setSlots] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const currentSlots = slots || lineupSlotsFromRow(row);
+  const patch = buildBespokeLineupPatch(currentSlots);
   return (
-    <div className="flex min-w-[210px] flex-col gap-1.5">
-      <InlineInput
-        value={row?.lineupSelected || ""}
-        placeholder="Lineup"
-        onCommit={(lineupSelected) => onCommit({ lineupSelected })}
-      />
-      <details className="rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5 text-[11px] text-gray-700">
-        <summary className="cursor-pointer select-none font-medium">
-          Customise instruments{roles.length ? ` (${roles.length})` : ""}
-        </summary>
-        <div className="mt-2 flex flex-col gap-1.5">
-          {roles.length ? roles.map((role, index) => (
-            <div key={`${role}-${index}`} className="flex items-center gap-1">
-              <select
-                className="min-w-0 flex-1 rounded border border-gray-300 bg-white px-1.5 py-1 text-[11px]"
-                value={role}
-                onChange={(event) => commitRoles(
-                  roles.map((item, roleIndex) => (
-                    roleIndex === index ? event.target.value : item
-                  )),
-                )}
-              >
-                {!BOOKING_LINEUP_ROLE_OPTIONS.includes(role) ? (
-                  <option value={role}>{role}</option>
-                ) : null}
-                {BOOKING_LINEUP_ROLE_OPTIONS.map((option) => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="rounded border border-gray-300 bg-white px-1.5 py-1 text-gray-500 hover:text-red-600"
-                title="Remove this role"
-                onClick={() => commitRoles(roles.filter((_, roleIndex) => roleIndex !== index))}
-              >
-                ×
-              </button>
-            </div>
-          )) : (
-            <p className="leading-4 text-gray-500">
-              Add the booked roles for this one-off lineup.
-            </p>
-          )}
-          <button
-            type="button"
-            className="rounded border border-dashed border-gray-300 bg-white px-2 py-1 text-left text-[11px] font-medium text-gray-600 hover:border-sky-400"
-            onClick={() => commitRoles([...roles, "Trumpet"])}
-          >
-            + Add instrumentalist
-          </button>
-          <p className="leading-4 text-gray-500">
-            Changes apply to this booking only and update its allocation slots and event sheet.
-          </p>
+    <div className="flex min-w-[240px] flex-col gap-1.5">
+      {row?.lineupMode === "bespoke" ? <div className="px-2 py-1 text-sm font-medium">{row.lineupSelected}</div> :
+        <InlineInput value={row?.lineupSelected || ""} placeholder="Lineup"
+          onCommit={(lineupSelected) => onCommit({ lineupSelected })} />}
+      <details className="rounded-md border border-gray-200 bg-gray-50 p-2 text-[11px]">
+        <summary className="cursor-pointer font-medium">Customise musician slots</summary>
+        <div className="mt-2 flex flex-col gap-2">
+          <BookingLineupSlotsEditor slots={currentSlots} onChange={setSlots} disabled={saving}
+            label={slots ? patch.lineupSelected : row?.lineupSelected || patch.lineupSelected} />
+          <p className="text-gray-500">Changes apply to this booking’s staffing and event sheet. The agreed price and existing musician assignments are kept.</p>
+          {slots && <div className="flex gap-2">
+            <button type="button" className="rounded bg-black px-2 py-1 text-white disabled:opacity-40"
+              disabled={!patch.bandSize || saving} onClick={async () => {
+                setSaving(true);
+                try {
+                  const saved = await onCommit(patch);
+                  if (saved !== false) setSlots(null);
+                } finally { setSaving(false); }
+              }}>{saving ? "Saving…" : "Save lineup"}</button>
+            <button type="button" className="rounded border px-2 py-1" disabled={saving} onClick={() => setSlots(null)}>Cancel</button>
+          </div>}
         </div>
       </details>
     </div>
@@ -4136,6 +4069,8 @@ export default function BookingBoard() {
     lineupId: "",
     bandSize: "",
     lineupComposition: [],
+    lineupSlots: [],
+    lineupMode: "standard",
     address: "",
     county: "",
     grossValue: "",
@@ -4258,6 +4193,8 @@ export default function BookingBoard() {
       lineupSelected: "",
       bandSize: "",
       lineupComposition: [],
+      lineupSlots: [],
+      lineupMode: "standard",
     }));
   };
 
@@ -4592,7 +4529,7 @@ export default function BookingBoard() {
           () => setRowSaveState((prev) => ({ ...prev, [id]: "" })),
           1400,
         );
-        return;
+        return true;
       }
 
       throw new Error(json?.message || `Update failed (${res.status})`);
@@ -4607,6 +4544,7 @@ export default function BookingBoard() {
       }
       setRowSaveState((prev) => ({ ...prev, [id]: "error" }));
       window.alert(e.message || "This booking could not be updated.");
+      return false;
     }
   };
 
@@ -5738,6 +5676,11 @@ export default function BookingBoard() {
         return;
       }
 
+      if (newRow.lineupId === BESPOKE_LINEUP_ID && !buildBespokeLineupPatch(newRow.lineupSlots || []).bandSize) {
+        window.alert("Add or restore at least one musician for the bespoke lineup.");
+        return;
+      }
+
       // --- accounting split for manual rows ---
       const grossValue = Number(newRow.grossValue || 0) || 0;
       const vatRateRaw = Number(newRow.vatRate);
@@ -5847,6 +5790,8 @@ export default function BookingBoard() {
           lineupId: "",
           bandSize: "",
           lineupComposition: [],
+          lineupSlots: [],
+          lineupMode: "standard",
           address: "",
           county: "",
           grossValue: "",
@@ -7675,10 +7620,15 @@ export default function BookingBoard() {
                               </label>
                               <select
                                 className="border rounded px-2 py-1 w-72 bg-white disabled:bg-gray-100"
+                                aria-label="Booked lineup"
                                 value={newRow.lineupId || ""}
                                 disabled={!newRow.actId}
                                 onChange={(event) => {
                                   const lineupId = event.target.value;
+                                  if (lineupId === BESPOKE_LINEUP_ID) {
+                                    setNewRow(current => ({ ...current, ...buildBespokeLineupPatch(lineupSlotsFromRow(current)) }));
+                                    return;
+                                  }
                                   const lineup = manualLineupOptions.find(
                                     (option) => option.id === lineupId,
                                   );
@@ -7688,6 +7638,8 @@ export default function BookingBoard() {
                                     lineupSelected: lineup?.label || "",
                                     bandSize: lineup?.bandSize || "",
                                     lineupComposition: lineup?.composition || [],
+                                    lineupSlots: [],
+                                    lineupMode: "standard",
                                   }));
                                 }}
                               >
@@ -7696,44 +7648,29 @@ export default function BookingBoard() {
                                     ? "Choose the booked lineup…"
                                     : "Choose an act first"}
                                 </option>
+                                <option value={BESPOKE_LINEUP_ID}>{newRow.lineupId === BESPOKE_LINEUP_ID ? newRow.lineupSelected : "Bespoke lineup"}</option>
                                 {manualLineupOptions.map((option) => (
                                   <option key={option.id} value={option.id}>
                                     {option.label}
                                   </option>
                                 ))}
                               </select>
-                              {newRow.lineupComposition?.length ? (
-                                <div className="mt-2 flex w-72 flex-col gap-1.5 rounded-md border border-gray-200 bg-white p-2">
-                                  <div className="text-[11px] font-medium text-gray-700">
-                                    Instruments for this booking
-                                  </div>
-                                  {newRow.lineupComposition.map((role, index) => (
-                                    <select
-                                      key={`${role}-${index}`}
-                                      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs"
-                                      value={role}
-                                      onChange={(event) => setNewRow((current) => {
-                                        const lineupComposition = current.lineupComposition.map(
-                                          (item, roleIndex) => roleIndex === index ? event.target.value : item,
-                                        );
-                                        return {
-                                          ...current,
-                                          lineupComposition,
-                                          bandSize: lineupComposition.length,
-                                        };
-                                      })}
-                                    >
-                                      {!BOOKING_LINEUP_ROLE_OPTIONS.includes(role) ? (
-                                        <option value={role}>{role}</option>
-                                      ) : null}
-                                      {BOOKING_LINEUP_ROLE_OPTIONS.map((option) => (
-                                        <option key={option} value={option}>{option}</option>
-                                      ))}
+                              {newRow.actId && (newRow.lineupId === BESPOKE_LINEUP_ID || newRow.lineupComposition?.length > 0) ? (
+                                <div className="mt-2 flex w-80 flex-col gap-2">
+                                  {newRow.lineupId === BESPOKE_LINEUP_ID && <label className="flex flex-col gap-1 text-xs text-gray-600">
+                                    Start from a standard lineup (optional)
+                                    <select className="rounded border bg-white px-2 py-1" value=""
+                                      onChange={event => {
+                                        const source = manualLineupOptions.find(option => option.id === event.target.value);
+                                        if (source) setNewRow(current => ({ ...current, ...buildBespokeLineupPatch(normaliseLineupSlots(source.composition)) }));
+                                      }}>
+                                      <option value="">Choose a starting lineup…</option>
+                                      {manualLineupOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}
                                     </select>
-                                  ))}
-                                  <div className="text-[10px] leading-4 text-gray-500">
-                                    Swap Saxophone to Trumpet here when the contract differs from the standard lineup.
-                                  </div>
+                                  </label>}
+                                  <BookingLineupSlotsEditor slots={lineupSlotsFromRow(newRow)}
+                                    label={newRow.lineupSelected}
+                                    onChange={slots => setNewRow(current => ({ ...current, ...buildBespokeLineupPatch(slots) }))} />
                                 </div>
                               ) : null}
                             </div>
@@ -7781,6 +7718,7 @@ export default function BookingBoard() {
                               </label>
                               <input
                                 className="border rounded px-2 py-1 w-full"
+                                aria-label="Linked TSC act"
                                 placeholder="Search and choose an act…"
                                 value={manualActSearch}
                                 onChange={(event) => {
@@ -7801,6 +7739,8 @@ export default function BookingBoard() {
                                       lineupSelected: "",
                                       bandSize: "",
                                       lineupComposition: [],
+                                      lineupSlots: [],
+                                      lineupMode: "standard",
                                     }));
                                   }
                                 }}
