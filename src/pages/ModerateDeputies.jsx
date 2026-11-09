@@ -97,6 +97,73 @@ const getStatusRank = (status) => {
   return 4;
 };
 
+const normaliseVideoUrl = (value = "") =>
+  String(value || "").trim().replace(/\/$/, "").toLowerCase();
+
+const getVideoEmbedUrl = (value = "") => {
+  try {
+    const url = new URL(String(value || "").trim());
+    const host = url.hostname.replace(/^www\./, "").toLowerCase();
+
+    if (host === "youtu.be") {
+      const id = url.pathname.split("/").filter(Boolean)[0];
+      return id ? `https://www.youtube-nocookie.com/embed/${id}` : "";
+    }
+
+    if (host === "youtube.com" || host.endsWith(".youtube.com")) {
+      const parts = url.pathname.split("/").filter(Boolean);
+      const id = url.searchParams.get("v") ||
+        (["shorts", "embed"].includes(parts[0]) ? parts[1] : "");
+      return id ? `https://www.youtube-nocookie.com/embed/${id}` : "";
+    }
+
+    if (host === "vimeo.com" || host.endsWith(".vimeo.com")) {
+      const id = url.pathname.split("/").filter(Boolean).find((part) => /^\d+$/.test(part));
+      return id ? `https://player.vimeo.com/video/${id}` : "";
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+};
+
+const VideoPreview = ({ video }) => {
+  const embedUrl = getVideoEmbedUrl(video?.url);
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+      {embedUrl ? (
+        <iframe
+          src={embedUrl}
+          title={video?.title || "Submitted profile video"}
+          className="aspect-video w-full bg-black"
+          loading="lazy"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+        />
+      ) : (
+        <div className="flex aspect-video items-center justify-center bg-gray-100 px-4 text-center text-sm text-gray-600">
+          Preview unavailable for this provider
+        </div>
+      )}
+      <div className="p-3">
+        <p className="text-sm font-semibold text-gray-900">
+          {video?.title || (video?.category === "original" ? "Original video" : "Function-band video")}
+        </p>
+        <a
+          href={video?.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1 block break-all text-xs text-blue-700 underline"
+        >
+          Open original video
+        </a>
+      </div>
+    </div>
+  );
+};
+
 const ModerateDeputies = ({ token }) => {
   const [rows, setRows] = useState([]);
   const [videoSubmissions, setVideoSubmissions] = useState([]);
@@ -423,6 +490,37 @@ const ModerateDeputies = ({ token }) => {
     return [...new Set(rows.map((m) => m?.status).filter(Boolean))];
   }, [rows]);
 
+  const profileVideoReviewRows = useMemo(() => {
+    return rows
+      .map((musician) => {
+        const approvedUrls = new Set(
+          [
+            ...(musician?.tscApprovedFunctionBandVideoLinks || []),
+            ...(musician?.tscApprovedOriginalBandVideoLinks || []),
+          ]
+            .map((video) => normaliseVideoUrl(video?.url))
+            .filter(Boolean),
+        );
+
+        const videos = [
+          ...(musician?.functionBandVideoLinks || []).map((video) => ({ ...video, category: "function" })),
+          ...(musician?.originalBandVideoLinks || []).map((video) => ({ ...video, category: "original" })),
+        ].filter(
+          (video) =>
+            normaliseVideoUrl(video?.url) &&
+            !approvedUrls.has(normaliseVideoUrl(video?.url)),
+        );
+
+        return { musician, videos };
+      })
+      .filter(({ videos }) => videos.length > 0)
+      .sort((a, b) =>
+        Number(b.musician?.clientPriority || 0) - Number(a.musician?.clientPriority || 0) ||
+        getTime(b.musician?.profileLastEditedAt) - getTime(a.musician?.profileLastEditedAt) ||
+        getDisplayName(a.musician).localeCompare(getDisplayName(b.musician)),
+      );
+  }, [rows]);
+
   useEffect(() => {
     fetchQueue();
     fetchVideoSubmissions();
@@ -470,6 +568,53 @@ const ModerateDeputies = ({ token }) => {
           </span>
         </div>
       </div>
+
+      {!loading && profileVideoReviewRows.length > 0 ? (
+        <section className="mb-5 rounded-xl border border-fuchsia-200 bg-fuchsia-50 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-fuchsia-950">Profile videos awaiting moderation</h2>
+              <p className="mt-1 text-sm text-fuchsia-900">
+                Presented-to-clients profiles appear first, followed by active applicants and other profiles.
+              </p>
+            </div>
+            <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-fuchsia-900">
+              {profileVideoReviewRows.reduce((total, row) => total + row.videos.length, 0)} videos across {profileVideoReviewRows.length} profiles
+            </span>
+          </div>
+
+          <div className="mt-4 grid gap-4 xl:grid-cols-2">
+            {profileVideoReviewRows.map(({ musician, videos }) => (
+              <article key={musician._id} className="rounded-xl border border-fuchsia-100 bg-white p-4 shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-bold text-gray-950">{getDisplayName(musician)}</h3>
+                    <p className="text-xs text-gray-500">{musician.email || "No email recorded"}</p>
+                    {musician.clientPriorityStatus ? (
+                      <span className={`mt-2 inline-block rounded px-2 py-1 text-[10px] font-bold uppercase ${musician.clientPriorityStatus === "presented" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"}`}>
+                        {musician.clientPriorityStatus === "presented" ? "Presented to clients — priority" : "Active applicant — priority"}
+                      </span>
+                    ) : null}
+                  </div>
+                  <a
+                    href={`/musician/${musician.musicianSlug || musician._id}?review=1`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded bg-fuchsia-800 px-3 py-2 text-sm font-semibold text-white hover:bg-fuchsia-900"
+                  >
+                    Review and approve
+                  </a>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {videos.map((video, index) => (
+                    <VideoPreview key={video?._id || `${video?.url}-${index}`} video={video} />
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {videoSubmissions.length ? (
         <section className="mb-5 rounded border border-fuchsia-200 bg-fuchsia-50 p-4">
@@ -648,7 +793,7 @@ const ModerateDeputies = ({ token }) => {
   </a>
   {m.clientPriorityStatus ? (
     <div className={`mt-1 w-fit rounded px-2 py-1 text-[10px] font-bold uppercase ${m.clientPriorityStatus === "presented" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"}`}>
-      {m.clientPriorityStatus === "presented" ? "Presented — priority" : "Applicant — priority"}
+      {m.clientPriorityStatus === "presented" ? "Presented to clients — priority" : "Active applicant — priority"}
     </div>
   ) : null}
 </td>
