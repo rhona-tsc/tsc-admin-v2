@@ -4156,9 +4156,9 @@ export default function BookingBoard() {
   const [savingReceipt, setSavingReceipt] = useState(false);
   const [sendReceiptWhenPaid, setSendReceiptWhenPaid] = useState({});
   const [collapsedSections, setCollapsedSections] = useState({
-    enquiries: false,
+    enquiries: true,
     "upcoming-bookings": false,
-    "missing-event-date": false,
+    "missing-event-date": true,
     "past-clients": true,
     "cancelled-bookings": true,
   });
