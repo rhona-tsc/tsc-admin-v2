@@ -536,29 +536,17 @@ const ModerateDeputies = ({ token }) => {
             !approvedUrls.has(normaliseVideoUrl(video?.url)),
         );
 
-        return { musician, videos };
-      })
-      .filter(({ videos }) => videos.length > 0)
-      .sort((a, b) =>
-        Number(b.musician?.clientPriority || 0) - Number(a.musician?.clientPriority || 0) ||
-        getTime(b.musician?.profileLastEditedAt) - getTime(a.musician?.profileLastEditedAt) ||
-        getDisplayName(a.musician).localeCompare(getDisplayName(b.musician)),
-      );
-  }, [rows]);
-
-  const profileSocialReviewRows = useMemo(() => {
-    return rows
-      .map((musician) => ({
-        musician,
-        posts: (musician?.socialHighlightPostLinks || []).filter(
+        const posts = (musician?.socialHighlightPostLinks || []).filter(
           (post) =>
             post?.url &&
             !post?.mediaUrl &&
             post?.moderationStatus !== "approved" &&
             post?.moderationStatus !== "rejected",
-        ),
-      }))
-      .filter(({ posts }) => posts.length > 0)
+        );
+
+        return { musician, videos, posts };
+      })
+      .filter(({ videos, posts }) => videos.length > 0 || posts.length > 0)
       .sort((a, b) =>
         Number(b.musician?.clientPriority || 0) - Number(a.musician?.clientPriority || 0) ||
         getTime(b.musician?.profileLastEditedAt) - getTime(a.musician?.profileLastEditedAt) ||
@@ -633,18 +621,18 @@ const ModerateDeputies = ({ token }) => {
         <section className="mb-5 rounded-xl border border-fuchsia-200 bg-fuchsia-50 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-lg font-bold text-fuchsia-950">Profile videos awaiting moderation</h2>
+              <h2 className="text-lg font-bold text-fuchsia-950">Profile media awaiting moderation</h2>
               <p className="mt-1 text-sm text-fuchsia-900">
-                Presented-to-clients profiles appear first, followed by active applicants and other profiles.
+                Videos and social highlights are kept together. Presented-to-clients profiles appear first.
               </p>
             </div>
             <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-fuchsia-900">
-              {profileVideoReviewRows.reduce((total, row) => total + row.videos.length, 0)} videos across {profileVideoReviewRows.length} profiles
+              {profileVideoReviewRows.reduce((total, row) => total + row.videos.length + row.posts.length, 0)} items across {profileVideoReviewRows.length} profiles
             </span>
           </div>
 
           <div className="mt-4 grid gap-4 xl:grid-cols-2">
-            {profileVideoReviewRows.map(({ musician, videos }) => (
+            {profileVideoReviewRows.map(({ musician, videos, posts }) => (
               <article key={musician._id} className="rounded-xl border border-fuchsia-100 bg-white p-4 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -682,41 +670,20 @@ const ModerateDeputies = ({ token }) => {
                       </div>
                     );
                   })}
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {!loading && profileSocialReviewRows.length > 0 ? (
-        <section className="mb-5 rounded-xl border border-pink-200 bg-pink-50 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-bold text-pink-950">Social highlights awaiting moderation</h2>
-              <p className="mt-1 text-sm text-pink-900">Review submitted Instagram posts before they appear as image-only profile highlights.</p>
-            </div>
-            <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-pink-900">
-              {profileSocialReviewRows.reduce((total, row) => total + row.posts.length, 0)} highlights across {profileSocialReviewRows.length} profiles
-            </span>
-          </div>
-          <div className="mt-4 grid gap-4 xl:grid-cols-2">
-            {profileSocialReviewRows.map(({ musician, posts }) => (
-              <article key={musician._id} className="rounded-xl border border-pink-100 bg-white p-4 shadow-sm">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <h3 className="font-bold text-gray-950">{getDisplayName(musician)}</h3>
-                    <p className="text-xs text-gray-500">{musician.email || "No email recorded"}</p>
-                    <p className="mt-2 text-xs text-gray-600">{posts.length} submitted highlight{posts.length === 1 ? "" : "s"}</p>
-                  </div>
-                  <a
-                    href={`/musician/${musician.musicianSlug || musician._id}?review=1`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="rounded bg-pink-800 px-3 py-2 text-sm font-semibold text-white hover:bg-pink-900"
-                  >
-                    Review highlights
-                  </a>
+                  {posts.map((post, index) => (
+                    <div key={post?._id || `${post?.url}-${index}`} className="rounded-lg border border-pink-200 bg-pink-50 p-3">
+                      <p className="text-sm font-semibold text-pink-950">{post?.title || `Social highlight ${index + 1}`}</p>
+                      <p className="mt-1 text-xs text-pink-800">Instagram highlight awaiting approval</p>
+                      <a
+                        href={post.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 block break-all text-xs text-blue-700 underline"
+                      >
+                        Open Instagram post
+                      </a>
+                    </div>
+                  ))}
                 </div>
               </article>
             ))}
