@@ -4155,6 +4155,7 @@ export default function BookingBoard() {
   const [receiptOptions, setReceiptOptions] = useState(null);
   const [savingReceipt, setSavingReceipt] = useState(false);
   const [sendReceiptWhenPaid, setSendReceiptWhenPaid] = useState({});
+  const [includeExtrasInMainInvoice, setIncludeExtrasInMainInvoice] = useState({});
   const [collapsedSections, setCollapsedSections] = useState({
     enquiries: true,
     "upcoming-bookings": false,
@@ -5345,7 +5346,11 @@ export default function BookingBoard() {
     );
   };
 
-  const createInvoiceForRow = async (row, invoiceType = "main") => {
+  const createInvoiceForRow = async (
+    row,
+    invoiceType = "main",
+    { includeExtras = false } = {},
+  ) => {
     try {
       const bookingBoardItemId = getBookingBoardItemId(row);
       if (!bookingBoardItemId) {
@@ -5362,6 +5367,7 @@ export default function BookingBoard() {
           invoiceType,
           bookingId: bookingBoardItemId,
           includePaymentLink: false,
+          includeExtras: invoiceType === "main" && includeExtras,
         }),
       });
 
@@ -7009,13 +7015,49 @@ export default function BookingBoard() {
                                           <button
                                             className="px-2 py-1 border rounded hover:bg-gray-100 text-xs"
                                             onClick={() =>
-                                              createInvoiceForRow(r)
+                                              createInvoiceForRow(r, "main", {
+                                                includeExtras:
+                                                  includeExtrasInMainInvoice[
+                                                    String(r?._id || bookingRef)
+                                                  ] ??
+                                                  r?.mainInvoiceIncludesExtras ===
+                                                    true,
+                                              })
                                             }
                                           >
                                             {invoiceUrl
                                               ? "Regenerate invoice"
                                               : "Create invoice"}
                                           </button>
+
+                                          {getExtrasFromRow(r).length > 0 ? (
+                                            <label className="flex items-start gap-2 rounded border bg-slate-50 px-2 py-1.5 text-[11px] leading-4 text-slate-700">
+                                              <input
+                                                type="checkbox"
+                                                className="mt-0.5"
+                                                checked={
+                                                  includeExtrasInMainInvoice[
+                                                    String(r?._id || bookingRef)
+                                                  ] ??
+                                                  r?.mainInvoiceIncludesExtras ===
+                                                    true
+                                                }
+                                                onChange={(event) =>
+                                                  setIncludeExtrasInMainInvoice(
+                                                    (current) => ({
+                                                      ...current,
+                                                      [String(
+                                                        r?._id || bookingRef,
+                                                      )]: event.target.checked,
+                                                    }),
+                                                  )
+                                                }
+                                              />
+                                              <span>
+                                                Include extras on main invoice
+                                              </span>
+                                            </label>
+                                          ) : null}
 
                                           <button
                                             type="button"
