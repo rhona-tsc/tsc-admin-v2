@@ -170,6 +170,7 @@ const ModerateDeputies = ({ token }) => {
   const [videoActionId, setVideoActionId] = useState("");
   const [loading, setLoading] = useState(true);
   const [analysingId, setAnalysingId] = useState("");
+  const [profileVideoRequestKey, setProfileVideoRequestKey] = useState("");
   const [generatingBioId, setGeneratingBioId] = useState("");
   const [bulkGeneratingBios, setBulkGeneratingBios] = useState(false);
   const [bulkBioProgress, setBulkBioProgress] = useState(null);
@@ -274,6 +275,29 @@ const ModerateDeputies = ({ token }) => {
       toast(<CustomToast type="error" message={err.response?.data?.message || "Failed to start video checks"} />);
     } finally {
       setAnalysingId("");
+    }
+  };
+
+  const requestProfileVideoReplacement = async (musician, video) => {
+    const reason = window.prompt(
+      "Why does this video need replacing? This will be included in the email to the musician.",
+      "Please submit an unbranded video with no contact details, social handles, website address or full performer name visible.",
+    );
+    if (reason === null) return;
+
+    const key = `${musician._id}-${video?._id || video?.url}`;
+    setProfileVideoRequestKey(key);
+    try {
+      const res = await axios.post(
+        `${backendUrl}/api/musician/moderation/deputy/${musician._id}/request-video-resubmission`,
+        { category: video.category, url: video.url, reason: reason.trim() },
+        { headers: { token, Authorization: `Bearer ${token}` } },
+      );
+      toast(<CustomToast type="success" message={res.data?.message || "Replacement request sent"} />);
+    } catch (err) {
+      toast(<CustomToast type="error" message={err.response?.data?.message || "Could not send replacement request"} />);
+    } finally {
+      setProfileVideoRequestKey("");
     }
   };
 
@@ -606,9 +630,22 @@ const ModerateDeputies = ({ token }) => {
                   </a>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {videos.map((video, index) => (
-                    <VideoPreview key={video?._id || `${video?.url}-${index}`} video={video} />
-                  ))}
+                  {videos.map((video, index) => {
+                    const requestKey = `${musician._id}-${video?._id || video?.url}`;
+                    return (
+                      <div key={video?._id || `${video?.url}-${index}`}>
+                        <VideoPreview video={video} />
+                        <button
+                          type="button"
+                          disabled={profileVideoRequestKey === requestKey}
+                          onClick={() => requestProfileVideoReplacement(musician, video)}
+                          className="mt-2 w-full rounded bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                        >
+                          {profileVideoRequestKey === requestKey ? "Sending request…" : "Request clean replacement"}
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               </article>
             ))}

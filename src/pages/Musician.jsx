@@ -261,14 +261,24 @@ const ReviewVideoGrid = ({ groups = [], onApprove, onRequest, busyKey = "" }) =>
               {video.pending ? (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {playable ? (
-                    <button
-                      type="button"
-                      disabled={busyKey === key}
-                      onClick={() => onApprove?.(video, key)}
-                      className="rounded bg-green-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
-                    >
-                      {busyKey === key ? "Approving…" : "Approve video"}
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        disabled={busyKey === key}
+                        onClick={() => onApprove?.(video, key)}
+                        className="rounded bg-green-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                      >
+                        {busyKey === key ? "Working…" : "Approve video"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busyKey === key}
+                        onClick={() => onRequest?.(video, key)}
+                        className="rounded bg-red-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                      >
+                        {busyKey === key ? "Working…" : "Request clean replacement"}
+                      </button>
+                    </>
                   ) : (
                     <button
                       type="button"
@@ -465,11 +475,17 @@ const Musician = () => {
   };
 
   const requestVideoResubmission = async (video, key) => {
+    const reason = window.prompt(
+      "Why does this video need replacing? This will be included in the email to the musician.",
+      "Please submit an unbranded video with no contact details, social handles, website address or full performer name visible.",
+    );
+    if (reason === null) return;
+
     setVideoActionKey(key);
     try {
       const res = await axios.post(
         `${BACKEND_URL}/api/musician/moderation/deputy/${musician._id}/request-video-resubmission`,
-        { category: video.category, url: video.url },
+        { category: video.category, url: video.url, reason: reason.trim() },
         { headers: authHeaders },
       );
       toast.success(res.data?.message || "Video request sent");
