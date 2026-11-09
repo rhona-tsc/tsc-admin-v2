@@ -955,6 +955,14 @@ const ModerateDeputies = ({ token }) => {
             </button>
 
             <button
+              className="px-3 py-1 bg-fuchsia-700 text-white rounded disabled:opacity-50"
+              disabled={!Number(m.uploadedVideoCount || 0)}
+              onClick={() => navigate(`/musician/${m.musicianSlug || m._id}?review=1`)}
+            >
+              Review videos
+            </button>
+
+            <button
               className="px-3 py-1 bg-purple-700 text-white rounded disabled:opacity-50"
               disabled={!Number(m.uploadedVideoCount || 0) || analysingId === m._id}
               onClick={() => handleVideoAnalysis(m._id)}
