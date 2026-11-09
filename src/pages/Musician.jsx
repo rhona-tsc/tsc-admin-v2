@@ -207,18 +207,22 @@ const VideoList = ({ title, items = [] }) => {
 const getVideoEmbedUrl = (value = "") => {
   try {
     const url = new URL(value);
-    if (url.hostname.includes("youtube.com")) {
-      const id = url.searchParams.get("v");
-      return id ? `https://www.youtube.com/embed/${id}` : "";
+    const host = url.hostname.replace(/^www\./, "").toLowerCase();
+    if (host === "youtu.be") {
+      const id = url.pathname.split("/").filter(Boolean)[0];
+      return id ? `https://www.youtube-nocookie.com/embed/${id}` : "";
     }
-    if (url.hostname === "youtu.be") {
-      return `https://www.youtube.com/embed/${url.pathname.replace(/^\//, "")}`;
+    if (host === "youtube.com" || host.endsWith(".youtube.com")) {
+      const parts = url.pathname.split("/").filter(Boolean);
+      const id = url.searchParams.get("v") ||
+        (["shorts", "embed"].includes(parts[0]) ? parts[1] : "");
+      return id ? `https://www.youtube-nocookie.com/embed/${id}` : "";
     }
-    if (url.hostname.includes("vimeo.com")) {
+    if (host === "vimeo.com" || host.endsWith(".vimeo.com")) {
       const id = url.pathname.split("/").filter(Boolean).pop();
       return id ? `https://player.vimeo.com/video/${id}` : "";
     }
-    if (url.hostname.includes("drive.google.com")) {
+    if (host === "drive.google.com" || host.endsWith(".drive.google.com")) {
       const id = url.pathname.match(/\/file\/d\/([^/]+)/)?.[1] || url.searchParams.get("id");
       return id ? `https://drive.google.com/file/d/${id}/preview` : "";
     }
