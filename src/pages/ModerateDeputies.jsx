@@ -171,6 +171,7 @@ const ModerateDeputies = ({ token }) => {
   const [loading, setLoading] = useState(true);
   const [analysingId, setAnalysingId] = useState("");
   const [profileVideoRequestKey, setProfileVideoRequestKey] = useState("");
+  const [replacementRequestsEnabled, setReplacementRequestsEnabled] = useState(false);
   const [generatingBioId, setGeneratingBioId] = useState("");
   const [bulkGeneratingBios, setBulkGeneratingBios] = useState(false);
   const [bulkBioProgress, setBulkBioProgress] = useState(null);
@@ -550,6 +551,21 @@ const ModerateDeputies = ({ token }) => {
     fetchVideoSubmissions();
   }, [fetchQueue, fetchVideoSubmissions]);
 
+  useEffect(() => {
+    let cancelled = false;
+    axios
+      .get(`${backendUrl}/api/musician/moderation/video-resubmission-capabilities`, {
+        headers: { token, Authorization: `Bearer ${token}` },
+      })
+      .then((res) => {
+        if (!cancelled) setReplacementRequestsEnabled(res.data?.customReason === true);
+      })
+      .catch(() => {
+        if (!cancelled) setReplacementRequestsEnabled(false);
+      });
+    return () => { cancelled = true; };
+  }, [token]);
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
@@ -637,11 +653,11 @@ const ModerateDeputies = ({ token }) => {
                         <VideoPreview video={video} />
                         <button
                           type="button"
-                          disabled={profileVideoRequestKey === requestKey}
+                          disabled={profileVideoRequestKey === requestKey || !replacementRequestsEnabled}
                           onClick={() => requestProfileVideoReplacement(musician, video)}
                           className="mt-2 w-full rounded bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
                         >
-                          {profileVideoRequestKey === requestKey ? "Sending request…" : "Request clean replacement"}
+                          {profileVideoRequestKey === requestKey ? "Sending request…" : replacementRequestsEnabled ? "Request clean replacement" : "Replacement requests temporarily paused"}
                         </button>
                       </div>
                     );

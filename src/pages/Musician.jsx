@@ -219,7 +219,7 @@ const getVideoEmbedUrl = (value = "") => {
 
 const isDirectVideoUrl = (value = "") => /\.(mp4|mov|m4v|webm)(?:$|[?#])/i.test(value);
 
-const ReviewVideoGrid = ({ groups = [], onApprove, onRequest, busyKey = "" }) => {
+const ReviewVideoGrid = ({ groups = [], onApprove, onRequest, busyKey = "", replacementRequestsEnabled = false }) => {
   const videos = groups.flatMap(({ label, category, pending, items }) =>
     (Array.isArray(items) ? items : [])
       .filter((item) => item?.url)
@@ -272,21 +272,21 @@ const ReviewVideoGrid = ({ groups = [], onApprove, onRequest, busyKey = "" }) =>
                       </button>
                       <button
                         type="button"
-                        disabled={busyKey === key}
+                        disabled={busyKey === key || !replacementRequestsEnabled}
                         onClick={() => onRequest?.(video, key)}
                         className="rounded bg-red-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
                       >
-                        {busyKey === key ? "Working…" : "Request clean replacement"}
+                        {busyKey === key ? "Working…" : replacementRequestsEnabled ? "Request clean replacement" : "Replacement requests temporarily paused"}
                       </button>
                     </>
                   ) : (
                     <button
                       type="button"
-                      disabled={busyKey === key}
+                      disabled={busyKey === key || !replacementRequestsEnabled}
                       onClick={() => onRequest?.(video, key)}
                       className="rounded bg-amber-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
                     >
-                      {busyKey === key ? "Sending…" : "Request proper video link"}
+                      {busyKey === key ? "Sending…" : replacementRequestsEnabled ? "Request proper video link" : "Replacement requests temporarily paused"}
                     </button>
                   )}
                 </div>
@@ -333,6 +333,7 @@ const Musician = () => {
   const [moderating, setModerating] = useState(false);
   const [videoActionKey, setVideoActionKey] = useState("");
   const [directVideoSubmissions, setDirectVideoSubmissions] = useState([]);
+  const [replacementRequestsEnabled, setReplacementRequestsEnabled] = useState(false);
   const reviewMode = new URLSearchParams(window.location.search).get("review") === "1";
   const handleBack = () => {
     if (reviewMode) {
@@ -421,6 +422,20 @@ const Musician = () => {
 
   const token = localStorage.getItem("token") || "";
   const authHeaders = token ? { Authorization: `Bearer ${token}`, token } : {};
+
+  useEffect(() => {
+    if (!reviewMode || !token) return;
+    let cancelled = false;
+    axios
+      .get(`${BACKEND_URL}/api/musician/moderation/video-resubmission-capabilities`, { headers: authHeaders })
+      .then((res) => {
+        if (!cancelled) setReplacementRequestsEnabled(res.data?.customReason === true);
+      })
+      .catch(() => {
+        if (!cancelled) setReplacementRequestsEnabled(false);
+      });
+    return () => { cancelled = true; };
+  }, [reviewMode, token]);
 
   const saveReviewCopy = async () => {
     setSavingReview(true);
@@ -789,6 +804,7 @@ const Musician = () => {
             onApprove={approveVideo}
             onRequest={requestVideoResubmission}
             busyKey={videoActionKey}
+            replacementRequestsEnabled={replacementRequestsEnabled}
           />
         </section>
       ) : null}
