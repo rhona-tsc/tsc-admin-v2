@@ -56,6 +56,17 @@ const getPublicProfileUrl = (musician) => {
   return id ? `${PUBLIC_SITE_URL}/musician/${id}` : "";
 };
 
+const getInstagramSnapshotUrl = (value) => {
+  try {
+    const url = new URL(String(value || ""));
+    if (!/(^|\.)instagram\.com$/i.test(url.hostname)) return "";
+    const shortcode = url.pathname.match(/^\/(?:p|reel|tv)\/([A-Za-z0-9_-]+)/i)?.[1];
+    return shortcode ? `https://www.instagram.com/p/${shortcode}/media/?size=l` : "";
+  } catch {
+    return "";
+  }
+};
+
 const sectionCardClass = "bg-white border border-gray-200 rounded-2xl p-5 shadow-sm";
 const sectionTitleClass = "text-lg font-semibold text-gray-900 mb-3";
 
@@ -489,6 +500,42 @@ const Musician = () => {
     }
   };
 
+  const approveSocialHighlight = async (post, key) => {
+    const posts = Array.isArray(musician?.socialHighlightPostLinks)
+      ? musician.socialHighlightPostLinks
+      : [];
+    const nextPosts = posts.map((item) =>
+      String(item?._id || "") === String(post?._id || "")
+        ? {
+            ...item,
+            platform: item.platform || "instagram",
+            mediaType: "image",
+            moderationStatus: "approved",
+            moderatedAt: new Date().toISOString(),
+          }
+        : item,
+    );
+
+    setVideoActionKey(key);
+    try {
+      const res = await axios.patch(
+        `${BACKEND_URL}/api/musician/moderation/deputy/${musician._id}/save`,
+        { socialHighlightPostLinks: nextPosts },
+        { headers: authHeaders },
+      );
+      setMusician((current) => ({
+        ...current,
+        ...(res.data?.deputy || res.data?.musician || {}),
+        socialHighlightPostLinks: nextPosts,
+      }));
+      toast.success("Social highlight approved");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Could not approve social highlight");
+    } finally {
+      setVideoActionKey("");
+    }
+  };
+
   const requestVideoResubmission = async (video, key) => {
     const reason = window.prompt(
       "Why does this video need replacing? This will be included in the email to the musician.",
@@ -792,6 +839,42 @@ const Musician = () => {
                   </article>
                 );
               })}
+            </div>
+          ) : null}
+          {(musician?.socialHighlightPostLinks || []).some(
+            (post) => post?.url && !post?.mediaUrl && post?.moderationStatus !== "approved" && post?.moderationStatus !== "rejected",
+          ) ? (
+            <div className="mb-5">
+              <h3 className="mb-3 font-semibold text-gray-900">Social highlights awaiting moderation</h3>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {(musician.socialHighlightPostLinks || [])
+                  .filter((post) => post?.url && !post?.mediaUrl && post?.moderationStatus !== "approved" && post?.moderationStatus !== "rejected")
+                  .map((post, index) => {
+                    const key = `social-${post?._id || index}`;
+                    const snapshotUrl = getInstagramSnapshotUrl(post?.url);
+                    return (
+                      <article key={key} className="overflow-hidden rounded-xl border border-pink-200 bg-white">
+                        {snapshotUrl ? (
+                          <img src={snapshotUrl} alt="Social highlight preview" className="aspect-[4/5] w-full bg-gray-100 object-cover" />
+                        ) : null}
+                        <div className="p-3 text-sm">
+                          <p className="font-semibold">{post?.title || `Social highlight ${index + 1}`}</p>
+                          <a href={post?.url} target="_blank" rel="noreferrer" className="mt-2 block break-all text-xs text-blue-700 underline">
+                            Open original post
+                          </a>
+                          <button
+                            type="button"
+                            disabled={videoActionKey === key || !snapshotUrl}
+                            onClick={() => approveSocialHighlight(post, key)}
+                            className="mt-3 rounded bg-green-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                          >
+                            {videoActionKey === key ? "Approving…" : "Approve highlight"}
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+              </div>
             </div>
           ) : null}
           <ReviewVideoGrid
