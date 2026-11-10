@@ -53,6 +53,7 @@ const ActPreSubmissionPage = () => {
   const [selectedAct, setSelectedAct] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
   const [activeVideoUrl, setActiveVideoUrl] = useState("");
+  const [updatingSubmission, setUpdatingSubmission] = useState("");
 
   const getToken = () =>
     localStorage.getItem("authToken") || localStorage.getItem("token") || "";
@@ -173,6 +174,9 @@ const ActPreSubmissionPage = () => {
   };
 
   const updateStatus = async (id, action) => {
+    const actionKey = `${id}:${action}`;
+    if (updatingSubmission) return;
+    setUpdatingSubmission(actionKey);
     try {
       const endpoint =
         action === "approved"
@@ -218,8 +222,13 @@ const ActPreSubmissionPage = () => {
     } catch (e) {
       console.error("❌ updateStatus error:", e?.response?.data || e);
       toast(
-        <CustomToast type="error" message="Error updating submission status" />
+        <CustomToast
+          type="error"
+          message={e?.response?.data?.message || "Error updating submission status"}
+        />
       );
+    } finally {
+      setUpdatingSubmission("");
     }
   };
 
@@ -330,16 +339,18 @@ const ActPreSubmissionPage = () => {
                   </button>
 
                   <button
-                    className="bg-green-600 text-white px-4 py-2 rounded text-sm"
+                    className="bg-green-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
+                    disabled={Boolean(updatingSubmission)}
                     onClick={() => updateStatus(act._id, "approved")}
                   >
-                    Approve
+                    {updatingSubmission === `${act._id}:approved` ? "Approving…" : "Approve"}
                   </button>
                   <button
-                    className="bg-red-600 text-white px-4 py-2 rounded text-sm"
+                    className="bg-red-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
+                    disabled={Boolean(updatingSubmission)}
                     onClick={() => updateStatus(act._id, "rejected")}
                   >
-                    Reject
+                    {updatingSubmission === `${act._id}:rejected` ? "Rejecting…" : "Reject"}
                   </button>
                 </div>
               </div>
@@ -472,16 +483,18 @@ const ActPreSubmissionPage = () => {
 
                     <div className="flex gap-2 pt-2">
                       <button
-                        className="bg-green-600 text-white px-4 py-2 rounded text-sm"
+                        className="bg-green-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
+                        disabled={Boolean(updatingSubmission)}
                         onClick={() => updateStatus(selectedId, "approved")}
                       >
-                        Approve
+                        {updatingSubmission === `${selectedId}:approved` ? "Approving…" : "Approve"}
                       </button>
                       <button
-                        className="bg-red-600 text-white px-4 py-2 rounded text-sm"
+                        className="bg-red-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
+                        disabled={Boolean(updatingSubmission)}
                         onClick={() => updateStatus(selectedId, "rejected")}
                       >
-                        Reject
+                        {updatingSubmission === `${selectedId}:rejected` ? "Rejecting…" : "Reject"}
                       </button>
                     </div>
                   </div>
