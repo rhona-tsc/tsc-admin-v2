@@ -14,21 +14,24 @@ export function addOriginalStartingFiles(current, files, makeId = () => crypto.r
 
 export function originalStartingMaterial(files) {
   const sourceType = files.some(item => item.kind === 'initial_stem') ? 'final_eligible_stem'
+    : files.some(item => item.kind === 'temporary_stem') ? 'temporary_stem'
     : files.some(item => item.kind === 'guide_track') ? 'guide_track'
       : files.some(item => item.kind === 'video_submission') ? 'video_demo' : 'none';
-  return { sourceType, hasInitialStem: ['final_eligible_stem', 'guide_track'].includes(sourceType) };
+  return { sourceType, hasInitialStem: ['final_eligible_stem', 'temporary_stem', 'guide_track'].includes(sourceType) };
 }
 
-export function originalStartingFilesError(files, finalConfirmed) {
+export function originalStartingFilesError(files, finalConfirmed, roles = []) {
   const tooLarge = files.find(item => item.file.size > 100 * 1024 * 1024);
   if (tooLarge) return `${tooLarge.file.name} is larger than 100 MB. Choose a smaller export.`;
+  const unassigned = files.find(item => item.kind === 'temporary_stem' && !roles.some(role => role.name === item.replacementRoleName));
+  if (unassigned) return `Choose the replacement role for ${unassigned.file.name}. Add that role to the project above if needed.`;
   if (files.some(item => item.kind === 'initial_stem') && !finalConfirmed) return 'Confirm that the selected production stems are intended for the final track.';
   return '';
 }
 
 // Keep confirmed uploads and the draft ID after an interrupted batch. Retrying
 // continues that same project and only uploads files without a saved receipt.
-export async function submitOriginalStartingProject({ request, payload, files, voiceNote, progress, onProgress = () => {} }) {
+export async function submitOriginalStartingProject({ request, payload, files, voiceNote, progress, draftOnly = false, onProgress = () => {} }) {
   progress.uploaded ||= {};
   progress.voices ||= {};
   if (progress.submitted) return;
@@ -38,10 +41,11 @@ export async function submitOriginalStartingProject({ request, payload, files, v
     progress.payload = JSON.stringify(payload);
     progress.agreementHash = payload.ownerAgreement?.textHash;
     onProgress({ projectId: progress.projectId, message: 'Draft saved. Uploading starting files…' });
-  } else if (progress.payload !== JSON.stringify(payload)) {
+  } else if (progress.editing || progress.payload !== JSON.stringify(payload)) {
     const data = { ...payload };
-    if (progress.agreementHash === payload.ownerAgreement?.textHash) delete data.ownerAgreementAccepted;
-    await request({ method: 'patch', url: `/projects/${progress.projectId}`, data });
+    if (!progress.editing && progress.agreementHash === payload.ownerAgreement?.textHash) delete data.ownerAgreementAccepted;
+    if (progress.editing) data.assets = files.filter(item => progress.uploaded[item.id]).map(item => ({ assetId: progress.uploaded[item.id], kind: item.kind, createdEntirelyWithAi: item.createdEntirelyWithAi, replacementRoleName: item.replacementRoleName || '', finalStemConfirmed: item.kind === 'initial_stem' }));
+    await request({ method: 'patch', url: `/projects/${progress.projectId}${progress.editing ? '/draft' : ''}`, data });
     progress.payload = JSON.stringify(payload);
     progress.agreementHash = payload.ownerAgreement?.textHash;
   }
@@ -52,7 +56,8 @@ export async function submitOriginalStartingProject({ request, payload, files, v
     const data = new FormData();
     data.append('file', item.file); data.append('kind', item.kind);
     data.append('songwritingClaim', String(payload.ownerSongwritingClaim));
-    if (['initial_stem', 'click_track'].includes(item.kind)) data.append('createdEntirelyWithAi', String(item.createdEntirelyWithAi));
+    if (['initial_stem', 'temporary_stem', 'click_track'].includes(item.kind)) data.append('createdEntirelyWithAi', String(item.createdEntirelyWithAi));
+    if (item.kind === 'temporary_stem') data.append('replacementRoleName', item.replacementRoleName);
     if (item.kind === 'initial_stem') data.append('finalStemConfirmed', 'true');
     const uploaded = await request({ method: 'post', url: `/projects/${progress.projectId}/assets`, data });
     progress.uploaded[item.id] = uploaded.data.asset._id;
@@ -63,6 +68,7 @@ export async function submitOriginalStartingProject({ request, payload, files, v
     await request({ method: 'post', url: `/projects/${progress.projectId}/assets`, data });
     progress.voices[startingFileKey(voiceNote)] = true;
   }
+  if (draftOnly) { onProgress({ projectId: progress.projectId, message: 'Draft saved.' }); return; }
   onProgress({ projectId: progress.projectId, message: 'All starting files uploaded. Submitting for review…' });
   await request({ method: 'post', url: `/projects/${progress.projectId}/submit-for-moderation` });
   progress.submitted = true;

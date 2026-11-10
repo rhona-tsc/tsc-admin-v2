@@ -1,4 +1,5 @@
 const idOf = value => String(value?._id || value || '');
+const roleKey = value => String(value || '').trim().toLowerCase();
 const active = asset => asset?._id && (!asset.state || asset.state === 'active');
 const referenceLabels = {
   guide_track: 'Listen to the guide',
@@ -16,11 +17,14 @@ export function originalProjectListening({ assets = [], submissions = [] } = {})
   }));
   const layers = new Map();
   for (const asset of available.values()) {
+    if (asset.kind === 'temporary_stem') layers.set(idOf(asset._id), { ...asset, label: `${asset.replacementRoleName || 'Starting part'} — temporary` });
     if (asset.kind === 'initial_stem' && asset.finalEligible !== false) layers.set(idOf(asset._id), { ...asset, label: 'Original stem' });
   }
+  const replacedRoles = new Set();
   const addTake = (submission, take, ranges) => {
     const asset = available.get(idOf(take?.stemAssetId));
     if (!asset || asset.kind !== 'take_stem' || asset.finalEligible === false) return;
+    replacedRoles.add(roleKey(submission.roleName));
     const key = idOf(asset._id);
     const existing = layers.get(key);
     // An entire approved take supersedes any partial ranges of that same stem.
@@ -45,7 +49,7 @@ export function originalProjectListening({ assets = [], submissions = [] } = {})
       }
     }
   }
-  const projectTracks = [...layers.values()];
+  const projectTracks = [...layers.values()].filter(asset => asset.kind !== 'temporary_stem' || !replacedRoles.has(roleKey(asset.replacementRoleName)));
   return { references: projectTracks.length ? references.filter(asset => asset.kind !== "initial_stem") : references, projectTracks };
 
 }

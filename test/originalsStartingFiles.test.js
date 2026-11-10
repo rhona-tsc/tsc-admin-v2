@@ -74,3 +74,31 @@ test('a moderation failure retries only the final step and does not upload the s
   fail = false; await submitOriginalStartingProject({ request, payload, files, progress });
   assert.equal(calls.filter(url => url.endsWith('/assets')).length, 1); assert.equal(progress.submitted, true);
 });
+
+test('temporary starting stems are working material, need a replacement role, and do not need a final-production declaration', async () => {
+  const temporary = { ...entry('Keyboard', 'temporary_stem', true), replacementRoleName: 'Keyboard' };
+  assert.deepEqual(originalStartingMaterial([temporary]), { sourceType: 'temporary_stem', hasInitialStem: true });
+  assert.match(originalStartingFilesError([temporary], false), /replacement role/);
+  assert.equal(originalStartingFilesError([temporary], false, [{ name: 'Keyboard' }]), '');
+  let uploaded;
+  const request = async config => {
+    if(config.url === '/projects') return { data: { project: { _id: 'project' } } };
+    if(config.url.endsWith('/assets')) uploaded=config.data;
+    return { data: { asset: { _id: 'temporary' } } };
+  };
+  await submitOriginalStartingProject({ request, payload, files: [temporary], progress: {} });
+  assert.equal(uploaded.get('kind'), 'temporary_stem'); assert.equal(uploaded.get('replacementRoleName'), 'Keyboard');
+  assert.equal(uploaded.get('createdEntirelyWithAi'), 'true'); assert.equal(uploaded.has('finalStemConfirmed'), false);
+});
+
+test('editing reclassifies existing stems and saves a draft without uploading them again or submitting for approval', async () => {
+ const files=[{...entry('existing','temporary_stem',true),replacementRoleName:'Keyboard'}];
+ const progress={projectId:'project',editing:true,uploaded:{existing:'asset'}};
+ const calls=[];const request=async config=>{calls.push(config);return {data:{}};};
+ await submitOriginalStartingProject({request,payload,files,progress,draftOnly:true});
+ assert.equal(calls.length,1);assert.equal(calls[0].method,'patch');assert.equal(calls[0].url,'/projects/project/draft');
+ assert.deepEqual(calls[0].data.assets,[{assetId:'asset',kind:'temporary_stem',createdEntirelyWithAi:true,replacementRoleName:'Keyboard',finalStemConfirmed:false}]);
+ assert.equal(progress.submitted,undefined);
+ await submitOriginalStartingProject({request,payload,files,progress});
+ assert.equal(calls.at(-1).url,'/projects/project/submit-for-moderation');assert.equal(progress.submitted,true);
+});

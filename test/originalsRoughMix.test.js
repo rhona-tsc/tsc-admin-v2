@@ -69,3 +69,7 @@ test('soloing a reference cannot accidentally export the other stems', () => {
  assert.deepEqual(originalDownloadTracks(tracks,{guide:{solo:true}}),[]);
  assert.deepEqual(originalDownloadTracks(tracks,{bass:{volume:0.3}}).map(track=>[track._id,track.volume]),[['bass',0.3]]);
 });
+
+test('a non-final temporary production stem is permitted in working recording mixes', () => {
+ assert.deepEqual(originalDownloadTracks([{_id:'temporary',kind:'temporary_stem',finalEligible:false},{_id:'idea',kind:'guide_track',finalEligible:false}]).map(track=>track._id),['temporary']);
+});

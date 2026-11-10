@@ -509,6 +509,7 @@ const App = () => {
               path="/originals/new"
               element={<RequireOriginalsAccess allowed={originalsAvailable}><ListOriginalProject token={token} /></RequireOriginalsAccess>}
             />
+            <Route path="/originals/:id/edit" element={<RequireOriginalsAccess allowed={originalsAvailable}><ListOriginalProject token={token} /></RequireOriginalsAccess>} />
             <Route
               path="/originals/owner-agreement"
               element={<RequireOriginalsAccess allowed={originalsAvailable}><OriginalsOwnerAgreement token={token} /></RequireOriginalsAccess>}

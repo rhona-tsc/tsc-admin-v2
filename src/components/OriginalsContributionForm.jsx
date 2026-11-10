@@ -13,18 +13,20 @@ import SectionLink from './OriginalsSectionLink';
 const heading = 'text-sm font-bold uppercase tracking-wide text-slate-800';
 const idOf = value => String(value?._id || value || '');
 
-function ReferenceUpload({ token, projectId, roundId, disabled, onBusyChange, onRefresh }) {
+function ReferenceUpload({ token, projectId, roundId, roles = [], temporaryAllowed = false, disabled, onBusyChange, onRefresh }) {
   const input = useRef(null);
   const [finalConfirmed, setFinalConfirmed] = useState(false);
+  const [replacementRoleName, setReplacementRoleName] = useState('');
   const [kind, setKind] = useState('demo'), [file, setFile] = useState(null), [ai, setAi] = useState(false), [error, setError] = useState('');
   const upload = async () => {
-    if (!file || disabled || (kind === 'initial_stem' && !finalConfirmed)) return;
+    if (!file || disabled || (kind === 'initial_stem' && !finalConfirmed) || (kind === 'temporary_stem' && !replacementRoleName)) return;
     setError(''); onBusyChange(true);
     try {
       const body = new FormData(); body.append('file', file); body.append('kind', kind);
       if (kind === 'initial_stem') body.append('finalStemConfirmed', 'true');
+      if (kind === 'temporary_stem') body.append('replacementRoleName', replacementRoleName);
       if (roundId) body.append('roundId', roundId);
-      if (['initial_stem', 'click_track'].includes(kind)) body.append('createdEntirelyWithAi', String(ai));
+      if (['initial_stem', 'temporary_stem', 'click_track'].includes(kind)) body.append('createdEntirelyWithAi', String(ai));
       await originalsRequest(token, { method: 'post', url: `/projects/${projectId}/assets`, data: body });
       setFile(null); setAi(false); setFinalConfirmed(false); if (input.current) input.current.value = '';
       await onRefresh(); toast.success('Project reference uploaded');
@@ -33,12 +35,13 @@ function ReferenceUpload({ token, projectId, roundId, disabled, onBusyChange, on
   };
   return <details className="mt-4 rounded-lg border p-3"><summary className="cursor-pointer text-sm font-semibold">Owner tools: add a project reference</summary>
     <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_2fr_auto]">
-      <label className="text-sm">Reference type<select aria-label="Project reference type" value={kind} disabled={disabled} onChange={event => { setKind(event.target.value); setAi(false); setFinalConfirmed(false); }} className="mt-1 w-full rounded border p-2">{[['demo', 'Idea / demo — reference only'], ['guide_track', 'Guide — reference only'], ['video_submission', 'Video — reference only'], ['click_track', 'Click — recording aid only'], ['initial_stem', 'Stem intended for the final production']].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+      <label className="text-sm">Reference type<select aria-label="Project reference type" value={kind} disabled={disabled} onChange={event => { setKind(event.target.value); setAi(false); setFinalConfirmed(false); }} className="mt-1 w-full rounded border p-2">{[['demo', 'Idea / demo — reference only'], ['guide_track', 'Guide — reference only'], ['video_submission', 'Video — reference only'], ['click_track', 'Click — recording aid only'], ['initial_stem', 'Stem intended for the final production'], ...(temporaryAllowed ? [['temporary_stem', 'Temporary production stem — replace before completion']] : [])].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       <label className="min-w-0 text-sm">Choose reference file<input ref={input} type="file" disabled={disabled} accept="audio/*,video/mp4,video/quicktime,.wav,.aiff,.flac,.m4a,.mov" onChange={event => { setFile(event.target.files?.[0] || null); setAi(false); setFinalConfirmed(false); }} className="mt-1 w-full min-w-0 max-w-full rounded border p-2" /></label>
-      <button type="button" disabled={disabled || !file || (kind === 'initial_stem' && !finalConfirmed)} onClick={upload} className="self-end rounded border px-3 py-2 text-sm font-semibold disabled:opacity-40">Upload reference</button>
+      <button type="button" disabled={disabled || !file || (kind === 'initial_stem' && !finalConfirmed) || (kind === 'temporary_stem' && !replacementRoleName)} onClick={upload} className="self-end rounded border px-3 py-2 text-sm font-semibold disabled:opacity-40">Upload reference</button>
     </div>
-    {kind === 'initial_stem' ? <label className="mt-3 flex items-start gap-2 text-sm"><input type="checkbox" checked={finalConfirmed} disabled={disabled} onChange={event => setFinalConfirmed(event.target.checked)} />This is a musical part intended for the final production, not an idea, demo or guide.</label> : <p className="mt-3 text-xs text-amber-800">{kind === 'click_track' ? 'The click is an optional recording aid and is not part of the final production.' : 'Reference only — listen separately; excluded from mix downloads and the final production.'}</p>}
-    {file && ['initial_stem', 'click_track'].includes(kind) && <OriginalsAiDeclaration checked={ai} onChange={setAi} disabled={disabled} />}
+    {kind === 'initial_stem' ? <label className="mt-3 flex items-start gap-2 text-sm"><input type="checkbox" checked={finalConfirmed} disabled={disabled} onChange={event => setFinalConfirmed(event.target.checked)} />This is a musical part intended for the final production, not an idea, demo or guide.</label> : <p className="mt-3 text-xs text-amber-800">{kind === 'temporary_stem' ? 'Included in working mixes until its replacement is approved. It cannot be used in the final production.' : kind === 'click_track' ? 'The click is an optional recording aid and is not part of the final production.' : 'Reference only — listen separately; excluded from mix downloads and the final production.'}</p>}
+    {kind === 'temporary_stem' && <label className="mt-3 block text-sm">Replace when this role is approved<select required disabled={disabled} value={replacementRoleName} onChange={event => setReplacementRoleName(event.target.value)} className="mt-1 w-full rounded border p-2"><option value="">Choose replacement role</option>{roles.map(role => <option key={role.name}>{role.name}</option>)}</select></label>}
+    {file && ['initial_stem', 'temporary_stem', 'click_track'].includes(kind) && <OriginalsAiDeclaration checked={ai} onChange={setAi} disabled={disabled} />}
     {error && <p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
   </details>;
 }
@@ -173,7 +176,7 @@ export default function OriginalsContributionForm({ token, project, currentRound
       <button type="button" aria-describedby={reservation ? "take-submission-status" : "recording-availability"} disabled={disabled || !reservation || (isProduction ? !productionReady : !stemSubmission.ready)} onClick={submit} className="mt-3 rounded bg-black px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{working === 'submit' ? 'Submitting…' : isProduction ? `Submit ${currentRound.type} for review` : editing ? 'Submit revised take for review' : 'Submit take for review'}</button>
       {reservation && !editing && <p className="mt-3 text-xs text-gray-600">Need longer? <SectionLink to="project-extensions">Request an extension</SectionLink> before your reservation expires.</p>}
     </>
-    {canManage && <ReferenceUpload token={token} projectId={project._id} roundId={currentRound?._id} disabled={disabled} onBusyChange={onBusyChange} onRefresh={onRefresh} />}
+    {canManage && <ReferenceUpload token={token} roles={project.requestedRoles || []} temporaryAllowed={['draft', 'changes_requested', 'live', 'foundation_open', 'role_round_open', 'owner_review'].includes(project.state)} projectId={project._id} roundId={currentRound?._id} disabled={disabled} onBusyChange={onBusyChange} onRefresh={onRefresh} />}
     {!!otherFiles.length && <details className="mt-4 rounded-lg border p-3"><summary className="cursor-pointer text-sm font-semibold">Project files{reservation ? ' & earlier uploads' : ''}</summary><OriginalsFilesPlayback token={token} assets={otherFiles} submissions={submissions} viewerId={viewerId} canManage={canManage} /></details>}
   </section>;
 }

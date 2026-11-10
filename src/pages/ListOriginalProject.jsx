@@ -2,7 +2,7 @@ import { recordingOrderError } from '../utils/originalsRecordingOrder';
 import OriginalsStartingFiles from "../components/OriginalsStartingFiles";
 import { originalStartingMaterial, originalStartingFilesError, submitOriginalStartingProject } from "../utils/originalsStartingFiles";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import Title from "../components/Title";
 import OriginalsAgreementText from "../components/OriginalsAgreementText";
@@ -17,6 +17,9 @@ const emptyRole = () => ({ name: "", foundationEligible: false, recordingOrder: 
 
 const ListOriginalProject = ({ token }) => {
   const navigate = useNavigate();
+  const { id: editingId } = useParams();
+  const [loadingDraft, setLoadingDraft] = useState(Boolean(editingId));
+  const [draftError, setDraftError] = useState('');
   const { agreement: ownerAgreement, error: ownerAgreementError, reload: reloadOwnerAgreement } = useOriginalsOwnerAgreement(token);
   const [saving, setSaving] = useState(false);
   const [choosingMusicianFor, setChoosingMusicianFor] = useState(null);
@@ -48,6 +51,25 @@ const ListOriginalProject = ({ token }) => {
   });
 
   useEffect(() => {
+    if (!editingId) return;
+    let cancelled = false;
+    setLoadingDraft(true); setDraftError('');
+    originalsRequest(token, { method: 'post', url: `/projects/${editingId}/edit-draft` })
+      .then(({ data }) => {
+        if (cancelled) return;
+        const project = data.project;
+        const files = (data.assets || []).map(asset => ({ id: String(asset._id), assetId: String(asset._id), file: { name: asset.originalName, size: asset.bytes, type: asset.mimeType }, kind: asset.kind === 'demo' ? 'guide_track' : asset.kind, createdEntirelyWithAi: asset.createdEntirelyWithAi === true, replacementRoleName: asset.replacementRoleName || '' }));
+        setStartingFiles(files);
+        uploadProgress.current = { projectId: project._id, editing: true, uploaded: Object.fromEntries(files.map(item => [item.id, item.assetId])), voices: {} };
+        setDraftProjectId(project._id);
+        setForm(current => ({ ...current, ...project, genres: (project.genres || []).join(', '), bpm: project.bpm ?? '', requestedRoles: (project.requestedRoles || []).map(role => { const preferred = (data.preferredPlaces || []).find(place => place.roleName === role.name); return { ...role, recordingOrder: role.recordingOrder ?? '', preferredMusicianId: preferred?.musicianId || '', preferredDisplayName: preferred?.assignedDisplayName || (preferred ? 'Preferred musician' : '') }; }), ownerAgreementAccepted: false, ownerAgreementDisplayName: project.ownerAgreement?.displayName || '', originalWorkConfirmed: false }));
+      })
+      .catch(error => { if (!cancelled) setDraftError(error.response?.data?.message || 'Could not open this submission for editing.'); })
+      .finally(() => { if (!cancelled) setLoadingDraft(false); });
+    return () => { cancelled = true; };
+  }, [editingId, token]);
+
+  useEffect(() => {
     setForm(current => current.ownerAgreementAccepted ? { ...current, ownerAgreementAccepted: false } : current);
   }, [ownerAgreement?.textHash]);
 
@@ -65,18 +87,18 @@ const ListOriginalProject = ({ token }) => {
       ),
     }));
 
-  const submit = async (event) => {
+  const submit = async (event, { draftOnly = false } = {}) => {
     event.preventDefault();
     if (saving) return;
     if (recordingVoiceNoteRef.current) return toast.error("Stop or cancel the voice recording before submitting the project.");
-    if (!ownerAgreement) return toast.error("Load and read the owner agreement before submitting the project.");
-    if (!form.ownerAgreementAccepted || !form.ownerAgreementDisplayName.trim()) return toast.error("Accept the owner agreement and enter your full name.");
+    if (!draftOnly && !ownerAgreement) return toast.error("Load and read the owner agreement before submitting the project.");
+    if (!draftOnly && (!form.ownerAgreementAccepted || !form.ownerAgreementDisplayName.trim())) return toast.error("Accept the owner agreement and enter your full name.");
     if (recordingOrderError(validRoles)) return toast.error(recordingOrderError(validRoles));
     if (!validRoles.length) return toast.error("Add at least one instrument or role");
-    if (["none", "video_demo"].includes(startingMaterial.sourceType) && !validRoles.some((role) => role.foundationEligible)) {
+    if (!draftOnly && ["none", "video_demo"].includes(startingMaterial.sourceType) && !validRoles.some((role) => role.foundationEligible)) {
       return toast.error("Choose at least one role that can start the foundation");
     }
-    const fileError = originalStartingFilesError(startingFiles, initialFinalConfirmed);
+    const fileError = originalStartingFilesError(startingFiles, initialFinalConfirmed, validRoles);
     if (fileError) return toast.error(fileError);
 
     try {
@@ -84,18 +106,19 @@ const ListOriginalProject = ({ token }) => {
       const payload = {
         ...form,
         ...startingMaterial,
+        ownerAgreementAccepted: !draftOnly && form.ownerAgreementAccepted,
         bpm: form.bpm ? Number(form.bpm) : null,
         genres: form.genres.split(",").map((item) => item.trim()).filter(Boolean),
         requestedRoles: validRoles,
         preferredMusicians: validRoles.filter(role => role.preferredMusicianId).map(role => ({ roleName: role.name, musicianId: role.preferredMusicianId })),
-        ownerAgreement: { version: ownerAgreement.version, textHash: ownerAgreement.textHash, acknowledgement: ownerAgreement.acknowledgement },
+        ownerAgreement: { version: ownerAgreement?.version, textHash: ownerAgreement?.textHash, acknowledgement: ownerAgreement?.acknowledgement },
       };
       await submitOriginalStartingProject({
         request: config => originalsRequest(token, config), payload, files: startingFiles, voiceNote,
-        progress: uploadProgress.current,
+        progress: uploadProgress.current, draftOnly,
         onProgress: ({ projectId, message }) => { setDraftProjectId(projectId); setUploadStatus(message); },
       });
-      toast.success("Originals project submitted for moderation");
+      toast.success(draftOnly ? "Project draft saved" : editingId ? "Project changes submitted for approval" : "Originals project submitted for moderation");
       navigate("/originals/mine");
     } catch (error) {
       if (error.response?.data?.code === 'ORIGINALS_AGREEMENT_REQUIRED') reloadOwnerAgreement();
@@ -107,11 +130,14 @@ const ListOriginalProject = ({ token }) => {
     }
   };
 
+  if (loadingDraft) return <p className="p-8">Opening your submission for editing…</p>;
+  if (draftError) return <div className="p-8"><p role="alert" className="text-red-700">{draftError}</p><Link to="/originals/mine" className="mt-3 inline-block underline">Back to my projects</Link></div>;
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
-      <Title text1="LIST AN" text2="ORIGINALS PROJECT" />
+      <Title text1={editingId ? "EDIT YOUR" : "LIST AN"} text2="ORIGINALS PROJECT" />
       <p className="mt-3 text-sm text-gray-600">
-        Start an original collaboration. Listings are reviewed by TSC before musicians are notified.
+        {editingId ? "This project is now a draft and is out of the approval queue. Save your changes or resubmit when ready. Your existing files are kept unless you remove them below." : "Start an original collaboration. Listings are reviewed by TSC before musicians are notified."}
       </p>
 
       <form onSubmit={submit} className="mt-6 space-y-6 rounded-xl border bg-white p-6 shadow-sm">
@@ -133,7 +159,7 @@ const ListOriginalProject = ({ token }) => {
         <section>
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-gray-900">Requested instruments and roles</h2>
-            <button type="button" disabled={saving || Boolean(draftProjectId)} onClick={() => setField("requestedRoles", [...form.requestedRoles, emptyRole()])} className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50">+ Add role</button>
+            <button type="button" disabled={saving || (Boolean(draftProjectId) && !editingId)} onClick={() => setField("requestedRoles", [...form.requestedRoles, emptyRole()])} className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50">+ Add role</button>
           </div>
           <p className="mt-1 text-xs text-gray-500">
             Optionally number roles in your preferred recording order (1–30). Leave blank if undecided. We will suggest your next numbered role after each approval; you can change it then. TSC can follow this plan if a review is overdue. Mixing and mastering follow as separate final stages.
@@ -143,7 +169,7 @@ const ListOriginalProject = ({ token }) => {
               <div key={index} className="space-y-3 rounded border p-3">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
 
-                <input disabled={saving || Boolean(draftProjectId)} value={role.name} onChange={(e) => setRole(index, { name: e.target.value })} placeholder="Guitar, vocals, click track…" className="flex-1 rounded border px-3 py-2" />
+                <input disabled={saving || (Boolean(draftProjectId) && !editingId)} value={role.name} onChange={(e) => setRole(index, { name: e.target.value })} placeholder="Guitar, vocals, click track…" className="flex-1 rounded border px-3 py-2" />
                 <label className="shrink-0 text-xs font-medium">Recording order (optional)<input aria-label={`Recording order for role ${index + 1}`} type="number" min="1" max="30" step="1" value={role.recordingOrder ?? ''} onChange={event => setRole(index, { recordingOrder: event.target.value })} className="mt-1 block w-24 rounded border p-2" placeholder="—" /></label>
                 {["none", "video_demo"].includes(startingMaterial.sourceType) ? (
                   <label className="flex items-center gap-2 text-sm">
@@ -152,15 +178,15 @@ const ListOriginalProject = ({ token }) => {
                   </label>
                 ) : null}
                 {form.requestedRoles.length > 1 ? (
-                  <button type="button" disabled={saving || Boolean(draftProjectId)} onClick={() => { setField("requestedRoles", form.requestedRoles.filter((_, roleIndex) => roleIndex !== index)); setChoosingMusicianFor(null); }} className="text-sm text-red-600">Remove</button>
+                  <button type="button" disabled={saving || (Boolean(draftProjectId) && !editingId)} onClick={() => { setField("requestedRoles", form.requestedRoles.filter((_, roleIndex) => roleIndex !== index)); setChoosingMusicianFor(null); }} className="text-sm text-red-600">Remove</button>
                 ) : null}
                 </div>
                 <div className="text-sm">
                   <span className="font-medium">Preferred musician (optional): </span>{role.preferredDisplayName || 'No place held'}
-                  <button type="button" disabled={saving || Boolean(draftProjectId) || !role.name.trim()} onClick={() => setChoosingMusicianFor(choosingMusicianFor === index ? null : index)} className="ml-2 underline">{choosingMusicianFor === index ? 'Close chooser' : role.preferredMusicianId ? 'Change musician' : 'Choose musician'}</button>
-                  {role.preferredMusicianId && <button type="button" disabled={saving || Boolean(draftProjectId)} onClick={() => setRole(index, { preferredMusicianId: '', preferredDisplayName: '' })} className="ml-2 underline">Clear</button>}
+                  <button type="button" disabled={saving || (Boolean(draftProjectId) && !editingId) || !role.name.trim()} onClick={() => setChoosingMusicianFor(choosingMusicianFor === index ? null : index)} className="ml-2 underline">{choosingMusicianFor === index ? 'Close chooser' : role.preferredMusicianId ? 'Change musician' : 'Choose musician'}</button>
+                  {role.preferredMusicianId && <button type="button" disabled={saving || (Boolean(draftProjectId) && !editingId)} onClick={() => setRole(index, { preferredMusicianId: '', preferredDisplayName: '' })} className="ml-2 underline">Clear</button>}
                 </div>
-                {choosingMusicianFor === index && <OriginalsMusicianBrowser token={token} creatingProject initialInstrument={role.name} selectedId={role.preferredMusicianId} disabled={saving || Boolean(draftProjectId)} onSelect={(id, musician) => { if (id) { setRole(index, { preferredMusicianId: id, preferredDisplayName: musician.displayName }); setChoosingMusicianFor(null); } }} />}
+                {choosingMusicianFor === index && <OriginalsMusicianBrowser token={token} creatingProject initialInstrument={role.name} selectedId={role.preferredMusicianId} disabled={saving || (Boolean(draftProjectId) && !editingId)} onSelect={(id, musician) => { if (id) { setRole(index, { preferredMusicianId: id, preferredDisplayName: musician.displayName }); setChoosingMusicianFor(null); } }} />}
               </div>
             ))}
           </div>
@@ -173,7 +199,7 @@ const ListOriginalProject = ({ token }) => {
           </section>
         </section>
 
-        <OriginalsStartingFiles files={startingFiles} onChange={setStartingFiles} disabled={saving} uploaded={uploadProgress.current.uploaded} finalConfirmed={initialFinalConfirmed} onFinalConfirmed={setInitialFinalConfirmed} />
+        <OriginalsStartingFiles editing={Boolean(editingId)} roles={validRoles} files={startingFiles} onChange={setStartingFiles} disabled={saving} uploaded={uploadProgress.current.uploaded} finalConfirmed={initialFinalConfirmed} onFinalConfirmed={setInitialFinalConfirmed} />
         {!!startingFiles.length && <label className="flex items-start gap-2 text-sm"><input type="checkbox" disabled={saving} checked={form.ownerSongwritingClaim} onChange={event => setField('ownerSongwritingClaim', event.target.checked)} />I am claiming songwriting credit for the composition demonstrated in the starting material.</label>}
         <OriginalsVoiceNoteRecorder value={voiceNote} onChange={setVoiceNote} disabled={saving} onRecordingChange={recording => { recordingVoiceNoteRef.current = recording; setRecordingVoiceNote(recording); }} />
 
@@ -214,9 +240,10 @@ const ListOriginalProject = ({ token }) => {
           <a href="/originals/owner-agreement" target="_blank" rel="noopener noreferrer" className="inline-block text-xs underline">Open a printable copy in a new tab</a>
         </section>
 
+        {editingId && <button type="button" disabled={saving || recordingVoiceNote} onClick={event => submit(event, { draftOnly: true })} className="w-full rounded border px-5 py-3 font-semibold disabled:opacity-40">Save draft</button>}
         {uploadStatus && <p role="status" className="rounded bg-slate-50 p-3 text-sm">{uploadStatus}</p>}
         <button disabled={saving || recordingVoiceNote || !ownerAgreement} className="w-full rounded bg-black px-5 py-3 font-semibold text-white hover:bg-[#ff6667] disabled:opacity-50">
-          {saving ? "Uploading & submitting…" : draftProjectId ? "Retry & submit this project" : "Submit for moderation"}
+          {saving ? "Uploading & submitting…" : editingId ? "Resubmit for approval" : draftProjectId ? "Retry & submit this project" : "Submit for moderation"}
         </button>
       </form>
     </div>

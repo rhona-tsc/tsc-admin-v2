@@ -21,7 +21,7 @@ export default function OriginalsFilesPlayback({ token, assets = [], submissions
     const approved = [...listening.projectTracks, ...listening.references.filter(asset => asset.kind === 'initial_stem' || asset.listeningLabel === 'Listen to the approved stem')];
     const approvedMap = new Map(approved.map(track => [String(track._id), track]));
     const wet = new Set(submissions.flatMap(item => (item.takes || []).map(take => String(take.wetStemAssetId || ''))));
-    const tracks = assets.filter(asset => asset.state === 'active' && ['take_stem','initial_stem'].includes(asset.kind) && (canManage || String(asset.ownerId) === String(viewerId) || approvedMap.has(String(asset._id)))).map(asset => ({ ...(approvedMap.get(String(asset._id)) || asset), label: asset.originalName }));
+    const tracks = assets.filter(asset => asset.state === 'active' && (['take_stem','initial_stem'].includes(asset.kind) || (asset.kind === 'temporary_stem' && approvedMap.has(String(asset._id)))) && (canManage || String(asset.ownerId) === String(viewerId) || approvedMap.has(String(asset._id)))).map(asset => ({ ...(approvedMap.get(String(asset._id)) || asset), label: asset.originalName }));
     return { tracks, selected: tracks.filter(track => !wet.has(String(track._id))).map(track => String(track._id)) };
   }, [assets, submissions, viewerId, canManage]);
   return <div ref={root}>{open && <div className="mt-4 space-y-3">

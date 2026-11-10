@@ -6,6 +6,6 @@ export default function OriginalsAiDeclaration({ checked, onChange, disabled = f
 }
 
 export function OriginalsAiStatus({ asset }) {
-  if (!['initial_stem', 'take_stem', 'click_track'].includes(asset?.kind) || asset.createdEntirelyWithAi !== true) return null;
+  if (!['initial_stem', 'temporary_stem', 'take_stem', 'click_track'].includes(asset?.kind) || asset.createdEntirelyWithAi !== true) return null;
   return <span className="inline-block rounded bg-amber-100 px-2 py-1 text-xs font-normal text-amber-900">AI-created</span>;
 }

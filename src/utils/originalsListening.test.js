@@ -61,3 +61,15 @@ test('a selected grouped take layers all its stems with the same approval window
   assert.deepEqual(result.projectTracks.map(item => item._id), ['lead','harmony','double']);
   for (const track of result.projectTracks) { assert.equal(trackIsAudibleAt(track, 1), false); assert.equal(trackIsAudibleAt(track, 3), true); assert.equal(trackIsAudibleAt(track, 6), false); }
 });
+
+test('temporary production stems play until a valid approved replacement for their role exists', () => {
+  const placeholder = asset('temporary-keys', 'temporary_stem', { finalEligible: false, replacementRoleName: 'Keys' });
+  const assets = [placeholder, asset('real-keys'), asset('bass')];
+  const chosen = accepted('keys-recording', [take('chosen', 'real-keys')]);
+  assert.deepEqual(originalProjectListening({ assets }).projectTracks.map(track => track._id), ['temporary-keys']);
+  for (const extra of [{ state: 'submitted' }, { state: 'rejected' }, { roleName: 'Bass' }, { selectedTakeId: 'missing' }]) {
+    assert.ok(originalProjectListening({ assets, submissions: [{ ...chosen, ...extra }] }).projectTracks.some(track => track._id === 'temporary-keys'));
+  }
+  assert.deepEqual(originalProjectListening({ assets, submissions: [chosen] }).projectTracks.map(track => track._id), ['real-keys']);
+  assert.deepEqual(originalProjectListening({ assets, submissions: [{ ...chosen, state: 'retracted' }] }).projectTracks.map(track => track._id), ['temporary-keys']);
+});
