@@ -12,6 +12,37 @@ const dlog = (...args) => DBG && console.log("🧩[ActPreSubmissionsPage]", ...a
 const dwarn = (...args) => DBG && console.warn("🧩[ActPreSubmissionsPage]", ...args);
 const derr = (...args) => DBG && console.error("🧩[ActPreSubmissionsPage]", ...args);
 
+const getVideoDetails = (value = "") => {
+  try {
+    const url = new URL(String(value || "").trim());
+    const host = url.hostname.replace(/^www\./, "").toLowerCase();
+
+    if (host === "youtu.be") {
+      const id = url.pathname.split("/").filter(Boolean)[0];
+      return id
+        ? { embedUrl: `https://www.youtube-nocookie.com/embed/${id}`, thumbnailUrl: `https://img.youtube.com/vi/${id}/hqdefault.jpg` }
+        : null;
+    }
+
+    if (host === "youtube.com" || host.endsWith(".youtube.com")) {
+      const parts = url.pathname.split("/").filter(Boolean);
+      const id = url.searchParams.get("v") || (["shorts", "embed"].includes(parts[0]) ? parts[1] : "");
+      return id
+        ? { embedUrl: `https://www.youtube-nocookie.com/embed/${id}`, thumbnailUrl: `https://img.youtube.com/vi/${id}/hqdefault.jpg` }
+        : null;
+    }
+
+    if (host === "vimeo.com" || host.endsWith(".vimeo.com")) {
+      const id = url.pathname.split("/").filter(Boolean).find((part) => /^\d+$/.test(part));
+      return id ? { embedUrl: `https://player.vimeo.com/video/${id}`, thumbnailUrl: "" } : null;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+};
+
 const ActPreSubmissionPage = () => {
   const [pendingActs, setPendingActs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,6 +52,7 @@ const ActPreSubmissionPage = () => {
   const [selectedId, setSelectedId] = useState(null);
   const [selectedAct, setSelectedAct] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
+  const [activeVideoUrl, setActiveVideoUrl] = useState("");
 
   const getToken = () =>
     localStorage.getItem("authToken") || localStorage.getItem("token") || "";
@@ -92,6 +124,7 @@ const ActPreSubmissionPage = () => {
       setSelectedId(id);
       setSelectedAct(null);
       setModalLoading(true);
+      setActiveVideoUrl("");
 
       // 🔧 Change this if your route differs
       const fetchOneUrl = `${backendUrl}/api/act-pre-submissions/${id}?_cb=${Date.now()}`;
@@ -136,6 +169,7 @@ const ActPreSubmissionPage = () => {
     setSelectedId(null);
     setSelectedAct(null);
     setModalLoading(false);
+    setActiveVideoUrl("");
   };
 
   const updateStatus = async (id, action) => {
@@ -215,6 +249,14 @@ const ActPreSubmissionPage = () => {
   useEffect(() => {
     fetchPendingActs();
   }, []);
+
+  const selectedVideos = [
+    selectedAct?.videoLink1,
+    selectedAct?.videoLink2,
+    selectedAct?.videoLink3,
+  ]
+    .map((url, index) => ({ url: String(url || "").trim(), label: `Video ${index + 1}` }))
+    .filter((video) => video.url);
 
   return (
     <div>
@@ -315,7 +357,7 @@ const ActPreSubmissionPage = () => {
             if (e.target === e.currentTarget) closeModal();
           }}
         >
-          <div className="w-full max-w-4xl bg-white rounded-xl shadow-xl overflow-hidden">
+          <div className="w-full max-w-5xl max-h-[92vh] bg-white rounded-xl shadow-xl overflow-y-auto">
             {/* header */}
             <div className="flex items-center justify-between p-4 border-b">
               <div className="min-w-0">
@@ -348,7 +390,64 @@ const ActPreSubmissionPage = () => {
               ) : !selectedAct ? (
                 <p className="text-sm text-gray-600">No data loaded.</p>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-4">
+                  {selectedVideos.length ? (
+                    <section>
+                      <h3 className="mb-3 text-sm font-semibold text-gray-900">Submitted videos</h3>
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {selectedVideos.map((video) => {
+                          const details = getVideoDetails(video.url);
+                          const isPlaying = activeVideoUrl === video.url && details?.embedUrl;
+
+                          return (
+                            <article key={`${video.label}-${video.url}`} className="overflow-hidden rounded-lg border bg-white">
+                              {isPlaying ? (
+                                <iframe
+                                  src={`${details.embedUrl}?autoplay=1`}
+                                  title={`${selectedAct?.actName || "Act"} ${video.label}`}
+                                  className="aspect-video w-full bg-black"
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                  allowFullScreen
+                                />
+                              ) : details?.thumbnailUrl ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveVideoUrl(video.url)}
+                                  className="group relative block aspect-video w-full overflow-hidden bg-black"
+                                  aria-label={`Play ${video.label}`}
+                                >
+                                  <img src={details.thumbnailUrl} alt="" className="h-full w-full object-cover transition group-hover:scale-105" />
+                                  <span className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                    <span className="flex h-14 w-14 items-center justify-center rounded-full bg-red-600 text-2xl text-white shadow-lg">▶</span>
+                                  </span>
+                                </button>
+                              ) : details?.embedUrl ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveVideoUrl(video.url)}
+                                  className="flex aspect-video w-full items-center justify-center bg-gray-900 text-sm font-semibold text-white"
+                                >
+                                  ▶ Play {video.label}
+                                </button>
+                              ) : (
+                                <a href={video.url} target="_blank" rel="noreferrer" className="flex aspect-video items-center justify-center bg-gray-100 p-4 text-center text-sm text-blue-700 underline">
+                                  Open {video.label}
+                                </a>
+                              )}
+                              <div className="p-3">
+                                <p className="text-sm font-semibold">{video.label}</p>
+                                <a href={video.url} target="_blank" rel="noreferrer" className="mt-1 block truncate text-xs text-blue-700 underline">Open original link</a>
+                              </div>
+                            </article>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ) : (
+                    <p className="rounded border bg-gray-50 p-3 text-sm text-gray-500">No video links were supplied.</p>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-1 space-y-2 text-sm">
                     <div className="border rounded p-3">
                       <p className="text-xs text-gray-500">Status</p>
@@ -414,6 +513,7 @@ const ActPreSubmissionPage = () => {
                       </pre>
                     </div>
                   </div>
+                </div>
                 </div>
               )}
             </div>
