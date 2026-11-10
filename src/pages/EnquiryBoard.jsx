@@ -162,9 +162,25 @@ const columns = [
   { key: "maxBudget", label: "Max Budget", width: 150 },
 ];
 
-const SourceCell = ({ value }) => {
-  const display = String(value || "").trim() || "—";
-  return <span className="whitespace-nowrap">{display}</span>;
+export const SourceCell = ({ value, marketingSource, attribution }) => {
+  const display = String(marketingSource || value || "").trim() || "—";
+  const first = attribution?.firstTouch;
+  const last = attribution?.lastTouch;
+  return <div>
+    <span className="whitespace-nowrap">{display}</span>
+    {attribution && <details className="mt-1 text-xs text-gray-500">
+      <summary className="cursor-pointer">Visit details</summary>
+      <div className="mt-2 space-y-1 min-w-48">
+        <p>First visit: {first?.channel || 'Unknown'}</p>
+        <p>Latest marketing visit: {last?.channel || 'Unknown'}</p>
+        {last?.campaignId && <p>Campaign ID: {last.campaignId}</p>}
+        {last?.adGroupId && <p>Ad group ID: {last.adGroupId}</p>}
+        {last?.keyword && <p>Matched keyword: {last.keyword}</p>}
+        {last?.landingPath && <p>Landing page: {last.landingPath}</p>}
+        {attribution.consentGranted !== true && <p>Advertising details unavailable: consent not granted.</p>}
+      </div>
+    </details>}
+  </div>;
 };
 
 
@@ -349,6 +365,8 @@ const mergeEnquiryRows = (rows) => {
           : existing.createdAt || row.createdAt,
       enquiryDateISO: existing.enquiryDateISO || row.enquiryDateISO,
       agent: existing.agent || row.agent,
+      marketingSource: existing.marketingSource || row.marketingSource,
+      attribution: existing.attribution || row.attribution,
       actName: existing.actName || row.actName,
       actTscName: existing.actTscName || row.actTscName,
       address: existing.address || row.address,
@@ -937,7 +955,7 @@ setTotal(mergedRows.length);
                   {/* Source cell - only render if canManualAdd */}
                   {canManualAdd && (
                     <td className="px-3 py-2">
-                      <SourceCell value={r.agent || ""} />
+                      <SourceCell value={r.agent || ""} marketingSource={r.marketingSource} attribution={r.attribution} />
                     </td>
                   )}
                   {/* The rest of the columns, skipping agent if agentOnly and !canManualAdd */}
