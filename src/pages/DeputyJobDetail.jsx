@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { loginPathFor } from "../utils/loginReturnPath";
 import { toast } from "react-toastify";
 import { backendUrl } from "../App";
 
@@ -296,6 +297,7 @@ const SectionToggleButton = ({ open, onClick, label, count }) => (
 const DeputyJobDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -368,10 +370,8 @@ const DeputyJobDetail = () => {
   const handleExpiredAuth = useCallback(() => {
     clearStoredAuthTokens();
     toast.info("Your session expired. Please log in again to continue.");
-    navigate("/login", {
-      state: { from: `/deputy-jobs/${id}` },
-    });
-  }, [navigate, id]);
+    navigate(loginPathFor(location));
+  }, [navigate, location]);
 
   const loadJob = useCallback(async () => {
     try {
@@ -645,10 +645,9 @@ const DeputyJobDetail = () => {
     toast.info(
       "Please log in or create an account to apply. We’ll bring you back to this job afterwards.",
     );
-    navigate("/login", {
-      state: { from: `/deputy-jobs/${id}` },
-    });
-  }, [navigate, id]);
+    clearStoredAuthTokens();
+    navigate(loginPathFor(location));
+  }, [navigate, location]);
 
   const getCandidateDisplayName = (candidate = {}) => {
     const firstName = String(candidate?.firstName || "").trim();

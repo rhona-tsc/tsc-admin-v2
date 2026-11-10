@@ -139,6 +139,7 @@ const normaliseArray = (value) => {
 };
 
 const getPostedByLabel = (job) => {
+  if (job?.postedByLabel) return job.postedByLabel;
   const createdByEmail = String(job?.createdByEmail || "")
     .trim()
     .toLowerCase();

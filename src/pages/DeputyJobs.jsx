@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { loginPathFor } from "../utils/loginReturnPath";
 import { toast } from "react-toastify";
 import Title from "../components/Title";
 import DeputyJobCard from "../components/DeputyJobCard";
@@ -105,6 +106,7 @@ const getJobDateValue = (job) =>
   toDateInputValue(job?.date || job?.eventDate || "");
 
 const hasStoredCardForJob = (job = {}) => {
+  if (typeof job.isReadyForApplications === "boolean") return job.isReadyForApplications;
   const paymentStatus = String(job?.paymentStatus || "").toLowerCase();
   const jobType = String(job?.jobType || "booked").toLowerCase();
   const createdByEmail = String(job?.createdByEmail || "")
@@ -163,6 +165,7 @@ const DeputyJobs = () => {
   });
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   const rawAuthToken = getStoredAuthToken();
   const authToken =
@@ -438,7 +441,7 @@ const DeputyJobs = () => {
           {authNotice}{" "}
           <button
             type="button"
-            onClick={() => navigate("/login")}
+            onClick={() => navigate(loginPathFor(location))}
             className="font-semibold underline hover:text-black"
           >
             Log in again
@@ -467,7 +470,7 @@ const DeputyJobs = () => {
           )}
 
           <Link
-            to="/login"
+            to={isLoggedIn ? "/musicians-dashboard" : loginPathFor(location)}
             className="inline-flex items-center justify-center rounded-full bg-[#ff6667] px-4 py-2.5 text-sm font-medium text-white transition-colors duration-200 hover:bg-black"
           >
             {isLoggedIn ? "Account" : "Login or Create Account"}

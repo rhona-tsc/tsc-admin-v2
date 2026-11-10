@@ -1,0 +1,3 @@
+# Crawling must remain allowed so search engines can see the site-wide noindex.
+User-agent: *
+Allow: /

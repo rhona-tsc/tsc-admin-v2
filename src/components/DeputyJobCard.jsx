@@ -70,6 +70,7 @@ const jobTypeClasses = {
 };
 
 const getPostedByLabel = (job) => {
+  if (job?.postedByLabel) return job.postedByLabel;
   const createdByEmail = String(job?.createdByEmail || "")
     .trim()
     .toLowerCase();
@@ -173,7 +174,7 @@ const DeputyJobCard = ({
               : "Open";
   const chips = buildTagList(job);
   const commissionText = commissionApplies
-    ? `Net after ${formatMoney(job.commissionAmount || 0, "£0")} commission`
+    ? job.commissionAmount == null ? "Net fee" : `Net after ${formatMoney(job.commissionAmount || 0, "£0")} commission`
     : "";
   const jobTypeText = isEnquiryJob ? "Enquiry" : "Confirmed Booking";
   const postedByLabel = getPostedByLabel(job);

@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { loginPathFor } from "../utils/loginReturnPath";
 
 const BACKEND_BASE = (import.meta.env.VITE_BACKEND_URL || "").replace(
   /\/+$/,
@@ -65,24 +66,6 @@ const getBestAuthToken = () => {
   return fallbackCandidate || { source: "none", token: "" };
 };
 
-const getAuthHeaders = () => {
-  const { token, source } = getBestAuthToken();
-
-  console.log("🔐 DeputyJobApplyButton token selected", {
-    source,
-    tokenPresent: Boolean(token),
-    tokenLength: token?.length || 0,
-    expired: token ? isTokenExpired(token) : false,
-  });
-
-  return token
-    ? {
-        Authorization: `Bearer ${token}`,
-        token,
-      }
-    : {};
-};
-
 const DeputyJobApplyButton = ({
   job,
   onApplied,
@@ -91,10 +74,10 @@ const DeputyJobApplyButton = ({
   showMissingInline = true,
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isApplying, setIsApplying] = useState(false);
   const [hasApplied, setHasApplied] = useState(false);
   const [missingFields, setMissingFields] = useState([]);
-  const [sessionError, setSessionError] = useState("");
   const status = String(job?.status || "open").toLowerCase();
   const isAssigned =
     status === "assigned" || status === "allocated" || status === "filled";
@@ -134,8 +117,21 @@ const DeputyJobApplyButton = ({
     : "bg-[#ff6667] text-white hover:bg-black";
 
   const handleApply = async () => {
-    setSessionError("");
     if (!job?._id || disabled) return;
+
+    const redirectToLogin = () => {
+      for (const key of ["token", "adminToken", "musicianToken"]) {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+      }
+      toast.info("Please log in or create an account. We’ll bring you back here to apply.");
+      navigate(loginPathFor(location));
+    };
+    const auth = getBestAuthToken();
+    if (!auth.token || isTokenExpired(auth.token)) {
+      redirectToLogin();
+      return;
+    }
 
     if (isMultiRole) {
       navigate(`/deputy-jobs/${job._id}`);
@@ -146,34 +142,13 @@ const DeputyJobApplyButton = ({
       setIsApplying(true);
       setMissingFields([]);
 
-      const { token, source } = getBestAuthToken();
+      const { token } = auth;
       const headers = token
         ? {
             Authorization: `Bearer ${token}`,
             token,
           }
         : {};
-
-      console.log("📨 Applying to deputy job", {
-        jobId: job._id,
-        status,
-        tokenSource: source,
-        tokenPresent: Boolean(token),
-        tokenExpired: token ? isTokenExpired(token) : false,
-        headersPresent: Boolean(headers?.Authorization),
-      });
-
-      if (!token) {
-        toast.error("You need to log in or create an account before applying.");
-        return;
-      }
-
-      if (isTokenExpired(token)) {
-        toast.error(
-          "Your session has expired. Please log out and log back in, then try applying again.",
-        );
-        return;
-      }
 
       const { data } = await axios.post(
         `${BACKEND_BASE}/api/deputy-jobs/${job._id}/apply`,
@@ -183,8 +158,6 @@ const DeputyJobApplyButton = ({
           withCredentials: true,
         },
       );
-
-      console.log("✅ apply response", data);
 
       if (!data?.success) {
         throw new Error(data?.message || "Failed to apply for this deputy job");
@@ -211,7 +184,6 @@ const DeputyJobApplyButton = ({
       console.error("❌ One-click apply failed", {
         jobId: job?._id,
         status: responseStatus,
-        data: error?.response?.data,
         message: error?.message,
       });
 
@@ -224,16 +196,10 @@ const DeputyJobApplyButton = ({
         /jwt expired/i.test(responseMessage) ||
         /jwt malformed/i.test(responseMessage) ||
         /invalid token/i.test(responseMessage) ||
-        /unauthorized/i.test(responseMessage) ||
-        /forbidden/i.test(responseMessage);
+        /unauthorized/i.test(responseMessage);
 
       if (authProblem) {
-        setSessionError(
-          "Your login session looks out of date. Please log out and log back in, then try again.",
-        );
-        toast.error(
-          "Your login session looks out of date. Please log out and log back in, then try applying again.",
-        );
+        redirectToLogin();
         return;
       }
 
@@ -257,9 +223,6 @@ const DeputyJobApplyButton = ({
       >
         {buttonText}
       </button>
-      {sessionError ? (
-        <div className="text-xs text-red-600 leading-5">{sessionError}</div>
-      ) : null}
       {showMissingInline && missingFields.length > 0 ? (
         <div className="text-xs text-red-600 leading-5">
           Complete your profile to apply: {missingFields.join(", ")}.

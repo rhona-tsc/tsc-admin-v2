@@ -13,6 +13,14 @@ test('project email destination survives login, refresh and the already-signed-i
 test('login return targets cannot redirect off site or loop back to login', () => {
   for (const input of ['https://example.test', '//example.test', '/\\example.test', '/login?next=/originals/a', '/security', '/moderate', '/list']) assert.equal(safeLoginReturnPath(input), '/musicians-dashboard');
 });
+test('deputy list and individual job return destinations survive a login refresh', () => {
+  for (const pathname of ['/deputy-jobs', '/deputy-jobs/507f1f77bcf86cd799439011']) {
+    const search = '?instrument=saxophone';
+    const hash = '#apply';
+    const login = loginPathFor({ pathname, search, hash });
+    assert.equal(loginReturnPath({ search: login.slice('/login'.length) }), pathname + search + hash);
+  }
+});
 test('Rhona personal account has Originals preview access without opening it to other accounts', () => {
   assert.equal(canAccessOriginalsPreview({ email: ' RHONAGDOWNIE@GMAIL.COM ' }), true);
   assert.equal(canAccessOriginalsPreview({ email: 'someoneelse@gmail.com' }), false);
