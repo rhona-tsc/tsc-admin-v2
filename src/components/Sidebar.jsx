@@ -389,7 +389,7 @@ useEffect(() => {
               state={{ userRole }}
             >
               <span className="grid h-5 w-5 place-items-center rounded bg-white text-xs font-bold text-black">S</span>
-              <p className="hidden md:block text-white">SEO Keywords</p>
+              <p className="hidden md:block text-white">SEO &amp; AI Visibility</p>
             </NavLink>
 
             <NavLink

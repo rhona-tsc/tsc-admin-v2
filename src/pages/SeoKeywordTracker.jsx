@@ -23,6 +23,8 @@ export default function SeoKeywordTracker({ token }) {
   const [tracker, setTracker] = useState(null);
   const [snapshots, setSnapshots] = useState([]);
   const [configured, setConfigured] = useState(false);
+  const [aiConfigured, setAiConfigured] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState("");
   const [oauthAvailable, setOauthAvailable] = useState(false);
   const [oauthCallback, setOauthCallback] = useState("");
   const [loading, setLoading] = useState(true);
@@ -35,7 +37,8 @@ export default function SeoKeywordTracker({ token }) {
       setLoading(true);
       setError("");
       const { data } = await axios.get(`${backendUrl}/api/seo-keywords`, { headers: auth });
-      setTracker(data.tracker);
+      setTracker({ ...data.tracker, aiPrompts: data.tracker.aiPrompts ?? data.defaultAiPrompts ?? [] });
+      setAiConfigured(Boolean(data.aiConfigured));
       setSnapshots(data.snapshots || []);
       setConfigured(Boolean(data.configured));
       setOauthAvailable(Boolean(data.oauthAvailable));
@@ -58,7 +61,15 @@ export default function SeoKeywordTracker({ token }) {
     if (params.has("google")) window.history.replaceState({}, "", window.location.pathname);
   }, []);
 
-  const latest = snapshots[0];
+  const latest = snapshots.find(snapshot => snapshot.periodStart === selectedPeriod) || snapshots[0];
+  const ai = latest?.aiVisibility;
+  const aiStatus = {
+    not_configured: "AI monitoring needs a SearchApi connection. No AI checks have run.",
+    disabled: "AI monitoring is switched off.",
+    not_sampled: "No AI sample has been collected for this report.",
+    collecting: "AI checks are running. Refresh the report when they have finished.",
+    unavailable: "AI checks were unavailable. This does not mean your brand was absent.",
+  };
   const rowsByKeyword = useMemo(
     () => new Map((latest?.rows || []).map((row) => [row.keyword.toLowerCase(), row])),
     [latest],
@@ -84,10 +95,12 @@ export default function SeoKeywordTracker({ token }) {
           enabled: tracker.enabled,
           sendDay: tracker.sendDay,
           keywords: tracker.keywords,
+          aiEnabled: tracker.aiEnabled !== false,
+          aiPrompts: tracker.aiPrompts,
         },
         { headers: auth },
       );
-      setTracker(data.tracker);
+      setTracker({ ...data.tracker, aiPrompts: data.tracker.aiPrompts ?? tracker.aiPrompts });
       toast.success("Keyword tracker saved");
     } catch (requestError) {
       toast.error(requestError.response?.data?.message || requestError.message);
@@ -129,9 +142,9 @@ export default function SeoKeywordTracker({ token }) {
     <div className="mx-auto max-w-[1500px] space-y-6 pb-12">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">SEO keyword tracker</h1>
+          <h1 className="text-2xl font-semibold text-slate-900">SEO &amp; AI visibility</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Monthly Google Search Console rankings, clicks and impressions for the fixed watchlist.
+            One monthly digest for Google organic search, ChatGPT search and Google AI Overviews.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -236,12 +249,34 @@ export default function SeoKeywordTracker({ token }) {
         </div>
       </section>
 
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="font-semibold text-slate-900">AI monitoring settings</h2>
+        <p className="mt-2 text-sm text-slate-600">{aiConfigured ? "SearchApi is connected." : "SearchApi is not connected. A provider account and a server-side key are required before automated checks can run."} The existing monthly email schedule and recipients apply to both reports.</p>
+        <label className="mt-4 flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={tracker.aiEnabled !== false} onChange={event => setTracker({ ...tracker, aiEnabled: event.target.checked })} />Include AI checks in the monthly digest when connected</label>
+        <label className="mt-4 block text-sm font-medium text-slate-700">Questions to monitor (one per line, up to 12)
+          <textarea rows={8} value={(tracker.aiPrompts || []).join("\n")} onChange={event => setTracker({ ...tracker, aiPrompts: event.target.value.split("\n") })} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 font-normal" />
+        </label>
+        <p className="mt-2 text-xs text-slate-500">UK English. Keep questions unchanged for a useful comparison. Each monthly report collects one answer per question on each platform, with up to one extra Google request per question. Refreshing a report does not buy more checks. Save settings above to apply changes.</p>
+      </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="font-semibold text-slate-900">AI mentions and citations</h2>
+          <label className="text-sm text-slate-700">Report month <select value={latest?.periodStart || ""} onChange={event => setSelectedPeriod(event.target.value)} className="ml-2 rounded-lg border border-slate-300 px-3 py-2"><option value="" disabled>No reports yet</option>{snapshots.map(snapshot => <option key={snapshot._id || snapshot.periodStart} value={snapshot.periodStart}>{monthLabel(snapshot.periodStart)}</option>)}</select></label>
+        </div>
+        {ai?.status !== "complete" ? <p className="mt-3 text-sm text-slate-600">{aiStatus[ai?.status] || "The first completed AI check will establish your baseline."}</p> : <>
+          <p className="mt-3 text-sm text-slate-600">Sample checked {ai.checkedAt ? new Date(ai.checkedAt).toLocaleDateString("en-GB") : "date unavailable"}. This is a point-in-time check, not an average for {monthLabel(latest.periodStart)}. {ai.comparisonAvailable ? "A previous sample uses the same questions and settings." : "No comparable previous sample yet."}</p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">{(ai.summary || []).map(row => <div key={row.platform} className="rounded-lg bg-slate-50 p-4"><h3 className="font-medium">{row.platform === "chatgpt" ? "ChatGPT search" : "Google AI Overviews"}</h3><p className="mt-2 text-sm">Brand mentioned in {row.mentions} of {row.observed} answers</p><p className="mt-1 text-sm">Website cited in {row.citations} of {row.citationChecks} answers with resolved citations</p><p className="mt-2 text-xs text-slate-500">{row.noOverview} without an overview · {row.unavailable} unavailable</p></div>)}</div>
+          <div className="mt-5 space-y-3">{(ai.samples || []).map((sample, index) => <details key={`${sample.platform}-${index}`} className="rounded-lg border border-slate-200 p-3"><summary className="cursor-pointer text-sm font-medium">{sample.platform === "chatgpt" ? "ChatGPT" : "Google AI Overview"}: {sample.prompt}</summary><p className="mt-2 text-sm text-slate-600">{sample.status === "observed" ? `Brand ${sample.mentioned ? "mentioned" : "not mentioned"}; website ${sample.cited == null ? "citation unresolved" : sample.cited ? "cited" : "not cited"}.` : sample.status === "no_overview" ? "No AI Overview appeared." : "Check unavailable."}</p>{sample.excerpt && <p className="mt-2 text-sm text-slate-600">{sample.excerpt}</p>}<ul className="mt-2 space-y-1">{(sample.citations || []).filter(item => /^https?:\/\//.test(item.url)).map((item, i) => <li key={i}><a href={item.url} target="_blank" rel="noopener noreferrer" className="text-sm underline">{item.title || item.url}</a></li>)}</ul></details>)}</div>
+        </>}
+        <p className="mt-4 text-xs text-slate-500">Brand means The Supreme Collective; website citations are links to thesupremecollective.co.uk. Sampled answers vary by time and user. They do not measure all AI mentions, a universal ranking, traffic or conversions. Missing overviews and failed checks are not treated as zero mentions.</p>
+      </section>
+
       <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-1 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-semibold text-slate-900">Tracked keywords</h2>
             <p className="text-sm text-slate-500">
-              {latest ? `${monthLabel(latest.periodStart)} compared with the previous month` : "Run the first report after connecting Google."}
+              {latest ? `${monthLabel(latest.periodStart)} compared with the previous month` : "Run the first report after connecting Google."} Source: Google Search Console organic web results, not Google Ads. Average position can include Google AI features and is not a fixed rank.
             </p>
           </div>
           <button
