@@ -1,0 +1,57 @@
+{
+  "date": "2026-11-10",
+  "status": "all_three_releases_live_verified",
+  "releaseAuthorized": true,
+  "backendDeployment": {
+    "id": "dep-dbphfh8n74is73dvppt0",
+    "trigger": "manual_dashboard",
+    "startedAt": "2026-11-10T13:10:29Z",
+    "dashboard": "https://dashboard.render.com/web/srv-d3j8o9d6ubrc73fhsqf0/deploys/dep-dbphfh8n74is73dvppt0",
+    "status": "live",
+    "duration": "1m 36s"
+  },
+  "repositories": [
+    { "name": "tsc-admin-v2", "baseline": "e27d9bce9ed4878509e0dc0efafe4317cb8b3c0c", "release": "0a90fe72", "pushed": true, "liveVerified": true },
+    { "name": "tsc-backend-v2", "baseline": "0544806e7f185c584f7cb1fbf224f6cd63f2579f", "release": "80de429", "pushed": true, "liveVerified": true },
+    { "name": "frontend-import", "baseline": "a65e0f9905111eb2fa9e2239ff66a5966aaba0f4", "release": "352049f", "pushed": true, "liveVerified": true }
+  ],
+  "validation": {
+    "adminTargetedTests": 6,
+    "backendTargetedTests": 6,
+    "publicTargetedTests": 7,
+    "publicPagesVerified": 51,
+    "priorAdminRegressionTests": 123,
+    "priorPublicRegressionTests": 114
+  },
+  "postReleaseValidation": {
+    "publicPagesChecked": 51,
+    "publicArtistsChecked": 24,
+    "publicJobDetailsChecked": 5,
+    "publicJobPrivateFieldIssues": [],
+    "anonymousMatchesStatus": 401,
+    "anonymousApplicationsStatus": 401,
+    "signedInApplicationsPageLoads": true,
+    "adminNoindexAndSecurityHeaders": true,
+    "adminRobotsIsText": true,
+    "backendNoindexAndNoStore": true,
+    "sitemapLastmodEntries": 24,
+    "knownArtistRedirectsCorrect": true,
+    "unknownLegacyPathsReturn404": true
+  },
+  "remainingFollowUps": {
+    "httpWwwRedirectHops": 2,
+    "dependencyAuditHighSeverityPackages": ["follow-redirects", "openai", "zod"],
+    "missingApprovedShortDescriptions": ["magnolia-sky", "gotta-be-garage"],
+    "productionApplicationsBookingsAndPaymentsNotSubmittedForTesting": true
+  },
+  "preReleaseObservations": {
+    "adminPublicWithNoindex": true,
+    "adminNewSecurityHeaders": false,
+    "adminRobotsTextFile": false,
+    "backendPublicPrivacyFilter": false,
+    "publicSitemapLastmod": false,
+    "httpWwwRedirectHops": 2,
+    "correctArtistRedirects": true,
+    "inventedLegacyPathsReturn404": true
+  }
+}

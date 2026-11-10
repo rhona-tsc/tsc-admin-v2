@@ -1,0 +1,14 @@
+{
+  "backendCommit": "a43b83018dfbcdbb1c4c4823bc108f3f6316f85b",
+  "renderDeployment": "dep-dbpho761egvs73c5li1g",
+  "status": "live",
+  "renderBuildAuditVulnerabilities": 0,
+  "localAuditVulnerabilities": 0,
+  "focusedTestsPassed": 14,
+  "baselineComparison": "20 pass and the same 3 failures on original and updated dependencies; full suite did not complete",
+  "liveSmokeChecks": "public list/detail 200 with no private fields; anonymous matches/applications 401; admin noindex and security headers retained; public homepage/artist/sitemap 200",
+  "remainingHttpWwwRedirectHops": 2,
+  "redirectBlocker": "Resolved investigation: dashboard access restored; apex primary domain and certificate for apex/www verified. Netlify intentionally enforces same-host HTTP-to-HTTPS before primary-domain redirection; cannot combine within Netlify. Accepted platform behavior recommended; no hosting settings changed.",
+  "redirectEvidence": "https://answers.netlify.com/t/how-to-group-https-and-www-redirects-to-one-redirect/117170/4",
+  "packages": { "openai": "6.49.0", "follow-redirects": "1.16.3", "remainingZod": "4.6.7 (browser dependency only)" }
+}

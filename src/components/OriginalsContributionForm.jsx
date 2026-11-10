@@ -15,26 +15,29 @@ const idOf = value => String(value?._id || value || '');
 
 function ReferenceUpload({ token, projectId, roundId, disabled, onBusyChange, onRefresh }) {
   const input = useRef(null);
+  const [finalConfirmed, setFinalConfirmed] = useState(false);
   const [kind, setKind] = useState('demo'), [file, setFile] = useState(null), [ai, setAi] = useState(false), [error, setError] = useState('');
   const upload = async () => {
-    if (!file || disabled) return;
+    if (!file || disabled || (kind === 'initial_stem' && !finalConfirmed)) return;
     setError(''); onBusyChange(true);
     try {
       const body = new FormData(); body.append('file', file); body.append('kind', kind);
+      if (kind === 'initial_stem') body.append('finalStemConfirmed', 'true');
       if (roundId) body.append('roundId', roundId);
       if (['initial_stem', 'click_track'].includes(kind)) body.append('createdEntirelyWithAi', String(ai));
       await originalsRequest(token, { method: 'post', url: `/projects/${projectId}/assets`, data: body });
-      setFile(null); setAi(false); if (input.current) input.current.value = '';
+      setFile(null); setAi(false); setFinalConfirmed(false); if (input.current) input.current.value = '';
       await onRefresh(); toast.success('Project reference uploaded');
     } catch (failure) { setError(failure.response?.data?.message || 'Could not upload the project reference.'); }
     finally { onBusyChange(false); }
   };
   return <details className="mt-4 rounded-lg border p-3"><summary className="cursor-pointer text-sm font-semibold">Owner tools: add a project reference</summary>
     <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_2fr_auto]">
-      <label className="text-sm">Reference type<select aria-label="Project reference type" value={kind} disabled={disabled} onChange={event => { setKind(event.target.value); setAi(false); }} className="mt-1 w-full rounded border p-2">{[['demo', 'Demo'], ['guide_track', 'Guide track'], ['video_submission', 'Video sample'], ['click_track', 'Click track'], ['initial_stem', 'Initial stem']].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-      <label className="min-w-0 text-sm">Choose reference file<input ref={input} type="file" disabled={disabled} accept="audio/*,video/mp4,video/quicktime,.wav,.aiff,.flac,.m4a,.mov" onChange={event => { setFile(event.target.files?.[0] || null); setAi(false); }} className="mt-1 w-full min-w-0 max-w-full rounded border p-2" /></label>
-      <button type="button" disabled={disabled || !file} onClick={upload} className="self-end rounded border px-3 py-2 text-sm font-semibold disabled:opacity-40">Upload reference</button>
+      <label className="text-sm">Reference type<select aria-label="Project reference type" value={kind} disabled={disabled} onChange={event => { setKind(event.target.value); setAi(false); setFinalConfirmed(false); }} className="mt-1 w-full rounded border p-2">{[['demo', 'Idea / demo — reference only'], ['guide_track', 'Guide — reference only'], ['video_submission', 'Video — reference only'], ['click_track', 'Click — recording aid only'], ['initial_stem', 'Stem intended for the final production']].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+      <label className="min-w-0 text-sm">Choose reference file<input ref={input} type="file" disabled={disabled} accept="audio/*,video/mp4,video/quicktime,.wav,.aiff,.flac,.m4a,.mov" onChange={event => { setFile(event.target.files?.[0] || null); setAi(false); setFinalConfirmed(false); }} className="mt-1 w-full min-w-0 max-w-full rounded border p-2" /></label>
+      <button type="button" disabled={disabled || !file || (kind === 'initial_stem' && !finalConfirmed)} onClick={upload} className="self-end rounded border px-3 py-2 text-sm font-semibold disabled:opacity-40">Upload reference</button>
     </div>
+    {kind === 'initial_stem' ? <label className="mt-3 flex items-start gap-2 text-sm"><input type="checkbox" checked={finalConfirmed} disabled={disabled} onChange={event => setFinalConfirmed(event.target.checked)} />This is a musical part intended for the final production, not an idea, demo or guide.</label> : <p className="mt-3 text-xs text-amber-800">{kind === 'click_track' ? 'The click is an optional recording aid and is not part of the final production.' : 'Reference only — listen separately; excluded from mix downloads and the final production.'}</p>}
     {file && ['initial_stem', 'click_track'].includes(kind) && <OriginalsAiDeclaration checked={ai} onChange={setAi} disabled={disabled} />}
     {error && <p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
   </details>;

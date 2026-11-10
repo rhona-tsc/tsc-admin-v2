@@ -1,5 +1,6 @@
 import { recordingOrderError } from '../utils/originalsRecordingOrder';
-import OriginalsAiDeclaration from "../components/OriginalsAiDeclaration";
+import OriginalsStartingFiles from "../components/OriginalsStartingFiles";
+import { originalStartingMaterial, originalStartingFilesError, submitOriginalStartingProject } from "../utils/originalsStartingFiles";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -10,6 +11,7 @@ import OriginalsVoiceNoteRecorder from "../components/OriginalsVoiceNoteRecorder
 import OriginalsMasterRoyaltySplit from "../components/OriginalsMasterRoyaltySplit";
 import { plannedMasterShares } from "../utils/originalsRoyalties";
 import { originalsRequest } from "../utils/originalsApi";
+import OriginalsMusicianBrowser from '../components/OriginalsMusicianBrowser';
 
 const emptyRole = () => ({ name: "", foundationEligible: false, recordingOrder: "" });
 
@@ -17,8 +19,13 @@ const ListOriginalProject = ({ token }) => {
   const navigate = useNavigate();
   const { agreement: ownerAgreement, error: ownerAgreementError, reload: reloadOwnerAgreement } = useOriginalsOwnerAgreement(token);
   const [saving, setSaving] = useState(false);
-  const [initialFile, setInitialFile] = useState(null);
-  const [initialCreatedEntirelyWithAi, setInitialCreatedEntirelyWithAi] = useState(false);
+  const [choosingMusicianFor, setChoosingMusicianFor] = useState(null);
+  const [startingFiles, setStartingFiles] = useState([]);
+  const startingMaterial = originalStartingMaterial(startingFiles);
+  const uploadProgress = useRef({});
+  const [draftProjectId, setDraftProjectId] = useState('');
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [initialFinalConfirmed, setInitialFinalConfirmed] = useState(false);
   const [voiceNote, setVoiceNote] = useState(null);
   const [recordingVoiceNote, setRecordingVoiceNote] = useState(false);
   const recordingVoiceNoteRef = useRef(false);
@@ -66,51 +73,33 @@ const ListOriginalProject = ({ token }) => {
     if (!form.ownerAgreementAccepted || !form.ownerAgreementDisplayName.trim()) return toast.error("Accept the owner agreement and enter your full name.");
     if (recordingOrderError(validRoles)) return toast.error(recordingOrderError(validRoles));
     if (!validRoles.length) return toast.error("Add at least one instrument or role");
-    if (["none", "video_demo"].includes(form.sourceType) && !validRoles.some((role) => role.foundationEligible)) {
+    if (["none", "video_demo"].includes(startingMaterial.sourceType) && !validRoles.some((role) => role.foundationEligible)) {
       return toast.error("Choose at least one role that can start the foundation");
     }
-    if (form.sourceType !== "none" && !initialFile) return toast.error("Choose the starting reference file");
+    const fileError = originalStartingFilesError(startingFiles, initialFinalConfirmed);
+    if (fileError) return toast.error(fileError);
 
     try {
       setSaving(true);
       const payload = {
         ...form,
+        ...startingMaterial,
         bpm: form.bpm ? Number(form.bpm) : null,
         genres: form.genres.split(",").map((item) => item.trim()).filter(Boolean),
         requestedRoles: validRoles,
+        preferredMusicians: validRoles.filter(role => role.preferredMusicianId).map(role => ({ roleName: role.name, musicianId: role.preferredMusicianId })),
         ownerAgreement: { version: ownerAgreement.version, textHash: ownerAgreement.textHash, acknowledgement: ownerAgreement.acknowledgement },
       };
-      const created = await originalsRequest(token, {
-        method: "post",
-        url: "/projects",
-        data: payload,
-      });
-      if (initialFile) {
-        const upload = new FormData();
-        upload.append("file", initialFile);
-        upload.append("kind", form.sourceType === "guide_track" ? "guide_track" : form.sourceType === "video_demo" ? "video_submission" : "initial_stem");
-        upload.append("songwritingClaim", String(form.ownerSongwritingClaim));
-        if (form.sourceType === "final_eligible_stem") upload.append("createdEntirelyWithAi", String(initialCreatedEntirelyWithAi));
-        await originalsRequest(token, {
-          method: "post",
-          url: `/projects/${created.data.project._id}/assets`,
-          data: upload,
-        });
-      }
-      if (voiceNote) {
-        const voiceUpload = new FormData();
-        voiceUpload.append("file", voiceNote);
-        voiceUpload.append("kind", "voice_note");
-        await originalsRequest(token, { method: "post", url: `/projects/${created.data.project._id}/assets`, data: voiceUpload });
-      }
-      await originalsRequest(token, {
-        method: "post",
-        url: `/projects/${created.data.project._id}/submit-for-moderation`,
+      await submitOriginalStartingProject({
+        request: config => originalsRequest(token, config), payload, files: startingFiles, voiceNote,
+        progress: uploadProgress.current,
+        onProgress: ({ projectId, message }) => { setDraftProjectId(projectId); setUploadStatus(message); },
       });
       toast.success("Originals project submitted for moderation");
       navigate("/originals/mine");
     } catch (error) {
       if (error.response?.data?.code === 'ORIGINALS_AGREEMENT_REQUIRED') reloadOwnerAgreement();
+      if (uploadProgress.current.projectId) setUploadStatus("Your draft and uploaded files are saved. Retry to finish the remaining uploads and submit this same project.");
       const details = error?.response?.data?.errors;
       toast.error(details?.join(". ") || error?.response?.data?.message || "Could not submit project");
     } finally {
@@ -144,29 +133,38 @@ const ListOriginalProject = ({ token }) => {
         <section>
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-gray-900">Requested instruments and roles</h2>
-            <button type="button" onClick={() => setField("requestedRoles", [...form.requestedRoles, emptyRole()])} className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50">+ Add role</button>
+            <button type="button" disabled={saving || Boolean(draftProjectId)} onClick={() => setField("requestedRoles", [...form.requestedRoles, emptyRole()])} className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50">+ Add role</button>
           </div>
           <p className="mt-1 text-xs text-gray-500">
             Optionally number roles in your preferred recording order (1–30). Leave blank if undecided. We will suggest your next numbered role after each approval; you can change it then. TSC can follow this plan if a review is overdue. Mixing and mastering follow as separate final stages.
           </p>
           <div className="mt-3 space-y-2">
             {form.requestedRoles.map((role, index) => (
-              <div key={index} className="flex flex-col gap-2 rounded border p-3 sm:flex-row sm:items-center">
+              <div key={index} className="space-y-3 rounded border p-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
 
-                <input value={role.name} onChange={(e) => setRole(index, { name: e.target.value })} placeholder="Guitar, vocals, click track…" className="flex-1 rounded border px-3 py-2" />
+                <input disabled={saving || Boolean(draftProjectId)} value={role.name} onChange={(e) => setRole(index, { name: e.target.value })} placeholder="Guitar, vocals, click track…" className="flex-1 rounded border px-3 py-2" />
                 <label className="shrink-0 text-xs font-medium">Recording order (optional)<input aria-label={`Recording order for role ${index + 1}`} type="number" min="1" max="30" step="1" value={role.recordingOrder ?? ''} onChange={event => setRole(index, { recordingOrder: event.target.value })} className="mt-1 block w-24 rounded border p-2" placeholder="—" /></label>
-                {["none", "video_demo"].includes(form.sourceType) ? (
+                {["none", "video_demo"].includes(startingMaterial.sourceType) ? (
                   <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" checked={role.foundationEligible} onChange={(e) => setRole(index, { foundationEligible: e.target.checked })} />
                     Can start foundation
                   </label>
                 ) : null}
                 {form.requestedRoles.length > 1 ? (
-                  <button type="button" onClick={() => setField("requestedRoles", form.requestedRoles.filter((_, roleIndex) => roleIndex !== index))} className="text-sm text-red-600">Remove</button>
+                  <button type="button" disabled={saving || Boolean(draftProjectId)} onClick={() => { setField("requestedRoles", form.requestedRoles.filter((_, roleIndex) => roleIndex !== index)); setChoosingMusicianFor(null); }} className="text-sm text-red-600">Remove</button>
                 ) : null}
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">Preferred musician (optional): </span>{role.preferredDisplayName || 'No place held'}
+                  <button type="button" disabled={saving || Boolean(draftProjectId) || !role.name.trim()} onClick={() => setChoosingMusicianFor(choosingMusicianFor === index ? null : index)} className="ml-2 underline">{choosingMusicianFor === index ? 'Close chooser' : role.preferredMusicianId ? 'Change musician' : 'Choose musician'}</button>
+                  {role.preferredMusicianId && <button type="button" disabled={saving || Boolean(draftProjectId)} onClick={() => setRole(index, { preferredMusicianId: '', preferredDisplayName: '' })} className="ml-2 underline">Clear</button>}
+                </div>
+                {choosingMusicianFor === index && <OriginalsMusicianBrowser token={token} creatingProject initialInstrument={role.name} selectedId={role.preferredMusicianId} disabled={saving || Boolean(draftProjectId)} onSelect={(id, musician) => { if (id) { setRole(index, { preferredMusicianId: id, preferredDisplayName: musician.displayName }); setChoosingMusicianFor(null); } }} />}
               </div>
             ))}
           </div>
+          <p className="mt-2 text-xs text-gray-600">A preferred musician gets one of the three places held for them. They accept their own agreement; no countdown starts until their round opens and the place activates. Other places remain available.</p>
 
           <section aria-live="polite" className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
             <OriginalsMasterRoyaltySplit title="Projected share of the remaining master royalties" shares={plannedMasterShares(validRoles)} roles={validRoles} columns={2} />
@@ -175,22 +173,8 @@ const ListOriginalProject = ({ token }) => {
           </section>
         </section>
 
-        <label className="block text-sm font-medium text-gray-700">Starting material
-          <select disabled={saving} value={form.sourceType} onChange={(e) => { const sourceType = e.target.value; setForm((current) => ({ ...current, sourceType, hasInitialStem: ["final_eligible_stem", "guide_track"].includes(sourceType), ownerSongwritingClaim: sourceType !== "none" })); setInitialFile(null); setInitialCreatedEntirelyWithAi(false); }} className="mt-2 w-full rounded border px-3 py-2"><option value="none">No starting file — musicians create the foundation</option><option value="final_eligible_stem">Original stem intended for the final track</option><option value="guide_track">Guide track — reference only, remove from final production</option><option value="video_demo">Video demo/reference</option></select>
-        </label>
-        {form.sourceType !== "none" ? (
-          <div className="block rounded border border-dashed bg-gray-50 p-4 text-sm text-gray-700">
-            Private starting reference (audio, or MP4/MOV for a video demo; maximum 100 MB)
-            <input key={form.sourceType} required type="file" accept={form.sourceType === "video_demo" ? "video/mp4,video/quicktime,.mp4,.mov" : "audio/*,.wav,.aiff,.flac,.m4a"} disabled={saving} aria-label="Starting reference file" onChange={(event) => { setInitialFile(event.target.files?.[0] || null); setInitialCreatedEntirelyWithAi(false); }} className="mt-2 block w-full" />
-            {form.sourceType === "final_eligible_stem" && <OriginalsAiDeclaration checked={initialCreatedEntirelyWithAi} onChange={setInitialCreatedEntirelyWithAi} disabled={saving || !initialFile} />}
-            <label className="mt-3 flex items-start gap-2"><input type="checkbox" checked={form.ownerSongwritingClaim} onChange={(e) => setField("ownerSongwritingClaim", e.target.checked)} />I am claiming songwriting credit for the composition demonstrated in this {form.sourceType === "video_demo" ? "video" : form.sourceType === "guide_track" ? "guide track" : "stem"}.</label>
-            {form.sourceType === "guide_track" ? <p className="mt-2 text-xs text-amber-700">This file will remain available as a private reference but is marked ineligible for the final production.</p> : null}
-          </div>
-        ) : (
-          <div className="rounded border border-dashed bg-gray-50 p-4 text-sm text-gray-600">
-            Without a starting stem, up to three musicians can compete to create the foundation.
-          </div>
-        )}
+        <OriginalsStartingFiles files={startingFiles} onChange={setStartingFiles} disabled={saving} uploaded={uploadProgress.current.uploaded} finalConfirmed={initialFinalConfirmed} onFinalConfirmed={setInitialFinalConfirmed} />
+        {!!startingFiles.length && <label className="flex items-start gap-2 text-sm"><input type="checkbox" disabled={saving} checked={form.ownerSongwritingClaim} onChange={event => setField('ownerSongwritingClaim', event.target.checked)} />I am claiming songwriting credit for the composition demonstrated in the starting material.</label>}
         <OriginalsVoiceNoteRecorder value={voiceNote} onChange={setVoiceNote} disabled={saving} onRecordingChange={recording => { recordingVoiceNoteRef.current = recording; setRecordingVoiceNote(recording); }} />
 
         <div className="grid gap-3 sm:grid-cols-3">
@@ -230,8 +214,9 @@ const ListOriginalProject = ({ token }) => {
           <a href="/originals/owner-agreement" target="_blank" rel="noopener noreferrer" className="inline-block text-xs underline">Open a printable copy in a new tab</a>
         </section>
 
+        {uploadStatus && <p role="status" className="rounded bg-slate-50 p-3 text-sm">{uploadStatus}</p>}
         <button disabled={saving || recordingVoiceNote || !ownerAgreement} className="w-full rounded bg-black px-5 py-3 font-semibold text-white hover:bg-[#ff6667] disabled:opacity-50">
-          {saving ? "Submitting…" : "Submit for moderation"}
+          {saving ? "Uploading & submitting…" : draftProjectId ? "Retry & submit this project" : "Submit for moderation"}
         </button>
       </form>
     </div>

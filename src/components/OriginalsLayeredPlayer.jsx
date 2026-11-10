@@ -1,4 +1,4 @@
-import { originalAudibleTracks } from '../utils/originalsRoughMix';
+import { originalAudibleTracks, originalDownloadTracks } from '../utils/originalsRoughMix';
 import OriginalsMixDownload from './OriginalsMixDownload';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { originalsRequest } from "../utils/originalsApi";
@@ -10,7 +10,7 @@ const formatTime = (seconds) => {
   return `${Math.floor(safe / 60)}:${String(Math.floor(safe % 60)).padStart(2, "0")}`;
 };
 
-const OriginalsLayeredPlayer = ({ token, tracks = [], onTimeChange, initialSelectedIds, title, onPlaybackStarted }) => {
+const OriginalsLayeredPlayer = ({ token, tracks = [], onTimeChange, initialSelectedIds, title, onPlaybackStarted, allowMixDownload = true }) => {
   const audioRefs = useRef({});
   const refCallbacks = useRef({});
   const loadVersion = useRef(0);
@@ -160,7 +160,7 @@ const OriginalsLayeredPlayer = ({ token, tracks = [], onTimeChange, initialSelec
         />
       </div>;
     })}</div>
-    <OriginalsMixDownload token={token} tracks={activeTracks} mix={mix} duration={Math.max(0, ...originalAudibleTracks(activeTracks, mix).map(track => durations[track._id] || 0))} title={title} />
+    {allowMixDownload && <OriginalsMixDownload token={token} tracks={activeTracks} mix={mix} duration={Math.max(0, ...originalDownloadTracks(activeTracks, mix).map(track => durations[track._id] || 0))} title={title} />}
   </div>;
 };
 

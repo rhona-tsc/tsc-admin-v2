@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { originalAudibleTracks, originalMixRanges, encodeOriginalMixWav, makeOriginalRoughMix, originalRoughMixName } from '../src/utils/originalsRoughMix.js';
+import { originalAudibleTracks, originalMixRanges, encodeOriginalMixWav, makeOriginalRoughMix, originalRoughMixName, originalDownloadTracks } from '../src/utils/originalsRoughMix.js';
 import { originalSubmissionPairsReady, originalSubmissionTakes, originalStemSubmission } from '../src/utils/originalsSubmission.js';
 import { originalRecordingTracks } from '../src/utils/originalsListening.js';
 
@@ -49,4 +49,23 @@ test('one approved stem is available as a project backing track without using un
  const assets=[{_id:'a',kind:'take_stem',state:'active'},{_id:'b',kind:'take_stem',state:'active'}];
  const result=originalRecordingTracks({assets,submissions:[{category:'contribution',state:'accepted',roleName:'Click',selectionMode:'whole_take',selectedTakeId:'t',takes:[{_id:'t',stemAssetId:'a'}]}]});
  assert.deepEqual(result.map(track=>track._id),['a']);
+});
+
+test('reference-only ideas never reach the mix renderer, even when explicitly selected', async t => {
+ const previous=globalThis.OfflineAudioContext;
+ globalThis.OfflineAudioContext=class {async decodeAudioData(){return {duration:2/44100,length:2,numberOfChannels:1,getChannelData:()=>new Float32Array([0.1,0.1])};}};
+ t.after(()=>{if(previous===undefined)delete globalThis.OfflineAudioContext;else globalThis.OfflineAudioContext=previous;});
+ const loaded=[];
+ const tracks=['guide_track','demo','voice_note','video_submission','chat_attachment','take_mixdown'].map(kind=>({_id:kind,kind}));
+ tracks.push({_id:'not-final',kind:'initial_stem',finalEligible:false},{_id:'drums',kind:'take_stem'},{_id:'click',kind:'click_track',finalEligible:false});
+ await makeOriginalRoughMix({tracks,loadAudio:async track=>{loaded.push(track._id);return new ArrayBuffer(1);}});
+ assert.deepEqual(loaded,['drums','click']);
+ await assert.rejects(makeOriginalRoughMix({tracks:[{_id:'idea',kind:'guide_track'}],loadAudio:()=>assert.fail('reference must not be loaded')}),/Select at least one/);
+});
+
+
+test('soloing a reference cannot accidentally export the other stems', () => {
+ const tracks=[{_id:'guide',kind:'guide_track'},{_id:'bass',kind:'take_stem'}];
+ assert.deepEqual(originalDownloadTracks(tracks,{guide:{solo:true}}),[]);
+ assert.deepEqual(originalDownloadTracks(tracks,{bass:{volume:0.3}}).map(track=>[track._id,track.volume]),[['bass',0.3]]);
 });

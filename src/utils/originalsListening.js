@@ -3,6 +3,7 @@ const active = asset => asset?._id && (!asset.state || asset.state === 'active')
 const referenceLabels = {
   guide_track: 'Listen to the guide',
   demo: 'Listen to the sample',
+  voice_note: 'Listen to the voice note',
   video_submission: 'Watch the video sample',
   initial_stem: 'Listen to the original stem',
   click_track: 'Listen to the click track',

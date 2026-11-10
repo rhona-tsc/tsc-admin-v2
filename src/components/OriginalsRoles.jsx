@@ -9,7 +9,7 @@ import OriginalsRoleManager from './OriginalsRoleManager';
 import OriginalsReservationAgreement from './OriginalsReservationAgreement';
 import React, { useState } from 'react';
 import { originalsRequest } from '../utils/originalsApi';
-export default function OriginalsRoles({ token, projectId, roles = [], readOnly = false, canManage = false, roleManagement, futureReservations = [], onChange, creditPreferences = {} }) {
+export default function OriginalsRoles({ token, projectId, roles = [], readOnly = false, canManage = false, roleManagement, preferredPlaces = [], futureReservations = [], onChange, creditPreferences = {} }) {
   const [role, setRole] = useState('');
   const [reservationReview, setReservationReview] = useState(null);
   const [mode, setMode] = useState('search');
@@ -24,7 +24,7 @@ export default function OriginalsRoles({ token, projectId, roles = [], readOnly 
   const renewAgreement = reservation => setReservationReview({ roleName: reservation.roleName, request: { method: 'post', url: `/projects/${projectId}/role-reservations/${reservation._id}/agreement` } });
   const releaseAhead = async reservation => {
     setBusy(true); setError('');
-    try { await originalsRequest(token, { method: 'post', url: `/projects/${projectId}/role-reservations/${reservation._id}/release` }); setSuccess(`Your ${reservation.roleName} advance place has been released.`); await onChange?.(); }
+    try { await originalsRequest(token, { method: 'post', url: `/projects/${projectId}/role-reservations/${reservation._id}/release` }); setSuccess(`The held ${reservation.roleName} place has been released.`); await onChange?.(); }
     catch (failure) { setError(failure.response?.data?.message || 'Could not release this place.'); }
     finally { setBusy(false); }
   };
@@ -46,6 +46,7 @@ export default function OriginalsRoles({ token, projectId, roles = [], readOnly 
     {canManage && !readOnly && <OriginalsRoleManager token={token} projectId={projectId} roles={roles} management={roleManagement} onChange={async () => { setRole(''); setReservationReview(null); await onChange?.(); }} />}
     {reservationReview && <OriginalsReservationAgreement token={token} projectId={projectId} {...reservationReview} onCancel={() => setReservationReview(null)} onSaved={() => { setSuccess(`Agreement accepted for your ${reservationReview.roleName} place. We will email when the recording reservation activates.`); setReservationReview(null); onChange?.(); }} />}
     <ul className="originals-role-grid mt-4">{sortRecordingProgress(roles).map(item => {
+      const preferredPlace = preferredPlaces.find(place => place.roleName === item.name);
       const held = futureReservations.find(reservation => reservation.state === 'waiting' && reservation.roleName === item.name);
       return <OriginalsRoleCard key={item.name} roleName={item.name}>
         <div className="min-w-0">
@@ -55,9 +56,11 @@ export default function OriginalsRoles({ token, projectId, roles = [], readOnly 
             : <OriginalsRoleStatus role={item} />}
           {item.recordingOrder != null && <p className="mt-1 text-xs text-slate-500">Preferred recording order: {item.recordingOrder}</p>}
           <OriginalsRoleTiming role={item} readOnly={readOnly} />
+          {preferredPlace && <p className="mt-1 text-xs text-amber-800">Place held for {preferredPlace.assignedDisplayName || 'your preferred musician'} · {preferredPlace.agreementAcceptanceId ? 'waiting for the round to open' : 'awaiting their agreement'}</p>}
           {(item.canReserveAhead || held) && <p className="mt-1 text-xs text-gray-500">{item.canReserveAhead && `${item.advanceCount || 0}/3 advance places reserved`}{held && <span className="block text-emerald-800">Your future place is held.</span>}</p>}
         </div>
         <div className="mt-2 flex min-w-0 flex-col items-start gap-1.5">
+          {preferredPlace && !held && <button type="button" disabled={readOnly || busy} onClick={() => releaseAhead(preferredPlace)} className="text-left text-xs underline">Release preferred place</button>}
           {held ? <>
             {held.agreementNeedsReview && <button type="button" disabled={readOnly || busy} onClick={() => renewAgreement(held)} className="text-left text-xs text-amber-800 underline">Review agreement before activation</button>}
             <button type="button" disabled={readOnly || busy} onClick={() => releaseAhead(held)} className="text-left text-xs underline">Release advance reservation</button>

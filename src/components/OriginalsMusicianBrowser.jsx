@@ -12,7 +12,7 @@ function MusicianPhoto({ musician }) {
   return musician.profilePhoto && !failed ? <img src={cloudinaryImage(musician.profilePhoto, 112)} alt="" width="56" height="56" loading="lazy" onError={() => setFailed(true)} className="h-14 w-14 shrink-0 rounded-full border bg-white object-cover" /> : <span aria-hidden="true" className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border bg-white text-lg font-semibold text-slate-600">{initials}</span>;
 }
 
-export default function OriginalsMusicianBrowser({ token, projectId, initialInstrument = '', ownerLookup = false, selectedId = '', onSelect, disabled = false }) {
+export default function OriginalsMusicianBrowser({ token, projectId, initialInstrument = '', ownerLookup = false, creatingProject = false, selectedId = '', onSelect, disabled = false }) {
   const radioName = useId();
   const selectRef = useRef(onSelect);
   selectRef.current = onSelect;
@@ -29,7 +29,7 @@ export default function OriginalsMusicianBrowser({ token, projectId, initialInst
     const controller = new AbortController();
     selectRef.current?.(''); setBusy(true); setError(''); setResults([]);
     const params = { ...applied, ...(ownerLookup ? { projectId } : {}), ...(!haveFilters.current ? { includeFilters: 'true' } : {}) };
-    originalsRequest(token, { method: 'get', url: ownerLookup ? '/musicians/search' : `/projects/${projectId}/musicians`, params, signal: controller.signal })
+    originalsRequest(token, { method: 'get', url: creatingProject ? '/musicians/for-project' : ownerLookup ? '/musicians/search' : `/projects/${projectId}/musicians`, params, signal: controller.signal })
       .then(({ data }) => {
         if (controller.signal.aborted) return;
         setResults(data.musicians || []);
@@ -39,7 +39,7 @@ export default function OriginalsMusicianBrowser({ token, projectId, initialInst
       .catch(failure => { if (!controller.signal.aborted) setError(failure.response?.data?.message || 'Could not load musicians. Please try again.'); })
       .finally(() => { if (!controller.signal.aborted) setBusy(false); });
     return () => controller.abort();
-  }, [token, projectId, ownerLookup, applied, retry]);
+  }, [token, projectId, ownerLookup, creatingProject, applied, retry]);
   const changeFilter = (field, value) => {
     const next = { ...draft, [field]: value };
     setDraft(next); setApplied({ ...next, q: next.q.trim(), page: 1 });

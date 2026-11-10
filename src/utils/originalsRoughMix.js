@@ -3,11 +3,18 @@ export const MAX_ROUGH_MIX_SECONDS = 600;
 const cancelled = signal => { if (signal?.aborted) throw new DOMException('Cancelled', 'AbortError'); };
 const yieldFrame = () => new Promise(resolve => setTimeout(resolve, 0));
 
+const referenceKinds = new Set(['guide_track', 'demo', 'voice_note', 'video_submission', 'chat_attachment', 'take_mixdown']);
+// Clicks are optional recording aids, even though they are never release stems.
+export const originalMixdownTracks = tracks => tracks.filter(track => !referenceKinds.has(track.kind)
+  && (track.finalEligible !== false || track.kind === 'click_track'));
+
 export function originalAudibleTracks(tracks, mix = {}) {
   const solo = tracks.some(track => mix[track._id]?.solo);
   return tracks.filter(track => !mix[track._id]?.muted && (!solo || mix[track._id]?.solo) && (mix[track._id]?.volume ?? 1) > 0)
     .map(track => ({ ...track, volume: mix[track._id]?.volume ?? 1 }));
 }
+export const originalDownloadTracks = (tracks, mix = {}) => originalMixdownTracks(originalAudibleTracks(tracks, mix));
+
 export function originalMixRanges(track, length, sampleRate) {
   if (!track.playbackRanges) return [[0, length]];
   const ranges = track.playbackRanges.map(range => [Math.max(0, Math.ceil(range.startSeconds * sampleRate)), Math.min(length, Math.ceil(range.endSeconds * sampleRate))])
@@ -42,6 +49,7 @@ export function encodeOriginalMixWav(channels, sampleRate = ROUGH_MIX_RATE) {
 // memory. All files share zero; partial approvals preserve silence outside their
 // ranges. Nothing is trimmed, shifted, uploaded or saved back over an original.
 export async function makeOriginalRoughMix({ tracks, loadAudio, signal, onProgress, minDuration = 0 }) {
+  tracks = originalMixdownTracks(tracks);
   if (!tracks.length) throw new Error('Select at least one audible stem to mix.');
   const Offline = globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext;
   if (!Offline) throw new Error('Audio mixing is unavailable in this browser. Please try a current browser.');

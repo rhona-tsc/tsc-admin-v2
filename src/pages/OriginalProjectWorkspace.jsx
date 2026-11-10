@@ -167,7 +167,10 @@ const OriginalProjectWorkspace = ({ token, canModerate = false }) => {
     finally { setBusy(false); }
   };
 
-  const reserve = () => setReservationReview({ roleName, type: ["mix", "master"].includes(currentRound.type) ? currentRound.type : "contributor", request: { method: "post", url: `/rounds/${currentRound._id}/reservations`, data: { roleName, anonymous, creditName } } });
+  const reserve = () => {
+    const held = data.futureReservations?.find(item => item.state === 'waiting' && String(item.musicianId) === String(data.viewerId) && item.roleName.toLowerCase() === roleName.toLowerCase());
+    setReservationReview({ roleName, type: ["mix", "master"].includes(currentRound.type) ? currentRound.type : "contributor", request: held ? { method: 'post', url: `/projects/${id}/role-reservations/${held._id}/agreement` } : { method: "post", url: `/rounds/${currentRound._id}/reservations`, data: { roleName, anonymous, creditName } } });
+  };
   const setReviewField = (submissionId, field, value) => setReview((current) => ({
     ...current,
     [submissionId]: { selectionMode: "whole_take", ranges: [{ startSeconds: "", endSeconds: "", note: "" }], note: "", ...(current[submissionId] || {}), [field]: value },
@@ -275,7 +278,7 @@ const OriginalProjectWorkspace = ({ token, canModerate = false }) => {
       {canManage && <OriginalsReviewDeadline plan={data.recordingPlan} isOwner={String(data.viewerId) === String(data.project.ownerId)} />}
       </div>
       </div>
-      <OriginalsRoles token={token} projectId={id} canManage={canManage} roleManagement={data.roleManagement} roles={data.roleProgress || data.project.requestedRoles.map(role => ({ name: role.name, status: "Awaiting a recording", canRecommend: true }))} readOnly={participantPreview} futureReservations={(data.futureReservations || []).filter(item => String(item.musicianId) === String(data.viewerId))} onChange={load} creditPreferences={{ anonymous, creditName }} />
+      <OriginalsRoles token={token} projectId={id} canManage={canManage} roleManagement={data.roleManagement} preferredPlaces={canManage ? (data.futureReservations || []).filter(item => item.assignedByOwner && item.state === 'waiting') : []} roles={data.roleProgress || data.project.requestedRoles.map(role => ({ name: role.name, status: "Awaiting a recording", canRecommend: true }))} readOnly={participantPreview} futureReservations={(data.futureReservations || []).filter(item => String(item.musicianId) === String(data.viewerId))} onChange={load} creditPreferences={{ anonymous, creditName }} />
       <div className="mt-4">
       <OriginalsRoyalties compact project={data.project} preview={data.royaltyPreview} credits={latestCredits} canIllustrateTscShare={!participantPreview && data.permissions?.canIllustrateTscShare === true} />
       </div>
