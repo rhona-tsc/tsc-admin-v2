@@ -1,5 +1,6 @@
 // admin/src/pages/EnquiryBoard.jsx
 import React, { useEffect, useMemo, useState } from "react";
+import EnquiryPreferencesFields, { emptyEnquiryPreferences, readEnquiryPreferences } from '../components/EnquiryPreferencesFields.jsx';
 
 const API_BASE = (
   import.meta?.env?.VITE_ADMIN_API_BASE ||
@@ -136,6 +137,7 @@ const SORTABLE_COLUMNS = {
   netCommission: "netCommission",
   bandSize: "bandSize",
   maxBudget: "maxBudget",
+  preferredSize: 'preferredSize',
 };
 
 const columns = [
@@ -147,6 +149,10 @@ const columns = [
   { key: "daysToEvent", label: "Days to Event", width: 140 },
   { key: "actName", label: "Act", width: 220 },
   { key: "actTscName", label: "Original Name", width: 220 },
+  { key: 'styles', label: 'Style', width: 200, sortable: false },
+  { key: 'preferredSize', label: 'Preferred size', width: 150 },
+  { key: 'mustHaveInstruments', label: 'Must-have instruments', width: 230, sortable: false },
+  { key: 'selectedBands', label: 'Selected bands', width: 260, sortable: false },
   { key: "address", label: "Location", width: 340 },
   { key: "county", label: "County", width: 160 },
   { key: "clientName", label: "Client Name", width: 200 },
@@ -337,6 +343,7 @@ const mergeEnquiryRows = (rows) => {
     if (!existing) {
       grouped.set(key, {
         ...row,
+        mergedRowIds: [String(row._id)],
         mergedRefs: [row?.enquiryRef || row?.requestId].filter(Boolean),
         availabilityReplies: [
           ...(Array.isArray(row?.availabilityReplies) ? row.availabilityReplies : []),
@@ -375,6 +382,11 @@ const mergeEnquiryRows = (rows) => {
       clientName: existing.clientName || row.clientName,
       clientEmail: existing.clientEmail || row.clientEmail,
       notes: existing.notes || row.notes,
+      styles: [...new Set([...(existing.styles || []), ...(row.styles || [])])],
+      preferredSize: existing.preferredSize || row.preferredSize || '',
+      mustHaveInstruments: [...new Set([...(existing.mustHaveInstruments || []), ...(row.mustHaveInstruments || [])])],
+      selectedBands: [...new Map([...(existing.selectedBands || []), ...(row.selectedBands || [])].map(band => [`${band.actId || band.name}|${band.lineupId || ''}`, band])).values()],
+      mergedRowIds: [...new Set([...(existing.mergedRowIds || [String(existing._id)]), String(row._id)])],
       status:
         existing.status === "closed_won" || row.status === "closed_won"
           ? "closed_won"
@@ -447,6 +459,12 @@ export default function EnquiryBoard() {
   const [loading, setLoading] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [addBusy, setAddBusy] = useState(false);
+  const [preferenceOptions, setPreferenceOptions] = useState({});
+  const [preferenceOptionsError, setPreferenceOptionsError] = useState('');
+  const [preferenceRow, setPreferenceRow] = useState(null);
+  const [preferenceDraft, setPreferenceDraft] = useState(emptyEnquiryPreferences);
+  const [preferenceBusy, setPreferenceBusy] = useState(false);
+  const [preferenceError, setPreferenceError] = useState('');
 
   const token = getAuthToken();
   const jwtUser = useMemo(() => parseJwt(token), [token]);
@@ -474,6 +492,7 @@ export default function EnquiryBoard() {
     grossValue: "",
     netCommission: "",
     enquiryRef: "",
+    ...emptyEnquiryPreferences(),
   });
 
   const visibleColumns = useMemo(() => {
@@ -567,6 +586,31 @@ setTotal(mergedRows.length);
   };
 
   useEffect(() => {
+    if (!canManualAdd || (!showAdd && !preferenceRow)) return;
+    const controller = new AbortController();
+    setPreferenceOptionsError('');
+    fetch(`${API_BASE}/board/enquiries/preferences/options`, { headers: buildHeaders(), credentials: 'include', signal: controller.signal })
+      .then(async response => {
+        const data = await response.json();
+        if (!response.ok || !data.success) throw new Error(data.message || 'Could not load band options. Close and reopen to try again.');
+        setPreferenceOptions(data);
+      }).catch(error => { if (error.name !== 'AbortError') setPreferenceOptionsError(error.message); });
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAdd, preferenceRow, canManualAdd]);
+
+  const openPreferences = row => {
+    setPreferenceRow(row); setPreferenceDraft(readEnquiryPreferences(row)); setPreferenceError('');
+  };
+
+  const savePreferences = async () => {
+    setPreferenceBusy(true); setPreferenceError('');
+    try { await onInlineEdit(preferenceRow._id, preferenceDraft); setPreferenceRow(null); }
+    catch (error) { setPreferenceError(error.message); }
+    finally { setPreferenceBusy(false); }
+  };
+
+  useEffect(() => {
     fetchRows({ page: 1, limit });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -598,9 +642,13 @@ setTotal(mergedRows.length);
   };
 
   const onInlineEdit = async (id, patch) => {
-    const url = `${API_BASE}/board/enquiries/${id}`;
     try {
-      const res = await fetch(url, {
+      const row = rows.find(item => item._id === id);
+      const preferencePatch = ['styles', 'preferredSize', 'mustHaveInstruments', 'selectedBands'].some(key => Object.hasOwn(patch, key));
+      const ids = preferencePatch ? row?.mergedRowIds || [id] : [id];
+      let updated;
+      for (const rowId of ids) {
+      const res = await fetch(`${API_BASE}/board/enquiries/${rowId}`, {
         method: "PATCH",
         headers: buildHeaders(),
         credentials: "include",
@@ -613,13 +661,15 @@ setTotal(mergedRows.length);
       } catch {
         json = null;
       }
-      if (json?.success) {
-        setRows((prev) =>
-          prev.map((r) => (r._id === id ? json.row : r)).filter((r) => !shouldHideRow(r))
-        );
+      if (!res.ok || !json?.success) throw new Error(json?.message || 'Could not save the enquiry. Please try again.');
+      if (rowId === id) updated = json.row;
       }
+      setRows(prev => prev.map(r => r._id === id ? { ...r, ...updated, ...(preferencePatch ? patch : {}), mergedRowIds: r.mergedRowIds } : r).filter(r => !shouldHideRow(r)));
+      return true;
     } catch (e) {
       console.error("PATCH failed", e);
+      if (['styles', 'preferredSize', 'mustHaveInstruments', 'selectedBands'].some(key => Object.hasOwn(patch, key))) throw e;
+      return false;
     }
   };
 
@@ -679,6 +729,8 @@ setTotal(mergedRows.length);
       clientName: (draft.clientName || "").trim(),
       clientEmail,
       notes: (draft.notes || "").trim(),
+      styles: draft.styles, preferredSize: draft.preferredSize.trim(), mustHaveInstruments: draft.mustHaveInstruments,
+      selectedBands: selectedActs.map(({ act, lineupId }) => ({ actId: String(act._id), name: act.tscName || act.name || '', lineupId: lineupId || '' })),
       enquiryRef: (draft.enquiryRef || "").trim(),
       bandSize: draft.bandSize ? Number(draft.bandSize) : undefined,
       maxBudget: draft.maxBudget ? Number(draft.maxBudget) : undefined,
@@ -825,7 +877,7 @@ setTotal(mergedRows.length);
       <div className="flex gap-3 items-center mb-4 flex-wrap">
         <input
           className="border rounded px-3 py-2 w-full max-w-xl"
-          placeholder="Search name, ref, act, county…"
+          placeholder="Search name, ref, style, instrument or band…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
@@ -963,6 +1015,19 @@ setTotal(mergedRows.length);
                     .filter((col) => !(col.key === "agent" && canManualAdd))
                     .map((col) => {
                       switch (col.key) {
+                        case 'styles':
+                        case 'preferredSize':
+                        case 'mustHaveInstruments':
+                        case 'selectedBands': {
+                          const text = col.key === 'selectedBands' ? (r.selectedBands || []).map(band => band.name).join(', ')
+                            : Array.isArray(r[col.key]) ? r[col.key].join(', ') : r[col.key];
+                          return <td key={col.key} className="px-3 py-2 text-sm">
+                            {canManualAdd ? <button type="button" className="w-full text-left hover:underline text-gray-700"
+                              aria-label={`Edit ${col.label.toLowerCase()} for ${r.clientName || r.enquiryRef}`} onClick={() => openPreferences(r)}>
+                              {text || <span className="text-gray-400">Add</span>}
+                            </button> : text || '—'}
+                          </td>;
+                        }
                         case "enquiryDateISO":
                           return (
                             <td key={col.key} className="px-3 py-2">
@@ -1223,7 +1288,7 @@ setTotal(mergedRows.length);
               <div className="text-xs col-span-2">
                 <div className="flex items-center justify-between">
                   <span>
-                    Acts (search & select) <span className="text-red-500">*</span>
+                    Selected bands <span className="text-red-500">*</span>
                   </span>
                   <span className="text-[11px] text-gray-500">
                     {selectedActs.length
@@ -1233,6 +1298,7 @@ setTotal(mergedRows.length);
                 </div>
 
                 <input
+                  aria-label="Search selected bands"
                   className="border rounded px-2 py-2 w-full mt-1"
                   placeholder="Type 2+ chars (e.g. dancefloor magic)…"
                   value={actSearch}
@@ -1317,6 +1383,12 @@ setTotal(mergedRows.length);
                     })}
                   </div>
                 )}
+              </div>
+
+              <div className="col-span-2 rounded border bg-gray-50 p-3">
+                <EnquiryPreferencesFields value={readEnquiryPreferences(draft)} options={preferenceOptions} showBands={false}
+                  onChange={preferences => setDraft(previous => ({ ...previous, ...preferences }))} />
+                {preferenceOptionsError && <p role="alert" className="mt-2 text-sm text-red-700">{preferenceOptionsError}</p>}
               </div>
 
               <label className="text-xs">
@@ -1441,6 +1513,22 @@ setTotal(mergedRows.length);
           </div>
         </div>
       )}
+      {preferenceRow && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div role="dialog" aria-modal="true" aria-labelledby="enquiry-preferences-title" className="max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div><h3 id="enquiry-preferences-title" className="text-lg font-semibold">Band preferences</h3><p className="mt-1 text-sm text-gray-500">{preferenceRow.clientName || preferenceRow.enquiryRef}</p></div>
+            <button type="button" className="text-sm underline" disabled={preferenceBusy} onClick={() => setPreferenceRow(null)}>Close</button>
+          </div>
+          <fieldset disabled={preferenceBusy}><EnquiryPreferencesFields value={preferenceDraft} onChange={setPreferenceDraft} options={preferenceOptions} /></fieldset>
+          {preferenceOptionsError && <p role="alert" className="mt-3 text-sm text-red-700">{preferenceOptionsError}</p>}
+          {preferenceError && <p role="alert" className="mt-3 text-sm text-red-700">{preferenceError}</p>}
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+            <p className="text-xs text-gray-500">Saving preferences does not send availability requests.</p>
+            <div className="flex gap-2"><button type="button" className="rounded border px-4 py-2 text-sm" disabled={preferenceBusy} onClick={() => setPreferenceRow(null)}>Cancel</button>
+              <button type="button" className="rounded bg-[#ff6667] px-4 py-2 text-sm text-white disabled:opacity-50" disabled={preferenceBusy} onClick={savePreferences}>{preferenceBusy ? 'Saving…' : 'Save preferences'}</button></div>
+          </div>
+        </div>
+      </div>}
     </div>
   );
 }
