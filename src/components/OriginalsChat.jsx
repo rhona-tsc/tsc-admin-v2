@@ -240,7 +240,7 @@ export default function OriginalsChat({ token, projectId, viewerId, initialMessa
         </article></div>;
         const own = String(message.authorId) === String(viewerId);
         return <div key={message._id} className={`flex ${own ? 'justify-end' : 'justify-start'}`}><article className={`min-w-0 max-w-[90%] rounded-xl border p-3 text-sm shadow-sm ${own ? 'border-emerald-100 bg-emerald-50' : 'bg-white'}`}>
-          <p className="text-xs font-semibold text-gray-600">{own ? 'You' : message.authorCreditName || (message.authorAnonymous ? 'Anonymous' : 'Project participant')}</p>
+          <p className="text-xs font-semibold text-gray-600">{message.authorCreditName || (message.authorAnonymous ? 'Anonymous' : 'Project participant')}</p>
           {message.body && <p className="mt-1 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.body}</p>}
           {message.voiceAssetId && <ChatAttachment token={token} asset={{ _id: message.voiceAssetId }} voice />}
           {(message.attachmentIds || []).map(asset => <ChatAttachment key={asset._id || asset} token={token} asset={typeof asset === 'string' ? { _id: asset } : asset} />)}
