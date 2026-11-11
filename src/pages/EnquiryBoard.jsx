@@ -153,6 +153,7 @@ const columns = [
   { key: 'preferredSize', label: 'Preferred size', width: 150 },
   { key: 'mustHaveInstruments', label: 'Must-have instruments', width: 230, sortable: false },
   { key: 'selectedBands', label: 'Selected bands', width: 260, sortable: false },
+  { key: 'availabilityRequestTest', label: 'Availability request test', width: 230, sortable: false, agentOnly: true },
   { key: "address", label: "Location", width: 340 },
   { key: "county", label: "County", width: 160 },
   { key: "clientName", label: "Client Name", width: 200 },
@@ -386,6 +387,7 @@ const mergeEnquiryRows = (rows) => {
       preferredSize: existing.preferredSize || row.preferredSize || '',
       mustHaveInstruments: [...new Set([...(existing.mustHaveInstruments || []), ...(row.mustHaveInstruments || [])])],
       selectedBands: [...new Map([...(existing.selectedBands || []), ...(row.selectedBands || [])].map(band => [`${band.actId || band.name}|${band.lineupId || ''}`, band])).values()],
+      availabilityRequestTest: existing.availabilityRequestTest || row.availabilityRequestTest || null,
       mergedRowIds: [...new Set([...(existing.mergedRowIds || [String(existing._id)]), String(row._id)])],
       status:
         existing.status === "closed_won" || row.status === "closed_won"
@@ -462,6 +464,7 @@ export default function EnquiryBoard() {
   const [preferenceOptions, setPreferenceOptions] = useState({});
   const [preferenceOptionsError, setPreferenceOptionsError] = useState('');
   const [preferenceRow, setPreferenceRow] = useState(null);
+  const [requestTestRow, setRequestTestRow] = useState(null);
   const [preferenceDraft, setPreferenceDraft] = useState(emptyEnquiryPreferences);
   const [preferenceBusy, setPreferenceBusy] = useState(false);
   const [preferenceError, setPreferenceError] = useState('');
@@ -1015,6 +1018,16 @@ setTotal(mergedRows.length);
                     .filter((col) => !(col.key === "agent" && canManualAdd))
                     .map((col) => {
                       switch (col.key) {
+                        case 'availabilityRequestTest': {
+                          const preview = r.availabilityRequestTest;
+                          return <td key={col.key} className="px-3 py-2 text-sm">
+                            {preview?.testMode === true ? <button type="button" className="text-left text-teal-800 hover:underline"
+                              aria-label={`View test request for ${r.clientName || r.enquiryRef}`} onClick={() => setRequestTestRow(r)}>
+                              <span className="block font-medium">{preview.status === 'prepared' ? 'Prepared' : 'Needs details'} · {preview.requests?.length || 0} bands · 0 sent</span>
+                              <span className="text-xs">View test request</span>
+                            </button> : <span className="text-gray-400">—</span>}
+                          </td>;
+                        }
                         case 'styles':
                         case 'preferredSize':
                         case 'mustHaveInstruments':
@@ -1513,6 +1526,26 @@ setTotal(mergedRows.length);
           </div>
         </div>
       )}
+      {requestTestRow && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div role="dialog" aria-modal="true" aria-labelledby="availability-test-title" className="max-h-[calc(100vh-2rem)] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+          <div className="flex items-start justify-between gap-4">
+            <div><h3 id="availability-test-title" className="text-xl font-semibold">Availability request preview</h3><p className="mt-1 text-sm text-gray-500">{requestTestRow.clientName} · {requestTestRow.enquiryRef}</p></div>
+            <button type="button" className="text-sm underline" onClick={() => setRequestTestRow(null)}>Close</button>
+          </div>
+          <div className="my-5 rounded-lg bg-teal-50 p-4 text-teal-900"><p className="font-semibold">TEST MODE · 0 messages sent</p><p className="mt-1 text-sm">No musicians or clients have been contacted. These previews are saved for review and will never send automatically.</p></div>
+          <dl className="mb-5 grid grid-cols-2 gap-3 text-sm">
+            <div><dt className="text-gray-500">Event date</dt><dd>{fmtShort(requestTestRow.eventDateISO)}</dd></div>
+            <div><dt className="text-gray-500">Venue / location</dt><dd>{requestTestRow.address}</dd></div>
+            <div><dt className="text-gray-500">Confirmed style</dt><dd>{requestTestRow.styles?.join(', ') || 'Flexible'}</dd></div>
+            <div><dt className="text-gray-500">Preferred size / instruments</dt><dd>{[requestTestRow.preferredSize, ...(requestTestRow.mustHaveInstruments || [])].filter(Boolean).join(' · ') || 'Flexible'}</dd></div>
+          </dl>
+          <div className="space-y-3">{(requestTestRow.availabilityRequestTest.requests || []).map(request => <div key={`${request.actId}-${request.lineupId}`} className="rounded-lg border p-4">
+            <p className="font-semibold">{request.bandName}</p><p className="mt-1 text-sm text-gray-600">{request.lineupLabel}</p><p className="mt-2 text-xs text-teal-800">Ready for test review · availability and delivery contacts still need checking</p>
+          </div>)}</div>
+          {(requestTestRow.availabilityRequestTest.blocked || []).map((item, index) => <div key={index} className="mt-3 rounded-lg bg-amber-50 p-4 text-sm text-amber-900"><strong>{item.bandName}</strong><p className="mt-1">{item.reason}</p></div>)}
+          <p className="mt-5 text-xs text-gray-500">No dates are reserved and no booking is confirmed. Changing the saved details or band choices clears this preview.</p>
+        </div>
+      </div>}
       {preferenceRow && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
         <div role="dialog" aria-modal="true" aria-labelledby="enquiry-preferences-title" className="max-h-[calc(100vh-2rem)] w-full max-w-3xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
           <div className="mb-5 flex items-start justify-between gap-4">
