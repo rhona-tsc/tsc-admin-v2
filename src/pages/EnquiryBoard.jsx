@@ -204,6 +204,7 @@ const normaliseAvailabilityReply = (value) => {
 };
 
 const getAvailabilityGroupKey = (row) => {
+  if (row?.enquiryTopic?.startsWith('musician_')) return `musician:${row.enquiryRef || row.websiteKey || row._id}`;
   const actKey = String(row?.actId || row?.actName || "").trim().toLowerCase();
   const eventKey = String(row?.eventDateISO || row?.dateISO || "").trim().toLowerCase();
   const emailKey = String(row?.clientEmail || row?.email || "").trim().toLowerCase();
@@ -381,6 +382,7 @@ const mergeEnquiryRows = (rows) => {
       formattedAddress: existing.formattedAddress || row.formattedAddress,
       county: existing.county || row.county,
       clientName: existing.clientName || row.clientName,
+      enquiryTopic: existing.enquiryTopic || row.enquiryTopic,
       clientEmail: existing.clientEmail || row.clientEmail,
       notes: existing.notes || row.notes,
       styles: [...new Set([...(existing.styles || []), ...(row.styles || [])])],
@@ -1032,6 +1034,7 @@ setTotal(mergedRows.length);
                         case 'preferredSize':
                         case 'mustHaveInstruments':
                         case 'selectedBands': {
+                          if (r.enquiryTopic?.startsWith('musician_')) return <td key={col.key} className="px-3 py-2 text-sm text-gray-400">—</td>;
                           const text = col.key === 'selectedBands' ? (r.selectedBands || []).map(band => band.name).join(', ')
                             : Array.isArray(r[col.key]) ? r[col.key].join(', ') : r[col.key];
                           return <td key={col.key} className="px-3 py-2 text-sm">
@@ -1099,6 +1102,7 @@ setTotal(mergedRows.length);
   return (
     <td key={col.key} className="px-3 py-2">
       <span>{r.clientName || "—"}</span>
+      {['musician_job', 'musician_joining'].includes(r.enquiryTopic) && <span className="mt-1 block text-xs font-medium text-teal-800">{r.enquiryTopic === 'musician_job' ? 'Musician · job question' : 'Musician · joining'}</span>}
     </td>
   );
                        case "clientEmail":
@@ -1108,6 +1112,7 @@ setTotal(mergedRows.length);
     </td>
   );
                         case "availability": {
+                          if (r.enquiryTopic?.startsWith('musician_')) return <td key={col.key} className="px-3 py-2 text-sm text-gray-400">—</td>;
                           const slots = getAvailabilitySlots(r);
                           return (
                             <td key={col.key} className="px-3 py-2">
@@ -1123,6 +1128,7 @@ setTotal(mergedRows.length);
                           );
                         }
                        case "availabilityReceived": {
+                          if (r.enquiryTopic?.startsWith('musician_')) return <td key={col.key} className="px-3 py-2 text-sm text-gray-400">—</td>;
   const slots = getAvailabilitySlots(r);
   const received = slots.filter(
     (slot) => slot.reply !== "—" && slot.reply !== "Pending" && slot.reply !== "Read"
