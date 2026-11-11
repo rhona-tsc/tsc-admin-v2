@@ -1,3 +1,4 @@
+import BookingEquipmentTest from '../components/BookingEquipmentTest.jsx';
 // admin/src/pages/EnquiryBoard.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import EnquiryPreferencesFields, { emptyEnquiryPreferences, readEnquiryPreferences } from '../components/EnquiryPreferencesFields.jsx';
@@ -880,6 +881,7 @@ setTotal(mergedRows.length);
   return (
     <div className="p-4">
       <div className="flex gap-3 items-center mb-4 flex-wrap">
+        {canManualAdd && <BookingEquipmentTest apiBase={API_BASE} buildHeaders={buildHeaders} />}
         <input
           className="border rounded px-3 py-2 w-full max-w-xl"
           placeholder="Search name, ref, style, instrument or band…"
