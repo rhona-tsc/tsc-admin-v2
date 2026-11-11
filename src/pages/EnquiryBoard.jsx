@@ -1015,7 +1015,7 @@ setTotal(mergedRows.length);
                   {/* Source cell - only render if canManualAdd */}
                   {canManualAdd && (
                     <td className="px-3 py-2">
-                      <SourceCell value={r.agent || ""} marketingSource={r.marketingSource} attribution={r.attribution} />
+                      <SourceCell value={r.agent || ""} marketingSource={r.marketingSource} attribution={r.attribution} />{r.captureState === 'draft' && <span className="mt-1 block rounded bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900">Draft · unconfirmed</span>}
                     </td>
                   )}
                   {/* The rest of the columns, skipping agent if agentOnly and !canManualAdd */}
