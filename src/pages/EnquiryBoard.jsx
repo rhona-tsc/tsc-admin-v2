@@ -755,6 +755,7 @@ setTotal(mergedRows.length);
     setAddBusy(true);
     try {
       const failures = [];
+      const availabilityWarnings = [];
       let createdCount = 0;
 
       // Submit individually so each act keeps its own enquiry row and availability request.
@@ -791,6 +792,9 @@ setTotal(mergedRows.length);
             failures.push({ selected, message: json?.message || `Request failed (${res.status})` });
           } else {
             createdCount += 1;
+            if (!json.availabilityTriggered?.success || !Number(json.availabilityTriggered?.sent)) {
+              availabilityWarnings.push(`${act.tscName || act.name}: enquiry saved; availability delivery needs checking (${json.availabilityTriggered?.error || json.availabilityTriggered?.skipped || 'no new requests sent'}). Do not create the enquiry again.`);
+            }
           }
         } catch (error) {
           console.error("Manual add crashed:", { act, error });
@@ -802,7 +806,7 @@ setTotal(mergedRows.length);
 
       if (failures.length === 0) {
         closeManualAdd();
-        window.alert(`✅ ${createdCount} ${createdCount === 1 ? "enquiry" : "enquiries"} added.`);
+        window.alert(`✅ ${createdCount} ${createdCount === 1 ? "enquiry" : "enquiries"} added.${availabilityWarnings.length ? '\n\n' + availabilityWarnings.join('\n') : ''}`);
       } else {
         setSelectedActs(failures.map(({ selected }) => selected));
         const failedNames = failures
