@@ -1,4 +1,5 @@
 import VoiceCallReviews from '../components/VoiceCallReviews.jsx';
+import { isEncoreEnquiry, enquiryClientEmailError } from '../utils/enquiryClientEmail.js';
 import BookingEquipmentTest from '../components/BookingEquipmentTest.jsx';
 // admin/src/pages/EnquiryBoard.jsx
 import React, { useEffect, useMemo, useState } from "react";
@@ -206,6 +207,7 @@ const normaliseAvailabilityReply = (value) => {
 };
 
 const getAvailabilityGroupKey = (row) => {
+  if (isEncoreEnquiry(row?.agent)) return ['encore', row.enquiryRef || row._id, row.actId, row.lineupId, row.eventDateISO].join('|');
   if (row?.enquiryTopic?.startsWith('musician_')) return `musician:${row.enquiryRef || row.websiteKey || row._id}`;
   const actKey = String(row?.actId || row?.actName || "").trim().toLowerCase();
   const eventKey = String(row?.eventDateISO || row?.dateISO || "").trim().toLowerCase();
@@ -722,8 +724,9 @@ setTotal(mergedRows.length);
       window.alert("Please add Venue / Address (needed to send availability request).");
       return;
     }
-    if (!clientEmail || !/\S+@\S+\.\S+/.test(clientEmail)) {
-      window.alert("Please add a valid Client Email (needed to send availability request).");
+    const emailError = enquiryClientEmailError(draft.agent, clientEmail);
+    if (emailError) {
+      window.alert(emailError);
       return;
     }
 
@@ -904,6 +907,9 @@ setTotal(mergedRows.length);
           }}
         >
           Search
+        </button>
+        <button className="px-4 py-2 rounded border" disabled={loading} onClick={() => fetchRows({ page, limit })}>
+          Refresh replies
         </button>
 
         <div className="flex items-center gap-2 ml-auto flex-wrap">
@@ -1497,12 +1503,13 @@ setTotal(mergedRows.length);
               </label>
 
               <label className="text-xs col-span-1">
-                Client Email
+                Client Email{isEncoreEnquiry(draft.agent) ? ' (optional)' : ''}
                 <input
                   className="border rounded px-2 py-2 w-full"
                   value={draft.clientEmail}
                   onChange={(e) => setDraft((p) => ({ ...p, clientEmail: e.target.value }))}
                 />
+                {isEncoreEnquiry(draft.agent) && <span className="block mt-1 text-gray-500">Vocalist requests and replies are linked to the enquiry reference. No client email is needed.</span>}
               </label>
 
               <label className="text-xs col-span-2">
