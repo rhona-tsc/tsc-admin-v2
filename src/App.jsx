@@ -25,6 +25,7 @@ import BookingBoard from "./pages/BookingBoard";
 import EnquiryBoard from "./pages/EnquiryBoard";
 import ActPreSubmissionsPage from "./pages/ActPreSubmissionsPage";
 import AgentDashboard from "./pages/AgentDashboard";
+import Feedback from './pages/Feedback';
 import SetPassword from "./pages/SetPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Messages from "./pages/Messages";
@@ -338,6 +339,7 @@ const App = () => {
             />
 
             {/* PROTECTED ROUTES */}
+            <Route path="/feedback" element={<RequireAuth><Feedback userRole={userRole} /></RequireAuth>} />
             <Route
               path="/musicians-dashboard"
               element={
