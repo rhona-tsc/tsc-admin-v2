@@ -1015,7 +1015,13 @@ useEffect(() => {
   if (!stats) return <p>Loading...</p>;
 
   return (
-    <div className="p-4">
+    <div className="mx-auto max-w-[1600px] p-4 sm:p-6">
+      <header className="mb-6 rounded-2xl bg-[#151515] px-6 py-7 text-white sm:px-8">
+        <p className="text-xs uppercase tracking-[0.2em] text-[#ff999a]">The Supreme Collective · Musician portal</p>
+        <h1 className="mt-3 text-2xl font-semibold sm:text-3xl">Welcome back{firstName ? `, ${firstName}` : ''}.</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-stone-300">Your gigs, your profile and the people you make music with — all in one place.</p>
+        <div className="mt-5 flex flex-wrap gap-3"><a href="/bookings" className="rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black">My bookings</a><a href="/deputy-jobs" className="rounded-full border border-white/30 px-5 py-2.5 text-sm font-semibold text-white">Find a gig</a><a href="#peer-feedback" className="rounded-full border border-[#ff999a]/50 px-5 py-2.5 text-sm font-semibold text-[#ffbfc0]">Post-gig feedback</a></div>
+      </header>
       {authNotice ? (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           {authNotice}{" "}
@@ -1029,7 +1035,9 @@ useEffect(() => {
         </div>
       ) : null}
 
+      <PeerFeedback />
       {me && !socialPromptDismissed ? (
+        <details className="mb-4 rounded-xl border border-blue-100 bg-blue-50"><summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-blue-950">Profile tools · Social media connections</summary>
         <section className="mb-4 rounded-xl border border-blue-100 bg-blue-50 px-4 py-4 text-sm text-blue-950">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -1116,28 +1124,27 @@ useEffect(() => {
             <p className="mt-3 rounded-md bg-white px-3 py-2 text-blue-900">{socialMessage}</p>
           ) : null}
         </section>
+        </details>
       ) : null}
 
-      {(import.meta.env.VITE_ORIGINALS_ENABLED === undefined || String(import.meta.env.VITE_ORIGINALS_ENABLED).trim() === "" || String(import.meta.env.VITE_ORIGINALS_ENABLED).toLowerCase() === "true") && <OriginalsIntroduction />}
+      {(import.meta.env.VITE_ORIGINALS_ENABLED === undefined || String(import.meta.env.VITE_ORIGINALS_ENABLED).trim() === "" || String(import.meta.env.VITE_ORIGINALS_ENABLED).toLowerCase() === "true") && <details className="mb-6 rounded-xl border border-stone-200 bg-white"><summary className="cursor-pointer px-5 py-4 text-sm font-semibold">Explore TSC Originals · Create with your musician community</summary><div className="px-4 pb-2"><OriginalsIntroduction /></div></details>}
 
       {/* MAIN + RIGHT SIDEBAR */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT: dashboard content */}
         <div className="lg:col-span-9 ">
-          <PeerFeedback />
-          <div className="my-10">
-            <div className="text-center py-8 text-3xl">
+          <div className="mb-6">
+            <div className="pb-4 text-xl">
               <div className="inline-flex items-center gap-3">
-                <span className="text-gray-500 font-light">MUSICIAN</span>
-                <span className="text-gray-900 font-semibold">PORTAL</span>
+                <span className="text-gray-900 font-semibold">Your essentials</span>
                 <span className="h-[2px] w-12 bg-[#ff6667]" />
               </div>
-              <p className="mt-4 mx-auto max-w-2xl text-xs sm:text-sm md:text-base text-gray-600">
+              <p className="mt-2 max-w-2xl text-sm text-gray-600">
                 Quick access to the tools you’ll use most often.
               </p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 gap-y-8 items-start">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 items-start">
               {dashboardCards.map((card) => (
                 <DashboardFeatureCard key={card.title} {...card} />
               ))}
