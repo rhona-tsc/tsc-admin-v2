@@ -490,7 +490,7 @@ useEffect(() => {
                   src={assets.moderate_icon}
                   alt="Feedback"
                 />
-                <p className="hidden md:block text-white">Feedback</p>
+                <p className="hidden md:block text-white">Feedback & reviews</p>
               </div>
               {feedbackCount > 0 && (
                 <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#ff6667] text-white text-xs font-semibold px-2 py-0.5 rounded-full border border-white">

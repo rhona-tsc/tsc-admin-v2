@@ -1,4 +1,5 @@
 import OriginalsIntroduction from "../components/OriginalsIntroduction";
+import PeerFeedback from '../components/PeerFeedback';
 import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
@@ -982,7 +983,6 @@ const MusicianDashboard = ({ token, userId, firstName }) => {
     fetchMyActs();
     fetchDeppingActs();
     fetchStats();
-    fetchPeerReview();
     fetchAppliedJobs();
     fetchNewDeputyJobs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1124,6 +1124,7 @@ useEffect(() => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT: dashboard content */}
         <div className="lg:col-span-9 ">
+          <PeerFeedback />
           <div className="my-10">
             <div className="text-center py-8 text-3xl">
               <div className="inline-flex items-center gap-3">
@@ -1317,7 +1318,7 @@ useEffect(() => {
               deputyCTA={deputyCTA}
               token={token}
             />{" "}
-            <PeerReviewCard peer={peerReview} />
+            <div className="rounded-2xl border bg-white p-5 shadow-sm"><h3 className="font-semibold">A better gig, together</h3><p className="mt-2 text-sm text-gray-600">Your experience helps TSC support the musicians you work with. Post-gig feedback is private to our team.</p><a href="#peer-feedback" className="mt-4 inline-block text-sm font-semibold text-rose-700">Review your bandmates →</a></div>
           </div>
         </div>
       </div>

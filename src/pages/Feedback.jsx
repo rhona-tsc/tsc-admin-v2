@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { backendUrl } from "../App";
+import { PeerFeedbackModeration } from '../components/PeerFeedback';
 
 const Feedback = ({ userRole }) => {
   const [messages, setMessages] = useState([]);
@@ -31,6 +32,7 @@ const Feedback = ({ userRole }) => {
 
   return (
     <div className="p-6">
+      <PeerFeedbackModeration />
       <h1 className="text-2xl font-bold mb-4">User Feedback</h1>
 
       {loading ? (
