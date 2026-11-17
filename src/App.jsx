@@ -60,6 +60,7 @@ import RegularDeputies from "./pages/RegularDeputies";
 import RegularDeputyDetails from "./pages/RegularDeputyDetails";
 import MyDeputyApplications from "./pages/MyDeputyApplications";
 import VenueBlackBook from "./pages/VenueBlackBook";
+import BookingStories from './pages/BookingStories';
 import SeoKeywordTracker from "./pages/SeoKeywordTracker";
 import { loginPathFor, loginReturnPath } from "./utils/loginReturnPath";
 import { canAccessOriginalsPreview } from "./utils/originalsAccess";
@@ -619,6 +620,12 @@ const App = () => {
                     <BookingBoard token={token} />
                   </RequireAuth>
                 }
+              />
+            )}
+            {isAdminAgent && (
+              <Route
+                path="/booking-stories"
+                element={<RequireAuth><BookingStories token={token} /></RequireAuth>}
               />
             )}
             {isAdminAgent && (
