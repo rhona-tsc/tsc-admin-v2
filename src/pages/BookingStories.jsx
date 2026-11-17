@@ -3,6 +3,22 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { backendUrl } from '../App';
 
+function StoryMusic({ asset, disabled, onSave }) {
+  const [title, setTitle] = useState(asset?.musicTitle || '');
+  const [file, setFile] = useState(null);
+  const [start, setStart] = useState(asset?.musicStart || 0);
+  const [cleared, setCleared] = useState(asset?.musicCleared === true);
+  return <fieldset disabled={disabled} className="space-y-2 rounded-xl border p-3">
+    <legend className="px-1 text-sm font-semibold">Upbeat repertoire song {asset?.musicUrl ? '✓ saved' : '— recording needed'}</legend>
+    <input aria-label="Story song title" placeholder="Song title and artist" className="w-full rounded border p-2 text-sm" value={title} onChange={e=>setTitle(e.target.value)} />
+    <input aria-label="Story music recording" type="file" accept="audio/*,video/*" className="block text-sm" onChange={e=>setFile(e.target.files[0])} />
+    <label className="block text-sm">Start clip at (seconds) <input className="ml-2 w-20 rounded border p-1" type="number" min="0" value={start} onChange={e=>setStart(Number(e.target.value))} /></label>
+    <label className="block text-sm"><input type="checkbox" checked={cleared} onChange={e=>setCleared(e.target.checked)} /> This recording can be used in the act’s Instagram and Facebook stories</label>
+    <button type="button" disabled={disabled || !cleared || !title || (!file && !asset?.musicUrl)} className="rounded border px-3 py-2 text-sm disabled:opacity-40" onClick={()=>onSave({title,file,start,cleared})}>Save music for this act</button>
+    <p className="text-xs text-slate-500">Saved for future stories by this act. A five-second excerpt is mixed into each preview.</p>
+  </fieldset>;
+}
+
 export default function BookingStories({ token }) {
   const [data, setData] = useState(null);
   const [busy, setBusy] = useState('');
@@ -26,7 +42,7 @@ export default function BookingStories({ token }) {
   return <main className="mx-auto max-w-6xl p-5 lg:p-8 text-slate-900">
     <p className="text-xs font-bold uppercase tracking-widest text-rose-500">Social stories</p>
     <h1 className="mt-2 text-3xl font-bold">Just booked</h1>
-    <p className="mt-2 text-slate-600">One booking per day, shared to Instagram and Facebook. Missing stickers or photos wait here. Client names and fees stay off stories.</p>
+    <p className="mt-2 text-slate-600">One booking per day, shared to Instagram and Facebook. Missing stickers, photos or music wait here. Client names and fees stay off stories.</p>
     <section className="my-6 rounded-2xl border bg-white p-5 space-y-4">
       <div className="flex flex-wrap items-center gap-4">
         <button disabled={!!busy} className={`rounded-full px-5 py-2 font-bold text-white ${settings.enabled ? 'bg-emerald-700' : 'bg-slate-700'}`} onClick={() => run('settings', () => axios.patch(`${base}/settings`, { enabled: !settings.enabled }, { headers }))}>{settings.enabled ? 'Auto-posting on — pause' : 'Auto-posting paused — enable'}</button>
@@ -59,6 +75,7 @@ export default function BookingStories({ token }) {
             <label className="block text-sm font-semibold">Venue photo {job.venuePhotoUrl && '✓'}<input disabled={locked || !!busy} className="mt-1 block text-sm" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => { const file=e.target.files[0]; if(file) run(job._id, async () => patch(job, { venuePhotoUrl: await upload(file) })); }} /></label>
             <label className="block text-sm font-semibold">Reusable act sticker {asset?.transparencyVerified ? '✓ saved' : '— transparent WebM needed'}<input disabled={locked || !!busy || !job.actId} className="mt-1 block text-sm" type="file" accept="video/webm" onChange={e => { const file=e.target.files[0]; if(file) run(job._id, async () => { const url=await upload(file); await axios.put(`${base}/act/${job.actId}/sticker`, { actName:job.actName, stickerUrl:url, transparencyVerified:true }, { headers }); }); }} /><span className="mt-1 block font-normal text-slate-500">Upload only a background-free animation. This saves it for future bookings by this act.</span></label>
             <div className="flex gap-4 text-sm">{['instagram','facebook'].map(p => <label key={p} className="capitalize"><input disabled={locked || !!busy} type="checkbox" checked={job.platforms.includes(p)} onChange={e => run(job._id, () => patch(job, { platforms:e.target.checked ? [...job.platforms,p] : job.platforms.filter(x=>x!==p) }))} /> {p}</label>)}</div>
+            <StoryMusic key={`${job.actId}-${asset?.updatedAt || ''}`} asset={asset} disabled={!!busy || !job.actId} onSave={music=>run(job._id,async()=>{const musicUrl=music.file ? await upload(music.file) : asset.musicUrl; await axios.put(`${base}/act/${job.actId}/music`,{actName:job.actName,musicUrl,musicTitle:music.title,musicStart:music.start,musicCleared:music.cleared},{headers});})} />
             <label className="block text-sm">Not before <input disabled={locked || !!busy} className="ml-2 rounded border p-2" type="date" defaultValue={job.notBefore?.slice(0,10) || ''} onChange={e=>run(job._id,()=>patch(job,{notBefore:e.target.value ? `${e.target.value}T00:00:00Z` : null}))} /></label>
             <div className="flex flex-wrap gap-2">
               <button disabled={locked || !!busy || !job.confirmed} className="rounded bg-slate-900 px-4 py-2 text-sm font-bold text-white disabled:opacity-40" onClick={()=>run(job._id,()=>axios.post(`${base}/${job._id}/render`,{}, {headers}))}>{busy===job._id ? 'Working…' : 'Generate preview'}</button>
