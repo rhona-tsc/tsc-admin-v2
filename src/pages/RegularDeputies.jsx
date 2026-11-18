@@ -13,6 +13,12 @@ const fullName = (person) =>
 
 const RegularDeputies = ({ token }) => {
   const navigate = useNavigate();
+  const [rosterRegion, setRosterRegion] = useState("all");
+  const [ruleDraft, setRuleDraft] = useState({
+    person: "",
+    colleagues: "",
+    reason: "",
+  });
   const [acts, setActs] = useState([]);
   const [selectedActId, setSelectedActId] = useState("");
   const [selectedLineupId, setSelectedLineupId] = useState("");
@@ -119,7 +125,14 @@ const RegularDeputies = ({ token }) => {
       setBusy(actionKey);
       const response = await axios.patch(
         `${backendUrl}/api/regular-deputies/acts/${selectedAct._id}/lineups/${selectedLineup._id}/members/${role.memberId}`,
-        { action, musicianId, ...extra },
+        {
+          action,
+          musicianId,
+          ...(action === "add_deputy"
+            ? { regions: rosterRegion === "all" ? [] : [rosterRegion] }
+            : {}),
+          ...extra,
+        },
         { headers: authHeaders(token) },
       );
       if (response.data.detailsRequest?.formUrl) {
@@ -134,13 +147,17 @@ const RegularDeputies = ({ token }) => {
         }));
       }
       toast.success(
-        action === "replace_primary"
-          ? "Original musician updated"
-          : action === "add_deputy"
-            ? "Deputy added"
-            : action === "reorder_deputies"
-              ? "Deputy order updated"
-              : "Deputy removed",
+        action === "set_regions"
+          ? "Regional eligibility updated"
+          : action === "reorder_regional_deputies"
+            ? "Regional priority updated"
+            : action === "replace_primary"
+              ? "Original musician updated"
+              : action === "add_deputy"
+                ? "Deputy added"
+                : action === "reorder_deputies"
+                  ? "Deputy order updated"
+                  : "Deputy removed",
       );
       await load();
     } catch (error) {
@@ -150,20 +167,84 @@ const RegularDeputies = ({ token }) => {
     }
   };
 
+  const visibleDeputies = (role) => {
+    const list = (role.deputies || []).filter(
+      (d) =>
+        rosterRegion === "all" ||
+        !d.regions?.length ||
+        d.regions.includes(rosterRegion),
+    );
+    return rosterRegion === "all"
+      ? list
+      : [...list].sort(
+          (a, b) =>
+            (a.regionalPriority?.[rosterRegion] ?? role.deputies.indexOf(a)) -
+            (b.regionalPriority?.[rosterRegion] ?? role.deputies.indexOf(b)),
+        );
+  };
   const moveDeputy = (role, index, offset) => {
-    const nextIndex = index + offset;
-    if (nextIndex < 0 || nextIndex >= role.deputies.length) return;
-    const reordered = [...role.deputies];
+    const reordered = [...visibleDeputies(role)],
+      nextIndex = index + offset;
+    if (nextIndex < 0 || nextIndex >= reordered.length) return;
     [reordered[index], reordered[nextIndex]] = [
       reordered[nextIndex],
       reordered[index],
     ];
-    update(role, "reorder_deputies", "", {
-      musicianIds: reordered.map((deputy) =>
-        String(deputy.musicianId || deputy.id || ""),
-      ),
-    });
+    update(
+      role,
+      rosterRegion === "all" ? "reorder_deputies" : "reorder_regional_deputies",
+      "",
+      {
+        region: rosterRegion,
+        musicianIds: reordered.map((d) => String(d.musicianId || d.id || "")),
+      },
+    );
   };
+  const savePolicy = async (exclusions) => {
+    try {
+      setBusy("policy");
+      await axios.put(
+        `${backendUrl}/api/regular-deputies/acts/${selectedAct._id}/policy`,
+        { exclusions },
+        { headers: authHeaders(token) },
+      );
+      setRuleDraft({ person: "", colleagues: "", reason: "" });
+      await load();
+      toast.success("Allocation rules saved");
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.message || "Could not save allocation rules",
+      );
+    } finally {
+      setBusy("");
+    }
+  };
+  const regionControl = (role, person, primary = false) => (
+    <label className="mt-2 block text-xs text-gray-600">
+      Event regions
+      <select
+        aria-label={`Event regions for ${fullName(person)}`}
+        className="mt-1 block w-full rounded border p-1"
+        disabled={Boolean(busy)}
+        value={(primary ? role.regions : person.regions)?.join(",") || ""}
+        onChange={(e) =>
+          update(role, "set_regions", person.musicianId, {
+            primary,
+            regions: e.target.value ? e.target.value.split(",") : [],
+          })
+        }
+      >
+        <option value="">All regions</option>
+        <option value="south">South</option>
+        <option value="north">North</option>
+        <option value="scotland">Scotland</option>
+        <option value="south,north">South and North</option>
+        <option value="north,scotland">North and Scotland</option>
+        <option value="south,scotland">South and Scotland</option>
+        <option value="south,north,scotland">All three regions</option>
+      </select>
+    </label>
+  );
 
   const copyFirstLineup = async () => {
     if (!selectedAct || selectedAct.lineups.length < 2) return;
@@ -238,7 +319,8 @@ const RegularDeputies = ({ token }) => {
       await load();
     } catch (error) {
       toast.error(
-        error?.response?.data?.message || "Could not copy deputies from that act",
+        error?.response?.data?.message ||
+          "Could not copy deputies from that act",
       );
     } finally {
       setBusy("");
@@ -284,7 +366,9 @@ const RegularDeputies = ({ token }) => {
       }));
       toast.success("Test invitation sent to hello@thesupremecollective.co.uk");
     } catch (error) {
-      toast.error(error?.response?.data?.message || "Could not send the test invitation");
+      toast.error(
+        error?.response?.data?.message || "Could not send the test invitation",
+      );
     } finally {
       setBusy("");
     }
@@ -383,6 +467,129 @@ const RegularDeputies = ({ token }) => {
           ))}
         </select>
       </div>
+      {selectedAct ? (
+        <section className="mt-6 rounded-xl border bg-white p-4">
+          <h2 className="font-semibold">
+            Regional deputy pools and allocation rules
+          </h2>
+          <label className="mt-3 block text-sm">
+            Show and reorder deputies for
+            <select
+              aria-label="Deputy pool"
+              className="ml-2 rounded border p-2"
+              value={rosterRegion}
+              onChange={(e) => setRosterRegion(e.target.value)}
+            >
+              <option value="all">All regions</option>
+              <option value="south">South</option>
+              <option value="north">North</option>
+              <option value="scotland">Scotland</option>
+            </select>
+          </label>
+          <p className="mt-2 text-xs text-gray-600">
+            Regional priority applies within the chosen pool. Musicians marked
+            All regions can be used in any pool. Event county or postcode is
+            required for restricted musicians.
+          </p>
+          {(selectedAct.rosterPolicy?.exclusions || []).map((rule, index) => (
+            <div
+              key={rule._id || index}
+              className="mt-3 rounded bg-amber-50 p-3 text-sm"
+            >
+              <strong>{rule.person?.name}</strong> cannot be allocated with{" "}
+              {(rule.withPeople || []).map((p) => p.name).join(", ")}.{" "}
+              {rule.reason}
+              <button
+                className="ml-3 text-red-700"
+                disabled={Boolean(busy)}
+                onClick={() =>
+                  savePolicy(
+                    selectedAct.rosterPolicy.exclusions.filter(
+                      (_, i) => i !== index,
+                    ),
+                  )
+                }
+              >
+                Remove rule
+              </button>
+            </div>
+          ))}
+          {selectedAct.rosterPolicy?.pendingMatches?.length ? (
+            <details className="mt-3 rounded border border-amber-200 p-3 text-sm">
+              <summary>
+                Names awaiting a confirmed profile match (
+                {selectedAct.rosterPolicy.pendingMatches.length})
+              </summary>
+              <ul className="mt-2 list-disc pl-5">
+                {selectedAct.rosterPolicy.pendingMatches.map((p, i) => (
+                  <li key={i}>
+                    {p.name} — {p.role} (
+                    {p.regions?.join(", ") || "all regions"})
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-gray-600">
+                These names are preserved for review and are not contacted
+                automatically.
+              </p>
+            </details>
+          ) : null}
+          <form
+            className="mt-3 grid gap-2 md:grid-cols-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              savePolicy([
+                ...(selectedAct.rosterPolicy?.exclusions || []),
+                {
+                  person: { name: ruleDraft.person.trim() },
+                  withPeople: ruleDraft.colleagues
+                    .split(",")
+                    .map((name) => ({ name: name.trim() }))
+                    .filter((p) => p.name),
+                  reason: ruleDraft.reason.trim(),
+                },
+              ]);
+            }}
+          >
+            <input
+              required
+              aria-label="Restricted musician full name"
+              placeholder="Musician full name"
+              className="rounded border p-2"
+              value={ruleDraft.person}
+              onChange={(e) =>
+                setRuleDraft({ ...ruleDraft, person: e.target.value })
+              }
+            />
+            <input
+              required
+              aria-label="Excluded colleagues full names"
+              placeholder="Colleague full names, separated by commas"
+              className="rounded border p-2"
+              value={ruleDraft.colleagues}
+              onChange={(e) =>
+                setRuleDraft({ ...ruleDraft, colleagues: e.target.value })
+              }
+            />
+            <input
+              required
+              aria-label="Allocation rule reason"
+              placeholder="Reason"
+              className="rounded border p-2"
+              value={ruleDraft.reason}
+              onChange={(e) =>
+                setRuleDraft({ ...ruleDraft, reason: e.target.value })
+              }
+            />
+            <button
+              disabled={Boolean(busy)}
+              className="rounded bg-black px-3 py-2 text-white"
+            >
+              Add allocation rule
+            </button>
+          </form>
+        </section>
+      ) : null}
       {selectedAct && selectedLineup ? (
         <section className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4">
           <div className="flex flex-col gap-1">
@@ -437,7 +644,8 @@ const RegularDeputies = ({ token }) => {
               <option value="">All matching roles</option>
               {(sourceLineup?.roles || []).map((role) => (
                 <option key={role.memberId} value={role.memberId}>
-                  {role.roleLabel || role.role} — {fullName(role.primary)} ({role.deputies?.length || 0} deputies)
+                  {role.roleLabel || role.role} — {fullName(role.primary)} (
+                  {role.deputies?.length || 0} deputies)
                 </option>
               ))}
             </select>
@@ -513,13 +721,14 @@ const RegularDeputies = ({ token }) => {
                     <p className="mt-1 font-semibold">
                       {fullName(role.primary)}
                     </p>
+                    {regionControl(role, role.primary, true)}
                   </div>
                   <div className="p-4">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
                       Regular deputies
                     </p>
                     <div className="mt-2 space-y-2">
-                      {role.deputies.map((deputy, index) => (
+                      {visibleDeputies(role).map((deputy, index) => (
                         <div
                           key={deputy.id || deputy.musicianId}
                           className="rounded border px-3 py-2 text-sm"
@@ -550,7 +759,7 @@ const RegularDeputies = ({ token }) => {
                                 type="button"
                                 disabled={
                                   Boolean(busy) ||
-                                  index === role.deputies.length - 1
+                                  index === visibleDeputies(role).length - 1
                                 }
                                 onClick={() => moveDeputy(role, index, 1)}
                                 aria-label={`Move ${fullName(deputy)} down`}
@@ -561,6 +770,7 @@ const RegularDeputies = ({ token }) => {
                               </button>
                             </div>
                           </div>
+                          {regionControl(role, deputy)}
                           <div className="mt-2 flex items-center justify-between border-t pt-2">
                             <button
                               type="button"
@@ -594,7 +804,7 @@ const RegularDeputies = ({ token }) => {
                           </div>
                         </div>
                       ))}
-                      {!role.deputies.length ? (
+                      {!visibleDeputies(role).length ? (
                         <p className="rounded border border-dashed p-3 text-sm text-gray-400">
                           No deputies assigned
                         </p>
