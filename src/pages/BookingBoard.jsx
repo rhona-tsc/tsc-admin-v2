@@ -5574,6 +5574,96 @@ export default function BookingBoard() {
     }
   };
 
+  const sendAnyPaidReceiptsForRow = async (row) => {
+    const rowId = String(row?._id || getDisplayBookingRef(row));
+    const email = getPrimaryEmail(row);
+    if (!email) return { attempted: 0, sent: 0 };
+
+    const extrasPaid = Boolean(
+      row?.extrasPaid ||
+      row?.extrasStatus === "paid" ||
+      row?.payments?.extrasPaymentReceived ||
+      row?.payments?.extrasInvoicePaid,
+    );
+    const receiptsToSend = [];
+
+    if (isBookingPaid(row) && !getReceiptUrl(row)) {
+      receiptsToSend.push({
+        type: "main",
+        paymentDate: toDateInputValue(
+          row?.payments?.paidAt ||
+            row?.paidAt ||
+            row?.payments?.invoicePaidAt ||
+            row?.payments?.balancePaymentReceivedAt,
+        ),
+      });
+    }
+
+    if (extrasPaid && !getExtrasReceiptUrl(row)) {
+      receiptsToSend.push({
+        type: "extras",
+        paymentDate: toDateInputValue(
+          row?.payments?.extrasPaidAt || row?.extrasPaidAt,
+        ),
+      });
+    }
+
+    if (!receiptsToSend.length) {
+      return { attempted: 0, sent: 0 };
+    }
+
+    let sent = 0;
+    for (const receipt of receiptsToSend) {
+      const result = await createReceiptForRow(row, receipt.type, {
+        paymentDate: receipt.paymentDate,
+        sendReceipt: true,
+        openReceipt: false,
+      });
+      if (result?.success && result.emailSent !== false) sent += 1;
+    }
+
+    if (sent === receiptsToSend.length) {
+      setSendReceiptWhenPaid((prev) => ({ ...prev, [rowId]: false }));
+      window.alert(
+        sent === 1
+          ? `Receipt emailed to ${email}.`
+          : `${sent} receipts emailed to ${email}.`,
+      );
+    }
+
+    return { attempted: receiptsToSend.length, sent };
+  };
+
+  const handleSendReceiptPreferenceChange = async (row, checked) => {
+    const rowId = String(row?._id || getDisplayBookingRef(row));
+    setSendReceiptWhenPaid((prev) => ({ ...prev, [rowId]: checked }));
+
+    // If payment was already marked as received, ticking the box should send
+    // any missing paid receipt immediately. If it is not paid yet, keep the
+    // preference set so the relevant mark-paid action can send it afterwards.
+    if (checked) await sendAnyPaidReceiptsForRow(row);
+  };
+
+  const markExtrasPaidForRow = async (row) => {
+    const rowId = String(row?._id || getDisplayBookingRef(row));
+    const now = new Date().toISOString();
+    const patch = {
+      extrasPaid: true,
+      extrasStatus: "paid",
+      extrasPaidAt: now,
+      payments: {
+        ...(row.payments || {}),
+        extrasPaymentReceived: true,
+        extrasInvoicePaid: true,
+        extrasPaidAt: now,
+      },
+    };
+    const saved = await onInlineEdit(row._id, patch);
+    if (!saved || !sendReceiptWhenPaid[rowId]) return;
+
+    await sendAnyPaidReceiptsForRow({ ...row, ...patch });
+  };
+
   const markInvoicePaidForRow = async (row) => {
     const rowId = String(row?._id || getDisplayBookingRef(row));
     const email = getPrimaryEmail(row);
@@ -7140,43 +7230,36 @@ export default function BookingBoard() {
                                                 ? "Paid"
                                                 : "Mark paid"}
                                             </button>
-                                            {!balancePaid ? (
-                                              <label
-                                                className={`flex items-start gap-2 text-xs ${
-                                                  getPrimaryEmail(r)
-                                                    ? "text-gray-700"
-                                                    : "text-gray-400"
-                                                }`}
-                                                title={
-                                                  getPrimaryEmail(r)
-                                                    ? `Email the receipt to ${getPrimaryEmail(r)}`
-                                                    : "Add a client email before sending a receipt"
+                                            <label
+                                              className={`flex items-start gap-2 text-xs ${
+                                                getPrimaryEmail(r)
+                                                  ? "text-gray-700"
+                                                  : "text-gray-400"
+                                              }`}
+                                              title={
+                                                getPrimaryEmail(r)
+                                                  ? `Email the receipt to ${getPrimaryEmail(r)}`
+                                                  : "Add a client email before sending a receipt"
+                                              }
+                                            >
+                                              <input
+                                                type="checkbox"
+                                                className="mt-0.5 h-3.5 w-3.5"
+                                                checked={Boolean(
+                                                  sendReceiptWhenPaid[rowId],
+                                                )}
+                                                disabled={!getPrimaryEmail(r)}
+                                                onChange={(event) =>
+                                                  handleSendReceiptPreferenceChange(
+                                                    r,
+                                                    event.target.checked,
+                                                  )
                                                 }
-                                              >
-                                                <input
-                                                  type="checkbox"
-                                                  className="mt-0.5 h-3.5 w-3.5"
-                                                  checked={Boolean(
-                                                    sendReceiptWhenPaid[
-                                                      rowId
-                                                    ],
-                                                  )}
-                                                  disabled={!getPrimaryEmail(r)}
-                                                  onChange={(event) =>
-                                                    setSendReceiptWhenPaid(
-                                                      (prev) => ({
-                                                        ...prev,
-                                                        [rowId]:
-                                                          event.target.checked,
-                                                      }),
-                                                    )
-                                                  }
-                                                />
-                                                <span>
-                                                  Email receipt when marked paid
-                                                </span>
-                                              </label>
-                                            ) : null}
+                                              />
+                                              <span>
+                                                Email receipt when payment is marked paid
+                                              </span>
+                                            </label>
                                           </div>
                                           {receiptUrl ? (
                                             <a
@@ -7235,17 +7318,7 @@ export default function BookingBoard() {
                                             <button
                                               type="button"
                                               className="text-xs underline text-green-700"
-                                              onClick={() =>
-                                                onInlineEdit(r._id, {
-                                                  extrasPaid: true,
-                                                  extrasStatus: "paid",
-                                                  payments: {
-                                                    ...(r.payments || {}),
-                                                    extrasPaymentReceived: true,
-                                                    extrasInvoicePaid: true,
-                                                  },
-                                                })
-                                              }
+                                              onClick={() => markExtrasPaidForRow(r)}
                                             >
                                               Mark extras paid
                                             </button>
