@@ -1,3 +1,4 @@
+import { balanceDueISO, balanceReminderISO, BALANCE_PAYMENT_POLICY } from '../utils/balanceDueDate.js';
 import { BIRTHDAY_REVIEW_NUMBER, isBirthdayBooking } from "../utils/birthdayReviewSequence.js";
 import { REVIEW_AUTOMATION_NUMBERS, exclusiveReviewPlan, reviewPlanItems, reviewPlanItem, reviewPlanStopReason, reviewPlanSendISO, reviewPlanTemplate } from "../utils/reviewRequestPlan.js";
 import { collisionFreeAddOnDay } from "../utils/addOnAutomationDate.js";
@@ -266,6 +267,7 @@ const consolidateAutomationRows = (sourceRows = []) => {
               boardSource.songSuggestionsDueDateISO,
             ),
             invoiceDueDateISO: text(boardSource.invoiceDueDateISO),
+            paymentTermsVersion: boardSource.paymentTermsVersion,
             reviewRequestPlan: boardSource.reviewRequestPlan,
             ...(boardSource.reviewRequestPlan ? { review: boardSource.review } : {}),
           }
@@ -457,7 +459,7 @@ const songRequestDueAt = (row) => {
 const songRequestDueDate = (row) => formatDate(songRequestDueAt(row));
 const finalDetailsDueAt = (row) => parseDate(finalDetailsDueISO(row));
 const invoiceDueDate = (row) => {
-  return formatDate(finalDetailsDueAt(row));
+  return formatDate(parseDate(balanceDueISO(row)));
 };
 const specialRequestLabel = (row) => {
   if (rowWedding(row) === "Wedding") return "First Dance";
@@ -544,22 +546,8 @@ const proposedSendAt = (row, timing = {}, blockedISOs = []) => {
     }
     return adjustedISO ? parseDate(adjustedISO) : null;
   }
-  if (timing.strategy === "balance_reminder_advance") {
-    const event = parseDate(rowDate(row));
-    if (!event) return null;
-    const planned = new Date(event);
-    planned.setDate(event.getDate() + Number(timing.offsetDays || 0));
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (planned >= today) return planned;
-
-    const nextRun = nextAutomationRunAt();
-    const invoiceDeadline = finalDetailsDueAt(row);
-    return invoiceDeadline && nextRun < invoiceDeadline ? nextRun : planned;
-  }
-  if (timing.strategy === "invoice_due") {
-    return finalDetailsDueAt(row);
-  }
+  if (timing.strategy === "balance_reminder_advance") return parseDate(balanceReminderISO(row));
+  if (timing.strategy === "invoice_due") return parseDate(balanceDueISO(row));
   if (timing.strategy === "final_details_advance") {
     return parseDate(automation37SendISO(row));
   }
@@ -676,7 +664,7 @@ const TEMPLATE_TAGS = [
   { tag: "{{agent_name}}", label: "Agent" },
   { tag: "{{special_request_label}}", label: "First dance / off-repertoire label" },
   { tag: "{{song_request_due_date}}", label: "Song request due date" },
-  { tag: "{{invoice_due_date}}", label: "Invoice / event sheet due date" },
+  { tag: "{{invoice_due_date}}", label: "Balance payment due date" },
   { tag: "{{vocalist_names}}", label: "Vocalist names" },
   { tag: "{{draft_setlist_link}}", label: "Draft setlist link" },
   { tag: "{{whatsapp_group_link}}", label: "WhatsApp group link" },
@@ -743,6 +731,7 @@ const templateValues = (row = {}) => ({
   "{{special_request_label}}": specialRequestLabel(row),
   "{{song_request_due_date}}": songRequestDueDate(row),
   "{{invoice_due_date}}": invoiceDueDate(row),
+  "{{event_sheet_due_date}}": formatDate(finalDetailsDueAt(row)),
   "{{vocalist_names}}": vocalistNames(row),
   "{{draft_setlist_link}}": text(row.draftSetlistLink),
   "{{whatsapp_group_link}}": text(row.whatsappGroupLink),
@@ -767,10 +756,14 @@ const templateValues = (row = {}) => ({
   "{pulse.dup__of_vocalist}": vocalistNames(row),
 });
 const renderTemplate = (template, row, rule, resolveConditions = true) => {
-  const effectiveRule = reviewPlanTemplate(rule, row);
+  let effectiveRule = reviewPlanTemplate(rule, row);
+  if (row.paymentTermsVersion === BALANCE_PAYMENT_POLICY && [10,11].includes(Number(rule?.sourceNumber))) {
+    effectiveRule = {...effectiveRule, subject: Number(rule.sourceNumber) === 10 ? 'Automated Reminder: Balance Payment Coming Due' : 'Automated Reminder: Balance Payment Due', body: "Hi {{client_first_name}},\n\nJust a gentle reminder that the balance for your booking is due on {{invoice_due_date}}.\n\nPlease find your invoice attached, including the bank transfer details.\n\nIf you have already paid, thank you—please disregard this reminder.\n\nYour completed event sheet and playlists have a separate deadline of {{event_sheet_due_date}}.\n\nEVENT SHEET: {{client_event_sheet_link}}\n\nAny questions, please reply to this email.\n\nWarmest wishes,\nRhona ✨"};
+  }
   const effectiveTemplate = template === rule?.subject ? effectiveRule.subject
     : template === rule?.body ? effectiveRule.body : template;
   const values = templateValues(row);
+  if ([37,38].includes(Number(rule?.sourceNumber))) values["{{invoice_due_date}}"] = formatDate(finalDetailsDueAt(row));
   return Object.entries(values).reduce(
     (rendered, [tag, value]) => rendered.split(tag).join(value || `[${tag.replace(/[{}]/g, "")}]`),
     resolveConditions ? renderEventDetailsReminderConditions(effectiveTemplate, row, rule) : String(effectiveTemplate || ""),
@@ -849,7 +842,7 @@ const ruleMatchesRow = (
     return Boolean(plannedISO) && (!excludePast || plannedISO >= dateOnly(new Date()));
   }
   if (Number(rule?.sourceNumber) === 23 && !text(row?.referralDiscountCode)) return false;
-  if (rule?.timing?.strategy === "invoice_due" && !finalDetailsDueAt(row)) {
+  if (rule?.timing?.strategy === "invoice_due" && !balanceDueISO(row)) {
     return false;
   }
   if (rule?.timing?.strategy === "add_ons_midpoint") {
