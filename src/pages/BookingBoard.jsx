@@ -5608,6 +5608,17 @@ export default function BookingBoard() {
       });
     }
 
+    if (
+      String(row?.depositInvoice?.status || "").toLowerCase() === "paid" &&
+      !row?.depositInvoice?.receiptUrl &&
+      !row?.depositInvoice?.receiptPdfUrl
+    ) {
+      receiptsToSend.push({
+        type: "deposit",
+        paymentDate: toDateInputValue(row?.depositInvoice?.paidAt),
+      });
+    }
+
     if (!receiptsToSend.length) {
       return { attempted: 0, sent: 0 };
     }
@@ -5656,6 +5667,21 @@ export default function BookingBoard() {
         extrasPaymentReceived: true,
         extrasInvoicePaid: true,
         extrasPaidAt: now,
+      },
+    };
+    const saved = await onInlineEdit(row._id, patch);
+    if (!saved || !sendReceiptWhenPaid[rowId]) return;
+
+    await sendAnyPaidReceiptsForRow({ ...row, ...patch });
+  };
+
+  const markDepositPaidForRow = async (row) => {
+    const rowId = String(row?._id || getDisplayBookingRef(row));
+    const patch = {
+      depositInvoice: {
+        ...(row.depositInvoice || {}),
+        status: "paid",
+        paidAt: new Date().toISOString(),
       },
     };
     const saved = await onInlineEdit(row._id, patch);
@@ -7248,7 +7274,7 @@ export default function BookingBoard() {
                                                 checked={Boolean(
                                                   sendReceiptWhenPaid[rowId],
                                                 )}
-                                                disabled={!getPrimaryEmail(r)}
+                                                disabled={!getPrimaryEmail(r) || savingReceipt || rowSaveState[rowId] === "saving"}
                                                 onChange={(event) =>
                                                   handleSendReceiptPreferenceChange(
                                                     r,
@@ -7257,7 +7283,7 @@ export default function BookingBoard() {
                                                 }
                                               />
                                               <span>
-                                                Email receipt when payment is marked paid
+                                                Email receipt when payment is marked paid (balance, deposit or extras)
                                               </span>
                                             </label>
                                           </div>
@@ -7299,14 +7325,9 @@ export default function BookingBoard() {
                                                 <button
                                                   type="button"
                                                   className="text-left underline text-green-700"
+                                                  disabled={savingReceipt || rowSaveState[rowId] === "saving"}
                                                   onClick={() =>
-                                                    onInlineEdit(r._id, {
-                                                      depositInvoice: {
-                                                        ...(r.depositInvoice || {}),
-                                                        status: "paid",
-                                                        paidAt: new Date().toISOString(),
-                                                      },
-                                                    })
+                                                    markDepositPaidForRow(r)
                                                   }
                                                 >
                                                   Mark deposit paid
