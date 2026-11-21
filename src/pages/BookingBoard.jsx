@@ -1,3 +1,4 @@
+import { balanceExtraFeeSplit } from "../utils/extraFeeSplit.js";
 // admin/src/pages/BookingBoard.jsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import BookingLineupSlotsEditor from "../components/BookingLineupSlotsEditor.jsx";
@@ -989,6 +990,8 @@ const getExtrasFromRow = (row) => {
       price: Number(extra?.price || 0) || 0,
       passThroughGross: Number(extra?.passThroughGross || 0) || 0,
       managementGross: Number(extra?.managementGross || 0) || 0,
+      paidAmount: Number(extra?.paidAmount || 0) || 0,
+      paidAt: extra?.paidAt ? String(extra.paidAt).slice(0, 10) : "",
       addsMusician: extra?.addsMusician === true,
       musicianRole: extra?.musicianRole || "",
       refundableDeposit: Boolean(extra?.refundableDeposit),
@@ -1019,6 +1022,8 @@ const getExtrasFromRow = (row) => {
       price: Number(extra?.price || 0) || 0,
       passThroughGross: Number(extra?.passThroughGross || 0) || 0,
       managementGross: Number(extra?.managementGross || 0) || 0,
+      paidAmount: Number(extra?.paidAmount || 0) || 0,
+      paidAt: extra?.paidAt ? String(extra.paidAt).slice(0, 10) : "",
       addsMusician: extra?.addsMusician === true,
       musicianRole: extra?.musicianRole || "",
       refundableDeposit: Boolean(extra?.refundableDeposit),
@@ -2441,6 +2446,8 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
       price: Number(seed.price || 0) || 0,
       passThroughGross: Number(seed.passThroughGross || 0) || 0,
       managementGross: Number(seed.managementGross || 0) || 0,
+      paidAmount: Number(seed.paidAmount || 0) || 0,
+      paidAt: seed.paidAt ? String(seed.paidAt).slice(0, 10) : "",
       addsMusician: seed.addsMusician === true,
       musicianRole: seed.musicianRole || "",
       refundableDeposit: Boolean(seed.refundableDeposit),
@@ -3328,7 +3335,7 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                     value={extra.passThroughGross ?? 0}
                     onChange={(e) =>
                       updateExtra(extra.id, {
-                        passThroughGross: Number(e.target.value || 0),
+                        ...balanceExtraFeeSplit(extra, 'passThroughGross', e.target.value),
                       })
                     }
                   />
@@ -3345,11 +3352,24 @@ function BookingUpdateModal({ row, value, onClose, onChange, onSave, saving }) {
                     value={extra.managementGross ?? 0}
                     onChange={(e) =>
                       updateExtra(extra.id, {
-                        managementGross: Number(e.target.value || 0),
+                        ...balanceExtraFeeSplit(extra, 'managementGross', e.target.value),
                       })
                     }
                   />
                 </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-gray-600 mb-1">Already paid (£)
+                    <input type="number" min="0" max={Number(extra.price || 0) * (Number(extra.quantity || 1) || 1)} step="0.01" className="mt-1 border rounded px-3 py-2 w-full"
+                      value={extra.paidAmount ?? 0} onChange={event => updateExtra(extra.id, { paidAmount: Number(event.target.value || 0) })} />
+                  </label>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs text-gray-600 mb-1">Payment date
+                    <input type="date" className="mt-1 border rounded px-3 py-2 w-full" value={extra.paidAt || ''}
+                      onChange={event => updateExtra(extra.id, { paidAt: event.target.value })} />
+                  </label>
+                </div>
+                <p className="md:col-span-12 text-xs text-gray-500">Fee splits and payments apply to this whole line, including quantity. Entering either fee calculates the other. A recorded payment reduces the extras invoice balance without marking the other extras paid.</p>
                 <div className="md:col-span-2">
                   <label className="flex items-center gap-2 text-xs text-gray-700 border rounded px-3 py-2">
                     <input
@@ -4763,6 +4783,8 @@ export default function BookingBoard() {
         price: Number(extra?.price || 0) || 0,
         passThroughGross: Number(extra?.passThroughGross || 0) || 0,
         managementGross: Number(extra?.managementGross || 0) || 0,
+        paidAmount: Number(extra?.paidAmount || 0) || 0,
+        paidAt: extra?.paidAt ? String(extra.paidAt).slice(0, 10) : "",
         addsMusician: extra?.addsMusician === true,
         musicianRole: extra?.musicianRole || "",
         refundableDeposit: Boolean(extra?.refundableDeposit),
@@ -4803,6 +4825,13 @@ export default function BookingBoard() {
           extra.finishTime ||
           extra.arrivalTime,
       );
+
+    const invalidPayment = cleanedExtras.find(extra => extra.paidAmount < 0 || extra.paidAmount > extra.price * extra.quantity || (extra.paidAmount > 0 && !/^\d{4}-\d{2}-\d{2}$/.test(extra.paidAt)));
+    if (invalidPayment) {
+      window.alert(`Enter a payment date and an amount between £0 and the full line total for ${invalidPayment.name}.`);
+      return;
+    }
+    cleanedExtras.forEach(extra => { extra.paidAt = extra.paidAmount > 0 && extra.paidAt ? `${extra.paidAt}T12:00:00.000Z` : null; });
 
     const assignedMusicians = Array.isArray(editForm.assignedMusicians)
       ? editForm.assignedMusicians
