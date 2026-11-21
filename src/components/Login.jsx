@@ -25,9 +25,13 @@ const Login = ({
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [authError, setAuthError] = useState("");
 
   const onSubmitHandler = async (event) => {
     event.preventDefault();
+    if (busy) return;
+    setAuthError("");
 
     const normEmail = (email || "").trim().toLowerCase();
 
@@ -43,6 +47,7 @@ const Login = ({
       return;
     }
 
+    setBusy(true);
     try {
       const endpoint =
         currentState === "Sign Up"
@@ -113,6 +118,7 @@ const Login = ({
         err?.message ||
         "Authentication failed";
 
+      setAuthError(pretty);
       console.error("❌ Auth error:", {
         message: err?.message,
         code: err?.code,
@@ -121,6 +127,8 @@ const Login = ({
       });
 
       toast(<CustomToast type="error" message={pretty} />);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -211,7 +219,10 @@ const Login = ({
           </>
         )}
 
+        {authError && <p role="alert" className="w-full rounded bg-red-50 p-3 text-sm text-red-800">{authError}</p>}
         <input
+          aria-label="Email"
+          autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           type="email"
@@ -221,6 +232,8 @@ const Login = ({
         />
 
         <input
+          aria-label="Password"
+          autoComplete={currentState === "Login" ? "current-password" : "new-password"}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           type="password"
@@ -230,31 +243,32 @@ const Login = ({
         />
 
         <div className="w-full flex justify-between gap-3 text-[12px] md:text-sm mt-[-6px]">
-          <p            className="cursor-pointer underline"
+          <button type="button" className="min-h-11 text-left underline"
             onClick={handleForgotPassword}
           >
             Forgot your password?
-          </p>
+          </button>
 
           {currentState === "Login" ? (
-            <p
-              onClick={() => setCurrentState("Sign Up")}
-              className="cursor-pointer"
+            <button type="button"
+              onClick={() => { setCurrentState("Sign Up"); setAuthError(""); }}
+              className="min-h-11"
             >
               Create account
-            </p>
+            </button>
           ) : (
-            <p
-              onClick={() => setCurrentState("Login")}
-              className="cursor-pointer"
+            <button type="button"
+              onClick={() => { setCurrentState("Login"); setAuthError(""); }}
+              className="min-h-11"
             >
               Login Here
-            </p>
+            </button>
           )}
         </div>
 
-        <button className="bg-black text-white font-light px-8 py-3 mt-4 min-w-[160px]">
-          {currentState === "Login" ? "Sign In" : "Sign Up"}        </button>
+        <button type="submit" disabled={busy} className="bg-black text-white font-light px-8 py-3 mt-4 min-w-[160px] disabled:opacity-50">
+          {busy ? "Please wait…" : currentState === "Login" ? "Sign In" : "Sign Up"}
+        </button>
       </form>
     </>
   );

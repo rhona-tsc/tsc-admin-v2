@@ -63,6 +63,7 @@ import VenueBlackBook from "./pages/VenueBlackBook";
 import BookingStories from './pages/BookingStories';
 import SeoKeywordTracker from "./pages/SeoKeywordTracker";
 import { loginPathFor, loginReturnPath } from "./utils/loginReturnPath";
+import { storedSessionToken } from "./utils/sessionToken";
 import { canAccessOriginalsPreview } from "./utils/originalsAccess";
 
 export const backendUrl =
@@ -108,7 +109,7 @@ function parseToken(t) {
 
 const RequireAuth = ({ children }) => {
   const location = useLocation();
-  const token = localStorage.getItem("token") || "";
+  const token = storedSessionToken();
 
   if (!token) {
     return (
@@ -127,7 +128,7 @@ const RequireAuth = ({ children }) => {
 
 const RequireOriginalsAccess = ({ children, allowed }) => {
   const location = useLocation();
-  const token = localStorage.getItem("token") || "";
+  const token = storedSessionToken();
 
   // Originals links are commonly opened from email. Keep the requested
   // project URL through login instead of allowing the catch-all route to
@@ -153,9 +154,9 @@ const RequireOriginalsAccess = ({ children, allowed }) => {
 
 const PublicOnlyRoute = ({ children }) => {
   const location = useLocation();
-  const token = localStorage.getItem("token") || "";
+  const token = storedSessionToken();
 
-  if (token) {
+  if (token && new URLSearchParams(location.search).get("reauth") !== "1") {
     return <Navigate to={loginReturnPath(location)} replace />;
   }
 
@@ -166,7 +167,7 @@ const App = () => {
   const isOriginalsWorkspace = /^\/originals\/[a-f0-9]{24}\/?$/i.test(useLocation().pathname);
   Modal.setAppElement("#root");
 
-  const initialToken = localStorage.getItem("token") || "";
+  const initialToken = storedSessionToken();
   const initialUser = parseToken(initialToken);
 
   const [token, setToken] = useState(initialToken);
@@ -200,11 +201,10 @@ const App = () => {
   };
 
   useEffect(() => {
-    const currentToken = localStorage.getItem("token") || "";
-    if (currentToken !== token) {
-      setToken(currentToken);
+    if (initialToken !== token) {
+      setToken(initialToken);
     }
-  }, [token]);
+  }, [token, initialToken]);
 
   useEffect(() => {
     if (!token) return;
