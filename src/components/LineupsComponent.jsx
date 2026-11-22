@@ -533,7 +533,10 @@ const allSavedMembers = Array.from(
                   const bandMembers = lineupItem.bandMembers || [];
 
                   const essentialInstruments = bandMembers
-                    .filter((m) => m.isEssential)
+                    .filter((m) => lineupItem.websiteVisibility === 'enquiry'
+                      ? Boolean(m.instrument) && !m.isManager && !m.isNonPerformer &&
+                        !/manager|management|sound engineer|sound tech|audio engineer|\bfoh\b/i.test(m.instrument)
+                      : m.isEssential)
                     .map((m) => ({
                       name:
                         m.instrument === "Other"
@@ -597,6 +600,9 @@ const allSavedMembers = Array.from(
                   );
                 })()}
               </h2>
+              {lineupItem.websiteVisibility === 'enquiry' && (
+                <span className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-900">Enquiry only</span>
+              )}
             </div>
 
             {lineups.length > 1 && (

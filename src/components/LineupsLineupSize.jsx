@@ -15,8 +15,9 @@ const LineupsLineupSize = ({ lineupItem, lineupIndex, setLineups }) => {
         {lineupItem.actSize ? `${lineupItem.actSize}` : "Select your lineup"}
       </h2>
 
-      <label>Lineup Size</label>
+      <label htmlFor={`lineup-size-${lineupIndex}`}>Lineup Size</label>
       <select
+  id={`lineup-size-${lineupIndex}`}
   className={`w-full px-2 py-2 border text-sm ${
     lineupItem.actSize ? "text-gray-900" : "text-gray-400"
   }`}
@@ -26,7 +27,8 @@ const LineupsLineupSize = ({ lineupItem, lineupIndex, setLineups }) => {
   <option value="" disabled hidden>
     Select Lineup Size
   </option>
-  {[
+  {[...new Set([
+    ...(lineupItem.actSize ? [lineupItem.actSize] : []),
     "Solo",
     "Duo",
     "3-Piece",
@@ -37,7 +39,7 @@ const LineupsLineupSize = ({ lineupItem, lineupIndex, setLineups }) => {
     "8-Piece",
     "9-Piece",
     "10-Piece +",
-  ].map((size) => (
+  ])].map((size) => (
     <option key={size} value={size}>
       {size}
     </option>
