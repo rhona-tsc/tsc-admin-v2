@@ -521,7 +521,7 @@ export default function EnquiryBoard() {
           x?.name ||
           x?.lineupName ||
           (typeof x === "string" ? x : `Lineup ${idx + 1}`);
-        return id ? { id, label } : null;
+        return id ? { id, label, locationEligibility: x.locationEligibility } : null;
       })
       .filter(Boolean);
   };
@@ -720,8 +720,8 @@ setTotal(mergedRows.length);
     const address = (draft.address || "").trim();
     const clientEmail = (draft.clientEmail || "").trim().toLowerCase();
 
-    if (!address) {
-      window.alert("Please add Venue / Address (needed to send availability request).");
+    if (!address && !draft.county.trim()) {
+      window.alert("Add a county, or a venue with a full or partial postcode.");
       return;
     }
     const emailError = enquiryClientEmailError(draft.agent, clientEmail);
@@ -831,7 +831,7 @@ setTotal(mergedRows.length);
     setSelectedActs((prev) =>
       prev.some((item) => String(item.act?._id || "") === actId)
         ? prev
-        : [...prev, { act, lineupId: "" }]
+        : [...prev, { act, lineupId: getLineupOptions(act).find(option => option.locationEligibility?.eligible)?.id || "" }]
     );
     setActResults([]);
     setActSearch("");
@@ -846,6 +846,7 @@ setTotal(mergedRows.length);
       return;
     }
 
+    const controller = new AbortController();
     const t = setTimeout(async () => {
       setActLoading(true);
       try {
@@ -853,12 +854,14 @@ setTotal(mergedRows.length);
         qs.set("q", term);
         qs.set("limit", "25");
         qs.set("page", "1");
-        qs.set("fields", "_id,name,tscName,lineups");
+        qs.set("address", draft.address.trim());
+        qs.set("county", draft.county.trim());
         qs.set("_cb", String(Date.now()));
 
-        const res = await fetch(`${API_BASE}/act/list?${qs.toString()}`, {
+        const res = await fetch(`${API_BASE}/board/enquiries/acts/search?${qs.toString()}`, {
           headers: buildHeaders(),
           credentials: "include",
+          signal: controller.signal,
         });
         const raw = await res.text();
         let json = null;
@@ -875,7 +878,12 @@ setTotal(mergedRows.length);
           [];
 
         setActResults(items);
+        setSelectedActs(previous => previous.map(selected => {
+          const current = items.find(act => String(act._id) === String(selected.act._id));
+          return current ? { ...selected, act: current } : selected;
+        }));
       } catch (e) {
+        if (e.name === 'AbortError') return;
         console.error("Act search failed:", e);
         setActResults([]);
       } finally {
@@ -883,8 +891,8 @@ setTotal(mergedRows.length);
       }
     }, 300);
 
-    return () => clearTimeout(t);
-  }, [actSearch, showAdd]);
+    return () => { clearTimeout(t); controller.abort(); };
+  }, [actSearch, showAdd, draft.address, draft.county]);
 
   return (
     <div className="p-4">
@@ -1347,12 +1355,15 @@ setTotal(mergedRows.length);
                         type="button"
                         className="w-full text-left px-3 py-2 hover:bg-gray-50 border-b last:border-b-0 disabled:opacity-50"
                         onClick={() => pickAct(a)}
-                        disabled={selectedActs.some(
+                        title={a.locationEligibility?.reason || ''}
+                        disabled={a.locationEligibility?.eligible !== true || selectedActs.some(
                           (item) => String(item.act?._id || "") === String(a?._id || "")
                         )}
                       >
                         <div className="font-medium text-sm">{a.name || "—"}</div>
                         <div className="text-[11px] text-gray-500">{a.tscName || "—"}</div>
+                        {a.locationEligibility?.reason && <div className="text-xs text-amber-800">{a.locationEligibility.reason}</div>}
+                        {a.locationEligibility?.eligible && a.locationEligibility.precision === 'county' && <div className="text-xs text-teal-800">County accepted · exact venue can follow</div>}
                       </button>
                     ))}
                   </div>
@@ -1376,6 +1387,7 @@ setTotal(mergedRows.length);
                               <div className="text-[11px] text-gray-500 truncate">{act.name}</div>
                             )}
                           </div>
+                          {act.locationEligibility?.reason && <p className="text-xs text-amber-800">{act.locationEligibility.reason}</p>}
                           <label className="w-64 text-[11px] text-gray-600">
                             Lineup
                             <select
@@ -1393,8 +1405,8 @@ setTotal(mergedRows.length);
                             >
                               <option value="">Auto (smallest lineup)</option>
                               {options.map((option) => (
-                                <option key={option.id} value={option.id}>
-                                  {option.label}
+                                <option key={option.id} value={option.id} disabled={option.locationEligibility?.eligible === false}>
+                                  {option.label}{option.locationEligibility?.eligible === false ? ' — location needed' : ''}
                                 </option>
                               ))}
                             </select>
@@ -1470,7 +1482,7 @@ setTotal(mergedRows.length);
               </label>
 
               <label className="text-xs col-span-2">
-                Venue / Address
+                Venue / Address (optional when a county is supplied)
                 <input
                   className="border rounded px-2 py-2 w-full"
                   value={draft.address}
