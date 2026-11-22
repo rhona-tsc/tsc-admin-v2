@@ -1344,26 +1344,11 @@ const buildEditStateFromRow = (row) => {
 };
 
 const getRolesFromLineupLabel = (value = "") => {
-  const label = String(value || "").trim();
-  if (!label) return [];
-
-  const composition = label.match(/\(([^)]+)\)/)?.[1] || "";
-  if (!composition) return [];
-
-  const roleAliases = new Map([
-    ["female vocal/rapper", "Lead Female Vocal / Rapper"],
-    ["male vocal/rapper", "Lead Male Vocal / Rapper"],
-    ["bass", "Bass Guitar"],
-    ["guitar", "Electric Guitar"],
-    ["keys", "Keyboard"],
-    ["drums", "Drums"],
-  ]);
-
-  return composition
-    .split(",")
-    .map((role) => role.trim())
-    .filter(Boolean)
-    .map((role) => roleAliases.get(role.toLowerCase()) || role);
+  const text=String(value).match(/\(([^)]+)\)/)?.[1]||String(value).split(':')[1]||'';
+  return text.replace(/,?\s*with up to.*$/i,'').split(/,|\s+and\s+|\s*&\s*/).flatMap(raw=>{
+    const value=raw.trim();if(!value)return[];
+    const m=value.match(/^(\d+)\s*x\s*(.+)$/i);return Array(Math.min(20,Number(m?.[1]||1))).fill(m?.[2]||value);
+  });
 };
 const ALLOCATION_DUTY_OPTIONS = [
   "Band leading",
@@ -1391,9 +1376,9 @@ const getBookingRoleSlots = (row = {}) => {
     ? explicit
     : lineupMembers.length
       ? lineupMembers.map((member) => member?.instrument || member?.role || "")
-      : assignedRoles.length
-        ? assignedRoles
-        : labelRoles;
+      : labelRoles.length
+        ? labelRoles
+        : assignedRoles;
   const counts = new Map();
   return effectiveLineupRoles(row, roles)
     .map(normaliseAllocationRole)
@@ -1433,6 +1418,19 @@ function RoleAllocationCell({ row }) {
   const [sending, setSending] = useState("");
   const [error, setError] = useState("");
   const [slotDrafts, setSlotDrafts] = useState({});
+  const [allocationHolds,setAllocationHolds]=useState(row?.allocationHolds||[]);
+  const [holdDrafts,setHoldDrafts]=useState({});
+  const isHeld=slot=>allocationHolds.find(h=>h.active&&h.roleSlotId===slot.roleSlotId&&(!h.until||new Date(h.until)>new Date()));
+  const saveHold=async(slot,active)=>{
+    const draft=holdDrafts[slot.roleSlotId]||{};
+    setSending(slot.roleSlotId);setError('');
+    try{
+      const response=await fetch(`${API_BASE}/allocations/bookings/${row._id}/hold`,{method:'POST',headers:{...buildAuthHeaders(),'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({roleSlotId:slot.roleSlotId,active,reason:draft.reason||'',until:draft.until?new Date(draft.until).toISOString():null})});
+      const data=await response.json();if(!response.ok||!data.success)throw Error(data.message||'Could not save allocation hold');
+      setAllocationHolds(data.allocationHolds||[]);
+      window.dispatchEvent(new Event('booking-updated'));
+    }catch(e){setError(e.message);}finally{setSending('');}
+  };
   const [newContact, setNewContact] = useState({ name: "", email: "", phone: "" });
   const [whatsappGroupLink, setWhatsappGroupLink] = useState(
     row?.whatsappGroupLink || "",
@@ -1442,6 +1440,7 @@ function RoleAllocationCell({ row }) {
 
   useEffect(() => {
     setAssignments(getBookingMemberTags(row));
+    setAllocationHolds(row?.allocationHolds||[]);
     setWhatsappGroupLink(row?.whatsappGroupLink || "");
   }, [row]);
 
@@ -1555,6 +1554,7 @@ function RoleAllocationCell({ row }) {
   };
 
   const sendOffer = async (slot, candidate) => {
+    if(isHeld(slot)){setError("Release this role’s hold before sending requests.");return;}
     if (candidate?.available === false) return;
     const assignment = assignments.find(
       (member) => member?.roleSlotId === slot.roleSlotId,
@@ -1629,6 +1629,7 @@ function RoleAllocationCell({ row }) {
   };
 
   const confirmCandidate = async (slot, candidate) => {
+    if(isHeld(slot)){setError("Release this role’s hold before allocating a musician.");return;}
     const assignment = assignments.find(
       (member) => member?.roleSlotId === slot.roleSlotId,
     );
@@ -1834,6 +1835,7 @@ function RoleAllocationCell({ row }) {
             {confirmedCount} confirmed
             {pendingRows.length ? ` • ${pendingRows.length} awaiting reply` : ""}
             {unfilledRows.length ? ` • ${unfilledRows.length} unfilled` : ""}
+            {allocationHolds.filter(h=>h.active&&(!h.until||new Date(h.until)>new Date())).length ? " • allocations on hold" : ""}
           </span>
           {(getDisplayArrivalTime(row) || getDisplayFinishTime(row)) ? (
             <span className="mt-1 block text-[10px] font-medium opacity-90">
@@ -1853,6 +1855,8 @@ function RoleAllocationCell({ row }) {
         roleSeen.set(slot.role.toLowerCase(), roleIndex + 1);
         const assignment = findAssignment(slot, roleIndex);
         const status = assignment?.status || "unfilled";
+        const hold=isHeld(slot);
+        const holdDraft=holdDrafts[slot.roleSlotId]||{};
         const declineAwaitingConfirmation = hasPendingCalendarDecline(assignment);
         const isOpen = activeSlot === slot.roleSlotId;
         const draft = getSlotDraft(slot, assignment);
@@ -1890,6 +1894,12 @@ function RoleAllocationCell({ row }) {
                     : status.replaceAll("_", " ")}
               </span>
             </div>
+            {!isConfirmedAllocation(assignment) ? (
+              <details className="mt-3 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-950">
+                <summary className="cursor-pointer font-semibold">{hold?'Allocation on hold':'Hold this allocation'}</summary>
+                {hold ? <div className="mt-2 space-y-2"><p>{hold.reason}</p><p>{hold.until?`Held until ${new Date(hold.until).toLocaleString('en-GB')}`:'Held until you release it'}. Automatic deputy searches are paused.</p><button type="button" className="rounded border border-amber-800 px-2 py-1" disabled={sending===slot.roleSlotId} onClick={()=>saveHold(slot,false)}>Release hold</button></div> : <div className="mt-2 space-y-2"><label className="block">Reason<input className="mt-1 w-full rounded border bg-white p-2" value={holdDraft.reason||''} onChange={e=>setHoldDrafts(d=>({...d,[slot.roleSlotId]:{...holdDraft,reason:e.target.value}}))}/></label><label className="block">End hold automatically (optional)<input type="datetime-local" className="mt-1 w-full rounded border bg-white p-2" value={holdDraft.until||''} onChange={e=>setHoldDrafts(d=>({...d,[slot.roleSlotId]:{...holdDraft,until:e.target.value}}))}/></label><p>Pauses requests, reminders and the seven-day deputy board escalation for this role. Existing public listings will close while held; applications are retained.</p><button type="button" className="rounded bg-black px-3 py-1.5 text-white disabled:opacity-50" disabled={!holdDraft.reason?.trim()||sending===slot.roleSlotId} onClick={()=>saveHold(slot,true)}>Hold allocation</button></div>}
+              </details>
+            ):null}
             {!assignment && originalSuggestion ? (
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-950">
                 <span>
