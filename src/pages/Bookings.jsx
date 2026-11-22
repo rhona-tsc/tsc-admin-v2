@@ -245,17 +245,18 @@ const BookingList = ({ token }) => {
     try {
       setWithdrawingId(String(ref));
       const { data } = await axios.post(
-        `${backendUrl}/api/booking/bookings/${encodeURIComponent(ref)}/withdraw`,
-        { reason },
+        `${backendUrl}/api/allocations/bookings/${encodeURIComponent(ref)}/withdraw`,
+        { reason, roleSlotId: getMusicianTag(booking)?.roleSlotId || undefined },
         { headers: { Authorization: `Bearer ${authToken}`, token: authToken }, withCredentials: true },
       );
+      if (!data?.success) throw new Error(data?.message || "Could not withdraw availability.");
       toast(<CustomToast type="success" message={data?.message || "Availability withdrawn."} />);
       await fetchBookings();
     } catch (error) {
       toast(
         <CustomToast
           type="error"
-          message={error?.response?.data?.message || "Could not withdraw availability."}
+          message={error?.response?.data?.message || error?.message || "Could not withdraw availability."}
         />,
       );
     } finally {
