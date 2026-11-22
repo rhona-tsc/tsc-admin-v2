@@ -620,6 +620,19 @@ const allSavedMembers = Array.from(
 
           {openLineups[lineupIndex] && (
             <>
+              <label className="block mt-4 mb-2 text-sm">
+                Lineup visibility
+                <select
+                  className="block mt-1 border rounded p-2 w-full"
+                  value={lineupItem.websiteVisibility || 'public'}
+                  onChange={e => setLineups(prev => prev.map((item, index) => index === lineupIndex
+                    ? { ...item, websiteVisibility: e.target.value } : item))}
+                >
+                  <option value="public">Standard — show to all clients</option>
+                  <option value="enquiry">Bespoke — only show for the selected enquiry</option>
+                </select>
+                <span className="block mt-1 text-gray-500">Bespoke options stay available here and on existing enquiries and bookings. Other clients see the standard lineups.</span>
+              </label>
               <div className="flex gap-4 items-end mt-4 ">
                 <div className="flex-1">
                   <LineupsLineupSize

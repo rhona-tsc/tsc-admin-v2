@@ -21,6 +21,7 @@ const AddAnotherLineup = ({ lineups = [], setLineups, setOpenLineups }) => {
   const addNewLineup = () => {
     const newLineup = {
       lineupId: uuidv4(), // ✅ give new ones an id too
+      websiteVisibility: 'enquiry',
       actSize: "",
       spaceRequired: "",
       electricityReqs: "",
@@ -43,6 +44,7 @@ const AddAnotherLineup = ({ lineups = [], setLineups, setOpenLineups }) => {
 
     // ✅ regenerate your custom id
     duplicated.lineupId = uuidv4();
+    duplicated.websiteVisibility = 'enquiry';
 
     // keep your label tweak
     duplicated.actSize = `Copy of ${last.actSize || `Lineup ${lineups.length}`}`;
