@@ -461,6 +461,7 @@ const mergeRowsPreservingAllocations = (base = {}, preferred = {}) => {
   const mergeAssignments = (key) =>
     mergeAssignmentLists(base?.[key], preferred?.[key]);
 
+  merged.allocationHolds = (preferred?.bookingBoardItemId ? preferred.allocationHolds : base?.bookingBoardItemId ? base.allocationHolds : preferred.allocationHolds || base.allocationHolds) || [];
   merged.assignedMusicians = mergeAssignments("assignedMusicians");
   merged.bookingMusicians = mergeAssignments("bookingMusicians");
   merged.bandLineup = mergeAssignments("bandLineup");
@@ -1425,7 +1426,7 @@ function RoleAllocationCell({ row }) {
     const draft=holdDrafts[slot.roleSlotId]||{};
     setSending(slot.roleSlotId);setError('');
     try{
-      const response=await fetch(`${API_BASE}/allocations/bookings/${row._id}/hold`,{method:'POST',headers:{...buildAuthHeaders(),'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({roleSlotId:slot.roleSlotId,active,reason:draft.reason||'',until:draft.until?new Date(draft.until).toISOString():null})});
+      const response=await fetch(`${API_BASE}/allocations/bookings/${row.bookingBoardItemId||row._id}/hold`,{method:'POST',headers:{...buildAuthHeaders(),'Content-Type':'application/json'},credentials:'include',body:JSON.stringify({roleSlotId:slot.roleSlotId,active,reason:draft.reason||'',until:draft.until?new Date(draft.until).toISOString():null})});
       const data=await response.json();if(!response.ok||!data.success)throw Error(data.message||'Could not save allocation hold');
       setAllocationHolds(data.allocationHolds||[]);
       window.dispatchEvent(new Event('booking-updated'));
