@@ -24,7 +24,41 @@ export default function PeerFeedback() {
     {!data && !error && <p className="mt-4 text-sm">Loading your gigs…</p>}
     {data && !tasks.length && <div className="mt-5 rounded-xl bg-stone-50 p-5 text-sm text-gray-600">You’re all caught up. Feedback tasks will appear here after your next gig.</div>}
     {tasks.map(t => <div key={t.bookingKey} className="mt-5 border-t pt-4"><p className="font-semibold">{t.actName} <span className="font-normal text-gray-500">· {new Date(`${t.eventDate}T12:00:00`).toLocaleDateString('en-GB')}</span></p><div className="mt-3 flex flex-wrap gap-2">{t.peers.map(p => <button key={p.id} disabled={p.submitted} onClick={() => { setActive({ ...t, peer: p }); setRatings({}); setComment(''); setError(''); }} className="rounded-lg border px-4 py-2 text-sm hover:border-rose-400 disabled:bg-green-50 disabled:text-green-800">{p.name} · {p.submitted ? 'Submitted' : 'Give feedback'}</button>)}</div></div>)}
-    {active && <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Private bandmate feedback"><div className="max-h-[90vh] w-full max-w-xl overflow-auto rounded-2xl bg-white p-6"><h2 className="text-xl font-semibold">Feedback for {active.peer.name}</h2><p className="mt-2 text-sm text-gray-500">{active.actName} · {active.eventDate}. Private to TSC staff.</p><div className="mt-5 space-y-3">{data.categories.map(label => <label key={label} className="flex items-center justify-between gap-3 text-sm">{label}<select value={ratings[label] || ''} onChange={e => setRatings({ ...ratings, [label]: e.target.value ? Number(e.target.value) : null })} className="rounded border p-2"><option value="">Not observed</option>{[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} / 5</option>)}</select></label>)}</div><label className="mt-5 block text-sm font-medium">Comments or a concern for TSC<textarea maxLength={2000} rows={4} value={comment} onChange={e => setComment(e.target.value)} className="mt-2 w-full rounded-lg border p-3" placeholder="Keep feedback specific, fair and based on this gig." /></label>{error && <p role="alert" className="mt-2 text-red-700">{error}</p>}<div className="mt-5 flex justify-end gap-3"><button disabled={busy} onClick={() => setActive(null)} className="rounded-lg border px-4 py-2">Cancel</button><button disabled={busy} onClick={save} className="rounded-lg bg-black px-4 py-2 text-white disabled:opacity-50">{busy ? 'Submitting…' : 'Send privately to TSC'}</button></div></div></div>}
+    {active && <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="Private bandmate feedback"><div className="max-h-[90vh] w-full max-w-xl overflow-auto rounded-2xl bg-white p-6"><h2 className="text-xl font-semibold">Feedback for {active.peer.name}</h2><p className="mt-2 text-sm text-gray-500">{active.actName} · {active.eventDate}. Private to TSC staff.</p><div className="mt-5 space-y-3">{data.categories.map(label => (
+      <fieldset key={label} className="min-w-0" disabled={busy}>
+        <legend className="text-sm font-medium">{label}</legend>
+        <div className="flex flex-wrap items-center gap-1">
+          {[1, 2, 3, 4, 5].map(stars => (
+            <label key={stars} className="cursor-pointer">
+              <input
+                type="radio"
+                name={`peer-rating-${label}`}
+                checked={ratings[label] === stars}
+                onChange={() => setRatings(current => ({ ...current, [label]: stars }))}
+                className="peer sr-only"
+              />
+              <span className="sr-only">{stars} {stars === 1 ? 'star' : 'stars'} out of 5</span>
+              <span
+                aria-hidden="true"
+                className={`grid h-11 w-11 place-items-center rounded text-3xl leading-none peer-focus-visible:ring-2 peer-focus-visible:ring-rose-600 ${stars <= ratings[label] ? 'text-amber-600' : 'text-gray-500'}`}
+              >
+                {stars <= ratings[label] ? '★' : '☆'}
+              </span>
+            </label>
+          ))}
+          <label className="ml-1 flex min-h-11 cursor-pointer items-center gap-2 text-sm text-gray-700">
+            <input
+              type="radio"
+              name={`peer-rating-${label}`}
+              checked={ratings[label] == null}
+              onChange={() => setRatings(current => ({ ...current, [label]: null }))}
+              className="accent-rose-600"
+            />
+            Not observed
+          </label>
+        </div>
+      </fieldset>
+    ))}</div><label className="mt-5 block text-sm font-medium">Comments or a concern for TSC<textarea maxLength={2000} rows={4} value={comment} onChange={e => setComment(e.target.value)} className="mt-2 w-full rounded-lg border p-3" placeholder="Keep feedback specific, fair and based on this gig." /></label>{error && <p role="alert" className="mt-2 text-red-700">{error}</p>}<div className="mt-5 flex justify-end gap-3"><button disabled={busy} onClick={() => setActive(null)} className="rounded-lg border px-4 py-2">Cancel</button><button disabled={busy} onClick={save} className="rounded-lg bg-black px-4 py-2 text-white disabled:opacity-50">{busy ? 'Submitting…' : 'Send privately to TSC'}</button></div></div></div>}
   </section>;
 }
 
