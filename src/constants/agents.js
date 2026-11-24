@@ -3,7 +3,7 @@ export const AGENT_OPTIONS = [
   "Fully Funktional", "Function Central", "LMM", "Poptop", "Scarlettte",
   "Silk Street", "Soul Eras", "St Barts", "Staar Productions", "Stormont",
   "The Supreme Collective", "UKBride", "UKBride Lead", "Warble", "Wedding Fair",
-  "Wedding Jam",
+  "Wedding Jam", "Wedissimo",
 ];
 
 const AGENT_ALIASES = new Map([

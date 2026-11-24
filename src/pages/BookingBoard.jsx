@@ -1,6 +1,7 @@
 import { balanceExtraFeeSplit } from "../utils/extraFeeSplit.js";
 // admin/src/pages/BookingBoard.jsx
 import React, { useEffect, useMemo, useState, useCallback } from "react";
+import BookingCancellationPolicyEditor from "../components/BookingCancellationPolicyEditor.jsx";
 import BookingLineupSlotsEditor from "../components/BookingLineupSlotsEditor.jsx";
 import { effectiveLineupRoles, lineupDisplayLabel } from "../utils/bookingLineupAdditions.js";
 import { BESPOKE_LINEUP_ID, buildBespokeLineupPatch, lineupSlotsFromRow, normaliseLineupSlots } from "../utils/bookingLineup.js";
@@ -6457,6 +6458,7 @@ export default function BookingBoard() {
                                       </td>
                                       {/* Event Sheet */}
                                       <td className={cellClass}>
+                                        <BookingCancellationPolicyEditor row={r} onSave={onInlineEdit} />
                                         {r.eventSheetLink ? (
                                           <div className="flex flex-col items-start gap-1">
                                             <a

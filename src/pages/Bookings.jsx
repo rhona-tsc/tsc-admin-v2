@@ -3,6 +3,7 @@ import axios from "axios";
 import { backendUrl } from "../App";
 import { toast } from "react-toastify";
 import CustomToast from "../components/CustomToast";
+import { useSearchParams } from "react-router-dom";
 
 const AUTH_TOKEN_KEYS = ["musicianToken", "token", "adminToken"];
 
@@ -168,6 +169,8 @@ const getStatusLabel = (booking) => {
 };
 
 const BookingList = ({ token }) => {
+  const [searchParams] = useSearchParams();
+  const focusedBooking = searchParams.get("booking") || "";
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -230,6 +233,12 @@ const BookingList = ({ token }) => {
     [bookings],
   );
 
+  useEffect(() => {
+    if (!loading && focusedBooking) {
+      document.getElementById(`gig-${focusedBooking}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [loading, focusedBooking, bookings]);
+
   const withdrawAvailability = async (booking) => {
     const ref = getBookingRef(booking);
     if (!ref || withdrawingId) return;
@@ -284,6 +293,10 @@ const BookingList = ({ token }) => {
         </button>
       </div>
 
+      {focusedBooking && !loading && !visibleBookings.some(booking => String(getBookingRef(booking)) === focusedBooking) ? (
+        <p role="status" className="mb-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm">This gig is not currently assigned to your signed-in profile. Please sign in with your musician account or contact TSC. No availability has been changed.</p>
+      ) : null}
+
       {error ? (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           {error}
@@ -301,6 +314,7 @@ const BookingList = ({ token }) => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {visibleBookings.map((booking) => {
+            const cancellation = booking.musicianCancellationNotice;
             const fee = getMusicianFee(booking);
             const musicianTag = getMusicianTag(booking);
             const isProvisional =
@@ -312,6 +326,7 @@ const BookingList = ({ token }) => {
             return (
               <div
                 key={booking._id || booking.bookingRef || booking.bookingId}
+                id={`gig-${getBookingRef(booking)}`}
                 className={`rounded-xl border bg-white p-5 shadow-sm ${
                   isProvisional ? "border-amber-300" : "border-gray-200"
                 }`}
@@ -389,7 +404,16 @@ const BookingList = ({ token }) => {
                   ) : null}
                 </div>
 
-                {isProvisional ? (
+                {cancellation ? (
+                  <section className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950" aria-label="Cancellation terms for this gig">
+                    <h3 className="font-semibold">Cancellation terms for this gig</h3>
+                    <p className="mt-2 whitespace-pre-line">{cancellation.summary}</p>
+                    <p className="mt-2 font-medium">{cancellation.paymentText}</p>
+                    <p className="mt-2">If these cancellation terms do not work for you, use “I’m no longer available” below to withdraw your own availability. This reopens your role for cover; it does not cancel the client’s booking.</p>
+                  </section>
+                ) : null}
+
+                {isProvisional && !cancellation ? (
                   <p className="mt-5 text-xs text-gray-500">
                     If you can no longer hold this date, please contact The
                     Supreme Collective before the deposit is paid.
