@@ -760,7 +760,7 @@ const templateValues = (row = {}) => ({
 const renderTemplate = (template, row, rule, resolveConditions = true) => {
   let effectiveRule = reviewPlanTemplate(rule, row);
   if (row.paymentTermsVersion === BALANCE_PAYMENT_POLICY && [10,11].includes(Number(rule?.sourceNumber))) {
-    effectiveRule = {...effectiveRule, subject: Number(rule.sourceNumber) === 10 ? 'Automated Reminder: Balance Payment Coming Due' : 'Automated Reminder: Balance Payment Due', body: "Hi {{client_first_name}},\n\nJust a gentle reminder that the balance for your booking is due on {{invoice_due_date}}.\n\nPlease find your invoice attached, including the bank transfer details.\n\nIf you have already paid, thank you—please disregard this reminder.\n\nYour completed event sheet and playlists have a separate deadline of {{event_sheet_due_date}}.\n\nEVENT SHEET: {{client_event_sheet_link}}\n\nAny questions, please reply to this email.\n\nWarmest wishes,\nRhona ✨"};
+    effectiveRule = {...effectiveRule, subject: Number(rule.sourceNumber) === 10 ? 'Automated Reminder: Balance Payment Coming Due' : 'Automated Reminder: Balance Payment Due', body: "Hi {{client_first_name}},\n\nJust a gentle reminder that the balance for your booking is due on {{invoice_due_date}}.\n\nPlease find your invoice attached, including the bank transfer details.\n\nIf you have already paid, thank you—please disregard this reminder.\n\nYour completed event sheet and playlists have a separate deadline of {{event_sheet_due_date}}.\n\nFollow This Link to your Event Sheet: {{client_event_sheet_link}}\n\nAny questions, please reply to this email.\n\nWarmest wishes,\nRhona ✨"};
   }
   const effectiveTemplate = template === rule?.subject ? effectiveRule.subject
     : template === rule?.body ? effectiveRule.body : template;
@@ -935,9 +935,9 @@ const prepareRules = (source) => source
     let body = String(rule.body || "")
       .replace(/Warmest wishes,\s*\nRhona(?:\s*x|\s*✨)?/gi, "Warmest wishes,\nRhona ✨")
       .replace(/\n?https:\/\/res\.cloudinary\.com\/[^\s]+invoice[^\s]*/gi, "")
-      .replace(/\{pulse\.link7\}/g, "Invoice attached");
+      .replace(/\{pulse\.link7\}/g, "[View your invoice]({{invoice_link}})");
     if ([1, 6, 8, 9].includes(number)) {
-      body = body.replace(/\{pulse\.link\}/g, "EVENT SHEET: {pulse.link}");
+      body = body.replace(/^(?:EVENT SHEET:\s*)*\{pulse\.link\}\s*$/gm, "[Follow This Link to your Event Sheet]({pulse.link})");
       timing.strategy = "initial";
     }
     if (number === 9) {
