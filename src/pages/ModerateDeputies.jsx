@@ -97,8 +97,14 @@ const getStatusRank = (status) => {
   return 4;
 };
 
+const requestedVideosStorageKey = "tsc:requested-profile-video-replacements";
+
 const normaliseVideoUrl = (value = "") =>
   String(value || "").trim().replace(/\/$/, "").toLowerCase();
+
+const profileVideoRequestId = (musician, video) =>
+  JSON.stringify([musician._id, video.category, normaliseVideoUrl(video.url)]);
+
 
 const getVideoEmbedUrl = (value = "") => {
   try {
@@ -170,6 +176,13 @@ const ModerateDeputies = ({ token }) => {
   const [videoActionId, setVideoActionId] = useState("");
   const [loading, setLoading] = useState(true);
   const [analysingId, setAnalysingId] = useState("");
+  const [requestedProfileVideos, setRequestedProfileVideos] = useState(() => {
+    try {
+      return new Set(JSON.parse(window.localStorage.getItem(requestedVideosStorageKey) || "[]"));
+    } catch {
+      return new Set();
+    }
+  });
   const [profileVideoRequestKey, setProfileVideoRequestKey] = useState("");
   const [replacementRequestsEnabled, setReplacementRequestsEnabled] = useState(false);
   const [generatingBioId, setGeneratingBioId] = useState("");
@@ -279,6 +292,14 @@ const ModerateDeputies = ({ token }) => {
     }
   };
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(requestedVideosStorageKey, JSON.stringify([...requestedProfileVideos]));
+    } catch {
+      // Successful requests can still be cleared from the current queue.
+    }
+  }, [requestedProfileVideos]);
+
   const requestProfileVideoReplacement = async (musician, video) => {
     const reason = window.prompt(
       "Why does this video need replacing? This will be included in the email to the musician.",
@@ -286,7 +307,7 @@ const ModerateDeputies = ({ token }) => {
     );
     if (reason === null) return;
 
-    const key = `${musician._id}-${video?._id || video?.url}`;
+    const key = profileVideoRequestId(musician, video);
     setProfileVideoRequestKey(key);
     try {
       const res = await axios.post(
@@ -294,9 +315,13 @@ const ModerateDeputies = ({ token }) => {
         { category: video.category, url: video.url, reason: reason.trim() },
         { headers: { token, Authorization: `Bearer ${token}` } },
       );
+      if (res.data?.success !== true) {
+        throw new Error(res.data?.message || "Could not send replacement request");
+      }
+      setRequestedProfileVideos(current => new Set(current).add(key));
       toast(<CustomToast type="success" message={res.data?.message || "Replacement request sent"} />);
     } catch (err) {
-      toast(<CustomToast type="error" message={err.response?.data?.message || "Could not send replacement request"} />);
+      toast(<CustomToast type="error" message={err.response?.data?.message || err.message || "Could not send replacement request"} />);
     } finally {
       setProfileVideoRequestKey("");
     }
@@ -533,7 +558,8 @@ const ModerateDeputies = ({ token }) => {
         ].filter(
           (video) =>
             normaliseVideoUrl(video?.url) &&
-            !approvedUrls.has(normaliseVideoUrl(video?.url)),
+            !approvedUrls.has(normaliseVideoUrl(video?.url)) &&
+            !requestedProfileVideos.has(profileVideoRequestId(musician, video)),
         );
 
         const posts = (musician?.socialHighlightPostLinks || []).filter(
@@ -552,7 +578,7 @@ const ModerateDeputies = ({ token }) => {
         getTime(b.musician?.profileLastEditedAt) - getTime(a.musician?.profileLastEditedAt) ||
         getDisplayName(a.musician).localeCompare(getDisplayName(b.musician)),
       );
-  }, [rows]);
+  }, [rows, requestedProfileVideos]);
 
   useEffect(() => {
     fetchQueue();
@@ -655,13 +681,13 @@ const ModerateDeputies = ({ token }) => {
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   {videos.map((video, index) => {
-                    const requestKey = `${musician._id}-${video?._id || video?.url}`;
+                    const requestKey = profileVideoRequestId(musician, video);
                     return (
                       <div key={video?._id || `${video?.url}-${index}`}>
                         <VideoPreview video={video} />
                         <button
                           type="button"
-                          disabled={profileVideoRequestKey === requestKey || !replacementRequestsEnabled}
+                          disabled={Boolean(profileVideoRequestKey) || !replacementRequestsEnabled}
                           onClick={() => requestProfileVideoReplacement(musician, video)}
                           className="mt-2 w-full rounded bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
                         >
