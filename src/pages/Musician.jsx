@@ -283,7 +283,7 @@ const ReviewVideoGrid = ({ groups = [], onApprove, onRequest, busyKey = "", repl
                         onClick={() => onApprove?.(video, key)}
                         className="rounded bg-green-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
                       >
-                        {busyKey === key ? "Working…" : "Approve video"}
+                        {busyKey === key ? "Working…" : "Import to TSC YouTube"}
                       </button>
                       <button
                         type="button"
@@ -476,32 +476,31 @@ const Musician = () => {
   };
 
   const approveVideo = async (video, key) => {
-    const pendingField = video.category === "original" ? "originalBandVideoLinks" : "functionBandVideoLinks";
-    const approvedField = video.category === "original" ? "tscApprovedOriginalBandVideoLinks" : "tscApprovedFunctionBandVideoLinks";
-    const pending = Array.isArray(musician?.[pendingField]) ? musician[pendingField] : [];
-    const approved = Array.isArray(musician?.[approvedField]) ? musician[approvedField] : [];
-    const nextApproved = approved.some((item) => item?.url === video.url) ? approved : [...approved, { title: video.title || "", url: video.url }];
-    const nextPending = pending.filter((item) => item?.url !== video.url);
-
     setVideoActionKey(key);
     try {
-      const res = await axios.patch(
-        `${BACKEND_URL}/api/musician/moderation/deputy/${musician._id}/save`,
-        { [pendingField]: nextPending, [approvedField]: nextApproved },
-        { headers: authHeaders },
+      const res = await axios.post(
+        `${BACKEND_URL}/api/moderation/deputy/${musician._id}/videos/import`,
+        { url: video.url },
+        { headers: authHeaders, timeout: 360000 },
       );
-      setMusician((current) => ({
-        ...current,
-        ...(res.data?.deputy || res.data?.musician || {}),
-        [pendingField]: nextPending,
-        [approvedField]: nextApproved,
-      }));
-      toast.success("Video approved");
+      const result = await axios.get(`${BACKEND_URL}/api/musician/${musician._id}/video-submissions`, { headers: authHeaders });
+      setDirectVideoSubmissions(result.data?.submissions || []);
+      toast.info(res.data?.submission?.moderationReason || "Video queued for checks and an unlisted TSC upload");
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Could not approve video");
+      toast.error(err?.response?.data?.message || "Could not import video");
     } finally {
       setVideoActionKey("");
     }
+  };
+
+  const approveThumbnailPhoto = async () => {
+    setVideoActionKey("thumbnail");
+    try {
+      const res = await axios.patch(`${BACKEND_URL}/api/moderation/deputy/${musician._id}/video-thumbnail`, { noTextConfirmed: true }, { headers: authHeaders });
+      setMusician(current => ({ ...current, videoThumbnailPhotoUrl: res.data.photoUrl, videoThumbnailPhotoReviewedAt: new Date().toISOString() }));
+      toast.success("Photo selected for future video thumbnails");
+    } catch (err) { toast.error(err?.response?.data?.message || "Could not save thumbnail photo"); }
+    finally { setVideoActionKey(""); }
   };
 
   const approveSocialHighlight = async (post, key) => {
@@ -586,11 +585,11 @@ const Musician = () => {
     try {
       const res = await axios.patch(
         `${BACKEND_URL}/api/moderation/video-submissions/${submission._id}/review`,
-        { decision, reason: decision === "approve" ? "Final visual check completed" : "Please provide a clean replacement video" },
+        { decision, reason: decision === "approve" ? "Final visual check completed" : "Held out of the profile by TSC" },
         { headers: authHeaders },
       );
       setDirectVideoSubmissions((items) => items.map((item) => item._id === submission._id ? res.data?.submission || item : item));
-      toast.success(decision === "approve" ? "Video approved and published" : "Replacement requested");
+      toast.success(decision === "approve" ? "Video approved and published" : "Video rejected");
     } catch (err) {
       toast.error(err?.response?.data?.message || "Could not save video decision");
     } finally {
@@ -820,6 +819,15 @@ const Musician = () => {
       {reviewMode ? (
         <section className={`${sectionCardClass} mb-8`}>
           <h2 className={sectionTitleClass}>Review all supplied videos</h2>
+          <p className="mb-4 text-sm text-gray-600">Footage is copied to TSC YouTube as unlisted after completed checks. Videos with text or identifying details stay here for review. Source thumbnails are replaced.</p>
+          {musician.profilePhoto ? <div className="mb-5 flex items-center gap-4 rounded-lg border p-3">
+            <img src={musician.profilePhoto} alt="Submitted thumbnail candidate" className="h-24 w-32 rounded object-cover" />
+            <div><p className="text-sm">Choose this submitted photo after checking it has no text, branding or contact details.</p>
+              <button type="button" className="mt-2 rounded border px-3 py-2 text-sm disabled:opacity-50" disabled={videoActionKey === "thumbnail"} onClick={approveThumbnailPhoto}>
+                {musician.videoThumbnailPhotoUrl === musician.profilePhoto && musician.videoThumbnailPhotoReviewedAt ? "Photo selected — confirm no text again" : "Use this photo — I have checked there is no text"}
+              </button><p className="mt-1 text-xs text-gray-500">A neutral TSC thumbnail is used until a photo is checked.</p>
+            </div>
+          </div> : null}
           {directVideoSubmissions.length ? (
             <div className="mb-5 grid gap-4 md:grid-cols-2">
               {directVideoSubmissions.map((submission) => {
@@ -837,7 +845,7 @@ const Musician = () => {
                       <div className="mt-3 flex flex-wrap gap-2">
                         {submission.status !== "published" ? <button type="button" disabled={videoActionKey === key} onClick={() => refreshDirectVideo(submission)} className="rounded border px-3 py-2 text-xs font-semibold disabled:opacity-50">Refresh checks</button> : null}
                         {["manual_required", "ready_for_review"].includes(submission.status) ? <button type="button" disabled={videoActionKey === key} onClick={() => decideDirectVideo(submission, "approve")} className="rounded bg-green-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Approve and publish</button> : null}
-                        {submission.status !== "published" && submission.status !== "rejected" ? <button type="button" disabled={videoActionKey === key} onClick={() => decideDirectVideo(submission, "reject")} className="rounded bg-red-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Request clean replacement</button> : null}
+                        {submission.status !== "published" && submission.status !== "rejected" ? <button type="button" disabled={videoActionKey === key} onClick={() => decideDirectVideo(submission, "reject")} className="rounded bg-red-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Reject video</button> : null}
                       </div>
                     </div>
                   </article>
