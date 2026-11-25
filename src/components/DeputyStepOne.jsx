@@ -1050,32 +1050,22 @@ const DeputyStepOne = ({
       {/* Function Band Video Links */}
       <div className="mt-4">
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-950">
-          <p className="font-semibold">Video link guidance</p>
-          <p className="mt-1">To include a video from Instagram, TikTok or Facebook as a playable profile video, cherry-pick it and submit the original video file or a public downloadable link here. Social-account connections create image-only highlights and do not embed the social video or reveal your handle.</p>
-          <p className="mt-1">Please do not submit personal YouTube, Vimeo or social-media links because they can reveal your identity or account. Upload the original video file, or provide an individual public Google Drive video file.</p>
-          <p className="mt-1">For Google Drive, choose one video file (not a folder), set access to “Anyone with the link – Viewer”, and allow downloads.</p>
+          <p className="font-semibold">Upload your video files</p>
+          <p className="mt-1">Choose the original video file from your device. We do not accept YouTube, Vimeo, Google Drive or other external video links.</p>
+          <p className="mt-1">To include footage from a social post, upload the video file here. Your footage will be checked before it appears on your profile.</p>
         </div>
         <label className="block font-semibold mb-1">
-          Function Band Video Links
+          Function Band Videos
         </label>
         <p className="text-sm text-gray-500">
-          Add links to your cover band videos here. Please note unbranded
+          Upload your cover band videos here. Please note unbranded
           footage is preferred. If branded footage is supplied we may not
           include this in your profile, or we may edit the video to remove
           branding.
         </p>
 
-        {!userRole?.includes?.("agent") ? (
-          <div className="space-y-3">
-            <DirectVideoUploader musicianId={musicianId} category="function" />
-            <SortableVideoLinkList
-              links={asVideoLinksArray(formData.functionBandVideoLinks)}
-              setLinks={(updated) => setFormData((prev) => ({ ...prev, functionBandVideoLinks: updated }))}
-              placeholderPrefix="Google Drive function"
-              googleDriveOnly
-            />
-          </div>
-        ) : (
+        <DirectVideoUploader musicianId={musicianId} category="function" />
+        {canDownloadModerationImages && (
           <SortableVideoLinkList
             links={asVideoLinksArray(formData.functionBandVideoLinks)}
             setLinks={(updated) => setFormData((prev) => ({ ...prev, functionBandVideoLinks: updated }))}
@@ -1083,7 +1073,7 @@ const DeputyStepOne = ({
           />
         )}
 
-        {userRole?.includes?.("agent") && (
+        {canDownloadModerationImages && (
           <SortableVideoLinkList
             links={asVideoLinksArray(
               formData.tscApprovedFunctionBandVideoLinks,
@@ -1107,23 +1097,14 @@ const DeputyStepOne = ({
       {/* Original Band Video Links */}
       <div className="mt-4">
         <label className="block font-semibold mb-1">
-          Original Band Video Links
+          Original Band Videos
         </label>
         <p className="text-sm text-gray-500">
-          Add links to your original band videos here.
+          Upload your original band videos here.
         </p>
 
-        {!userRole?.includes?.("agent") ? (
-          <div className="space-y-3">
-            <DirectVideoUploader musicianId={musicianId} category="original" />
-            <SortableVideoLinkList
-              links={asVideoLinksArray(formData.originalBandVideoLinks)}
-              setLinks={(updated) => setFormData((prev) => ({ ...prev, originalBandVideoLinks: updated }))}
-              placeholderPrefix="Google Drive original"
-              googleDriveOnly
-            />
-          </div>
-        ) : (
+        <DirectVideoUploader musicianId={musicianId} category="original" />
+        {canDownloadModerationImages && (
           <SortableVideoLinkList
             links={asVideoLinksArray(formData.originalBandVideoLinks)}
             setLinks={(updated) => setFormData((prev) => ({ ...prev, originalBandVideoLinks: updated }))}
@@ -1131,7 +1112,7 @@ const DeputyStepOne = ({
           />
         )}
 
-        {userRole?.includes?.("agent") && (
+        {canDownloadModerationImages && (
           <SortableVideoLinkList
             links={formData.tscApprovedOriginalBandVideoLinks || []}
             setLinks={(updated) => {
@@ -1150,7 +1131,7 @@ const DeputyStepOne = ({
         )}
       </div>
 
-      <div className="mt-4 rounded-lg border border-gray-200 p-4">
+      {canDownloadModerationImages && <div className="mt-4 rounded-lg border border-gray-200 p-4">
         <label className="block font-semibold mb-1">Social highlight posts</label>
         <p className="text-sm text-gray-500 mb-3">
           Add links to individual Instagram, TikTok or Facebook posts to use as image-only highlights. Use a specific post URL rather than your profile handle. These links will not create a playable social embed or display your username. Submit any video you want visitors to play separately in the video sections above.
@@ -1165,7 +1146,7 @@ const DeputyStepOne = ({
           }
           placeholderPrefix="Social post"
         />
-      </div>
+      </div>}
 
       {/* REVIEWS */}
       <MusicianReviewsEditor
