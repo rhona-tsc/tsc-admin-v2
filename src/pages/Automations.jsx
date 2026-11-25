@@ -699,13 +699,15 @@ const rowVenue = (row) => text(
 );
 const rowEventSheetLink = (row) => text(row.eventSheetLink || row.eventSheet?.url || row.eventSheet?.link);
 const rowClientEventSheetLink = (row) => {
+  const existing = text(row.importMetadata?.clientEventSheetUrl);
+  if (existing) return existing;
   const bookingReference = rowRef(row);
   return bookingReference
     ? `${PUBLIC_SITE_BASE}/event-sheet/${encodeURIComponent(bookingReference)}`
     : "";
 };
 const rowInvoiceLink = (row) => text(
-  row.payments?.boardInvoicePdfUrl || row.invoicePdfUrl || row.payments?.hosted_invoice_url || row.payments?.invoiceUrl || row.invoiceUrl || row.invoice?.url,
+  row.importMetadata?.clientInvoiceUrl || row.payments?.boardInvoicePdfUrl || row.invoicePdfUrl || row.payments?.hosted_invoice_url || row.payments?.invoiceUrl || row.invoiceUrl || row.invoice?.url,
 );
 const friendlyDate = (value) => {
   if (!value) return "";
