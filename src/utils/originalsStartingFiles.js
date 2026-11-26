@@ -55,7 +55,7 @@ export async function submitOriginalStartingProject({ request, payload, files, v
     onProgress({ projectId: progress.projectId, message: `Uploading ${index + 1} of ${files.length}: ${item.file.name}` });
     const data = new FormData();
     data.append('file', item.file); data.append('kind', item.kind);
-    data.append('songwritingClaim', String(payload.ownerSongwritingClaim));
+    data.append('songwritingClaim', String(item.songwritingClaim ?? payload.ownerSongwritingClaim));
     if (['initial_stem', 'temporary_stem', 'click_track'].includes(item.kind)) data.append('createdEntirelyWithAi', String(item.createdEntirelyWithAi));
     if (item.kind === 'temporary_stem') data.append('replacementRoleName', item.replacementRoleName);
     if (item.kind === 'initial_stem') data.append('finalStemConfirmed', 'true');
