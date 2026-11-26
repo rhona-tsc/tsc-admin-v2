@@ -175,6 +175,9 @@ const ModerateDeputies = ({ token }) => {
   const [rows, setRows] = useState([]);
   const [videoSubmissions, setVideoSubmissions] = useState([]);
   const [videoActionId, setVideoActionId] = useState("");
+  const [vocalistsOnly, setVocalistsOnly] = useState(false);
+  const [directVideoStage, setDirectVideoStage] = useState("review");
+  const visibleVideoSubmissions = videoSubmissions.filter(item => (!vocalistsOnly || item.isVocalist) && (directVideoStage === "all" || (directVideoStage === "published" ? item.status === "published" : item.status !== "published" || item.thumbnailReviewStatus === "pending")));
   const [loading, setLoading] = useState(true);
   const [analysingId, setAnalysingId] = useState("");
   const [requestedProfileVideos, setRequestedProfileVideos] = useState(() => {
@@ -222,7 +225,7 @@ const ModerateDeputies = ({ token }) => {
 
   const fetchVideoSubmissions = useCallback(async () => {
     try {
-      const res = await axios.get(`${backendUrl}/api/moderation/video-submissions`, { headers: { token, Authorization: `Bearer ${token}` } });
+      const res = await axios.get(`${backendUrl}/api/moderation/video-submissions?includePublished=true`, { headers: { token, Authorization: `Bearer ${token}` } });
       setVideoSubmissions(res.data?.submissions || []);
     } catch (err) {
       console.error("Failed to load direct video submissions", err);
@@ -721,20 +724,27 @@ const ModerateDeputies = ({ token }) => {
       {videoSubmissions.length ? (
         <section className="mb-5 rounded border border-fuchsia-200 bg-fuchsia-50 p-4">
           <h2 className="font-semibold text-fuchsia-950">Direct video review queue</h2>
-          <p className="mt-1 text-xs text-fuchsia-900">Files remain private until you approve them. Review the whole video before publishing.</p>
+          <p className="mt-1 text-xs text-fuchsia-900">Approved videos upload to TSC YouTube as unlisted with their bio, profile and band links, tags and thumbnail. To feature a high-calibre vocalist publicly, review the video and choose Public in YouTube Studio.</p>
+          <div className="mt-3 flex flex-wrap items-center gap-4">
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={vocalistsOnly} onChange={event => setVocalistsOnly(event.target.checked)} />Vocalists only</label>
+            <label className="flex items-center gap-2 text-sm">Show<select className="rounded border bg-white px-3 py-2" value={directVideoStage} onChange={event => setDirectVideoStage(event.target.value)}><option value="review">Awaiting review</option><option value="published">Uploaded to YouTube</option><option value="all">All videos</option></select></label>
+            <span className="text-xs text-gray-600">{visibleVideoSubmissions.length} videos</span>
+          </div>
+          {!visibleVideoSubmissions.length && <p className="mt-3 text-sm text-gray-600">No videos match these filters.</p>}
           <div className="mt-3 grid gap-4 lg:grid-cols-2">
-            {videoSubmissions.map((item) => {
+            {visibleVideoSubmissions.map((item) => {
               const musician = item.musician || {};
               return <article key={item._id} className={`rounded border bg-white p-3 ${item.clientPriority ? "ring-2 ring-fuchsia-300" : ""}`}>
-                <div className="flex items-start justify-between gap-3"><div><b>{[musician.firstName, musician.lastName].filter(Boolean).join(" ") || "Musician"}</b><p className="text-xs text-gray-500">{item.suppliedTitle || item.originalName}</p>{item.clientPriorityStatus ? <span className={`mt-2 inline-block rounded px-2 py-1 text-[10px] font-bold uppercase ${item.clientPriorityStatus === "presented" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"}`}>{item.clientPriorityStatus === "presented" ? "Presented to client — priority" : "Active applicant — priority"}</span> : null}</div><span className="rounded bg-gray-100 px-2 py-1 text-xs">{String(item.status).replaceAll("_", " ")}</span></div>
+                <div className="flex items-start justify-between gap-3"><div><b>{[musician.firstName, musician.lastName].filter(Boolean).join(" ") || "Musician"}</b><p className="text-xs text-gray-500">{item.suppliedTitle || item.originalName}</p><p className="text-xs font-semibold text-gray-700">{item.musicianRole || "Musician"}</p>{item.clientPriorityStatus ? <span className={`mt-2 inline-block rounded px-2 py-1 text-[10px] font-bold uppercase ${item.clientPriorityStatus === "presented" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"}`}>{item.clientPriorityStatus === "presented" ? "Presented to client — priority" : "Active applicant — priority"}</span> : null}</div><span className="rounded bg-gray-100 px-2 py-1 text-xs">{String(item.status).replaceAll("_", " ")}</span></div>
                 <div className="mt-3 max-w-xs"><VideoSubmissionThumbnail musicianId={musician._id || item.musicianId?._id || item.musicianId} item={item} token={token} /></div>
                 <VideoThumbnailReview musicianId={musician._id || item.musicianId?._id || item.musicianId} item={item} token={token} onChanged={updated => setVideoSubmissions(previous => previous.map(video => video._id === updated._id ? { ...video, ...updated } : video))} />
                 {item.accessUrl ? <video className="mt-3 aspect-video w-full rounded bg-black" src={item.accessUrl} controls playsInline /> : null}
                 <p className="mt-2 text-xs text-gray-700">{item.moderationReason}</p>
                 {item.moderationFlags?.length ? <ul className="mt-2 list-disc pl-5 text-xs text-red-700">{item.moderationFlags.map((flag, index) => <li key={`${flag.type}-${index}`}>{flag.label}: {flag.evidence}</li>)}</ul> : null}
                 <div className="mt-3 flex flex-wrap gap-2">
+                  {item.youtubeStudioUrl && <a href={item.youtubeStudioUrl} target="_blank" rel="noopener noreferrer" className="rounded bg-blue-700 px-3 py-1 text-xs text-white">{item.isVocalist && !musician.privateTestProfile ? "Review vocalist / make public in YouTube Studio" : "Open YouTube Studio"}</a>}
                   <button disabled={videoActionId === item._id} onClick={() => refreshDirectVideo(item)} className="rounded border px-3 py-1 text-xs disabled:opacity-40">Refresh checks</button>
-                  {item.status !== "published" ? <><button disabled={videoActionId === item._id} onClick={() => decideDirectVideo(item, "approve")} className="rounded bg-green-700 px-3 py-1 text-xs text-white disabled:opacity-40">Approve and publish</button>
+                  {item.status !== "published" ? <><button disabled={videoActionId === item._id} onClick={() => decideDirectVideo(item, "approve")} className="rounded bg-green-700 px-3 py-1 text-xs text-white disabled:opacity-40">Approve and upload unlisted</button>
                   <button disabled={videoActionId === item._id} onClick={() => decideDirectVideo(item, "reject")} className="rounded bg-red-700 px-3 py-1 text-xs text-white disabled:opacity-40">Request clean version</button></> : null}
                 </div>
               </article>;

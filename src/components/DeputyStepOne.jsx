@@ -1,3 +1,4 @@
+import MusicianInstrumentsAndVocals from './MusicianInstrumentsAndVocals';
 import { cloudinaryImage } from "../utils/cloudinaryImage.js";
 import React, { useState, useEffect, useRef } from "react";
 import DragAndDropImageUploader from "./DragAndDropImageUploader";
@@ -1047,6 +1048,8 @@ const DeputyStepOne = ({
           urls={formData.additionalImages}
         />
       </div>
+
+      <MusicianInstrumentsAndVocals formData={formData} setFormData={setFormData} />
 
       {/* Function Band Video Links */}
       <div className="mt-4">

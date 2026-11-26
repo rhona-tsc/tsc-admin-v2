@@ -820,7 +820,7 @@ const Musician = () => {
       {reviewMode ? (
         <section className={`${sectionCardClass} mb-8`}>
           <h2 className={sectionTitleClass}>Review all supplied videos</h2>
-          <p className="mb-4 text-sm text-gray-600">Footage is copied to TSC YouTube as unlisted after completed checks. Videos with text or identifying details stay here for review. Source thumbnails are replaced.</p>
+          <p className="mb-4 text-sm text-gray-600">After approval, footage is uploaded as unlisted on TSC YouTube with the musician’s bio, profile link, TSC booking contacts, band links, tags and thumbnail. Private test profiles stay private. Videos with identifying details need review.</p>
           {musician.profilePhoto ? <div className="mb-5 flex items-center gap-4 rounded-lg border p-3">
             <img src={musician.profilePhoto} alt="Submitted thumbnail candidate" className="h-24 w-32 rounded object-cover" />
             <div><p className="text-sm">Choose this submitted photo after checking it has no text, branding or contact details.</p>
