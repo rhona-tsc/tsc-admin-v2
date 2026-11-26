@@ -7,6 +7,7 @@ import Mp3Uploader from "./Mp3Uploader";
 import renameAndCompressImage from "../pages/utils/renameAndCompressDeputyImage";
 import MusicianReviewsEditor from "./MusicianReviewsEditor";
 import { backendUrl } from "../App";
+import { VideoSubmissionThumbnail, VideoThumbnailUpload } from "./VideoSubmissionThumbnail";
 
 const AUTH_TOKEN_KEYS = ["token", "adminToken", "musicianToken"];
 const AUTH_USER_KEYS = ["userId", "musicianId", "userEmail", "userRole"];
@@ -1269,6 +1270,28 @@ function DirectVideoUploader({ musicianId, category }) {
     return () => window.removeEventListener("musician-video-library-updated", reloadLibrary);
   }, [musicianId, category]);
 
+  const checkingIds = items.filter(item => item.status === "processing").map(item => item._id).join(",");
+  useEffect(() => {
+    if (!checkingIds || !token || !musicianId) return;
+    const controller = new AbortController();
+    let polling = false;
+    const interval = setInterval(async () => {
+      if (polling) return;
+      polling = true;
+      try {
+        for (const id of checkingIds.split(",")) {
+          const response = await fetch(`${backendUrl}/api/musician/${musicianId}/video-submissions/${id}/refresh`, {
+            method: "POST", headers: { Authorization: `Bearer ${token}`, token }, credentials: "include", signal: controller.signal,
+          });
+          const data = await response.json();
+          if (response.ok && data.submission && !controller.signal.aborted) setItems(previous => previous.map(item => item._id === id ? data.submission : item));
+        }
+      } catch { /* Keep the saved library available if status polling is interrupted. */ }
+      finally { polling = false; }
+    }, 20000);
+    return () => { clearInterval(interval); controller.abort(); };
+  }, [checkingIds, token, musicianId]);
+
   const uploadVideo = async () => {
     if (!file || !musicianId) return;
     setBusy(true);
@@ -1339,11 +1362,15 @@ function DirectVideoUploader({ musicianId, category }) {
           <p className="text-sm font-semibold">Your saved video library</p>
           <p className="text-[11px] text-gray-500">Your main video appears first after approval.</p>
         </div>
+        <p className="mt-1 text-xs text-gray-500">A thumbnail is generated from each video. You can upload your own below. Thumbnails must contain no text or branding.</p>
         {items.length ? (
           <div className="mt-2 space-y-2">
             {items.map((item) => (
               <div key={item._id} className={`rounded border bg-white px-3 py-3 text-xs ${item.isPrimary ? "border-[#ff6667] ring-1 ring-[#ff6667]/30" : "border-gray-200"}`}>
-                <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="grid items-start gap-3 sm:grid-cols-[160px_minmax(0,1fr)]">
+                  <div><VideoSubmissionThumbnail musicianId={musicianId} item={item} /><p className="mt-1 text-[11px] text-gray-500">{item.thumbnailSource === "custom" ? "Custom thumbnail" : "Automatic thumbnail"}</p></div>
+                  <div className="min-w-0">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <span className="font-medium">{item.suppliedTitle || item.originalName}</span>
                     {item.suppliedTitle && item.originalName ? <p className="mt-0.5 text-[11px] text-gray-500">{item.originalName}</p> : null}
@@ -1359,6 +1386,10 @@ function DirectVideoUploader({ musicianId, category }) {
                 </div>
                 {item.moderationReason ? <p className="mt-2 text-gray-600">{item.moderationReason}</p> : null}
                 <p className="mt-1 text-[11px] text-gray-400">Saved {new Date(item.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
+                {item.thumbnailSource === "custom" ? <p className="mt-1 text-[11px] text-gray-500">{item.thumbnailReviewReason || "Custom thumbnail awaiting TSC review"}</p> : null}
+                <VideoThumbnailUpload musicianId={musicianId} item={item} onChanged={updated => setItems(previous => previous.map(video => video._id === updated._id ? updated : video))} />
+                  </div>
+                </div>
               </div>
             ))}
           </div>

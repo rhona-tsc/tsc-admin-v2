@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import { toast } from "react-toastify";
+import { VideoSubmissionThumbnail, VideoThumbnailReview } from "../components/VideoSubmissionThumbnail";
 
 const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || "").replace(/\/+$/, "");
 const PUBLIC_SITE_URL = (
@@ -834,6 +835,7 @@ const Musician = () => {
                 const key = `direct-${submission._id}`;
                 return (
                   <article key={submission._id} className="overflow-hidden rounded-xl border border-fuchsia-200 bg-white">
+                    <div className="p-3"><VideoSubmissionThumbnail musicianId={musician._id} item={submission} /><VideoThumbnailReview musicianId={musician._id} item={submission} onChanged={updated => setDirectVideoSubmissions(previous => previous.map(video => video._id === updated._id ? { ...video, ...updated } : video))} /></div>
                     {submission.accessUrl ? <video src={submission.accessUrl} controls playsInline className="aspect-video w-full bg-black" /> : null}
                     <div className="p-3 text-sm">
                       <div className="flex items-start justify-between gap-3">
