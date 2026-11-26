@@ -4,6 +4,7 @@ import { originalProjectListening } from '../utils/originalsListening';
 import OriginalsLayeredPlayer from './OriginalsLayeredPlayer';
 import OriginalsSectionLink from './OriginalsSectionLink';
 import OriginalsSubmittedBy from './OriginalsSubmittedBy';
+import OriginalsDialog from './OriginalsDialog';
 
 export function EmbeddedReference({ token, asset, showDownload = false, hideName = false }) {
   const mediaRef = useRef(null);
@@ -47,13 +48,36 @@ function ListeningPanel({ title, children }) {
   </details>;
 }
 
-export default memo(function OriginalsProjectListening({ token, assets, submissions, title }) {
+export default memo(function OriginalsProjectListening({ token, assets, submissions, title, canManage = false, onGuideRemoved }) {
+  const [removing, setRemoving] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [removeError, setRemoveError] = useState('');
+  const removeGuide = async () => {
+    setBusy(true); setRemoveError('');
+    try {
+      await originalsRequest(token, { method: 'delete', url: `/assets/${removing._id}/guide` });
+      onGuideRemoved?.(removing._id);
+      setRemoving(null);
+    } catch (error) { setRemoveError(error.response?.data?.message || 'Could not remove the guide. Please try again.'); }
+    finally { setBusy(false); }
+  };
   const { references, projectTracks } = useMemo(() => originalProjectListening({ assets, submissions }), [assets, submissions]);
   return <>
     <h2 className="text-sm font-bold uppercase tracking-wide text-slate-800">{projectTracks.some(track => track.kind === 'temporary_stem') ? 'Listen & download the working stems' : projectTracks.length ? 'Listen & download the approved stems' : 'Guidance for the project'}</h2>
     <p className="mt-1 text-sm text-gray-600">Listen to the guide or sample and any approved stems before recording.</p>
     {!references.length && !projectTracks.length && <p className="mt-3 text-sm text-gray-500">No guide, sample or approved recording uploaded yet. Read the <OriginalsSectionLink to="project-brief">brief</OriginalsSectionLink> and check the <OriginalsSectionLink to="project-chat">project chat</OriginalsSectionLink> before you start.</p>}
-    {references.map(asset => <ListeningPanel key={asset._id} title={asset.listeningLabel}>{asset.kind !== 'click_track' && <p className="mt-2 text-xs text-amber-800">Reference only — excluded from mix downloads and the final production.</p>}{asset.playbackRanges || asset.mimeType?.startsWith('audio/') ? <OriginalsLayeredPlayer token={token} tracks={[asset]} title={title} allowMixDownload={asset.kind === 'click_track'} /> : <EmbeddedReference token={token} asset={asset} showDownload />}</ListeningPanel>)}
+    {references.map(asset => <ListeningPanel key={asset._id} title={asset.listeningLabel}>
+      <p className="mt-2 break-words text-sm text-gray-600">{asset.originalName}</p>
+      {asset.kind !== 'click_track' && <p className="mt-2 text-xs text-amber-800">Reference only — excluded from mix downloads and the final production.</p>}
+      {asset.playbackRanges || asset.mimeType?.startsWith('audio/') ? <OriginalsLayeredPlayer token={token} tracks={[asset]} title={title} allowMixDownload={asset.kind === 'click_track'} /> : <EmbeddedReference token={token} asset={asset} showDownload />}
+      {canManage && !asset.reservationId && ['guide_track', 'demo', 'voice_note', 'video_submission'].includes(asset.kind) && <button type="button" onClick={() => { setRemoving(asset); setRemoveError(''); }} className="mt-3 text-sm text-red-700 underline">Remove guide</button>}
+    </ListeningPanel>)}
+    {removing && <OriginalsDialog title="Remove guide recording?" busy={busy} onClose={() => setRemoving(null)}>
+      <p className="break-words font-semibold">{removing.originalName}</p>
+      <p className="mt-3 text-sm">This guide will no longer be available in the project or through guide listening links. Other guides and contributor recordings will stay available. The stored file is retained for administrator recovery.</p>
+      {removeError && <p role="alert" className="mt-3 text-sm text-red-700">{removeError}</p>}
+      <div className="mt-5 flex gap-3"><button type="button" disabled={busy} onClick={removeGuide} className="rounded bg-red-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{busy ? 'Removing…' : 'Remove guide'}</button><button type="button" disabled={busy} onClick={() => setRemoving(null)} className="rounded border px-4 py-2 text-sm">Cancel</button></div>
+    </OriginalsDialog>}
     {projectTracks.some(track => track.kind === 'temporary_stem') && <p className="mt-2 text-sm text-amber-800">Temporary stems are included for recording. Approve replacement recordings for their roles before moving to the final mix.</p>}
     {projectTracks.length > 0 && <div className="mt-4" aria-label="Approved stems">
       <p className="my-3 text-sm text-gray-600">Adjust the volume of each stem to your preference for your recording, then download the selected stems together as one WAV track. Keep its start point at zero in your recording software.</p>
