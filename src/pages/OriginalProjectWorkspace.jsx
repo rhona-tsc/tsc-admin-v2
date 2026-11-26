@@ -1,4 +1,5 @@
 import OriginalsRevisionControls from '../components/OriginalsRevisionControls';
+import OriginalsRenameProject from '../components/OriginalsRenameProject';
 import OriginalsRoleCard from '../components/OriginalsRoleCard';
 import OriginalsReviewDeadline from '../components/OriginalsReviewDeadline';
 import OriginalsStemReview from '../components/OriginalsStemReview';
@@ -247,6 +248,7 @@ const OriginalProjectWorkspace = ({ token, canModerate = false }) => {
     <div className="mx-auto max-w-7xl px-4 pt-8 pb-24">
       <Link to="/originals" className="mb-4 inline-block text-sm underline md:hidden">← All Originals projects</Link>
       <Title text1="ORIGINALS" text2="WORKSPACE" />
+      {canManage && <OriginalsRenameProject token={token} project={data.project} onRenamed={details => setData(current => ({ ...current, project: { ...current.project, ...details } }))} />}
       <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
       <div className="min-w-0 space-y-4">
       <div id="project-brief" tabIndex={-1} className="scroll-mt-6 min-w-0 rounded-xl border bg-white p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><h1 className="text-xl font-semibold">{data.project.title}</h1><p className="mt-2 text-sm text-gray-600">{data.project.description}</p><p className="mt-3 text-xs uppercase text-gray-500">{String(data.project.state).replaceAll("_", " ")}</p><p className="mt-3 text-sm"><SectionLink to="submit-take">Upload &amp; submit your take</SectionLink></p></div>{canManage && canModerate && data.project.moderation?.status === "approved" ? <button disabled={busy} onClick={resendLaunchNotifications} className="rounded border px-4 py-2 text-sm font-semibold disabled:opacity-40">Announce to musicians</button> : null}</div></div>

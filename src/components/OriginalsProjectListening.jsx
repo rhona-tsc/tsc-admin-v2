@@ -65,6 +65,7 @@ export default memo(function OriginalsProjectListening({ token, assets, submissi
   return <>
     <h2 className="text-sm font-bold uppercase tracking-wide text-slate-800">{projectTracks.some(track => track.kind === 'temporary_stem') ? 'Listen & download the working stems' : projectTracks.length ? 'Listen & download the approved stems' : 'Guidance for the project'}</h2>
     <p className="mt-1 text-sm text-gray-600">Listen to the guide or sample and any approved stems before recording.</p>
+    {canManage && assets.filter(asset => asset.state === 'active' && asset.kind === 'temporary_stem' && !asset.reservationId).map(asset => <div key={asset._id} className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded border p-3"><span className="break-words text-sm">{asset.originalName} <span className="text-gray-500">(temporary starting stem)</span></span><button type="button" onClick={() => { setRemoving(asset); setRemoveError(''); }} className="text-sm text-red-700 underline">Remove guide / temporary stem</button></div>)}
     {!references.length && !projectTracks.length && <p className="mt-3 text-sm text-gray-500">No guide, sample or approved recording uploaded yet. Read the <OriginalsSectionLink to="project-brief">brief</OriginalsSectionLink> and check the <OriginalsSectionLink to="project-chat">project chat</OriginalsSectionLink> before you start.</p>}
     {references.map(asset => <ListeningPanel key={asset._id} title={asset.listeningLabel}>
       <p className="mt-2 break-words text-sm text-gray-600">{asset.originalName}</p>
@@ -74,6 +75,7 @@ export default memo(function OriginalsProjectListening({ token, assets, submissi
     </ListeningPanel>)}
     {removing && <OriginalsDialog title="Remove guide recording?" busy={busy} onClose={() => setRemoving(null)}>
       <p className="break-words font-semibold">{removing.originalName}</p>
+      {removing.kind === 'temporary_stem' && <p className="mt-3 text-sm text-amber-800">This temporary stem will also be removed from future working mixes and recording downloads.</p>}
       <p className="mt-3 text-sm">This guide will no longer be available in the project or through guide listening links. Other guides and contributor recordings will stay available. The stored file is retained for administrator recovery.</p>
       {removeError && <p role="alert" className="mt-3 text-sm text-red-700">{removeError}</p>}
       <div className="mt-5 flex gap-3"><button type="button" disabled={busy} onClick={removeGuide} className="rounded bg-red-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">{busy ? 'Removing…' : 'Remove guide'}</button><button type="button" disabled={busy} onClick={() => setRemoving(null)} className="rounded border px-4 py-2 text-sm">Cancel</button></div>
