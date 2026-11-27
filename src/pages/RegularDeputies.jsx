@@ -514,6 +514,21 @@ const RegularDeputies = ({ token }) => {
               </button>
             </div>
           ))}
+          {selectedAct.rosterPolicy?.conditionalDeputyPools?.length ? (
+            <details className="mt-3 rounded border border-blue-200 bg-blue-50 p-3 text-sm">
+              <summary>Conditional linked lineup options</summary>
+              <p className="mt-2">Confirm the original member is unavailable and review both roles before offering these combinations.</p>
+              {selectedAct.rosterPolicy.conditionalDeputyPools.map((pool, index) => (
+                <div className="mt-3 border-t border-blue-200 pt-3" key={`${pool.lineupId}:${pool.memberId}:${index}`}>
+                  <strong>{pool.lineupLabel}: {pool.sourceRole} → {pool.replacementRole}</strong>
+                  <p>Only when {pool.requiresOriginalUnavailable?.name} is unavailable.</p>
+                  <p>Partner slot: {(pool.partnerRolePreference || []).join(" → fallback: ")}</p>
+                  <p className="mt-1">{(pool.deputies || []).map(person => person.name).join(", ")}</p>
+                  <p className="mt-1 text-xs text-gray-600">Stored for lineup review; excluded from automatic deputy offers.</p>
+                </div>
+              ))}
+            </details>
+          ) : null}
           {selectedAct.rosterPolicy?.pendingMatches?.length ? (
             <details className="mt-3 rounded border border-amber-200 p-3 text-sm">
               <summary>
