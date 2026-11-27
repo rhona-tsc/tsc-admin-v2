@@ -37,11 +37,11 @@ export default function EmailPreferences({ token, onProfileDeleted }) {
       const { data } = await axios.post(endpoint, {
         token: linkToken || undefined,
         deputyOpportunities: choices.deputyOpportunities, originalsOpportunities: choices.originalsOpportunities,
+        deputyOutcomeUpdates: choices.deputyOutcomeUpdates !== false,
         ...(deletion ? { deleteProfile: true, confirmation } : {}),
       }, { headers, timeout: 15000 });
       setPreferences(data.preferences); setSaved(data.preferences);
-      setMessage(!data.preferences.deputyOpportunities && !data.preferences.originalsOpportunities
-        ? 'You’re unsubscribed from deputy and original project opportunity emails. Your preferences have been saved.' : data.message);
+      setMessage(data.message);
       setConfirming(false); setRemoveProfile(false); setConfirmation('');
       if (data.preferences.profileDeleted) onProfileDeleted?.();
     } catch (failure) { setError(failure.response?.data?.message || 'Could not save your preferences. Please try again.'); }
@@ -54,14 +54,14 @@ export default function EmailPreferences({ token, onProfileDeleted }) {
     if (!confirming) { setConfirming(true); return; }
     if (sessionToken && confirmation === 'DELETE') persist(preferences, true);
   };
-  const bothStopped = saved && !saved.deputyOpportunities && !saved.originalsOpportunities;
+  const bothStopped = saved && !saved.deputyOpportunities && !saved.originalsOpportunities && saved.deputyOutcomeUpdates === false;
   const profileDeleted = preferences?.profileDeleted;
   return <main className="mx-auto max-w-2xl px-4 py-8 sm:py-12">
     <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
       <header className="bg-[#111111] p-6 text-white"><p className="text-xs font-bold tracking-widest text-[#ff8585]">THE SUPREME COLLECTIVE</p><h1 className="mt-3 text-2xl font-semibold">Your email preferences</h1></header>
       <div className="p-5 sm:p-7">
         {profileDeleted ? <div role="status" className="rounded-lg bg-emerald-50 p-4 text-emerald-900"><h2 className="font-semibold">You’re unsubscribed</h2><p className="mt-2 text-sm">You won’t receive deputy or original project opportunity emails. Your musician profile has already been removed from public view.</p><p className="mt-2 text-sm">Existing booking, agreement, payment and royalty records are retained. Contact TSC if you’d like to rejoin.</p></div> : <>
-          <p className="text-sm text-gray-600">Choose the opportunity emails you’d like to stop receiving, then save your preferences.</p>
+          <p className="text-sm text-gray-600">Choose the emails you’d like to stop receiving, then save your preferences.</p>
           {linkToken && !invalidLink && <p className="mt-3 rounded-lg bg-gray-50 p-3 text-sm font-medium text-gray-800">You don’t need to sign in to unsubscribe using this email link.</p>}
         </>}
         {error && <div role="alert" className="mt-4 rounded bg-red-50 p-3 text-sm text-red-800"><p>{error}</p><button type="button" onClick={() => setReload(value => value + 1)} className="mt-2 min-h-11 font-semibold underline">Try again</button>{sessionToken && linkToken && <Link to="/email-preferences" className="ml-4 inline-block min-h-11 py-3 font-semibold underline">Use my signed-in account</Link>}</div>}
@@ -69,14 +69,15 @@ export default function EmailPreferences({ token, onProfileDeleted }) {
         {loading && <p role="status" className="mt-5 text-sm">Loading preferences…</p>}
         {!loading && !profileDeleted && !preferences && <p className="mt-5 text-sm">{!linkToken && !sessionToken ? 'Open the unsubscribe link in your email to manage these choices without a password, or sign in to your account.' : 'You can also sign in to manage your own email preferences.'}<Link to={signInPath} className={`${control} mt-4 block w-fit bg-[#ff6667] text-black`}>Sign in</Link></p>}
         {preferences && !profileDeleted && <>
-          {bothStopped && !message && <p role="status" className="mt-4 rounded bg-emerald-50 p-3 text-sm text-emerald-900">You’re already unsubscribed from both opportunity email lists.</p>}
+          {bothStopped && !message && <p role="status" className="mt-4 rounded bg-emerald-50 p-3 text-sm text-emerald-900">You’re already unsubscribed from all optional musician emails.</p>}
           <form onSubmit={save} className="mt-5 space-y-4">
-            <fieldset disabled={busy} className="space-y-4"><legend className="sr-only">Unsubscribe from opportunity emails</legend>
+            <fieldset disabled={busy} className="space-y-4"><legend className="sr-only">Email subscriptions</legend>
+              <label id="deputy-filled-updates" className="flex cursor-pointer items-start gap-3 rounded-lg border p-4"><input type="checkbox" checked={preferences.deputyOutcomeUpdates === false} onChange={event => { setPreferences(value => ({ ...value, deputyOutcomeUpdates: !event.target.checked })); setMessage(''); }} className="mt-1 shrink-0" /><span>Stop emails telling me a gig I applied for has been filled<span className="mt-1 block text-xs text-gray-500">You can keep receiving new deputy opportunities. This only switches off updates when another musician is allocated.</span></span></label>
               <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-4"><input type="checkbox" checked={!preferences.deputyOpportunities} onChange={event => { setPreferences(value => ({ ...value, deputyOpportunities: !event.target.checked })); setMessage(''); }} className="mt-1 shrink-0" /><span>Unsubscribe me from deputy opportunity emails</span></label>
               <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-4"><input type="checkbox" checked={!preferences.originalsOpportunities} onChange={event => { setPreferences(value => ({ ...value, originalsOpportunities: !event.target.checked })); setMessage(''); }} className="mt-1 shrink-0" /><span>Unsubscribe me from original project opportunities</span></label>
               <p className="text-xs leading-5 text-gray-500">Messages about bookings and projects you’ve already joined, including agreements, deadlines and royalties, will continue. Untick an unsubscribe option and save to receive those opportunities again.</p>
             </fieldset>
-            <div className="flex flex-wrap gap-3"><button type="submit" disabled={busy} className={`${control} bg-[#ff6667] text-black`}>{busy ? 'Saving…' : 'Save preferences'}</button>{!bothStopped && <button type="button" disabled={busy} onClick={() => persist({ ...preferences, deputyOpportunities: false, originalsOpportunities: false })} className={`${control} border text-gray-800`}>Unsubscribe from both lists</button>}</div>
+            <div className="flex flex-wrap gap-3"><button type="submit" disabled={busy} className={`${control} bg-[#ff6667] text-black`}>{busy ? 'Saving…' : 'Save preferences'}</button>{!bothStopped && <button type="button" disabled={busy} onClick={() => persist({ ...preferences, deputyOpportunities: false, originalsOpportunities: false, deputyOutcomeUpdates: false })} className={`${control} border text-gray-800`}>Unsubscribe from all optional emails</button>}</div>
           </form>
           <details className="mt-7 border-t pt-5">
             <summary className="min-h-11 cursor-pointer py-2 text-sm font-semibold text-gray-700">Remove my musician profile</summary>
