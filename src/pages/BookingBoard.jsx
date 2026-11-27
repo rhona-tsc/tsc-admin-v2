@@ -5814,8 +5814,14 @@ export default function BookingBoard() {
   };
 
   const createCardPaymentInvoiceForRow = async (row) => {
+    const rowKey = String(row?._id || getBookingBoardItemId(row) || "");
+    const includeExtras =
+      includeExtrasInMainInvoice[rowKey] ??
+      row?.mainInvoiceIncludesExtras === true;
     const confirmed = window.confirm(
-      "Create a CARD PAYMENT invoice?\n\nMake sure you have updated the commission to include the card processing fee first.",
+      `Create a CARD PAYMENT invoice${
+        includeExtras ? " including the selected extras" : ""
+      }?\n\nMake sure you have updated the commission to include the card processing fee first.`,
     );
 
     if (!confirmed) return;
@@ -5832,7 +5838,9 @@ export default function BookingBoard() {
         credentials: "include",
         body: JSON.stringify({
           bookingId: bookingBoardItemId,
+          invoiceType: "main",
           includePaymentLink: true,
+          includeExtras,
         }),
       });
 
