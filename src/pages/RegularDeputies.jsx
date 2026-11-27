@@ -491,6 +491,14 @@ const RegularDeputies = ({ token }) => {
             All regions can be used in any pool. Event county or postcode is
             required for restricted musicians.
           </p>
+          {selectedAct.rosterPolicy?.transportPreference?.preferLondonCarOwners ? (
+            <div className="mt-3 rounded border border-blue-200 bg-blue-50 p-3 text-sm">
+              <strong>Transport priority: London car owners</strong>
+              <p className="mt-1">{selectedAct.rosterPolicy.transportPreference.note}</p>
+              <p className="mt-1">Confirmed London car owners: {(selectedAct.rosterPolicy.transportPreference.londonCarOwners || []).map(person => person.name).join(", ") || "Awaiting confirmation"}.</p>
+              <p className="mt-1 text-xs text-gray-600">The agreed order below is retained as the base order. Confirmed London car owners move ahead when one of the listed non-drivers is on the booking.</p>
+            </div>
+          ) : null}
           {(selectedAct.rosterPolicy?.exclusions || []).map((rule, index) => (
             <div
               key={rule._id || index}
