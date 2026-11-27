@@ -3,6 +3,8 @@ import { originalsRequest } from '../utils/originalsApi';
 import { CHAT_ACCEPT, chatFileError, recordingExtension, recordingTime } from '../utils/originalsChat';
 import OriginalsEmojiPicker from './OriginalsEmojiPicker';
 
+const publicSite = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://thesupremecollective.co.uk').replace(/\/+$/, '');
+
 function ChatAttachment({ token, asset, voice = false }) {
   const [url, setUrl] = useState('');
   const [busy, setBusy] = useState(false);
@@ -240,7 +242,7 @@ export default function OriginalsChat({ token, projectId, viewerId, initialMessa
         </article></div>;
         const own = String(message.authorId) === String(viewerId);
         return <div key={message._id} className={`flex ${own ? 'justify-end' : 'justify-start'}`}><article className={`min-w-0 max-w-[90%] rounded-xl border p-3 text-sm shadow-sm ${own ? 'border-emerald-100 bg-emerald-50' : 'bg-white'}`}>
-          <p className="text-xs font-semibold text-gray-600">{message.authorCreditName || (message.authorAnonymous ? 'Anonymous' : 'Project participant')}</p>
+          <p className="text-xs font-semibold text-gray-600">{!message.authorAnonymous && /^\/musician\/[^/]+$/.test(message.authorProfilePath || '') ? <a href={`${publicSite}${message.authorProfilePath}`} target="_blank" rel="noopener noreferrer" className="underline hover:text-black" aria-label={`View ${message.authorCreditName || 'participant'}’s musician profile`}>{message.authorCreditName || 'Project participant'}</a> : message.authorCreditName || (message.authorAnonymous ? 'Anonymous' : 'Project participant')}</p>
           {message.body && <p className="mt-1 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.body}</p>}
           {message.voiceAssetId && <ChatAttachment token={token} asset={{ _id: message.voiceAssetId }} voice />}
           {(message.attachmentIds || []).map(asset => <ChatAttachment key={asset._id || asset} token={token} asset={typeof asset === 'string' ? { _id: asset } : asset} />)}
