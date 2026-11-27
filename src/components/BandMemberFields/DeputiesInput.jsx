@@ -502,7 +502,7 @@ const roleName = (r) => String(r?.customRole || r?.role || "").trim();
 
 const essentialRoles = useMemo(() => {
   const roles = Array.isArray(member?.additionalRoles) ? member.additionalRoles : [];
-  return roles.filter(r => r?.isEssential).map(roleName).filter(Boolean);
+  return roles.filter(r => r?.isEssential && r?.deputyRequirement !== 'if_uncovered').map(roleName).filter(Boolean);
 }, [member?.additionalRoles]);
 
 const desiredRoles = useMemo(() => {
