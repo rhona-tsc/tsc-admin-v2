@@ -268,6 +268,8 @@ const consolidateAutomationRows = (sourceRows = []) => {
             ),
             invoiceDueDateISO: text(boardSource.invoiceDueDateISO),
             paymentTermsVersion: boardSource.paymentTermsVersion,
+            clientDeadlinePolicy:boardSource.clientDeadlinePolicy,
+            clientDeadlineISO:boardSource.clientDeadlineISO,
             reviewRequestPlan: boardSource.reviewRequestPlan,
             ...(boardSource.reviewRequestPlan ? { review: boardSource.review } : {}),
           }
@@ -759,7 +761,13 @@ const templateValues = (row = {}) => ({
 });
 const renderTemplate = (template, row, rule, resolveConditions = true) => {
   let effectiveRule = reviewPlanTemplate(rule, row);
-  if (row.paymentTermsVersion === BALANCE_PAYMENT_POLICY && [10,11].includes(Number(rule?.sourceNumber))) {
+  const unified=row.clientDeadlinePolicy==='unified-client-deadline-v1';
+  if(unified && [10,11].includes(Number(rule?.sourceNumber))) {
+    const today=Number(rule.sourceNumber)===11;
+    const paid=Boolean(row.balancePaid||row.payments?.balancePaymentReceived||row.payments?.invoicePaid);
+    effectiveRule={...effectiveRule,subject:`Song requests, event sheet and playlists due ${today?'today':'{{invoice_due_date}}'}${paid?'':' — balance payment reminder'}`,body:`Hi {{client_first_name}},\n\nYour song suggestions, {{special_request_label}}, completed event sheet and playlists are all due ${today?'today':'on {{invoice_due_date}}'}.\n\n${paid?'Your balance is recorded as paid—thank you.':'Your outstanding balance is also due on {{invoice_due_date}}. Please use the bank details on your invoice.'}\n\nPlease complete any outstanding items. If you have already submitted your details, thank you; you can disregard that part of this reminder.\n\nFollow This Link to your Event Sheet: {{client_event_sheet_link}}\n\nAny questions, please reply to this email.\n\nWarmest wishes,\nRhona ✨`};
+  }
+  if (!unified && (row.paymentTermsVersion === BALANCE_PAYMENT_POLICY || row.importMetadata?.separateEventDetailsReminders) && [10,11].includes(Number(rule?.sourceNumber))) {
     effectiveRule = {...effectiveRule, subject: Number(rule.sourceNumber) === 10 ? 'Automated Reminder: Balance Payment Coming Due' : 'Automated Reminder: Balance Payment Due', body: "Hi {{client_first_name}},\n\nJust a gentle reminder that the balance for your booking is due on {{invoice_due_date}}.\n\nPlease find your invoice attached, including the bank transfer details.\n\nIf you have already paid, thank you—please disregard this reminder.\n\nYour completed event sheet and playlists have a separate deadline of {{event_sheet_due_date}}.\n\nFollow This Link to your Event Sheet: {{client_event_sheet_link}}\n\nAny questions, please reply to this email.\n\nWarmest wishes,\nRhona ✨"};
   }
   const effectiveTemplate = template === rule?.subject ? effectiveRule.subject
@@ -833,6 +841,7 @@ const ruleMatchesRow = (
   } = {},
 ) => {
   if (!includeDisabled && rule?.enabled === false) return false;
+  if(row.clientDeadlinePolicy==='unified-client-deadline-v1' && [14,16,36,37,38].includes(Number(rule?.sourceNumber)))return false;
   if (!includeSiteSuppressed && row?.siteAutomationsEnabled === false) return false;
   if (!includeSent && ruleAlreadySent(rule, row)) return false;
   const plannedReview = reviewPlanItem(row, rule?.sourceNumber);
