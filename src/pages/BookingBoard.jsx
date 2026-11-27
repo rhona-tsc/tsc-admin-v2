@@ -5443,20 +5443,27 @@ export default function BookingBoard() {
 
       const apiRoot = String(API_BASE || "").replace(/\/api\/?$/, "");
       const previewUrl = json.previewUrl
-        ? `${apiRoot}${json.previewUrl}`
+        ? `${apiRoot}${json.previewUrl}${
+            invoiceType === "main" && includeExtras
+              ? `${String(json.previewUrl).includes("?") ? "&" : "?"}includeExtras=1`
+              : ""
+          }`
         : bookingBoardItemId
           ? `${API_BASE}/invoices/board-invoice/${bookingBoardItemId}${
               invoiceType !== "main" ? `?invoiceType=${invoiceType}` : ""
             }`
           : "";
 
+      // Open the immutable PDF produced by this request. The live preview is
+      // only a fallback because it is rebuilt from the current booking row and
+      // can otherwise disagree with the just-generated invoice.
       const nextInvoiceUrl =
-        previewUrl ||
         json.invoiceUrl ||
         json.invoicePdfUrl ||
         updatedRow?.invoiceUrl ||
         updatedRow?.invoicePdfUrl ||
         updatedRow?.payments?.boardInvoicePdfUrl ||
+        previewUrl ||
         "";
 
       if (nextInvoiceUrl) {
