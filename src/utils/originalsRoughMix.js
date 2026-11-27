@@ -5,8 +5,8 @@ const yieldFrame = () => new Promise(resolve => setTimeout(resolve, 0));
 
 const referenceKinds = new Set(['guide_track', 'demo', 'voice_note', 'video_submission', 'chat_attachment', 'take_mixdown']);
 // Clicks are optional recording aids, even though they are never release stems.
-export const originalMixdownTracks = tracks => tracks.filter(track => !referenceKinds.has(track.kind)
-  && (track.finalEligible !== false || ['click_track', 'temporary_stem'].includes(track.kind)));
+export const originalMixdownTracks = tracks => tracks.filter(track => (track.kind === 'take_mixdown' && track.contributionMix) || (!referenceKinds.has(track.kind)
+  && (track.finalEligible !== false || ['click_track', 'temporary_stem'].includes(track.kind))));
 
 export function originalAudibleTracks(tracks, mix = {}) {
   const solo = tracks.some(track => mix[track._id]?.solo);

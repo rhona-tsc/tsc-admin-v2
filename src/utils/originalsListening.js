@@ -10,7 +10,7 @@ const referenceLabels = {
   click_track: 'Listen to the click track',
 };
 
-export function originalProjectListening({ assets = [], submissions = [] } = {}) {
+export function originalProjectListening({ assets = [], submissions = [], useListeningMixes = true } = {}) {
   const available = new Map(assets.filter(active).map(asset => [idOf(asset._id), asset]));
   const references = assets.filter(asset => active(asset) && referenceLabels[asset.kind]).map(asset => ({
     ...asset, listeningLabel: asset.mimeType?.startsWith("video/") ? "Watch the video sample" : referenceLabels[asset.kind],
@@ -22,15 +22,17 @@ export function originalProjectListening({ assets = [], submissions = [] } = {})
   }
   const replacedRoles = new Set();
   const addTake = (submission, take, ranges) => {
-    const asset = available.get(idOf(take?.stemAssetId));
-    if (!asset || asset.kind !== 'take_stem' || asset.finalEligible === false) return;
+    const mix = useListeningMixes && take?.groupedContribution && available.get(idOf(take?.mixdownAssetId));
+    const useMix = mix && mix.kind === 'take_mixdown';
+    const asset = useMix ? mix : available.get(idOf(take?.stemAssetId));
+    if (!asset || (!useMix && (asset.kind !== 'take_stem' || asset.finalEligible === false))) return;
     replacedRoles.add(roleKey(submission.roleName));
     const key = idOf(asset._id);
     const existing = layers.get(key);
     // An entire approved take supersedes any partial ranges of that same stem.
     if (existing && !existing.playbackRanges) return;
     layers.set(key, {
-      ...asset, label: take.stemAssetIds?.length > 1 ? `${submission.roleName} — ${asset.originalName}` : submission.roleName || asset.originalName,
+      ...asset, ...(useMix ? { contributionMix: true } : {}), label: useMix ? `${submission.roleName} — listening mix` : take.stemAssetIds?.length > 1 ? `${submission.roleName} — ${asset.originalName}` : submission.roleName || asset.originalName,
       ...(ranges ? { playbackRanges: [...(existing?.playbackRanges || []), ...ranges] } : {}),
     });
   };
@@ -38,14 +40,14 @@ export function originalProjectListening({ assets = [], submissions = [] } = {})
     if (submission.state !== 'accepted' || (submission.category && submission.category !== 'contribution')) continue;
     if (submission.selectionMode === 'whole_take') {
       const take = (submission.takes || []).find(take => idOf(take._id) === idOf(submission.selectedTakeId));
-      if (take) for (const stemAssetId of take.stemAssetIds?.length ? take.stemAssetIds : [take.stemAssetId]) addTake(submission, { ...take, stemAssetId });
+      if (take) for (const stemAssetId of useListeningMixes && take?.groupedContribution && available.get(idOf(take.mixdownAssetId))?.kind === 'take_mixdown' ? [take.stemAssetId] : take.stemAssetIds?.length ? take.stemAssetIds : [take.stemAssetId]) addTake(submission, { ...take, stemAssetId });
     } else if (submission.selectionMode === 'selected_ranges') {
       for (const take of submission.takes || []) {
         const ranges = (submission.selectedRanges || []).filter(range => idOf(range.takeId) === idOf(take._id)
           && Number.isFinite(range.startSeconds) && Number.isFinite(range.endSeconds)
           && range.startSeconds >= 0 && range.endSeconds > range.startSeconds)
           .map(({ startSeconds, endSeconds }) => ({ startSeconds, endSeconds }));
-        if (ranges.length) for (const stemAssetId of take.stemAssetIds?.length ? take.stemAssetIds : [take.stemAssetId]) addTake(submission, { ...take, stemAssetId }, ranges);
+        if (ranges.length) for (const stemAssetId of useListeningMixes && take?.groupedContribution && available.get(idOf(take.mixdownAssetId))?.kind === 'take_mixdown' ? [take.stemAssetId] : take.stemAssetIds?.length ? take.stemAssetIds : [take.stemAssetId]) addTake(submission, { ...take, stemAssetId }, ranges);
       }
     }
   }

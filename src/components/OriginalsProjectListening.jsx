@@ -5,6 +5,7 @@ import OriginalsLayeredPlayer from './OriginalsLayeredPlayer';
 import OriginalsSectionLink from './OriginalsSectionLink';
 import OriginalsSubmittedBy from './OriginalsSubmittedBy';
 import OriginalsDialog from './OriginalsDialog';
+import OriginalsTrackDownloads from './OriginalsTrackDownloads';
 
 export function EmbeddedReference({ token, asset, showDownload = false, hideName = false }) {
   const mediaRef = useRef(null);
@@ -62,6 +63,7 @@ export default memo(function OriginalsProjectListening({ token, assets, submissi
     finally { setBusy(false); }
   };
   const { references, projectTracks } = useMemo(() => originalProjectListening({ assets, submissions }), [assets, submissions]);
+  const productionTracks = useMemo(() => originalProjectListening({ assets, submissions, useListeningMixes: false }).projectTracks, [assets, submissions]);
   return <>
     <h2 className="text-sm font-bold uppercase tracking-wide text-slate-800">{projectTracks.some(track => track.kind === 'temporary_stem') ? 'Listen & download the working stems' : projectTracks.length ? 'Listen & download the approved stems' : 'Guidance for the project'}</h2>
     <p className="mt-1 text-sm text-gray-600">Listen to the guide or sample and any approved stems before recording.</p>
@@ -84,6 +86,7 @@ export default memo(function OriginalsProjectListening({ token, assets, submissi
     {projectTracks.length > 0 && <div className="mt-4" aria-label="Approved stems">
       <p className="my-3 text-sm text-gray-600">Adjust the volume of each stem to your preference for your recording, then download the selected stems together as one WAV track. Keep its start point at zero in your recording software.</p>
       <OriginalsLayeredPlayer token={token} tracks={[...projectTracks, ...references.filter(asset => asset.kind === "click_track")]} initialSelectedIds={projectTracks.map(track => String(track._id))} title={title} />
+      <OriginalsTrackDownloads token={token} tracks={productionTracks} />
     </div>}
   </>;
 });

@@ -2,6 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { originalSubmissionPairsReady, originalSubmissionTakes, originalStemSubmission } from './originalsSubmission.js';
 
+test('24 source tracks and one mix become one contribution; excess, foreign and missing files are refused', () => {
+  const ids = Array.from({ length: 25 }, (_, index) => `track${index}`);
+  const files = ids.map(_id => ({ _id, kind: 'take_stem', state: 'active', reservationId: 'booking' })).concat({ _id: 'mix', kind: 'take_mixdown', state: 'active', reservationId: 'booking' });
+  const draft = { reservationId: 'booking', groupedContribution: true, stemAssetIds: ids.slice(0, 24), listeningMixId: 'mix' };
+  const result = originalStemSubmission(draft, files);
+  assert.equal(result.ready, true); assert.equal(result.takes.length, 1);
+  assert.equal(result.takes[0].groupedContribution, true); assert.equal(result.takes[0].stemAssetIds.length, 24); assert.equal(result.takes[0].mixdownAssetId, 'mix');
+  for (const change of [{ stemAssetIds: ids }, { stemAssetIds: [ids[0], ids[0]] }, { listeningMixId: '' }, { listeningMixId: ids[0] }]) assert.equal(originalStemSubmission({ ...draft, ...change }, files).ready, false);
+  assert.equal(originalStemSubmission(draft, files.map(file => file._id === 'mix' ? { ...file, reservationId: 'foreign' } : file)).ready, false);
+});
+
 const assets = ['one', 'two', 'three', 'wet', 'fifth'].map(id => ({ _id: id, kind: 'take_stem', state: 'active', reservationId: 'booking', originalName: `${id}.wav` }))
   .concat(['mix1', 'mix2', 'mix3'].map(id => ({ _id: id, kind: 'take_mixdown', state: 'active', reservationId: 'booking' })));
 const submission = { reservationId: 'booking', stemAssetIds: ['one', 'two', 'three'], mixdownAssetIds: { one: 'mix1', two: 'mix2', three: 'mix3' }, wetStemAssetId: '' };

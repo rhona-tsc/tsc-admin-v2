@@ -1,5 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { originalDownloadTracks } from './originalsRoughMix.js';
+
+test('a grouped approval listens to the mix once and retains every production track and approval range', () => {
+  const ids = Array.from({ length: 24 }, (_, index) => `mic${index}`);
+  const assets = ids.map(_id => ({ _id, kind: 'take_stem', state: 'active' })).concat({ _id: 'mix', kind: 'take_mixdown', state: 'active', finalEligible: false });
+  const submissions = [{ state: 'accepted', roleName: 'Drums', selectionMode: 'selected_ranges', takes: [{ _id: 'take', groupedContribution: true, stemAssetId: ids[0], stemAssetIds: ids, mixdownAssetId: 'mix' }], selectedRanges: [{ takeId: 'take', startSeconds: 10, endSeconds: 20 }] }];
+  const listening = originalProjectListening({ assets, submissions }).projectTracks;
+  assert.deepEqual(listening.map(track => track._id), ['mix']);
+  assert.deepEqual(listening[0].playbackRanges, [{ startSeconds: 10, endSeconds: 20 }]);
+  assert.equal(originalDownloadTracks(listening).length, 1);
+  assert.equal(originalDownloadTracks([{ ...assets.at(-1), contributionMix: false }]).length, 0);
+  const sources = originalProjectListening({ assets, submissions, useListeningMixes: false }).projectTracks;
+  assert.equal(sources.length, 24); assert.ok(sources.every(track => track.kind === 'take_stem' && track.playbackRanges.length === 1));
+});
 import { originalProjectListening, trackIsAudibleAt } from './originalsListening.js';
 const asset = (id, kind = 'take_stem', extra = {}) => ({ _id: id, kind, state: 'active', originalName: `${id}.wav`, ...extra });
 const take = (id, stem) => ({ _id: id, stemAssetId: stem, mixdownAssetId: `${stem}-mixdown` });

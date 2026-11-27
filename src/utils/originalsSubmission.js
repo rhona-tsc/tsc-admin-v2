@@ -24,6 +24,16 @@ export function originalSubmissionPairsReady(submission, assets = [], { listenin
 // The stems-only form must not be blocked by remembered mix selections from
 // an older workspace. Legacy review screens can still use the helpers above.
 export function originalStemSubmission(submission, assets = []) {
+  if (submission.groupedContribution) {
+    const ids = submission.stemAssetIds || [];
+    const available = new Map(assets.filter(asset => asset.state === 'active' && String(asset.reservationId) === String(submission.reservationId)).map(asset => [String(asset._id), asset]));
+    let message = '';
+    if (!submission.reservationId) message = 'Reserve a place in the current round to upload your recording.';
+    else if (!ids.length || ids.length > 24) message = 'Include between 1 and 24 separate tracks for this contribution.';
+    else if (new Set(ids).size !== ids.length || ids.some(id => available.get(String(id))?.kind !== 'take_stem')) message = 'A selected track is unavailable or selected twice.';
+    else if (available.get(String(submission.listeningMixId))?.kind !== 'take_mixdown') message = 'Upload and select a stereo listening mix of your part only.';
+    return { ready: !message, message, takes: message ? [] : [{ label: 'Grouped contribution', groupedContribution: true, stemAssetId: ids[0], stemAssetIds: ids, mixdownAssetId: submission.listeningMixId, effects: 'not_specified' }] };
+  }
   const draft = { ...submission, mixdownAssetIds: {} };
   let message = '';
   if (!draft.reservationId) message = 'Reserve a place in the current round to upload your recording.';

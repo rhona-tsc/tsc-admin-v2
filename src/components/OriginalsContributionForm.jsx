@@ -69,10 +69,15 @@ export default function OriginalsContributionForm({ token, project, currentRound
   const submittedIds = new Set(submitted ? [submitted, ...(submitted.previousVersions || [])].flatMap(version => [version.outputAssetId, ...(version.takes || []).flatMap(take => [...(take.stemAssetIds || [take.stemAssetId]), take.mixdownAssetId, take.wetStemAssetId])].filter(Boolean).map(idOf)) : []);
   const input = useRef(null);
   const [files, setFiles] = useState([]), [ai, setAi] = useState(false), [working, setWorking] = useState(''), [error, setError] = useState('');
-  const [selected, setSelected] = useState(() => available.slice(0, isProduction ? 1 : 4).map(asset => idOf(asset._id)));
+  const [grouped, setGrouped] = useState(() => submitted ? submitted.takes?.some(take => take.groupedContribution) === true : true);
+  const [mixFile, setMixFile] = useState(null);
+  const mixes = reservation ? visibleAssets.filter(asset => asset.state === 'active' && asset.kind === 'take_mixdown' && idOf(asset.ownerId) === idOf(viewerId) && idOf(asset.reservationId) === idOf(reservation._id)) : [];
+  const [listeningMixId, setListeningMixId] = useState(() => idOf(submitted?.takes?.find(take => take.mixdownAssetId)?.mixdownAssetId || mixes.at(-1)?._id));
+  const limit = isProduction ? 1 : grouped ? 24 : 4;
+  const [selected, setSelected] = useState(() => available.slice(0, limit).map(asset => idOf(asset._id)));
   const [effects, setEffects] = useState(() => Object.fromEntries((submitted?.takes || []).map(take => [idOf(take.stemAssetId), take.effects === 'with_effects' ? 'with_effects' : 'without_effects']))), [songwriting, setSongwriting] = useState(submitted?.songwritingChoice === 'songwriting_claim'), [notes, setNotes] = useState(submitted?.notes || '');
   const disabled = busy || Boolean(working) || readOnly;
-  const draft = { reservationId: idOf(reservation?._id), stemAssetIds: selected, effectsByAssetId: effects };
+  const draft = { reservationId: idOf(reservation?._id), stemAssetIds: selected, effectsByAssetId: effects, groupedContribution: grouped, listeningMixId };
   const stemSubmission = originalStemSubmission(draft, visibleAssets);
   const productionReady = selected.length === 1 && available.some(asset => idOf(asset._id) === selected[0]);
   const pendingAlignment = available.filter(asset => selected.includes(idOf(asset._id)) && asset.alignmentReviewRequired && !asset.alignmentReview?.reviewedAt);
@@ -81,7 +86,7 @@ export default function OriginalsContributionForm({ token, project, currentRound
 
   const upload = async () => {
     if (!files.length || disabled || !reservation) return;
-    if (files.length > (isProduction ? 1 : 4)) { setError(isProduction ? 'Choose one finished output to upload.' : 'Choose up to four stems at a time.'); return; }
+    if (files.length > limit || (!isProduction && selected.length + files.length > limit)) { setError(`Choose up to ${limit} tracks in total. Deselect earlier uploads if replacing them.`); return; }
     setError(''); setWorkingState('upload');
     const uploaded = [];
     try {
@@ -91,7 +96,7 @@ export default function OriginalsContributionForm({ token, project, currentRound
         if (!isProduction) body.append('createdEntirelyWithAi', String(ai));
         const { data } = await originalsRequest(token, { method: 'post', url: `/projects/${project._id}/assets`, data: body });
         uploaded.push(idOf(data.asset._id));
-        setSelected(value => isProduction ? [idOf(data.asset._id)] : [...new Set([...value, idOf(data.asset._id)])].slice(0, 4));
+        setSelected(value => isProduction ? [idOf(data.asset._id)] : [...new Set([...value, idOf(data.asset._id)])]);
         setFiles(value => value.filter(item => item !== file));
       }
       setAi(false);
@@ -101,6 +106,22 @@ export default function OriginalsContributionForm({ token, project, currentRound
       try { if (uploaded.length) { await onRefresh(); if (!isProduction) onReviewAssets(uploaded); } }
       finally { setWorkingState(''); }
     }
+  };
+
+  const uploadMix = async () => {
+    if (!mixFile || disabled || !reservation) return;
+    setError(''); setWorkingState('mix-upload');
+    try {
+      const Offline = globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext;
+      if (!Offline) throw new Error('Please use a current browser to check your stereo mix.');
+      const decoded = await new Offline(2, 1, 44100).decodeAudioData(await mixFile.arrayBuffer());
+      if (decoded.numberOfChannels !== 2) throw new Error('Export the listening mix as a stereo (two-channel) audio file.');
+      const body = new FormData(); body.append('file', mixFile); body.append('kind', 'take_mixdown');
+      body.append('roundId', currentRound._id); body.append('reservationId', reservation._id);
+      const { data } = await originalsRequest(token, { method: 'post', url: `/projects/${project._id}/assets`, data: body });
+      setListeningMixId(idOf(data.asset._id)); setMixFile(null); await onRefresh();
+    } catch (failure) { setError(failure.response?.data?.message || failure.message || 'Could not upload the listening mix.'); }
+    finally { setWorkingState(''); }
   };
 
   const submit = async () => {
@@ -138,7 +159,7 @@ export default function OriginalsContributionForm({ token, project, currentRound
     finally { setWorkingState(''); }
   };
 
-  const toggle = (assetId, include) => setSelected(value => isProduction ? [assetId] : include ? [...value, assetId].slice(0, 4) : value.filter(id => id !== assetId));
+  const toggle = (assetId, include) => setSelected(value => isProduction ? [assetId] : include ? [...value, assetId].slice(0, limit) : value.filter(id => id !== assetId));
   return <section id="submit-take" tabIndex={-1} className="scroll-mt-6 mt-4 min-w-0 rounded-xl border bg-white p-4 sm:p-5">
     <span id="project-files" tabIndex={-1} className="scroll-mt-6" />
     <h2 className={heading}>{`${editing ? 'Revise & resubmit your' : 'Upload & submit your'} ${isProduction ? currentRound.type : 'take'}${!isProduction && role ? ` — ${role}` : ''}`}</h2>
@@ -146,7 +167,8 @@ export default function OriginalsContributionForm({ token, project, currentRound
     {submitted && <OriginalsRevisionControls token={token} submission={submitted} reservation={reservation || submittedReservation} currentRoundId={currentRound?._id} disabled={disabled} onBusyChange={onBusyChange} onRefresh={onRefresh} />}
     <>
       <OriginalsRecordingGuide productionType={isProduction ? currentRound.type : ''} />
-      <p className="mt-4 text-sm text-gray-600">{isProduction ? `Upload your finished ${currentRound.type}, listen back, then send it for review.` : 'Upload your part on its own, check the preview, then submit below. You can send up to four stems together.'}</p>
+      <p className="mt-4 text-sm text-gray-600">{isProduction ? `Upload your finished ${currentRound.type}, listen back, then send it for review.` : 'Upload up to 24 separate tracks as one contribution, plus a stereo mix of your part for listening. Keep the same zero/start point for every file. One accepted role contribution earns one royalty allocation, regardless of track count.'}</p>
+      {!isProduction && <label className="mt-3 block text-sm font-semibold">Submission format<select value={grouped ? 'group' : 'alternatives'} disabled={disabled || !reservation} onChange={event => { const group = event.target.value === 'group'; setGrouped(group); setSelected(value => value.slice(0, group ? 24 : 4)); }} className="mt-1 block w-full rounded border p-2"><option value="group">One contribution — up to 24 tracks + stereo listening mix</option><option value="alternatives">Separate alternatives — up to four single-file takes</option></select></label>}
       {reservation && <p className="mt-1 text-xs text-gray-500">Your {role} reservation ends {formatOriginalsDeadline(reservation.expiresAt)}.</p>}
       <div className="mt-4 rounded-lg border bg-slate-50 p-3 sm:p-4">
         <label className="block min-w-0 text-sm font-semibold">{isProduction ? `Upload your ${currentRound.type} output` : role ? `Upload your ${role} stem${files.length > 1 ? 's' : ''}` : 'Upload your stems'}
@@ -159,19 +181,20 @@ export default function OriginalsContributionForm({ token, project, currentRound
       {reservation && <>
       {!!available.length && <div className="mt-4">
         <h3 className="text-sm font-semibold">{isProduction ? 'Your uploaded output' : 'Your stems'}</h3>
-        {!isProduction && <p className="mt-1 text-xs text-gray-600">Include up to four files — for example, two ideas with a clean and effects version of each. Mark each as with or without effects; either version can be submitted on its own.</p>}
+        {!isProduction && <p className="mt-1 text-xs text-gray-600">{grouped ? 'Include the separate tracks for one performance, e.g. kick, snare, toms, overheads and room. These stay grouped for approval and are available individually to download. Keep alternative performances out of this group. Include clean/effects details in the filenames or notes.' : 'Include up to four alternative single-file takes. Each can be reviewed and selected separately.'}</p>}
         <div role="table" aria-label="Your uploaded recordings" className="mt-3 overflow-hidden rounded-lg border">
-          {!isProduction && <div role="row" className="hidden grid-cols-[minmax(0,1fr)_14rem_8rem] gap-3 bg-slate-50 px-3 py-2 text-xs font-semibold text-gray-600 sm:grid"><span role="columnheader">File</span><span role="columnheader">Effects?</span><span role="columnheader">Actions</span></div>}
+          {!isProduction && !grouped && <div role="row" className="hidden grid-cols-[minmax(0,1fr)_14rem_8rem] gap-3 bg-slate-50 px-3 py-2 text-xs font-semibold text-gray-600 sm:grid"><span role="columnheader">File</span><span role="columnheader">Effects?</span><span role="columnheader">Actions</span></div>}
           {available.map(asset => {
             const assetId = idOf(asset._id), included = selected.includes(assetId), reviewed = Boolean(asset.alignmentReview?.reviewedAt);
-            return <div role="row" key={assetId} className={`grid min-w-0 gap-3 border-t p-3 first:border-t-0 ${isProduction ? '' : 'sm:grid-cols-[minmax(0,1fr)_14rem_8rem] sm:items-center'}`}>
-              <div role="cell" className="min-w-0"><label className="flex items-start gap-2 text-sm"><input type={isProduction ? 'radio' : 'checkbox'} name="output-to-submit" aria-label={`Include ${asset.originalName}`} checked={included} disabled={disabled || (!included && !isProduction && selected.length >= 4)} onChange={event => toggle(assetId, event.target.checked)} className="mt-1 shrink-0" /><span className="min-w-0 break-words">{asset.originalName}{submittedIds.has(assetId) && <span className="mt-1 block text-xs text-gray-500">Previously submitted — uncheck to leave out of this revision.</span>}</span></label></div>
-              {!isProduction && <div role="cell"><fieldset className="min-w-0"><legend className="sr-only">Effects for {asset.originalName}</legend><div className="inline-flex flex-wrap rounded border text-xs">{[['without_effects', 'Without effects'], ['with_effects', 'With effects']].map(([value, label]) => <label key={value} className={`flex cursor-pointer items-center gap-1.5 px-2 py-2 ${((effects[assetId] || 'without_effects') === value) ? 'bg-slate-800 text-white' : 'bg-white text-slate-700'}`}><input type="radio" name={`effects-${assetId}`} value={value} checked={(effects[assetId] || 'without_effects') === value} disabled={disabled} onChange={() => setEffects(current => ({ ...current, [assetId]: value }))} aria-label={`${label}: ${asset.originalName}`} />{label}</label>)}</div></fieldset></div>}
+            return <div role="row" key={assetId} className={`grid min-w-0 gap-3 border-t p-3 first:border-t-0 ${isProduction ? '' : grouped ? 'sm:grid-cols-[minmax(0,1fr)_8rem] sm:items-center' : 'sm:grid-cols-[minmax(0,1fr)_14rem_8rem] sm:items-center'}`}>
+              <div role="cell" className="min-w-0"><label className="flex items-start gap-2 text-sm"><input type={isProduction ? 'radio' : 'checkbox'} name="output-to-submit" aria-label={`Include ${asset.originalName}`} checked={included} disabled={disabled || (!included && !isProduction && selected.length >= limit)} onChange={event => toggle(assetId, event.target.checked)} className="mt-1 shrink-0" /><span className="min-w-0 break-words">{asset.originalName}{submittedIds.has(assetId) && <span className="mt-1 block text-xs text-gray-500">Previously submitted — uncheck to leave out of this revision.</span>}</span></label></div>
+              {!isProduction && !grouped && <div role="cell"><fieldset className="min-w-0"><legend className="sr-only">Effects for {asset.originalName}</legend><div className="inline-flex flex-wrap rounded border text-xs">{[['without_effects', 'Without effects'], ['with_effects', 'With effects']].map(([value, label]) => <label key={value} className={`flex cursor-pointer items-center gap-1.5 px-2 py-2 ${((effects[assetId] || 'without_effects') === value) ? 'bg-slate-800 text-white' : 'bg-white text-slate-700'}`}><input type="radio" name={`effects-${assetId}`} value={value} checked={(effects[assetId] || 'without_effects') === value} disabled={disabled} onChange={() => setEffects(current => ({ ...current, [assetId]: value }))} aria-label={`${label}: ${asset.originalName}`} />{label}</label>)}</div></fieldset></div>}
               <div role="cell" className="flex flex-col items-start gap-2">{isProduction ? <details className="text-sm"><summary className="cursor-pointer underline">Listen to your output</summary><EmbeddedReference token={token} asset={asset} hideName /></details> : <>{reviewed && <span className="text-xs font-medium text-emerald-700">Alignment checked ✓</span>}<button type="button" disabled={disabled} onClick={() => onReviewAssets([assetId])} className="text-left text-xs font-medium text-slate-700 underline">{reviewed ? 'Listen with project' : 'Check alignment'}</button></>}{(!submitted || editing) && !submittedIds.has(assetId) && <button type="button" aria-label={`Delete ${asset.originalName}`} disabled={disabled} onClick={() => deleteUpload(assetId)} className="min-h-9 text-xs font-medium text-red-700 underline disabled:opacity-40">{working === `delete:${assetId}` ? 'Deleting…' : 'Delete'}</button>}</div>
             </div>;
           })}
         </div>
       </div>}
+      {!isProduction && grouped && <section className="mt-4 rounded-lg border p-3"><h3 className="text-sm font-semibold">Stereo listening mix — your part only</h3><p className="mt-1 text-xs text-gray-600">Mix the selected tracks together in your recording software. Exclude the guide, other musicians and click. Export stereo from the same start point, including opening silence and the full ending. This mix is used for listening; your separate tracks remain available for production.</p><input aria-label="Choose stereo listening mix" type="file" disabled={disabled} accept="audio/*,.wav,.aiff,.aif,.flac,.m4a" onChange={event => setMixFile(event.target.files?.[0] || null)} className="mt-3 block w-full text-sm" /><button type="button" disabled={disabled || !mixFile} onClick={uploadMix} className="mt-2 rounded border px-3 py-2 text-sm">{working === 'mix-upload' ? 'Checking & uploading…' : 'Upload stereo listening mix'}</button><label className="mt-3 block text-sm">Listening mix for this contribution<select aria-label="Listening mix for this contribution" value={listeningMixId} disabled={disabled} onChange={event => setListeningMixId(event.target.value)} className="mt-1 block w-full rounded border p-2"><option value="">Choose an uploaded mix</option>{mixes.map(asset => <option key={asset._id} value={idOf(asset._id)}>{asset.originalName}</option>)}</select></label>{mixes.find(asset => idOf(asset._id) === listeningMixId) && <EmbeddedReference token={token} asset={mixes.find(asset => idOf(asset._id) === listeningMixId)} showDownload />}</section>}
       {!isProduction && <fieldset className="mt-4 rounded-lg border p-3 text-sm"><legend className="px-1 font-semibold">Royalties if your take is accepted</legend><p className="text-xs text-gray-600">Master royalties are included for accepted recordings. <SectionLink to="project-royalties">View the royalty split</SectionLink>.</p><label className="mt-3 flex items-start gap-2"><input type="checkbox" checked={songwriting} disabled={disabled} onChange={event => setSongwriting(event.target.checked)} className="mt-1" /><span>Also request songwriting credit</span></label></fieldset>}
       <label className="mt-4 block text-sm font-medium">Notes for the project owner (optional)<textarea value={notes} disabled={disabled} onChange={event => setNotes(event.target.value)} className="mt-1 w-full rounded border px-3 py-2 font-normal" rows={2} /></label>
       <p id="take-submission-status" role="status" className="mt-3 text-sm text-gray-600">{isProduction ? productionReady ? 'Your output is ready to submit.' : 'Upload your finished output to continue.' : stemSubmission.message || (pendingAlignment.length ? `Check alignment for ${pendingAlignment.length} stem${pendingAlignment.length === 1 ? '' : 's'} before submitting.` : `${selected.length} stem${selected.length === 1 ? '' : 's'} included. Ready to send for review.`)}</p>
